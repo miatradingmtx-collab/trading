@@ -1,0 +1,33 @@
+# ==============================================================================
+#            RENDER BLUEPRINT CONFIGURATION (INFRASTRUCTURE AS CODE)
+# ==============================================================================
+# Este archivo permite desplegar toda tu infraestructura en Render con un solo clic.
+# ==============================================================================
+services:
+  - type: web
+    name: trading-automation-bridge
+    env: python
+    plan: free # Usa el plan gratuito de Render
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: NOTION_TOKEN
+        sync: false # Pide al usuario el token de Notion en la web al desplegar
+        description: "Token secreto de integración de Notion (secret_...)"
+      - key: NOTION_DATABASE_ID
+        sync: false
+        description: "ID de la Base de Datos de Notion para la bitácora"
+      - key: GROK_API_KEY
+        sync: false
+        description: "Clave de API de Grok de xAI (Opcional)"
+      - key: GEMINI_API_KEY
+        sync: false
+        description: "Clave de API de Google Gemini (Opcional)"
+      - key: OPENAI_API_KEY
+        sync: false
+        description: "Clave de API de OpenAI ChatGPT (Opcional)"
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+        description: "JSON completo del Service Account de Firebase en una línea (Opcional)"
+
+
