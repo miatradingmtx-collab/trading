@@ -1006,6 +1006,94 @@ async def test_buy(simbolo: str = "XAUUSD", lote: float = 0.01):
     return {"status": "success", "result": res}
 
 
+@app.get("/test_boolean")
+async def test_boolean(activo: str = "XAUUSD", lote: float = 0.01):
+    """
+    Ruta de prueba para validar la lógica booleana en Firebase:
+    1. Fuerza las 11 confirmaciones a True en Firestore para el activo.
+    2. Lee el documento de Firestore y cuenta cuántas confirmaciones están en True.
+    3. Si la cantidad de confirmaciones True es >= 8, ejecuta una compra de prueba en MetaAPI.
+    4. Restaura las confirmaciones originales del activo.
+    """
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        return {"status": "error", "message": "Firebase no inicializado"}
+        
+    activo_normalizado = normalizar_activo(activo)
+    doc_ref = db.collection("trading_matrix").document(activo_normalizado)
+    
+    try:
+        # Guardar estado original
+        doc = doc_ref.get()
+        original_data = doc.to_dict() if doc.exists else None
+        
+        # 1. Forzar las 11 confirmaciones a True para la prueba
+        test_data = {
+            "confirmaciones_tecnicas": {
+                "soporte_resistencia_activo": True,
+                "medias_moviles_alineadas": True,
+                "rsi_sobrecompra_sobreventa": True,
+                "order_block_detectado": True,
+                "fvg_detectado": True,
+                "breaker_block_detectado": True,
+                "sweep_liquidez_detectado": True
+            },
+            "confirmaciones_fundamentales": {
+                "noticias_impacto_favorables": True,
+                "ipo_spo_liquidez_positiva": True
+            },
+            "confirmaciones_institucionales": {
+                "dark_pools_compra_masiva": True,
+                "heatmap_ordenes_limite": True
+            },
+            "score_porcentaje": 100.0,
+            "activo": activo_normalizado
+        }
+        doc_ref.set(test_data, merge=True)
+        print(f"| TEST BOOLEAN | Confirmaciones forzadas a True para {activo_normalizado}")
+        
+        # 2. Leer de nuevo y contar
+        doc_test = doc_ref.get()
+        data_test = doc_test.to_dict()
+        
+        # Contar confirmaciones True
+        true_count = 0
+        categories = ["confirmaciones_tecnicas", "confirmaciones_fundamentales", "confirmaciones_institucionales"]
+        for cat in categories:
+            if cat in data_test:
+                for field, val in data_test[cat].items():
+                    if val is True or val == 1:
+                        true_count += 1
+                        
+        print(f"| TEST BOOLEAN | Conteo de confirmaciones True en Firebase para {activo_normalizado}: {true_count}")
+        
+        result_msg = ""
+        # 3. Validar si es >= 8
+        if true_count >= 8:
+            print(f"| TEST BOOLEAN SUCCESS | Conteo ({true_count}) >= 8. Autorizando compra de prueba...")
+            from mt5_executor_cloud import abrir_posicion_test
+            trade_res = await abrir_posicion_test(activo_normalizado, lote)
+            result_msg = f"Aprobado (Conteo: {true_count} >= 8). Trade result: {trade_res}"
+        else:
+            result_msg = f"Rechazado (Conteo: {true_count} < 8)."
+            
+        # 4. Restaurar original si existía
+        if original_data:
+            doc_ref.set(original_data)
+            print(f"| TEST BOOLEAN | Estado original restaurado para {activo_normalizado}")
+            
+        return {
+            "status": "success",
+            "activo": activo_normalizado,
+            "confirmaciones_true_detectadas": true_count,
+            "resultado_validacion": result_msg
+        }
+        
+    except Exception as e:
+        print(f"| TEST BOOLEAN ERROR | Ocurrió un error en el test: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 
 @app.post("/webhook_anomaly")
 def recibir_anomalia(anomaly: MarketAnomaly, background_tasks: BackgroundTasks):
