@@ -69,11 +69,23 @@ try:
                     match = pattern.search(raw_json)
                     if match:
                         val = match.group(1)
-                        val = val.replace('\\"', '"').replace("\\'", "'")
+                        # Intentar descodificar con json.loads para resolver escapes estándar de JSON
+                        try:
+                            val = json.loads(f'"{val}"')
+                        except Exception:
+                            val = val.replace('\\"', '"').replace("\\'", "'")
+                        
+                        # Limpieza profunda de la clave privada
                         if key == "private_key":
+                            # Convertir representaciones literales de saltos de línea en newlines reales
                             val = val.replace('\\\\n', '\n').replace('\\n', '\n')
+                            # Resolver slashes escapados comunes en base64 (\/ -> /)
+                            val = val.replace('\\/', '/')
+                            # Eliminar cualquier diagonal invertida remanente para evitar fallos de PEM
+                            val = val.replace('\\', '')
                         else:
                             val = val.replace('\\\\n', '\n').replace('\\n', '\n')
+                        
                         extracted[key] = val
                 
                 if "private_key" in extracted and "client_email" in extracted:

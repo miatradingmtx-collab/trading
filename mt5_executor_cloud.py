@@ -536,7 +536,7 @@ async def ejecutar_escaner_cloud(account, connection):
         
     killzone_activa = obtener_nombre_killzone()
     if killzone_activa:
-        print(f"| ESCANER CLOUD | Sesión activa: {killzone_activa} | Escaneando 8 activos en H1...")
+        print(f"| ESCANER CLOUD | Sesión activa: {killzone_activa} | Escaneando {len(ACTIVOS)} activos en H1...")
     else:
         print("| ESCANER CLOUD | Fuera de horario de Killzones. Sincronizando pero entradas desactivadas.")
         
