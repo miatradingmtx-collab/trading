@@ -605,3 +605,64 @@ async def run_escaner_loop():
         except Exception as e:
             print(f"| RUNNER CLOUD ERROR | Ocurrió un fallo en el escáner: {e}")
         await asyncio.sleep(60) # Ejecutar cada 60 segundos
+
+async def abrir_posicion_test(simbolo: str, lote: float) -> str:
+    """Función de prueba para abrir una posición directamente en MetaAPI."""
+    try:
+        from metaapi_cloud_sdk import MetaApi
+    except ImportError:
+        return "Error: metaapi-cloud-sdk no instalada"
+        
+    if not METAAPI_TOKEN:
+        return "Error: falta METAAPI_TOKEN"
+        
+    print(f"| TEST TRADE | Intentando abrir compra de prueba en {simbolo} (Lote: {lote})...")
+    api = MetaApi(METAAPI_TOKEN)
+    try:
+        accounts_data = await api.metatrader_account_api.get_accounts_with_infinite_scroll_pagination()
+        accounts = accounts_data if isinstance(accounts_data, list) else (accounts_data.get('items', []) if hasattr(accounts_data, 'get') else getattr(accounts_data, 'items', []))
+        account = next((a for a in accounts if a.login == MT5_LOGIN), None)
+        
+        if not account:
+            return f"Error: Cuenta demo {MT5_LOGIN} no encontrada en MetaAPI"
+            
+        await account.wait_connected()
+        connection = account.get_rpc_connection()
+        await connection.connect()
+        await connection.wait_synchronized()
+        
+        # Obtener símbolo del broker
+        simbolo_broker = MAPEO_BROKER.get(simbolo, simbolo)
+        
+        # Generar clientId
+        import random
+        short_sym = simbolo_broker.replace("/", "").replace("-", "")[:6]
+        client_id = f"T_{short_sym}_{random.randint(1000, 9999)}"
+        options = {
+            'comment': 'Test Buy',
+            'clientId': client_id
+        }
+        
+        # Obtener precio para TP/SL estimados
+        tick = await connection.get_symbol_price(simbolo_broker)
+        if not tick:
+            return f"Error: No se pudo obtener precio para {simbolo_broker}"
+            
+        precio_ej = tick.get('ask', 0.0)
+        
+        # TP/SL amplios
+        if simbolo == "XAUUSD":
+            sl = precio_ej - 5.0
+            tp = precio_ej + 10.0
+        else:
+            sl = precio_ej * 0.99
+            tp = precio_ej * 1.02
+            
+        print(f"| TEST TRADE | Enviando compra al broker para {simbolo_broker} (Precio: {precio_ej}, SL: {sl}, TP: {tp})")
+        result = await connection.create_market_buy_order(simbolo_broker, lote, sl, tp, options)
+        order_id = result.get("orderId", "N/A")
+        print(f"| TEST TRADE SUCCESS | Posición abierta con éxito. Ticket ID: {order_id}")
+        return f"Exito: Orden colocada. Ticket ID: {order_id}"
+    except Exception as e:
+        print(f"| TEST TRADE ERROR | Fallo la orden de prueba: {e}")
+        return f"Error: {e}"

@@ -995,6 +995,17 @@ def recibir_alerta_get(
     }
 
 
+@app.get("/test_buy")
+async def test_buy(simbolo: str = "XAUUSD", lote: float = 0.01):
+    """
+    Ruta de prueba para abrir una posición de compra en el broker de forma inmediata.
+    Ejemplo de uso: http://localhost:8080/test_buy?simbolo=XAUUSD&lote=0.01
+    """
+    from mt5_executor_cloud import abrir_posicion_test
+    res = await abrir_posicion_test(simbolo, lote)
+    return {"status": "success", "result": res}
+
+
 
 @app.post("/webhook_anomaly")
 def recibir_anomalia(anomaly: MarketAnomaly, background_tasks: BackgroundTasks):
