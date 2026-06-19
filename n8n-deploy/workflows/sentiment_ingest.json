@@ -1,0 +1,142 @@
+{
+  "name": "Leona de la Liquidez - Polling Ingestion",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": "interval",
+        "interval": 15,
+        "unit": "minutes"
+      },
+      "id": "e674b889-1234-4567-89ab-cdef01234567",
+      "name": "Cron (Cada 15 min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=S-1&output=xml",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "id": "a123b889-1234-4567-89ab-cdef01234567",
+      "name": "SEC S-1 (IPOs XML)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=S-3&output=xml",
+        "options": {}
+      },
+      "id": "b123b889-1234-4567-89ab-cdef01234567",
+      "name": "SEC S-3 (SPOs XML)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        300,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extraer y normalizar los datos de la SEC\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  // Extraer el título o entrada del XML\n  const title = item.json.title || '';\n  const link = item.json.link || '';\n  \n  if (title) {\n    results.push({\n      json: {\n        titulo: title,\n        enlace: link,\n        fecha_registro: new Date().toISOString(),\n        categoria: \"IPO_SPO_REGISTRATION\",\n        impacto_estimado: \"NEUTRAL\"\n      }\n    });\n  }\n}\nreturn results;"
+      },
+      "id": "c123b889-1234-4567-89ab-cdef01234567",
+      "name": "Parsear XML SEC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        550,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://puente-trading.onrender.com/webhook_anomaly",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"activo\": \"SP500\",\n  \"tipo\": \"DARK_POOL_PRINT\",\n  \"precio\": 0.0,\n  \"volumen_usd\": 10000000.0,\n  \"sentimiento\": \"BULLISH\",\n  \"detalles\": \"Inyección de liquidez potencial detectada en SEC: \" + $json.titulo\n}",
+        "options": {}
+      },
+      "id": "d123b889-1234-4567-89ab-cdef01234567",
+      "name": "Enviar a FastAPI (Mia)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        800,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Cron (Cada 15 min)": {
+      "main": [
+        [
+          {
+            "node": "SEC S-1 (IPOs XML)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SEC S-3 (SPOs XML)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SEC S-1 (IPOs XML)": {
+      "main": [
+        [
+          {
+            "node": "Parsear XML SEC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SEC S-3 (SPOs XML)": {
+      "main": [
+        [
+          {
+            "node": "Parsear XML SEC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear XML SEC": {
+      "main": [
+        [
+          {
+            "node": "Enviar a FastAPI (Mia)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "12345678-abcd-ef01-2345-6789abcdef01",
+  "id": "1",
+  "meta": {
+    "templateCredentialCommunication": true
+  }
+}
