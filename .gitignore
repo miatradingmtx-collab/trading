@@ -1,0 +1,23 @@
+# Python local files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+ENV/
+env/
+
+# Excel files
+*.xlsx
+~$*.xlsx
+
+# Git binaries and installers
+Git/
+*.exe
+
+# Secrets and JSON keys
+.env
+/*.json
+!n8n-deploy/workflows/*.json
