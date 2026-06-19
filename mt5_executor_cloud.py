@@ -34,7 +34,8 @@ def print(*args, **kwargs):
 
 
 # --- CONFIGURACIÓN ---
-FASTAPI_URL = os.getenv("FASTAPI_URL", "https://puente-trading.onrender.com")
+FASTAPI_URL = os.getenv("FASTAPI_URL", "http://localhost:8080")
+
 ACCESS_TOKEN = os.getenv("BRIDGE_ACCESS_TOKEN", "tu-token-seguro-de-acceso")
 
 METAAPI_TOKEN = os.getenv("METAAPI_TOKEN")
@@ -46,7 +47,8 @@ MT5_SERVER = os.getenv("MT5_SERVER", "MetaQuotes-Demo")
 # ticket -> {"volume": float, "symbol": str, "type": int, "price_open": float, "tp": float, "sl": float, "parcial_tomado": bool}
 POSICIONES_ACTIVAS = {}
 
-ACTIVOS = ["NASDAQ100", "SP500", "US30", "BTC", "GBPJPY", "GBPUSD", "EURUSD", "XAUUSD"]
+ACTIVOS = ["NASDAQ100", "SP500", "US30", "GBPJPY", "GBPUSD", "EURUSD", "XAUUSD"]
+
 
 # Mapeo de nombres de activos locales a símbolos del Broker
 MAPEO_BROKER = {
@@ -214,15 +216,16 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
     payload = {
         "activo": activo,
         "confirmaciones_tecnicas": {
-            "soporte_resistencia_activo": soporte_activo,
-            "medias_moviles_alineadas": ma_alineada,
-            "rsi_sobrecompra_sobreventa": (rsi_val >= 80 or rsi_val <= 20),
-            "order_block_detectado": confirmaciones["order_block_detectado"],
-            "fvg_detectado": confirmaciones["fvg_detectado"],
-            "breaker_block_detectado": confirmaciones["breaker_block_detectado"],
-            "sweep_liquidez_detectado": confirmaciones["sweep_liquidez_detectado"]
+            "soporte_resistencia_activo": bool(soporte_activo),
+            "medias_moviles_alineadas": bool(ma_alineada),
+            "rsi_sobrecompra_sobreventa": bool(rsi_val >= 80 or rsi_val <= 20),
+            "order_block_detectado": bool(confirmaciones["order_block_detectado"]),
+            "fvg_detectado": bool(confirmaciones["fvg_detectado"]),
+            "breaker_block_detectado": bool(confirmaciones["breaker_block_detectado"]),
+            "sweep_liquidez_detectado": bool(confirmaciones["sweep_liquidez_detectado"])
         }
     }
+
     
     try:
         async with httpx.AsyncClient() as client:
