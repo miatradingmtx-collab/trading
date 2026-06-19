@@ -46,12 +46,51 @@ try:
     
     # 2. Si no hay archivo, intentar cargar desde la variable de entorno JSON (para Render/Nube)
     elif os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON"):
-        service_account_info = json.loads(os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON"))
-        cred = credentials.Certificate(service_account_info)
-        firebase_admin.initialize_app(cred)
-        firebase_inicializado = True
-        db = firestore.client()
-        print("| FIREBASE | Inicializado con éxito usando variable de entorno.")
+        raw_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON").strip()
+        service_account_info = None
+        try:
+            service_account_info = json.loads(raw_json)
+        except Exception as je:
+            print(f"| FIREBASE | json.loads falló ({je}). Intentando método alternativo de extracción por Regex...")
+            try:
+                import re
+                keys = [
+                    "type", "project_id", "private_key_id", "private_key",
+                    "client_email", "client_id", "auth_uri", "token_uri",
+                    "auth_provider_x509_cert_url", "client_x509_cert_url", "universe_domain"
+                ]
+                extracted = {}
+                for key in keys:
+                    # Coincidir con "llave": "valor" con comillas simples o dobles
+                    pattern = re.compile(
+                        r'[\'"]' + re.escape(key) + r'[\'"]\s*:\s*[\'"](.*?)[\'"]',
+                        re.DOTALL
+                    )
+                    match = pattern.search(raw_json)
+                    if match:
+                        val = match.group(1)
+                        val = val.replace('\\"', '"').replace("\\'", "'")
+                        if key == "private_key":
+                            val = val.replace('\\\\n', '\n').replace('\\n', '\n')
+                        else:
+                            val = val.replace('\\\\n', '\n').replace('\\n', '\n')
+                        extracted[key] = val
+                
+                if "private_key" in extracted and "client_email" in extracted:
+                    service_account_info = extracted
+                    print("| FIREBASE | Datos de cuenta de servicio extraídos con éxito vía Regex.")
+                else:
+                    raise ValueError("Faltan campos esenciales (private_key o client_email) tras extracción por Regex.")
+            except Exception as e2:
+                print(f"| FIREBASE ERROR | Falló también la extracción por Regex: {e2}")
+                raise e2
+        
+        if service_account_info:
+            cred = credentials.Certificate(service_account_info)
+            firebase_admin.initialize_app(cred)
+            firebase_inicializado = True
+            db = firestore.client()
+            print("| FIREBASE | Inicializado con éxito usando variable de entorno.")
     else:
         print("| FIREBASE WARNING | No se encontró archivo serviceAccountKey.json ni variable de entorno. Firebase no guardará datos.")
 except Exception as e:
@@ -71,7 +110,7 @@ async def startup_event():
     if firebase_inicializado and db is not None:
         try:
             # Lista de activos a validar
-            activos = ["NASDAQ100", "SP500", "US30", "BTC", "GBPJPY", "GBPUSD", "EURUSD", "XAUUSD"]
+            activos = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD"]
             coleccion_ref = db.collection("trading_matrix")
             
             print("| FIREBASE | Verificando inicialización de la matriz de activos...")

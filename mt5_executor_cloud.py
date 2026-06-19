@@ -47,7 +47,7 @@ MT5_SERVER = os.getenv("MT5_SERVER", "MetaQuotes-Demo")
 # ticket -> {"volume": float, "symbol": str, "type": int, "price_open": float, "tp": float, "sl": float, "parcial_tomado": bool}
 POSICIONES_ACTIVAS = {}
 
-ACTIVOS = ["NASDAQ100", "SP500", "US30", "GBPJPY", "GBPUSD", "EURUSD", "XAUUSD"]
+ACTIVOS = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD"]
 
 
 # Mapeo de nombres de activos locales a símbolos del Broker
