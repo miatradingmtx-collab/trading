@@ -22,5 +22,5 @@ COPY . .
 # Exponer el puerto por defecto de FastAPI
 EXPOSE 8080
 
-# Comando para ejecutar la aplicación
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
+# Comando para ejecutar la aplicación (usando formato shell para permitir la expansión de $PORT)
+CMD uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080}
