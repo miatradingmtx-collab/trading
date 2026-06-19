@@ -1513,10 +1513,154 @@ def update_collective_memory(req: CollectiveMemoryRequest, authorization: Option
         print(f"| FIREBASE ERROR | Error al actualizar memoria colectiva: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-    # ------------------------------------------------------------------------------
-    # Instrucción de ejecución local:
-    # Para ejecutar este servicio web en tu máquina, abre una terminal y corre:
-    # pip install fastapi uvicorn requests pydantic yfinance
-    # uvicorn app:app --reload --port 8000
-    # ------------------------------------------------------------------------------
+
+def consultar_llm_rss_helper(xml_data: str, model_type: str) -> str:
+    """Helper to query the LLMs with the RSS XML content for testing"""
+    prompt = (
+        "Analiza el siguiente feed XML RSS que contiene las métricas y aprendizajes de trading del bot de IA 'Mia'. "
+        "Resume el estado de los activos, identifica el de mejor rendimiento actual (mayor win rate o score) "
+        "y propón una conclusión corta de 1 párrafo para guiar la operativa del día.\n\n"
+        f"Feed XML:\n{xml_data}"
+    )
+    system_instruction = "Eres un asistente de trading cuantitativo y experto en gestión de riesgos."
+
+    if model_type == "gemini":
+        if GEMINI_API_KEY == "TU_LLAVE_DE_GEMINI" or not GEMINI_API_KEY:
+            return "Gemini no configurado"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "systemInstruction": {"parts": [{"text": system_instruction}]}
+        }
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=15)
+            if response.status_code == 200:
+                return response.json()["candidates"][0]["content"]["parts"][0]["text"]
+            return f"Error {response.status_code}: {response.text}"
+        except Exception as e:
+            return f"Excepción en Gemini: {e}"
+
+    elif model_type == "chatgpt":
+        if OPENAI_API_KEY == "TU_LLAVE_DE_OPENAI" or not OPENAI_API_KEY:
+            return "ChatGPT no configurado"
+        url = "https://api.openai.com/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt}
+            ]
+        }
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=15)
+            if response.status_code == 200:
+                return response.json()["choices"][0]["message"]["content"]
+            return f"Error {response.status_code}: {response.text}"
+        except Exception as e:
+            return f"Excepción en ChatGPT: {e}"
+
+    elif model_type == "grok":
+        if GROK_API_KEY == "TU_LLAVE_DE_GROK" or not GROK_API_KEY:
+            return "Grok no configurado"
+        url = "https://api.x.ai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {GROK_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "grok-2",
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt}
+            ]
+        }
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=15)
+            if response.status_code == 200:
+                return response.json()["choices"][0]["message"]["content"]
+            return f"Error {response.status_code}: {response.text}"
+        except Exception as e:
+            return f"Excepción en Grok: {e}"
+            
+    return "Modelo no soportado"
+
+
+@app.get("/test_rss_llm_polling")
+def test_rss_llm_polling(authorization: Optional[str] = Header(None)):
+    """
+    Simulates polling of the XML RSS feed and queries configured LLMs
+    (Gemini, ChatGPT, Grok) with the XML content to test their parsing/analysis capacity.
+    """
+    verificar_token(authorization)
+    
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        raise HTTPException(status_code=503, detail="Firebase no inicializado")
+        
+    try:
+        # 1. Fetch XML feed content
+        docs = db.collection("trading_matrix").stream()
+        xml_items = []
+        for doc in docs:
+            activo_id = doc.id
+            data = doc.to_dict()
+            apoyo = data.get("aprendizaje_mia", {})
+            item_xml = f"""
+        <activo name="{activo_id}">
+            <trades_totales>{apoyo.get('trades_totales', 0)}</trades_totales>
+            <trades_ganados>{apoyo.get('trades_ganados', 0)}</trades_ganados>
+            <win_rate_historico>{apoyo.get('win_rate_historico', 50.0)}</win_rate_historico>
+            <racha_actual>{apoyo.get('racha_actual', 0)}</racha_actual>
+            <sentimiento_acumulado>{apoyo.get('sentimiento_acumulado', 'NEUTRAL')}</sentimiento_acumulado>
+            <factor_ajuste_probabilidad>{apoyo.get('factor_ajuste_probabilidad', 0.0)}</factor_ajuste_probabilidad>
+            <ultimo_update>{data.get('ultimo_update', '')}</ultimo_update>
+            <score_porcentaje>{data.get('score_porcentaje', 0.0)}</score_porcentaje>
+        </activo>"""
+            xml_items.append(item_xml)
+            
+        xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<mia_trading_learnings>
+    <canal>
+        <titulo>MIA Trading Bot learnings</titulo>
+        <descripcion>Base de conocimiento (KB) de Mia en Trading Algoritmico</descripcion>
+        <generacion>{datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, 'timezone') else datetime.datetime.now().isoformat()}</generacion>
+        <activos>{"".join(xml_items)}
+        </activos>
+    </canal>
+</mia_trading_learnings>"""
+
+        # 2. Run LLM tests
+        responses = {}
+        active_llms = []
+        
+        # Test Gemini
+        if GEMINI_API_KEY and GEMINI_API_KEY != "TU_LLAVE_DE_GEMINI":
+            active_llms.append("Gemini")
+            responses["Gemini"] = consultar_llm_rss_helper(xml_content, "gemini")
+            
+        # Test ChatGPT (OpenAI)
+        if OPENAI_API_KEY and OPENAI_API_KEY != "TU_LLAVE_DE_OPENAI":
+            active_llms.append("ChatGPT")
+            responses["ChatGPT"] = consultar_llm_rss_helper(xml_content, "chatgpt")
+            
+        # Test Grok
+        if GROK_API_KEY and GROK_API_KEY != "TU_LLAVE_DE_GROK":
+            active_llms.append("Grok")
+            responses["Grok"] = consultar_llm_rss_helper(xml_content, "grok")
+            
+        return {
+            "status": "success",
+            "active_llms": active_llms,
+            "xml_preview": xml_content[:400] + "...",
+            "llm_responses": responses
+        }
+    except Exception as e:
+        print(f"| TEST RSS LLM ERROR | {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
