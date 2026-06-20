@@ -1809,3 +1809,44 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
     except Exception as e:
         print(f"| AUDITORÍA ERROR | {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/webhook_marcar_parcial")
+def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[str] = Header(None)):
+    """
+    Recibe la confirmación desde Botpress (MetaApi) de que el CIERRE PARCIAL se ha ejecutado.
+    Actualiza la lógica booleana en Firebase.
+    """
+    verificar_token(authorization)
+    
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        raise HTTPException(status_code=503, detail="Firebase no inicializado")
+        
+    activo_norm = normalizar_activo(ejecucion.activo)
+    doc_ref = db.collection("trading_matrix").document(activo_norm)
+    
+    try:
+        data = doc_ref.get().to_dict() or {}
+        data["estado_ejecucion"] = "PARCIAL_CERRADO"
+        data["parcial_tomado"] = True
+        doc_ref.set(data, merge=True)
+        
+        # Generar Log en Firebase
+        fecha = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        audit_ref = db.collection("mia_audit_logs").document(f"PARCIAL_{ejecucion.ticket}_{ejecucion.activo}")
+        audit_ref.set({
+            "tipo": "CIERRE_PARCIAL_80",
+            "ticket": ejecucion.ticket,
+            "activo": ejecucion.activo,
+            "score_confluencias": ejecucion.score,
+            "precio_ejecucion": ejecucion.precio_ejecucion,
+            "fecha": fecha,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+            
+        print(f"| AUDITORÍA PARCIAL | Cierre Parcial registrado en Firebase para {ejecucion.activo}")
+        
+        return {"status": "success", "mensaje": "Cierre Parcial auditado en Firebase"}
+    except Exception as e:
+        print(f"| AUDITORÍA ERROR | {e}")
+        raise HTTPException(status_code=500, detail=str(e))
