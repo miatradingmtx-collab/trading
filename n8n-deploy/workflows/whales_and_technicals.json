@@ -1,0 +1,241 @@
+{
+  "name": "Mia Monitor - Whales & Technicals (Cierre Parcial)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "trigger",
+      "name": "⏰ Cada 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://finance.yahoo.com/news/",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "fetch-yahoo-liquidez",
+      "name": "🌐 Fetch Yahoo (Volumen)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        200
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://www.investing.com/economic-calendar/",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "fetch-investing-fvg",
+      "name": "🌐 Fetch Investing (Whales/IPO)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        400
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.OPENAI_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-4o-mini"
+            },
+            {
+              "name": "messages",
+              "value": "=[{\"role\": \"system\", \"content\": \"Eres un analista quant institucional. Vas a recibir datos crudos financieros. Debes evaluar si hay debilidad en las ballenas (whales_perdiendo_fuerza: true), si hubo barrido de liquidez sin volumen (sweep_liquidez: true), y si técnicamente el FVG/RSI indica cierre de parciales. Responde ÚNICAMENTE en JSON.\"}, {\"role\": \"user\", \"content\": \"Datos Yahoo: {{$json.yahoo_data}}\\nDatos Investing: {{$json.investing_data}}\"}]"
+            },
+            {
+              "name": "response_format",
+              "value": "={\"type\": \"json_object\"}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "llm-validation",
+      "name": "🧠 Validar con LLM (Polling)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const yahooData = $('🌐 Fetch Yahoo (Volumen)').first()?.json?.data || '';\nconst investingData = $('🌐 Fetch Investing (Whales/IPO)').first()?.json?.data || '';\n\nreturn [\n  {\n    json: {\n      yahoo_data: yahooData.substring(0, 4000),\n      investing_data: investingData.substring(0, 4000)\n    }\n  }\n];"
+      },
+      "id": "prepare-llm-payload",
+      "name": "⚙️ Preparar Data para LLM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BOTPRESS_WEBHOOK_URL}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "evento",
+              "value": "CIERRE_PARCIAL"
+            },
+            {
+              "name": "miel_refinada",
+              "value": "={{$json.choices[0].message.content}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "botpress-webhook",
+      "name": "🤖 Mandar Miel Refinada a Botpress",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "⏰ Cada 15 min": {
+      "main": [
+        [
+          {
+            "node": "🌐 Fetch Yahoo (Volumen)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🌐 Fetch Investing (Whales/IPO)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌐 Fetch Yahoo (Volumen)": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Preparar Data para LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌐 Fetch Investing (Whales/IPO)": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Preparar Data para LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Preparar Data para LLM": {
+      "main": [
+        [
+          {
+            "node": "🧠 Validar con LLM (Polling)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Validar con LLM (Polling)": {
+      "main": [
+        [
+          {
+            "node": "🤖 Mandar Miel Refinada a Botpress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": [
+    "mia",
+    "whales",
+    "parciales"
+  ]
+}

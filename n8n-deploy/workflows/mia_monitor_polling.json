@@ -1,82 +1,125 @@
 {
-  "name": "Mia Monitor – Polling 24/7 + Keep-Alive",
+  "name": "Mia Monitor - Polling Fundamental & LLM",
   "nodes": [
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "minutes", "minutesInterval": 14 }]
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 14
+            }
+          ]
         }
       },
       "id": "trigger-keep-alive",
       "name": "⏰ Cada 14 min (Keep-Alive)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "minutes", "minutesInterval": 5 }]
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
         }
       },
       "id": "trigger-monitor",
-      "name": "⏰ Cada 5 min (Monitor páginas)",
+      "name": "⏰ Cada 5 min (Monitor Fundamental)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [240, 500]
+      "position": [
+        240,
+        500
+      ]
     },
     {
       "parameters": {
         "url": "={{ $env.RENDER_APP_URL }}/health",
-        "options": { "timeout": 10000 }
+        "options": {
+          "timeout": 10000
+        }
       },
       "id": "ping-render-app",
       "name": "💓 Ping Render app.py",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 240],
+      "position": [
+        480,
+        240
+      ],
       "continueOnFail": true
     },
     {
       "parameters": {
         "url": "={{ $env.N8N_RENDER_URL }}/healthz",
-        "options": { "timeout": 10000 }
+        "options": {
+          "timeout": 10000
+        }
       },
       "id": "ping-n8n",
       "name": "💓 Ping n8n self",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 360],
+      "position": [
+        480,
+        360
+      ],
       "continueOnFail": true
     },
     {
       "parameters": {
-        "url": "https://es.tradingview.com/markets/",
+        "url": "={{ $env.RENDER_APP_URL }}/get_matrix_activos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.BRIDGE_ACCESS_TOKEN }}"
+            }
+          ]
+        },
         "options": {
-          "timeout": 15000,
-          "response": { "response": { "responseFormat": "text" } }
+          "timeout": 10000
         }
       },
-      "id": "fetch-tradingview",
-      "name": "🌐 Fetch TradingView",
+      "id": "get-activos",
+      "name": "📥 Obtener Activos",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 500],
-      "continueOnFail": true
+      "position": [
+        480,
+        500
+      ]
     },
     {
       "parameters": {
         "url": "https://www.investing.com/economic-calendar/",
         "options": {
           "timeout": 15000,
-          "response": { "response": { "responseFormat": "text" } }
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
         }
       },
       "id": "fetch-investing",
-      "name": "🌐 Fetch Investing.com (Calendario)",
+      "name": "🌐 Fetch Investing.com",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 600],
+      "position": [
+        720,
+        400
+      ],
       "continueOnFail": true
     },
     {
@@ -84,110 +127,144 @@
         "url": "https://finance.yahoo.com/news/",
         "options": {
           "timeout": 15000,
-          "response": { "response": { "responseFormat": "text" } }
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
         }
       },
-      "id": "fetch-yahoo-finance",
-      "name": "🌐 Fetch Yahoo Finance News",
+      "id": "fetch-yahoo",
+      "name": "🌐 Fetch Yahoo News",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 700],
+      "position": [
+        720,
+        600
+      ],
       "continueOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "// Detectar cambios relevantes en las páginas monitoreadas\nconst tvData = $('🌐 Fetch TradingView').first()?.json?.data || '';\nconst invData = $('🌐 Fetch Investing.com (Calendario)').first()?.json?.data || '';\nconst yhData = $('🌐 Fetch Yahoo Finance News').first()?.json?.data || '';\n\n// Keywords que despiertan a Mia\nconst KEYWORDS = [\n  'NASDAQ', 'S&P 500', 'DOW JONES', 'GOLD', 'XAUUSD', 'BTC', 'BITCOIN',\n  'NFP', 'Non-Farm', 'CPI', 'FOMC', 'Federal Reserve', 'Fed',\n  'EURUSD', 'GBPUSD', 'GBPJPY', 'Market crash', 'Flash crash',\n  'Interest rate', 'GDP', 'Inflation', 'Unemployment', 'Volatility'\n];\n\nconst allContent = (tvData + invData + yhData).toUpperCase();\nconst detectedKeywords = KEYWORDS.filter(kw => allContent.includes(kw.toUpperCase()));\n\nconst alert = {\n  timestamp: new Date().toISOString(),\n  source: 'n8n-monitor',\n  detected_keywords: detectedKeywords,\n  keyword_count: detectedKeywords.length,\n  should_alert_mia: detectedKeywords.length >= 3,\n  summary: detectedKeywords.length >= 3\n    ? `🚨 Alerta: ${detectedKeywords.length} palabras clave detectadas: ${detectedKeywords.slice(0, 5).join(', ')}`\n    : `✅ Sin cambios críticos. Keywords: ${detectedKeywords.length}`\n};\n\nreturn [{ json: alert }];"
+        "jsCode": "const activos = $('📥 Obtener Activos').first()?.json?.activos || [];\nconst invData = $('🌐 Fetch Investing.com').first()?.json?.data || '';\nconst yhData = $('🌐 Fetch Yahoo News').first()?.json?.data || '';\nconst allContent = (invData + '\\n' + yhData);\n\nconst results = [];\nfor (const activo of activos) {\n  results.push({\n    json: {\n      activo: activo,\n      texto_noticias: allContent.substring(0, 5000)\n    }\n  });\n}\nreturn results;"
       },
-      "id": "analyze-pages",
-      "name": "🧠 Analizar cambios en páginas",
+      "id": "prepare-payloads",
+      "name": "🧠 Preparar Payloads",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [720, 600]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": false },
-          "conditions": [
-            {
-              "leftValue": "={{ $json.should_alert_mia }}",
-              "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
-            }
-          ]
-        }
-      },
-      "id": "check-alert",
-      "name": "🔀 ¿Debe alertar a Mia?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [960, 600]
+      "position": [
+        960,
+        500
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.RENDER_APP_URL }}/webhook_market_alert",
+        "url": "={{ $env.RENDER_APP_URL }}/webhook_fundamental_update",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer {{ $env.BRIDGE_ACCESS_TOKEN }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.BRIDGE_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "source", "value": "n8n-monitor" },
-            { "name": "alert_type", "value": "market_keyword_detected" },
-            { "name": "keywords", "value": "={{ $json.detected_keywords.join(', ') }}" },
-            { "name": "summary", "value": "={{ $json.summary }}" },
-            { "name": "timestamp", "value": "={{ $json.timestamp }}" }
+            {
+              "name": "activo",
+              "value": "={{ $json.activo }}"
+            },
+            {
+              "name": "texto_noticias",
+              "value": "={{ $json.texto_noticias }}"
+            }
           ]
         },
-        "options": { "timeout": 10000 }
+        "options": {
+          "timeout": 30000
+        }
       },
-      "id": "alert-mia",
-      "name": "🚨 Despertar a Mia (Webhook)",
+      "id": "fundamental-webhook",
+      "name": "🚨 Enviar a Mia (Fundamental)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 500],
-      "continueOnFail": true
-    },
-    {
-      "parameters": {
-        "jsCode": "// Log cuando NO hay alerta\nconst data = $input.first().json;\nconsole.log(`[${data.timestamp}] Sin alerta. Keywords detectadas: ${data.keyword_count}`);\nreturn [{ json: { status: 'no_alert', ...data } }];"
-      },
-      "id": "log-no-alert",
-      "name": "📋 Log sin alerta",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1200, 700]
+      "position": [
+        1200,
+        500
+      ]
     }
   ],
   "connections": {
     "⏰ Cada 14 min (Keep-Alive)": {
-      "main": [[
-        { "node": "💓 Ping Render app.py", "type": "main", "index": 0 },
-        { "node": "💓 Ping n8n self", "type": "main", "index": 0 }
-      ]]
-    },
-    "⏰ Cada 5 min (Monitor páginas)": {
-      "main": [[
-        { "node": "🌐 Fetch TradingView", "type": "main", "index": 0 },
-        { "node": "🌐 Fetch Investing.com (Calendario)", "type": "main", "index": 0 },
-        { "node": "🌐 Fetch Yahoo Finance News", "type": "main", "index": 0 }
-      ]]
-    },
-    "🌐 Fetch Yahoo Finance News": {
-      "main": [[{ "node": "🧠 Analizar cambios en páginas", "type": "main", "index": 0 }]]
-    },
-    "🧠 Analizar cambios en páginas": {
-      "main": [[{ "node": "🔀 ¿Debe alertar a Mia?", "type": "main", "index": 0 }]]
-    },
-    "🔀 ¿Debe alertar a Mia?": {
       "main": [
-        [{ "node": "🚨 Despertar a Mia (Webhook)", "type": "main", "index": 0 }],
-        [{ "node": "📋 Log sin alerta", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "💓 Ping Render app.py",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "💓 Ping n8n self",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏰ Cada 5 min (Monitor Fundamental)": {
+      "main": [
+        [
+          {
+            "node": "📥 Obtener Activos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 Obtener Activos": {
+      "main": [
+        [
+          {
+            "node": "🌐 Fetch Investing.com",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🌐 Fetch Yahoo News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌐 Fetch Yahoo News": {
+      "main": [
+        [
+          {
+            "node": "🧠 Preparar Payloads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Preparar Payloads": {
+      "main": [
+        [
+          {
+            "node": "🚨 Enviar a Mia (Fundamental)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
@@ -197,9 +274,10 @@
     "callerPolicy": "workflowsFromSameOwner",
     "errorWorkflow": ""
   },
-  "tags": ["mia", "trading", "monitor", "keep-alive"],
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "mia-trading-bot"
-  }
+  "tags": [
+    "mia",
+    "trading",
+    "fundamental",
+    "llm"
+  ]
 }

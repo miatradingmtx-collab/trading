@@ -133,13 +133,14 @@ async def startup_event():
                     # Crear el esquema booleano inicial si el documento no existe
                     esquema_activo = {
                         "activo": activo,
+                        "estado_ejecucion": "INACTIVO",
                         "ultimo_update": datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat(),
                         "score_porcentaje": 0.0,
                         "gatillo_entrada": False,
                         
                         "confirmaciones_tecnicas": {
                             "soporte_resistencia_activo": False,
-                            "medias_moviles_alineadas": False,
+                            "ema_50_200_crossover": False,
                             "rsi_sobrecompra_sobreventa": False,
                             "order_block_detectado": False,
                             "fvg_detectado": False,
@@ -153,7 +154,9 @@ async def startup_event():
                         },
                         
                         "confirmaciones_institucionales": {
-                            "dark_pools_compra_masiva": False,
+                            "dark_pools_amortizado": True,
+                            "dark_pools_url_valid": False,
+                            "whales_perdieron_fuerza": False,
                             "heatmap_ordenes_limite": False
                         },
                         
@@ -163,7 +166,7 @@ async def startup_event():
                             "trades_ganados": 0,
                             "win_rate_historico": 50.0,
                             "racha_actual": 0,
-                            "sentimiento_acumulado": "NEUTRAL",
+                            "sentimiento_alcista": False,
                             "factor_ajuste_probabilidad": 0.0
                         }
                     }
@@ -205,9 +208,10 @@ class TradeAlert(BaseModel):
     take_profit: Optional[float] = None
     estrategia: str            # Ej: "RSI_Divergence", "MACD_Cross"
     pnl: Optional[float] = 0.0 # Beneficio/pérdida (para registrar cierres)
-    ticket: Optional[int] = 0  # Número de ticket/operación de MT5
+    ticket: Optional[str] = "" # Número de ticket/operación de MT5 (ahora como string por si MetaApi usa IDs)
     lotaje: Optional[float] = 0.01        # Volumen/Lotes de la operación
-    temporalidad: Optional[str] = "M5"     # Temporalidad (M1, M5, M15, etc.)
+    temporalidad: Optional[str] = "1H"    # Temporalidad Swing (1H, 2H, 4H, 8H)
+    es_crypto: Optional[bool] = False     # Indicador 24/7
 
 class MarketAnomaly(BaseModel):
     activo: str                # Ej: "NASDAQ100", "SP500", "US30", "BTC"
@@ -457,6 +461,26 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
         print(f"| FIREBASE ERROR | Error al guardar en Firestore: {e}")
         return False
 
+
+BOTPRESS_WEBHOOK_URL = os.getenv("BOTPRESS_WEBHOOK_URL", "")
+
+def notificar_botpress_mia(activo: str, data: dict):
+    if not BOTPRESS_WEBHOOK_URL:
+        print("| BOTPRESS | Webhook no configurado, omitiendo notificación a Mia.")
+        return
+    
+    payload = {
+        "activo": activo,
+        "score": data.get("score_porcentaje", 0),
+        "fundamental": data.get("confirmaciones_fundamentales", {}),
+        "tecnico": data.get("confirmaciones_tecnicas", {})
+    }
+    try:
+        requests.post(BOTPRESS_WEBHOOK_URL, json=payload, timeout=5)
+        print(f"| BOTPRESS | Mia notificada exitosamente sobre setup en {activo}.")
+    except Exception as e:
+        print(f"| BOTPRESS ERROR | No se pudo notificar a Mia: {e}")
+
 def normalizar_activo(activo: str) -> str:
     """Mapea símbolos de trading comunes a los 8 activos clave de Firebase"""
     act = activo.upper().strip()
@@ -613,107 +637,8 @@ def obtener_precio_google(activo: str) -> Optional[float]:
         print(f"| GOOGLE FINANCE ERROR | Ocurrió un error al raspar precio: {e}")
         return None
 
-def consultar_analisis_grok(alert: TradeAlert, memoria_colectiva: Optional[str] = None) -> str:
-    """Consulta la API de Grok (xAI) para obtener un análisis inteligente del trade"""
-    if GROK_API_KEY == "TU_LLAVE_DE_GROK" or not GROK_API_KEY:
-        return "Grok no configurado (falta API Key)"
-        
-    url = "https://api.x.ai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {GROK_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    prompt = f"Analiza esta operación de Trading. Activo: {alert.activo}, Acción: {alert.accion}, Precio de Entrada: {alert.precio}. Dame un consejo de gestión de riesgo extremadamente corto de 1 párrafo."
-    
-    system_content = "Eres un asistente de trading cuantitativo y experto en gestión de riesgos."
-    if memoria_colectiva:
-        system_content += f" Eres MIA, una inteligencia artificial colectiva con presencia en otros proyectos. Tu memoria cruzada compartida con otros proyectos es: {memoria_colectiva}"
-        
-    payload = {
-        "model": "grok-2",
-        "messages": [
-            {"role": "system", "content": system_content},
-            {"role": "user", "content": prompt}
-        ]
-    }
-    
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        if response.status_code == 200:
-            result = response.json()
-            return result["choices"][0]["message"]["content"]
-        return "No se pudo obtener análisis de Grok."
-    except Exception as e:
-        return f"Error al conectar con Grok: {e}"
 
-def consultar_analisis_gemini(alert: TradeAlert, memoria_colectiva: Optional[str] = None) -> str:
-    """Consulta la API de Google Gemini (gemini-2.5-flash) para obtener un análisis inteligente del trade"""
-    if GEMINI_API_KEY == "TU_LLAVE_DE_GEMINI" or not GEMINI_API_KEY:
-        return "Gemini no configurado (falta API Key)"
-        
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
-    headers = {
-        "Content-Type": "application/json"
-    }
-    
-    system_instruction = "Eres un asistente de trading cuantitativo y experto en gestión de riesgos."
-    if memoria_colectiva:
-        system_instruction += f" Eres MIA, una inteligencia artificial colectiva con presencia en otros proyectos. Tu memoria cruzada compartida con otros proyectos es: {memoria_colectiva}"
-        
-    prompt = f"Analiza esta operación de Trading. Activo: {alert.activo}, Acción: {alert.accion}, Precio de Entrada: {alert.precio}. Dame un consejo de gestión de riesgo extremadamente corto de 1 párrafo."
-    
-    payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }],
-        "systemInstruction": {
-            "parts": [{"text": system_instruction}]
-        }
-    }
-    
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        if response.status_code == 200:
-            result = response.json()
-            return result["candidates"][0]["content"]["parts"][0]["text"]
-        return f"No se pudo obtener análisis de Gemini. Código {response.status_code}: {response.text}"
-    except Exception as e:
-        return f"Error al conectar con Gemini: {e}"
 
-def consultar_analisis_chatgpt(alert: TradeAlert, memoria_colectiva: Optional[str] = None) -> str:
-    """Consulta la API de OpenAI ChatGPT (gpt-4o-mini) para obtener un análisis inteligente del trade"""
-    if OPENAI_API_KEY == "TU_LLAVE_DE_OPENAI" or not OPENAI_API_KEY:
-        return "ChatGPT no configurado (falta API Key)"
-        
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    prompt = f"Analiza esta operación de Trading. Activo: {alert.activo}, Acción: {alert.accion}, Precio de Entrada: {alert.precio}. Dame un consejo de gestión de riesgo extremadamente corto de 1 párrafo."
-    
-    system_content = "Eres un asistente de trading cuantitativo y experto en gestión de riesgos."
-    if memoria_colectiva:
-        system_content += f" Eres MIA, una inteligencia artificial colectiva con presencia en otros proyectos. Tu memoria cruzada compartida con otros proyectos es: {memoria_colectiva}"
-        
-    payload = {
-        "model": "gpt-4o-mini",
-        "messages": [
-            {"role": "system", "content": system_content},
-            {"role": "user", "content": prompt}
-        ]
-    }
-    
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        if response.status_code == 200:
-            result = response.json()
-            return result["choices"][0]["message"]["content"]
-        return f"No se pudo obtener análisis de ChatGPT. Código {response.status_code}: {response.text}"
-    except Exception as e:
-        return f"Error al conectar con ChatGPT: {e}"
 
 
 # ------------------------------------------------------------------------------
@@ -822,10 +747,67 @@ async def webhook_market_alert(
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
+def recalcular_memoria_colectiva():
+    """Recalcula el resumen ejecutivo de mia_kb y lo guarda en system_memory/mia_collective"""
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        return
+
+    try:
+        ind_docs = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream()
+        mejor_indicador = {"nombre": "ninguno", "win_rate": 0.0}
+        peor_indicador = {"nombre": "ninguno", "win_rate": 100.0}
+        
+        for idoc in ind_docs:
+            idata = idoc.to_dict()
+            if idata.get("trades_con_indicador", 0) > 0:
+                wr = idata.get("win_rate_indicador", 0.0)
+                if wr > mejor_indicador["win_rate"]:
+                    mejor_indicador = {"nombre": idoc.id, "win_rate": wr}
+                if wr < peor_indicador["win_rate"]:
+                    peor_indicador = {"nombre": idoc.id, "win_rate": wr}
+                    
+        ses_docs = db.collection("mia_kb").document("sesiones_rendimiento").collection("detalle").stream()
+        mejor_sesion = {"nombre": "ninguna", "win_rate": 0.0}
+        for sdoc in ses_docs:
+            sdata = sdoc.to_dict()
+            if sdata.get("trades_totales", 0) > 0 and sdata.get("win_rate", 0.0) > mejor_sesion["win_rate"]:
+                mejor_sesion = {"nombre": sdoc.id, "win_rate": sdata["win_rate"]}
+                
+        pat_docs = db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream()
+        patron_estrella = {"nombre": "ninguno", "win_rate": 0.0}
+        for pdoc in pat_docs:
+            pdata = pdoc.to_dict()
+            if pdata.get("ocurrencias", 0) > 0 and pdata.get("win_rate", 0.0) > patron_estrella["win_rate"]:
+                patron_estrella = {"nombre": pdoc.id, "win_rate": pdata["win_rate"]}
+
+        resumen = {
+            "mejor_indicador": mejor_indicador["nombre"],
+            "mejor_indicador_win_rate": mejor_indicador["win_rate"],
+            "peor_indicador": peor_indicador["nombre"],
+            "peor_indicador_win_rate": peor_indicador["win_rate"],
+            "mejor_sesion": mejor_sesion["nombre"],
+            "mejor_sesion_win_rate": mejor_sesion["win_rate"],
+            "patron_estrella_ict_smc": patron_estrella["nombre"],
+            "patron_estrella_win_rate": patron_estrella["win_rate"],
+            "modo_escucha": True,
+            "ultimo_calculo": datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat(),
+            "resumen_operativo": (
+                f"Mia KB v1.0 | Mejor indicador: {mejor_indicador['nombre']} ({mejor_indicador['win_rate']}% WR) | "
+                f"Mejor sesion: {mejor_sesion['nombre']} ({mejor_sesion['win_rate']}% WR) | "
+                f"Patron estrella: {patron_estrella['nombre']} ({patron_estrella['win_rate']}% WR) | "
+                f"Peor indicador: {peor_indicador['nombre']} ({peor_indicador['win_rate']}% WR)"
+            )
+        }
+        db.collection("system_memory").document("mia_collective").set(resumen)
+        print(f"| KB MIA | Memoria colectiva recalculada exitosamente.")
+    except Exception as e:
+        print(f"| KB MIA ERROR | Error recalculando memoria colectiva: {e}")
+
 def actualizar_aprendizaje_mia(activo: str, pnl: float):
     """
-    Función de aprendizaje (modo aprendiz) de la base de datos de conocimiento (KB) de Mia.
-    Actualiza estadísticas de acierto, rachas y ajusta el factor de probabilidad del activo en Firestore.
+    Stored Procedure (SP): Actualiza la base de conocimiento (mia_kb) leyendo las 
+    confirmaciones de trading_matrix, calculando sesiones y patrones ICT/SMC.
     """
     global firebase_inicializado, db
     if not firebase_inicializado or db is None:
@@ -840,59 +822,127 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float):
             return
             
         data = doc.to_dict()
-        
-        # Inicializar el sub-objeto de aprendizaje si no existe
-        if "aprendizaje_mia" not in data:
-            data["aprendizaje_mia"] = {
-                "modo_aprendiz_activo": True,
-                "trades_totales": 0,
-                "trades_ganados": 0,
-                "win_rate_historico": 50.0,
-                "racha_actual": 0,
-                "sentimiento_acumulado": "NEUTRAL",
-                "factor_ajuste_probabilidad": 0.0
-            }
-            
-        apoyo = data["aprendizaje_mia"]
-        if not apoyo.get("modo_aprendiz_activo", True):
-            return # Modo aprendiz apagado
-            
-        # Actualizar contadores
-        apoyo["trades_totales"] += 1
         es_ganado = pnl > 0.0
         
-        if es_ganado:
-            apoyo["trades_ganados"] += 1
-            if apoyo["racha_actual"] >= 0:
-                apoyo["racha_actual"] += 1
-            else:
-                apoyo["racha_actual"] = 1
+        # 1. Snapshot de confirmaciones
+        confirmaciones_activas = []
+        for cat in ["confirmaciones_tecnicas", "confirmaciones_fundamentales", "confirmaciones_institucionales"]:
+            if cat in data:
+                for campo, valor in data[cat].items():
+                    if valor is True:
+                        confirmaciones_activas.append(campo)
+                        
+        # 2. Detectar sesion
+        hora_utc = datetime.datetime.now(datetime.timezone.utc).hour
+        if 0 <= hora_utc < 8:
+            sesion = "asia"
+        elif 8 <= hora_utc < 13:
+            sesion = "london"
+        elif 13 <= hora_utc < 15:
+            sesion = "overlap_london_ny"
+        elif 15 <= hora_utc < 21:
+            sesion = "new_york"
         else:
-            if apoyo["racha_actual"] <= 0:
-                apoyo["racha_actual"] -= 1
-            else:
-                apoyo["racha_actual"] = -1
-                
-        # Calcular tasa de acierto histórica
-        apoyo["win_rate_historico"] = round((apoyo["trades_ganados"] / apoyo["trades_totales"]) * 100.0, 2)
-        
-        # Sentimiento Acumulado del mercado basado en la racha y win rate
-        racha = apoyo["racha_actual"]
-        wr = apoyo["win_rate_historico"]
-        
-        if racha >= 2 or (apoyo["trades_totales"] >= 3 and wr >= 60.0):
-            apoyo["sentimiento_acumulado"] = True
-            apoyo["factor_ajuste_probabilidad"] = min(15.0, float(racha * 3.0)) # Máximo +15% de bonus
-        elif racha <= -2 or (apoyo["trades_totales"] >= 3 and wr <= 40.0):
-            apoyo["sentimiento_acumulado"] = False
-            apoyo["factor_ajuste_probabilidad"] = max(-25.0, float(racha * 5.0)) # Máximo -25% de penalización
-        else:
-            apoyo["sentimiento_acumulado"] = "NEUTRAL"
-            apoyo["factor_ajuste_probabilidad"] = 0.0
+            sesion = "asia"
             
-        data["aprendizaje_mia"] = apoyo
-        doc_ref.set(data)
-        print(f"| APRENDIZAJE MIA | Activo: {activo_normalizado} | Sentimiento: {apoyo['sentimiento_acumulado']} | Racha: {racha} | Factor Ajuste: {apoyo['factor_ajuste_probabilidad']}%")
+        # 3. Actualizar Indicadores de Impacto
+        for indicador in confirmaciones_activas:
+            try:
+                ind_ref = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").document(indicador)
+                ind_doc = ind_ref.get()
+                if ind_doc.exists:
+                    ind_data = ind_doc.to_dict()
+                    ind_data["trades_con_indicador"] = ind_data.get("trades_con_indicador", 0) + 1
+                    if es_ganado:
+                        ind_data["trades_ganados_con"] = ind_data.get("trades_ganados_con", 0) + 1
+                    else:
+                        ind_data["trades_perdidos_con"] = ind_data.get("trades_perdidos_con", 0) + 1
+                        
+                    ind_data["pnl_acumulado"] = ind_data.get("pnl_acumulado", 0.0) + pnl
+                    if ind_data["trades_con_indicador"] > 0:
+                        ind_data["win_rate_indicador"] = round(
+                            (ind_data["trades_ganados_con"] / ind_data["trades_con_indicador"]) * 100, 2
+                        )
+                    ind_data["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
+                    ind_ref.set(ind_data)
+            except Exception as e:
+                print(f"| KB MIA WARN | Error actualizando indicador {indicador}: {e}")
+                
+        # 4. Actualizar Sesion de Rendimiento
+        try:
+            ses_ref = db.collection("mia_kb").document("sesiones_rendimiento").collection("detalle").document(sesion)
+            ses_doc = ses_ref.get()
+            if ses_doc.exists:
+                ses_data = ses_doc.to_dict()
+                ses_data["trades_totales"] = ses_data.get("trades_totales", 0) + 1
+                if es_ganado:
+                    ses_data["trades_ganados"] = ses_data.get("trades_ganados", 0) + 1
+                ses_data["pnl_total"] = ses_data.get("pnl_total", 0.0) + pnl
+                if ses_data["trades_totales"] > 0:
+                    ses_data["win_rate"] = round(
+                        (ses_data["trades_ganados"] / ses_data["trades_totales"]) * 100, 2
+                    )
+                ses_data["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
+                ses_ref.set(ses_data)
+        except Exception as e:
+            print(f"| KB MIA WARN | Error actualizando sesion {sesion}: {e}")
+            
+        # 5. Detectar y Actualizar Patrones ICT/SMC
+        ict_fields = {
+            "order_block_detectado": "OB",
+            "fvg_detectado": "FVG",
+            "breaker_block_detectado": "BRK",
+            "sweep_liquidez_detectado": "SWEEP",
+            "soporte_resistencia_activo": "SR"
+        }
+        patron_key_parts = sorted([ict_fields[f] for f in confirmaciones_activas if f in ict_fields])
+        if patron_key_parts:
+            patron_key = "_".join(patron_key_parts)
+            try:
+                pat_ref = db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").document(patron_key)
+                pat_doc = pat_ref.get()
+                if pat_doc.exists:
+                    pat_data = pat_doc.to_dict()
+                else:
+                    pat_data = {
+                        "combo": patron_key_parts,
+                        "metodologia": "ICT/SMC",
+                        "ocurrencias": 0,
+                        "trades_ganados": 0,
+                        "win_rate": 0.0,
+                        "pnl_acumulado": 0.0,
+                    }
+                
+                pat_data["ocurrencias"] += 1
+                if es_ganado:
+                    pat_data["trades_ganados"] += 1
+                pat_data["pnl_acumulado"] += pnl
+                if pat_data["ocurrencias"] > 0:
+                    pat_data["win_rate"] = round(
+                        (pat_data["trades_ganados"] / pat_data["ocurrencias"]) * 100, 2
+                    )
+                pat_data["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
+                pat_ref.set(pat_data)
+            except Exception as e:
+                print(f"| KB MIA WARN | Error actualizando patron {patron_key}: {e}")
+                
+        # 6. Recalcular Memoria Colectiva
+        recalcular_memoria_colectiva()
+        
+        # Opcional: Actualizar la estadística legacy si existe
+        if "aprendizaje_mia" in data:
+            apoyo = data["aprendizaje_mia"]
+            apoyo["trades_totales"] = apoyo.get("trades_totales", 0) + 1
+            if es_ganado:
+                apoyo["trades_ganados"] = apoyo.get("trades_ganados", 0) + 1
+                apoyo["racha_actual"] = max(1, apoyo.get("racha_actual", 0) + 1)
+            else:
+                apoyo["racha_actual"] = min(-1, apoyo.get("racha_actual", 0) - 1)
+            apoyo["win_rate_historico"] = round((apoyo["trades_ganados"] / apoyo["trades_totales"]) * 100.0, 2)
+            data["aprendizaje_mia"] = apoyo
+            doc_ref.set(data)
+            
+        print(f"| KB MIA | Aprendizaje registrado para {activo_normalizado}. PnL: {pnl} | Sesion: {sesion}")
     except Exception as e:
         print(f"| APRENDIZAJE MIA ERROR | Error al procesar aprendizaje de trade: {e}")
 
@@ -908,6 +958,15 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     print(f"Precio Alerta: {alert.precio} | Estrategia: {alert.estrategia}")
     print(f"========================================================")
     
+    # 0. Lógica de Horarios (Forex cerrado en fin de semana, Crypto 24/7)
+    es_cripto_activo = alert.es_crypto or alert.activo.startswith("BTC") or alert.activo.startswith("ETH") or "USD" not in alert.activo and alert.activo != "XAUUSD"
+    if not es_cripto_activo:
+        ahora = datetime.datetime.now(datetime.timezone.utc)
+        # Viernes después de 21:00 UTC hasta Domingo a las 21:00 UTC es fin de semana en Forex (aprox)
+        if ahora.weekday() == 5 or (ahora.weekday() == 4 and ahora.hour >= 21) or (ahora.weekday() == 6 and ahora.hour < 21):
+            print(f"| REGLA DE HORARIO | Mercado Forex cerrado. Rechazando orden de {alert.activo}.")
+            return {"resultado": "rechazado", "mensaje": "Mercado Forex cerrado en fin de semana."}
+
     # 1. Obtener precios de validación de ambas fuentes (Yahoo y Google)
     precio_yahoo = obtener_precio_yahoo(alert.activo)
     precio_google = obtener_precio_google(alert.activo)
@@ -1126,6 +1185,26 @@ def recibir_anomalia(anomaly: MarketAnomaly, background_tasks: BackgroundTasks):
 # NUEVOS WEBHOOKS PARA METATRADER 5 (INTEGRACIÓN CON EL EXECUTOR LOCAL)
 # ------------------------------------------------------------------------------
 
+@app.get("/get_matrix_activos")
+def get_matrix_activos(authorization: Optional[str] = Header(None)):
+    """
+    Ruta para que n8n obtenga la lista de activos actualmente configurados en la matriz.
+    Así n8n solo hace polling fundamental de los activos relevantes.
+    """
+    verificar_token(authorization)
+    
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        raise HTTPException(status_code=503, detail="Firebase no inicializado")
+        
+    try:
+        docs = db.collection("trading_matrix").stream()
+        activos = [doc.id for doc in docs]
+        return {"status": "success", "activos": activos}
+    except Exception as e:
+        print(f"| CLOUD ERROR | Error en get_matrix_activos: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/get_asset_matrix")
 def get_asset_matrix(activo: str, authorization: Optional[str] = Header(None)):
     """
@@ -1156,6 +1235,11 @@ def get_asset_matrix(activo: str, authorization: Optional[str] = Header(None)):
 class TechnicalUpdate(BaseModel):
     activo: str
     confirmaciones_tecnicas: dict
+
+class FundamentalUpdate(BaseModel):
+    activo: str
+    noticias_impacto_favorables: bool
+    ipo_spo_liquidez_positiva: bool
 
 class MT5SetupRequest(BaseModel):
     activo: str
@@ -1205,6 +1289,11 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         score = (true_confirmaciones / total_confirmaciones) * 100.0
         data["score_porcentaje"] = round(score, 2)
         data["gatillo_entrada"] = score >= 80.0
+        
+        if data["gatillo_entrada"] and data.get("estado_ejecucion", "INACTIVO") == "INACTIVO":
+            data["estado_ejecucion"] = "PENDIENTE_EJECUCIÓN"
+            print(f"| SEMÁFORO | {activo_normalizado} ha cambiado a PENDIENTE_EJECUCIÓN")
+            
         data["ultimo_update"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
         
         doc_ref.set(data)
@@ -1267,6 +1356,15 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
                 "authorized": False,
                 "reason": f"Fallo de validación de 'live keys' (APIs). Faltan/Inválidas: {', '.join(detalles_faltantes)}",
                 "live_keys_valid": False
+            }
+
+        # 1.5 VALIDACIÓN DE SEMÁFORO DE EJECUCIÓN
+        estado_actual = data.get("estado_ejecucion", "INACTIVO")
+        if estado_actual != "PENDIENTE_EJECUCIÓN":
+            return {
+                "authorized": False,
+                "reason": f"Semáforo no autorizado. El estado actual es '{estado_actual}', se requiere 'PENDIENTE_EJECUCIÓN' (Score >= 80%).",
+                "estado_ejecucion": estado_actual
             }
 
         # 2. VALIDACIÓN DE 'LEVEL KEYS' (Niveles técnicos clave). Al menos uno debe estar activo
@@ -1420,6 +1518,10 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         background_tasks.add_task(actualizar_excel_local, alert)
         background_tasks.add_task(guardar_en_firestore, alert, None, None)
         
+        # Cambiar el semáforo a EJECUTADO
+        data["estado_ejecucion"] = "EJECUTADO"
+        doc_ref.set(data)
+        
         print(f"| DECISIÓN CLOUD | Trade AUTORIZADO para {activo_normalizado}. Score: {score}%. Probabilidad: {probabilidad}%. SL: {sl} | TP: {tp}")
         
         return {
@@ -1514,81 +1616,67 @@ def update_collective_memory(req: CollectiveMemoryRequest, authorization: Option
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def consultar_llm_rss_helper(xml_data: str, model_type: str) -> str:
-    """Helper to query the LLMs with the RSS XML content for testing"""
-    prompt = (
-        "Analiza el siguiente feed XML RSS que contiene las métricas y aprendizajes de trading del bot de IA 'Mia'. "
-        "Resume el estado de los activos, identifica el de mejor rendimiento actual (mayor win rate o score) "
-        "y propón una conclusión corta de 1 párrafo para guiar la operativa del día.\n\n"
-        f"Feed XML:\n{xml_data}"
-    )
-    system_instruction = "Eres un asistente de trading cuantitativo y experto en gestión de riesgos."
-
-    if model_type == "gemini":
-        if GEMINI_API_KEY == "TU_LLAVE_DE_GEMINI" or not GEMINI_API_KEY:
-            return "Gemini no configurado"
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
-        headers = {"Content-Type": "application/json"}
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "systemInstruction": {"parts": [{"text": system_instruction}]}
-        }
-        try:
-            response = requests.post(url, headers=headers, json=payload, timeout=15)
-            if response.status_code == 200:
-                return response.json()["candidates"][0]["content"]["parts"][0]["text"]
-            return f"Error {response.status_code}: {response.text}"
-        except Exception as e:
-            return f"Excepción en Gemini: {e}"
-
-    elif model_type == "chatgpt":
-        if OPENAI_API_KEY == "TU_LLAVE_DE_OPENAI" or not OPENAI_API_KEY:
-            return "ChatGPT no configurado"
-        url = "https://api.openai.com/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {OPENAI_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "model": "gpt-4o-mini",
-            "messages": [
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt}
-            ]
-        }
-        try:
-            response = requests.post(url, headers=headers, json=payload, timeout=15)
-            if response.status_code == 200:
-                return response.json()["choices"][0]["message"]["content"]
-            return f"Error {response.status_code}: {response.text}"
-        except Exception as e:
-            return f"Excepción en ChatGPT: {e}"
-
-    elif model_type == "grok":
-        if GROK_API_KEY == "TU_LLAVE_DE_GROK" or not GROK_API_KEY:
-            return "Grok no configurado"
-        url = "https://api.x.ai/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {GROK_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "model": "grok-2",
-            "messages": [
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt}
-            ]
-        }
-        try:
-            response = requests.post(url, headers=headers, json=payload, timeout=15)
-            if response.status_code == 200:
-                return response.json()["choices"][0]["message"]["content"]
-            return f"Error {response.status_code}: {response.text}"
-        except Exception as e:
-            return f"Excepción en Grok: {e}"
+@app.post("/webhook_fundamental_update")
+def webhook_fundamental_update(update: FundamentalUpdate, authorization: Optional[str] = Header(None)):
+    """
+    Ruta que recibe la Miel (booleanos extraídos por n8n) y actualiza la matriz.
+    """
+    verificar_token(authorization)
+    
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        raise HTTPException(status_code=503, detail="Firebase no inicializado")
+        
+    try:
+        activo_normalizado = normalizar_activo(update.activo)
+        doc_ref = db.collection("trading_matrix").document(activo_normalizado)
+        doc = doc_ref.get()
+        
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail=f"El activo {activo_normalizado} no existe")
             
-    return "Modelo no soportado"
-
+        data = doc.to_dict()
+        
+        if "confirmaciones_fundamentales" not in data:
+            data["confirmaciones_fundamentales"] = {}
+            
+        data["confirmaciones_fundamentales"]["noticias_impacto_favorables"] = update.noticias_impacto_favorables
+        data["confirmaciones_fundamentales"]["ipo_spo_liquidez_positiva"] = update.ipo_spo_liquidez_positiva
+        
+        # Recalcular score
+        true_confirmaciones = 0
+        total_confirmaciones = 11
+        for cat in ["confirmaciones_tecnicas", "confirmaciones_fundamentales", "confirmaciones_institucionales"]:
+            if cat in data:
+                for k, v in data[cat].items():
+                    if v is True:
+                        true_confirmaciones += 1
+                        
+        score = (true_confirmaciones / total_confirmaciones) * 100.0
+        data["score_porcentaje"] = round(score, 2)
+        data["gatillo_entrada"] = score >= 80.0
+        
+        if data["gatillo_entrada"] and data.get("estado_ejecucion", "INACTIVO") == "INACTIVO":
+            data["estado_ejecucion"] = "PENDIENTE_EJECUCIÓN"
+            print(f"| SEMÁFORO | {activo_normalizado} ha cambiado a PENDIENTE_EJECUCIÓN (Vía Fundamental)")
+            notificar_botpress_mia(activo_normalizado, data)
+            
+        data["ultimo_update"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
+        
+        doc_ref.set(data)
+        print(f"| FIREBASE SUCCESS | Confirmaciones fundamentales actualizadas. Score: {data['score_porcentaje']}%")
+        
+        return {
+            "status": "success",
+            "activo": activo_normalizado,
+            "estado_ejecucion": data.get("estado_ejecucion")
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"| CLOUD ERROR | Error en webhook_fundamental_update: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/test_rss_llm_polling")
 def test_rss_llm_polling(authorization: Optional[str] = Header(None)):
@@ -1664,3 +1752,60 @@ def test_rss_llm_polling(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+class MetaApiExecution(BaseModel):
+    activo: str
+    ticket: str
+    score: float
+    precio_ejecucion: float
+
+@app.post("/webhook_marcar_ejecutado")
+def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optional[str] = Header(None)):
+    """
+    Recibe la confirmación desde Botpress (MetaApi) de que el trade se ha ejecutado.
+    Cambia el estado a EJECUTADO, llama a la KB, y genera el log de auditoría inmutable.
+    """
+    verificar_token(authorization)
+    
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        raise HTTPException(status_code=503, detail="Firebase no inicializado")
+        
+    activo_norm = normalizar_activo(ejecucion.activo)
+    doc_ref = db.collection("trading_matrix").document(activo_norm)
+    
+    try:
+        data = doc_ref.get().to_dict() or {}
+        data["estado_ejecucion"] = "EJECUTADO"
+        doc_ref.set(data, merge=True)
+        
+        # Generar Log .txt
+        import os
+        from datetime import datetime
+        log_dir = "logs"
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+            
+        log_path = os.path.join(log_dir, "trading_audit_log.txt")
+        fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(f"[{fecha}] TICKET: {ejecucion.ticket} | ACTIVO: {ejecucion.activo} | SCORE: {ejecucion.score}% | PRECIO: {ejecucion.precio_ejecucion}\\n")
+            
+        # Generar Log en Firebase (Para Dashboard UI/UX)
+        audit_ref = db.collection("mia_audit_logs").document(str(ejecucion.ticket))
+        audit_ref.set({
+            "ticket": ejecucion.ticket,
+            "activo": ejecucion.activo,
+            "score": ejecucion.score,
+            "precio_ejecucion": ejecucion.precio_ejecucion,
+            "fecha": fecha,
+            "timestamp": datetime.now().isoformat()
+        })
+            
+        print(f"| AUDITORÍA | Trade registrado en TXT y Firebase (mia_audit_logs) para {ejecucion.activo}")
+        
+        return {"status": "success", "mensaje": "Trade ejecutado y auditado en TXT y Firebase"}
+    except Exception as e:
+        print(f"| AUDITORÍA ERROR | {e}")
+        raise HTTPException(status_code=500, detail=str(e))
