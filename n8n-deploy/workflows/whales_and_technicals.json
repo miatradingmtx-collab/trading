@@ -91,7 +91,7 @@
             },
             {
               "name": "messages",
-              "value": "=[{\"role\": \"system\", \"content\": \"Eres un analista quant institucional. Vas a recibir datos crudos financieros. Debes evaluar si hay debilidad en las ballenas (whales_perdiendo_fuerza: true), si hubo barrido de liquidez sin volumen (sweep_liquidez: true), y si técnicamente el FVG/RSI indica cierre de parciales. Responde ÚNICAMENTE en JSON.\"}, {\"role\": \"user\", \"content\": \"Datos Yahoo: {{$json.yahoo_data}}\\nDatos Investing: {{$json.investing_data}}\"}]"
+              "value": "=[{\"role\": \"system\", \"content\": \"Eres un analista quant institucional. Recibirás datos financieros. Debes evaluar todas las confluencias: RSI, FVG rellenado, Cruce de EMAs, Barrido de liquidez sin volumen, SPO/IPO, y Debilidad de ballenas. Asigna 1 punto por cada confluencia confirmada. Si el puntaje total es MAYOR O IGUAL A 8, devuelve 'cierre_autorizado': true (o 1). Si es menor, devuelve false. Responde ÚNICAMENTE en JSON: {\\\"cierre_autorizado\\\": true, \\\"puntaje\\\": 8, \\\"confluencias_detectadas\\\": [\\\"RSI\\\", \\\"FVG\\\", ...]}\"}, {\"role\": \"user\", \"content\": \"Datos Yahoo: {{$json.yahoo_data}}\\nDatos Investing: {{$json.investing_data}}\"}]"
             },
             {
               "name": "response_format",
