@@ -94,20 +94,15 @@ body {
     letter-spacing: 1px;
 }
 
-/* Main Container for Botpress */
+/* Main Container */
 #chat-container {
     flex: 1;
     position: relative;
     width: 100%;
     height: 100%;
-    overflow: hidden;
 }
 
-/* Fix Botpress Webchat Fullscreen */
-#bp-web-widget {
-    height: 100% !important;
-    width: 100% !important;
-}
+
 
 /* Pantalla de configuración inicial */
 .setup-overlay {

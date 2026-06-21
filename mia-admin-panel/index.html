@@ -33,33 +33,23 @@
     <main id="chat-container">
     </main>
 
-    <!-- Botpress Webchat v3 -->
+    <!-- Botpress Webchat -->
     <script src="https://cdn.botpress.cloud/webchat/v2.2/inject.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            // Inicialización directa con tu Client ID extraído de la URL
             window.botpressWebChat.init({
                 "clientId": "62ba8203-31db-4d49-a510-0cde9d59a571",
                 "hostUrl": "https://cdn.botpress.cloud/webchat/v2.2",
                 "messagingUrl": "https://messaging.botpress.cloud",
                 "composerPlaceholder": "Habla con Mia...",
-                "botConversationDescription": "Sistema Algorítmico y Prompt Admin",
-                "lazySocket": true,
+                "botConversationDescription": "God Mode Panel",
                 "themeName": "prism",
-                "frontendVersion": "v2.2",
-                "useSessionStorage": true,
-                "enableConversationDeletion": true,
-                "showPoweredBy": false,
-                "className": "mia-webchat",
-                "containerWidth": "100%",
-                "layoutWidth": "100%",
-                "hideWidget": true,
-                "disableAnimations": false,
-                "theme": "prism",
-                "themeColor": "#00f2fe"
+                "themeColor": "#00f2fe",
+                "hideWidget": false, // Dejar el botón flotante visible para evitar que se esconda
+                "disableAnimations": false
             });
 
-            // Forzar apertura automática
+            // Forzar que se abra el chat automáticamente
             window.botpressWebChat.onEvent(function (event) {
                 if (event.type === 'LIFECYCLE.LOADED') {
                     window.botpressWebChat.sendEvent({ type: 'show' });
