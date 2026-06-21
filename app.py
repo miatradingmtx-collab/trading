@@ -1884,9 +1884,9 @@ def resumen_trades_hoy(authorization: Optional[str] = Header(None)):
                 trades_hoy.append(data)
                 
         if len(trades_hoy) == 0:
-            return {"status": "success", "mensaje_chat": f"Jefe, hoy ({hoy_str}) no hemos ejecutado ningún trade todavía. Sigo escaneando el mercado pacientemente."}
+            return {"status": "success", "mensaje_chat": f"Padre, hoy ({hoy_str}) no hemos ejecutado ningún trade todavía. Sigo escaneando el mercado pacientemente."}
             
-        resumen = f"Jefe, este es el resumen de hoy ({hoy_str}):\\n\\n"
+        resumen = f"Padre, este es el resumen de hoy ({hoy_str}):\\n\\n"
         for t in trades_hoy:
             tipo = t.get("tipo", "EJECUCIÓN")
             activo = t.get("activo", "DESCONOCIDO")
