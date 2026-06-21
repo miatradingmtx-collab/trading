@@ -36,26 +36,33 @@
     <!-- Botpress Webchat -->
     <script src="https://cdn.botpress.cloud/webchat/v1/inject.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            window.botpressWebChat.init({
-                "clientId": "62ba8203-31db-4d49-a510-0cde9d59a571",
-                "botId": "ed612123-c89f-4d07-ab16-713f1d5e1b08",
-                "hostUrl": "https://cdn.botpress.cloud/webchat/v1",
-                "messagingUrl": "https://messaging.botpress.cloud",
-                "composerPlaceholder": "Habla con Mia...",
-                "botConversationDescription": "God Mode Panel",
-                "themeName": "prism",
-                "themeColor": "#00f2fe",
-                "hideWidget": false,
-                "disableAnimations": false
-            });
+        document.addEventListener("DOMContentLoaded", async () => {
+            try {
+                // Fetch de la configuración V3 que nos dio Botpress
+                const configUrl = "https://files.bpcontent.cloud/2026/06/20/03/20260620030216-POYEAGGJ.json";
+                const response = await fetch(configUrl);
+                const configData = await response.json();
 
-            // Forzar que se abra el chat automáticamente
-            window.botpressWebChat.onEvent(function (event) {
-                if (event.type === 'LIFECYCLE.LOADED') {
-                    window.botpressWebChat.sendEvent({ type: 'show' });
-                }
-            }, ['LIFECYCLE.LOADED']);
+                // Forzamos nuestros propios estilos por encima de la configuración
+                configData.themeName = "prism";
+                configData.themeColor = "#00f2fe";
+                configData.hideWidget = false;
+                configData.disableAnimations = false;
+                configData.composerPlaceholder = "Habla con Mia...";
+                configData.hostUrl = "https://cdn.botpress.cloud/webchat/v1";
+                configData.messagingUrl = "https://messaging.botpress.cloud";
+
+                window.botpressWebChat.init(configData);
+
+                // Forzar que se abra el chat automáticamente
+                window.botpressWebChat.onEvent(function (event) {
+                    if (event.type === 'LIFECYCLE.LOADED') {
+                        window.botpressWebChat.sendEvent({ type: 'show' });
+                    }
+                }, ['LIFECYCLE.LOADED']);
+            } catch (err) {
+                console.error("Error cargando Mia:", err);
+            }
         });
     </script>
 </body>
