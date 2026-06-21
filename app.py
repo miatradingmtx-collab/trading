@@ -1850,3 +1850,53 @@ def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[
     except Exception as e:
         print(f"| AUDITORÍA ERROR | {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/resumen_trades_hoy")
+def resumen_trades_hoy(authorization: Optional[str] = Header(None)):
+    """
+    Consulta la base de datos de auditoría de Firebase (mia_audit_logs)
+    y devuelve un resumen formateado de los trades ejecutados el día de hoy
+    para que Botpress pueda mostrarlo en el chat.
+    """
+    verificar_token(authorization)
+    
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        raise HTTPException(status_code=503, detail="Firebase no inicializado")
+        
+    try:
+        from datetime import datetime, timezone
+        import pytz
+        
+        # Obtener la fecha de hoy en formato YYYY-MM-DD
+        hoy_str = datetime.now().strftime("%Y-%m-%d")
+        
+        # Consultar mia_audit_logs filtrando por los que empiecen con la fecha de hoy
+        # Como Firestore no soporta un simple "startswith" eficientemente sin un índice complejo,
+        # descargaremos los recientes y filtraremos en memoria (suficiente para volumen diario bajo)
+        docs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(50).stream()
+        
+        trades_hoy = []
+        for doc in docs:
+            data = doc.to_dict()
+            fecha_doc = data.get("fecha", "")
+            if fecha_doc.startswith(hoy_str):
+                trades_hoy.append(data)
+                
+        if len(trades_hoy) == 0:
+            return {"status": "success", "mensaje_chat": f"Jefe, hoy ({hoy_str}) no hemos ejecutado ningún trade todavía. Sigo escaneando el mercado pacientemente."}
+            
+        resumen = f"Jefe, este es el resumen de hoy ({hoy_str}):\\n\\n"
+        for t in trades_hoy:
+            tipo = t.get("tipo", "EJECUCIÓN")
+            activo = t.get("activo", "DESCONOCIDO")
+            score = t.get("score_confluencias", t.get("score", 0))
+            resumen += f"• [{tipo}] {activo} | Score: {score}%\\n"
+            
+        resumen += f"\\nTotal de movimientos hoy: {len(trades_hoy)}."
+        
+        return {"status": "success", "mensaje_chat": resumen}
+        
+    except Exception as e:
+        print(f"| RESUMEN ERROR | Error al generar resumen de trades: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
