@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MIA Admin Panel</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MIA Admin">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    
+    <header class="glass-header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="pulsing-dot"></div>
+                <h1>MIA <span class="badge">GOD MODE</span></h1>
+            </div>
+            <div class="status-bar">
+                <span class="status-text">SYSTEM ONLINE</span>
+            </div>
+        </div>
+    </header>
+
+    <main id="chat-container">
+    </main>
+
+    <!-- Botpress Webchat v3 -->
+    <script src="https://cdn.botpress.cloud/webchat/v2.2/inject.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Inicialización directa con tu Client ID extraído de la URL
+            window.botpressWebChat.init({
+                "clientId": "62ba8203-31db-4d49-a510-0cde9d59a571",
+                "hostUrl": "https://cdn.botpress.cloud/webchat/v2.2",
+                "messagingUrl": "https://messaging.botpress.cloud",
+                "composerPlaceholder": "Habla con Mia...",
+                "botConversationDescription": "Sistema Algorítmico y Prompt Admin",
+                "lazySocket": true,
+                "themeName": "prism",
+                "frontendVersion": "v2.2",
+                "useSessionStorage": true,
+                "enableConversationDeletion": true,
+                "showPoweredBy": false,
+                "className": "mia-webchat",
+                "containerWidth": "100%",
+                "layoutWidth": "100%",
+                "hideWidget": true,
+                "disableAnimations": false,
+                "theme": "prism",
+                "themeColor": "#00f2fe"
+            });
+
+            // Forzar apertura automática
+            window.botpressWebChat.onEvent(function (event) {
+                if (event.type === 'LIFECYCLE.LOADED') {
+                    window.botpressWebChat.sendEvent({ type: 'show' });
+                }
+            }, ['LIFECYCLE.LOADED']);
+        });
+    </script>
+</body>
+</html>

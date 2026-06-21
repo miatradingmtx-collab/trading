@@ -1,0 +1,21 @@
+{
+  "name": "Mia Admin",
+  "short_name": "Mia Admin",
+  "description": "Panel de Administración y Chat de Mia",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#00f2fe",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/8636/8636750.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/8636/8636750.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
