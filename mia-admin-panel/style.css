@@ -21,10 +21,12 @@ body {
         radial-gradient(circle at 15% 50%, rgba(0, 242, 254, 0.05), transparent 25%),
         radial-gradient(circle at 85% 30%, rgba(79, 172, 254, 0.05), transparent 25%);
     color: var(--text-primary);
-    height: 100vh;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    min-height: 100vh;
+    padding: 0;
+    margin: 0;
+    overflow: hidden; /* Avoid scrolling the whole page if iframe scrolls */
 }
 
 /* Glass Header */

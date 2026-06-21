@@ -30,40 +30,12 @@
         </div>
     </header>
 
-    <main id="chat-container">
+    <main id="chat-container" style="flex: 1; display: flex; flex-direction: column;">
+        <iframe 
+            src="https://cdn.botpress.cloud/webchat/v3.6/shareable.html?configUrl=https://files.bpcontent.cloud/2026/06/20/03/20260620030216-POYEAGGJ.json" 
+            style="flex: 1; width: 100%; height: 100%; border: none; background: transparent;"
+            allow="microphone; camera; display-capture">
+        </iframe>
     </main>
-
-    <!-- Botpress Webchat -->
-    <script src="https://cdn.botpress.cloud/webchat/v1/inject.js"></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", async () => {
-            try {
-                // Fetch de la configuración V3 que nos dio Botpress
-                const configUrl = "https://files.bpcontent.cloud/2026/06/20/03/20260620030216-POYEAGGJ.json";
-                const response = await fetch(configUrl);
-                const configData = await response.json();
-
-                // Forzamos nuestros propios estilos por encima de la configuración
-                configData.themeName = "prism";
-                configData.themeColor = "#00f2fe";
-                configData.hideWidget = false;
-                configData.disableAnimations = false;
-                configData.composerPlaceholder = "Habla con Mia...";
-                configData.hostUrl = "https://cdn.botpress.cloud/webchat/v1";
-                configData.messagingUrl = "https://messaging.botpress.cloud";
-
-                window.botpressWebChat.init(configData);
-
-                // Forzar que se abra el chat automáticamente
-                window.botpressWebChat.onEvent(function (event) {
-                    if (event.type === 'LIFECYCLE.LOADED') {
-                        window.botpressWebChat.sendEvent({ type: 'show' });
-                    }
-                }, ['LIFECYCLE.LOADED']);
-            } catch (err) {
-                console.error("Error cargando Mia:", err);
-            }
-        });
-    </script>
 </body>
 </html>
