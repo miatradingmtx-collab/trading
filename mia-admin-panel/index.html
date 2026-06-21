@@ -34,18 +34,19 @@
     </main>
 
     <!-- Botpress Webchat -->
-    <script src="https://cdn.botpress.cloud/webchat/v2.2/inject.js"></script>
+    <script src="https://cdn.botpress.cloud/webchat/v1/inject.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             window.botpressWebChat.init({
                 "clientId": "62ba8203-31db-4d49-a510-0cde9d59a571",
-                "hostUrl": "https://cdn.botpress.cloud/webchat/v2.2",
+                "botId": "ed612123-c89f-4d07-ab16-713f1d5e1b08",
+                "hostUrl": "https://cdn.botpress.cloud/webchat/v1",
                 "messagingUrl": "https://messaging.botpress.cloud",
                 "composerPlaceholder": "Habla con Mia...",
                 "botConversationDescription": "God Mode Panel",
                 "themeName": "prism",
                 "themeColor": "#00f2fe",
-                "hideWidget": false, // Dejar el botón flotante visible para evitar que se esconda
+                "hideWidget": false,
                 "disableAnimations": false
             });
 
