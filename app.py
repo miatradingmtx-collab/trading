@@ -994,8 +994,22 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     if alert.pnl != 0.0 or "CIERRE" in alert.accion.upper():
         background_tasks.add_task(actualizar_aprendizaje_mia, alert.activo, alert.pnl)
         
-    # 5. Opcional: Podríamos llamar a Grok aquí si tuviéramos la llave activa
-    # background_tasks.add_task(consultar_analisis_grok, alert)
+    # 5. Notificar a Mia (Botpress) de que hubo un movimiento (Apertura o Cierre)
+    if BOTPRESS_WEBHOOK_URL:
+        payload_mia = {
+            "evento": "trade_ejecutado",
+            "activo": alert.activo,
+            "accion": alert.accion,
+            "precio": alert.precio,
+            "estrategia": alert.estrategia
+        }
+        def avisar_mia():
+            try:
+                requests.post(BOTPRESS_WEBHOOK_URL, json=payload_mia, timeout=5)
+                print(f"| BOTPRESS | Mia notificada de {alert.accion} en {alert.activo}.")
+            except Exception as e:
+                print(f"| BOTPRESS ERROR | No se pudo despertar a Mia: {e}")
+        background_tasks.add_task(avisar_mia)
     
     return {
         "resultado": "recibido",
