@@ -1058,6 +1058,22 @@ def recibir_alerta_get(
     background_tasks.add_task(actualizar_excel_local, alert)
     background_tasks.add_task(guardar_en_firestore, alert, precio_yahoo, precio_google)
     
+    if BOTPRESS_WEBHOOK_URL:
+        payload_mia = {
+            "evento": "trade_ejecutado",
+            "activo": alert.activo,
+            "accion": alert.accion,
+            "precio": alert.precio,
+            "estrategia": alert.estrategia
+        }
+        def avisar_mia_get():
+            try:
+                requests.post(BOTPRESS_WEBHOOK_URL, json=payload_mia, timeout=5)
+                print(f"| BOTPRESS GET | Mia notificada de {alert.accion} en {alert.activo}.")
+            except Exception as e:
+                print(f"| BOTPRESS ERROR | No se pudo despertar a Mia: {e}")
+        background_tasks.add_task(avisar_mia_get)
+    
     return {
         "resultado": "recibido_via_get",
         "mensaje": f"Procesando operación de {alert.accion} para {alert.activo}",
