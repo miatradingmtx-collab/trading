@@ -1100,6 +1100,10 @@ def recibir_alerta_get(
             except Exception as e:
                 print(f"| BOTPRESS ERROR | No se pudo despertar a Mia: {e}")
         background_tasks.add_task(avisar_mia_get)
+        
+    # <-- AÑADIDO: Notificar también a Telegram -->
+    mensaje_tg = f"🤖 *MIA TRADING AI*\n\n🔥 *{alert.accion}* en *{alert.activo}*\nPrecio: {alert.precio}"
+    notificar_telegram(mensaje_tg)
     
     return {
         "resultado": "recibido_via_get",
