@@ -1084,6 +1084,10 @@ def recibir_alerta_get(
     background_tasks.add_task(enviar_a_notion, alert)
     background_tasks.add_task(actualizar_excel_local, alert)
     background_tasks.add_task(guardar_en_firestore, alert, precio_yahoo, precio_google)
+
+    # 4. Modo Aprendiz (KB de Mia): Sincronizar resultados si es un cierre con PnL
+    if alert.pnl != 0.0 or "CIERRE" in alert.accion.upper():
+        background_tasks.add_task(actualizar_aprendizaje_mia, alert.activo, alert.pnl)
     
     if BOTPRESS_WEBHOOK_URL:
         payload_mia = {
