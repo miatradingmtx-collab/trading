@@ -463,8 +463,35 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
 
 
 BOTPRESS_WEBHOOK_URL = os.getenv("BOTPRESS_WEBHOOK_URL", "")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8914319073:AAHmF9BTxqgGG2XYn3whnXKe8RlJpzYG9Jk")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
+def notificar_telegram(mensaje: str):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("| TELEGRAM | Faltan credenciales, omitiendo mensaje.")
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": mensaje,
+        "parse_mode": "Markdown"
+    }
+    try:
+        response = requests.post(url, json=payload, timeout=5)
+        if response.status_code == 200:
+            print("| TELEGRAM | Notificación enviada con éxito.")
+        else:
+            print(f"| TELEGRAM | Error al enviar: {response.text}")
+    except Exception as e:
+        print(f"| TELEGRAM ERROR | {e}")
 
 def notificar_botpress_mia(activo: str, data: dict):
+    # Enviar también a Telegram
+    mensaje_tg = f"🤖 *MIA TRADING AI*\n\nNuevos datos para *{activo}*:\nEjecutando lógica en la nube."
+    if "accion" in data:
+        mensaje_tg = f"🤖 *MIA TRADING AI*\n\n🔥 *{data['accion']}* en *{activo}*\nPrecio: {data.get('precio', 'N/A')}"
+    notificar_telegram(mensaje_tg)
+
     if not BOTPRESS_WEBHOOK_URL:
         print("| BOTPRESS | Webhook no configurado, omitiendo notificación a Mia.")
         return
