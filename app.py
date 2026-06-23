@@ -548,18 +548,22 @@ def procesar_anomalia_firestore(anomaly: MarketAnomaly):
             return False
             
         data = doc.to_dict()
-        is_bullish = anomaly.sentimiento.upper() == "BULLISH"
+        sentimiento = anomaly.sentimiento.upper()
         
         if "confirmaciones_institucionales" not in data:
             data["confirmaciones_institucionales"] = {"dark_pools_compra_masiva": False, "heatmap_ordenes_limite": False}
             
-        # Actualizar indicador según el tipo de anomalía
-        if anomaly.tipo.upper() in ["DARK_POOL_PRINT", "BLOCK_TRADE"]:
-            data["confirmaciones_institucionales"]["dark_pools_compra_masiva"] = is_bullish
-            print(f"| FIREBASE | Actualizando Dark Pools de {activo_normalizado} a: {is_bullish}")
-        elif anomaly.tipo.upper() == "HEATMAP_ORDER":
-            data["confirmaciones_institucionales"]["heatmap_ordenes_limite"] = is_bullish
-            print(f"| FIREBASE | Actualizando Heatmap de {activo_normalizado} a: {is_bullish}")
+        if sentimiento in ["BULLISH", "BEARISH"]:
+            es_positivo = (sentimiento == "BULLISH")
+            # Actualizar indicador según el tipo de anomalía
+            if anomaly.tipo.upper() in ["DARK_POOL_PRINT", "BLOCK_TRADE"]:
+                data["confirmaciones_institucionales"]["dark_pools_compra_masiva"] = es_positivo
+                print(f"| FIREBASE | Actualizando Dark Pools de {activo_normalizado} a: {es_positivo}")
+            elif anomaly.tipo.upper() == "HEATMAP_ORDER":
+                data["confirmaciones_institucionales"]["heatmap_ordenes_limite"] = es_positivo
+                print(f"| FIREBASE | Actualizando Heatmap de {activo_normalizado} a: {es_positivo}")
+        elif sentimiento == "NEUTRAL":
+            print(f"| FIREBASE | Sentimiento NEUTRAL detectado para {activo_normalizado}. Ignorando actualización para evitar sesgos.")
             
         # Calcular el Score Porcentaje total basado en las 11 confirmaciones booleanas
         true_confirmaciones = 0
