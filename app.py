@@ -548,22 +548,18 @@ def procesar_anomalia_firestore(anomaly: MarketAnomaly):
             return False
             
         data = doc.to_dict()
-        sentimiento = anomaly.sentimiento.upper()
+        is_bullish = anomaly.sentimiento.upper() == "BULLISH"
         
         if "confirmaciones_institucionales" not in data:
             data["confirmaciones_institucionales"] = {"dark_pools_compra_masiva": False, "heatmap_ordenes_limite": False}
             
-        if sentimiento in ["BULLISH", "BEARISH"]:
-            es_positivo = (sentimiento == "BULLISH")
-            # Actualizar indicador según el tipo de anomalía
-            if anomaly.tipo.upper() in ["DARK_POOL_PRINT", "BLOCK_TRADE"]:
-                data["confirmaciones_institucionales"]["dark_pools_compra_masiva"] = es_positivo
-                print(f"| FIREBASE | Actualizando Dark Pools de {activo_normalizado} a: {es_positivo}")
-            elif anomaly.tipo.upper() == "HEATMAP_ORDER":
-                data["confirmaciones_institucionales"]["heatmap_ordenes_limite"] = es_positivo
-                print(f"| FIREBASE | Actualizando Heatmap de {activo_normalizado} a: {es_positivo}")
-        elif sentimiento == "NEUTRAL":
-            print(f"| FIREBASE | Sentimiento NEUTRAL detectado para {activo_normalizado}. Ignorando actualización para evitar sesgos.")
+        # Actualizar indicador según el tipo de anomalía
+        if anomaly.tipo.upper() in ["DARK_POOL_PRINT", "BLOCK_TRADE"]:
+            data["confirmaciones_institucionales"]["dark_pools_compra_masiva"] = is_bullish
+            print(f"| FIREBASE | Actualizando Dark Pools de {activo_normalizado} a: {is_bullish}")
+        elif anomaly.tipo.upper() == "HEATMAP_ORDER":
+            data["confirmaciones_institucionales"]["heatmap_ordenes_limite"] = is_bullish
+            print(f"| FIREBASE | Actualizando Heatmap de {activo_normalizado} a: {is_bullish}")
             
         # Calcular el Score Porcentaje total basado en las 11 confirmaciones booleanas
         true_confirmaciones = 0
@@ -1630,6 +1626,14 @@ def get_mia_trading_feed(authorization: Optional[str] = Header(None)):
             data = doc.to_dict()
             apoyo = data.get("aprendizaje_mia", {})
             
+            raw_sent = apoyo.get('sentimiento_acumulado', 'NEUTRAL').upper()
+            if raw_sent == "BULLISH":
+                sentimiento_val = "True"
+            elif raw_sent == "BEARISH":
+                sentimiento_val = "False"
+            else:
+                sentimiento_val = "NEUTRAL"
+            
             # Format as XML item
             item_xml = f"""
         <activo name="{activo_id}">
@@ -1637,7 +1641,7 @@ def get_mia_trading_feed(authorization: Optional[str] = Header(None)):
             <trades_ganados>{apoyo.get('trades_ganados', 0)}</trades_ganados>
             <win_rate_historico>{apoyo.get('win_rate_historico', 50.0)}</win_rate_historico>
             <racha_actual>{apoyo.get('racha_actual', 0)}</racha_actual>
-            <sentimiento_acumulado>{apoyo.get('sentimiento_acumulado', 'NEUTRAL')}</sentimiento_acumulado>
+            <sentimiento_acumulado>{sentimiento_val}</sentimiento_acumulado>
             <factor_ajuste_probabilidad>{apoyo.get('factor_ajuste_probabilidad', 0.0)}</factor_ajuste_probabilidad>
             <ultimo_update>{data.get('ultimo_update', '')}</ultimo_update>
             <score_porcentaje>{data.get('score_porcentaje', 0.0)}</score_porcentaje>
@@ -1767,13 +1771,22 @@ def test_rss_llm_polling(authorization: Optional[str] = Header(None)):
             activo_id = doc.id
             data = doc.to_dict()
             apoyo = data.get("aprendizaje_mia", {})
+            
+            raw_sent = apoyo.get('sentimiento_acumulado', 'NEUTRAL').upper()
+            if raw_sent == "BULLISH":
+                sentimiento_val = "True"
+            elif raw_sent == "BEARISH":
+                sentimiento_val = "False"
+            else:
+                sentimiento_val = "NEUTRAL"
+                
             item_xml = f"""
         <activo name="{activo_id}">
             <trades_totales>{apoyo.get('trades_totales', 0)}</trades_totales>
             <trades_ganados>{apoyo.get('trades_ganados', 0)}</trades_ganados>
             <win_rate_historico>{apoyo.get('win_rate_historico', 50.0)}</win_rate_historico>
             <racha_actual>{apoyo.get('racha_actual', 0)}</racha_actual>
-            <sentimiento_acumulado>{apoyo.get('sentimiento_acumulado', 'NEUTRAL')}</sentimiento_acumulado>
+            <sentimiento_acumulado>{sentimiento_val}</sentimiento_acumulado>
             <factor_ajuste_probabilidad>{apoyo.get('factor_ajuste_probabilidad', 0.0)}</factor_ajuste_probabilidad>
             <ultimo_update>{data.get('ultimo_update', '')}</ultimo_update>
             <score_porcentaje>{data.get('score_porcentaje', 0.0)}</score_porcentaje>
