@@ -542,29 +542,39 @@ async def ejecutar_escaner_cloud(account, connection):
         
     for activo in ACTIVOS:
         simbolo = MAPEO_BROKER.get(activo)
-        # H4 = '4h' en MetaAPI (Cubre el rango Macro de 1h a 8h que solicitaste)
-        df = await obtener_velas_cloud(account, simbolo, '4h', 300)
+        # Análisis Multi-Temporal (MTF): 1H y 4H
+        df_1h = await obtener_velas_cloud(account, simbolo, '1h', 100)
+        df_4h = await obtener_velas_cloud(account, simbolo, '4h', 300)
         
-        if df is None or df.empty:
+        if df_1h is None or df_1h.empty or df_4h is None or df_4h.empty:
             continue
             
-        rsi_series = calcular_rsi(df)
+        # 1. Indicadores Macro (Basados en 4H para mayor fiabilidad)
+        rsi_series = calcular_rsi(df_4h)
         rsi_actual = rsi_series.iloc[-1]
         
-        ema_50 = df['close'].ewm(span=50, adjust=False).mean().iloc[-1]
-        ema_200 = df['close'].ewm(span=200, adjust=False).mean().iloc[-1]
-        ma_alineada = (df['close'].iloc[-1] > ema_50 > ema_200) or (df['close'].iloc[-1] < ema_50 < ema_200)
+        ema_50 = df_4h['close'].ewm(span=50, adjust=False).mean().iloc[-1]
+        ema_200 = df_4h['close'].ewm(span=200, adjust=False).mean().iloc[-1]
+        precio_actual = df_4h['close'].iloc[-1]
+        ma_alineada = (precio_actual > ema_50 > ema_200) or (precio_actual < ema_50 < ema_200)
         
-        niveles = detectar_soportes_resistencias(df)
-        precio_actual = df['close'].iloc[-1]
+        niveles = detectar_soportes_resistencias(df_4h)
         soporte_activo = False
-        
         for sup in niveles["soportes"]:
             if abs(precio_actual - sup) < (precio_actual * 0.001):
                 soporte_activo = True
                 break
                 
-        confirmaciones = analizar_smc_ict(df)
+        # 2. SMC Institucional Fusión (1H + 4H)
+        conf_1h = analizar_smc_ict(df_1h)
+        conf_4h = analizar_smc_ict(df_4h)
+        
+        confirmaciones = {
+            "order_block_detectado": conf_1h["order_block_detectado"] or conf_4h["order_block_detectado"],
+            "fvg_detectado": conf_1h["fvg_detectado"] or conf_4h["fvg_detectado"],
+            "breaker_block_detectado": conf_1h["breaker_block_detectado"] or conf_4h["breaker_block_detectado"],
+            "sweep_liquidez_detectado": conf_1h["sweep_liquidez_detectado"] or conf_4h["sweep_liquidez_detectado"]
+        }
         
         # 1. Sincronizar confirmaciones con la matriz en Firestore (vía webhook)
         await sincronizar_matriz_tecnica(activo, confirmaciones, rsi_actual, ma_alineada, soporte_activo)
