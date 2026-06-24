@@ -150,7 +150,8 @@ async def startup_event():
                         
                         "confirmaciones_fundamentales": {
                             "noticias_impacto_favorables": False,
-                            "ipo_spo_liquidez_positiva": False
+                            "ipo_liquidez_positiva": False,
+                            "spo_liquidez_positiva": False
                         },
                         
                         "confirmaciones_institucionales": {
@@ -563,7 +564,7 @@ def procesar_anomalia_firestore(anomaly: MarketAnomaly):
             
         # Calcular el Score Porcentaje total basado en las 11 confirmaciones booleanas
         true_confirmaciones = 0
-        total_confirmaciones = 11
+        total_confirmaciones = 12
         
         for cat in ["confirmaciones_tecnicas", "confirmaciones_fundamentales", "confirmaciones_institucionales"]:
             if cat in data:
@@ -1164,7 +1165,8 @@ async def test_boolean(activo: str = "XAUUSD", lote: float = 0.01):
             },
             "confirmaciones_fundamentales": {
                 "noticias_impacto_favorables": True,
-                "ipo_spo_liquidez_positiva": True
+                "ipo_liquidez_positiva": True,
+                "spo_liquidez_positiva": True
             },
             "confirmaciones_institucionales": {
                 "dark_pools_compra_masiva": True,
@@ -1304,7 +1306,8 @@ class TechnicalUpdate(BaseModel):
 class FundamentalUpdate(BaseModel):
     activo: str
     noticias_impacto_favorables: Optional[bool] = None
-    ipo_spo_liquidez_positiva: Optional[bool] = None
+    ipo_liquidez_positiva: Optional[bool] = None
+    spo_liquidez_positiva: Optional[bool] = None
 
 class MT5SetupRequest(BaseModel):
     activo: str
@@ -1341,9 +1344,9 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         for k, v in update.confirmaciones_tecnicas.items():
             data["confirmaciones_tecnicas"][k] = bool(v)
             
-        # Calcular el Score Porcentaje total basado en las 11 confirmaciones booleanas
+        # Calcular el Score Porcentaje total basado en las 12 confirmaciones booleanas
         true_confirmaciones = 0
-        total_confirmaciones = 11
+        total_confirmaciones = 12
         
         for cat in ["confirmaciones_tecnicas", "confirmaciones_fundamentales", "confirmaciones_institucionales"]:
             if cat in data:
@@ -1460,7 +1463,8 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             },
             "confirmaciones_fundamentales": {
                 "noticias_impacto_favorables": 20.0,
-                "ipo_spo_liquidez_positiva": 20.0
+                "ipo_liquidez_positiva": 10.0,
+                "spo_liquidez_positiva": 10.0
             },
             "confirmaciones_institucionales": {
                 "dark_pools_compra_masiva": 20.0,
@@ -1716,12 +1720,15 @@ def webhook_fundamental_update(update: FundamentalUpdate, authorization: Optiona
         if update.noticias_impacto_favorables is not None:
             data["confirmaciones_fundamentales"]["noticias_impacto_favorables"] = update.noticias_impacto_favorables
             
-        if update.ipo_spo_liquidez_positiva is not None:
-            data["confirmaciones_fundamentales"]["ipo_spo_liquidez_positiva"] = update.ipo_spo_liquidez_positiva
+        if update.ipo_liquidez_positiva is not None:
+            data["confirmaciones_fundamentales"]["ipo_liquidez_positiva"] = update.ipo_liquidez_positiva
+            
+        if update.spo_liquidez_positiva is not None:
+            data["confirmaciones_fundamentales"]["spo_liquidez_positiva"] = update.spo_liquidez_positiva
         
         # Recalcular score
         true_confirmaciones = 0
-        total_confirmaciones = 11
+        total_confirmaciones = 12
         for cat in ["confirmaciones_tecnicas", "confirmaciones_fundamentales", "confirmaciones_institucionales"]:
             if cat in data:
                 for k, v in data[cat].items():
