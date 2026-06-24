@@ -543,7 +543,7 @@ async def ejecutar_escaner_cloud(account, connection):
     for activo in ACTIVOS:
         simbolo = MAPEO_BROKER.get(activo)
         # H4 = '4h' en MetaAPI (Cubre el rango Macro de 1h a 8h que solicitaste)
-        df = await obtener_velas_cloud(account, simbolo, '4h', 100)
+        df = await obtener_velas_cloud(account, simbolo, '4h', 300)
         
         if df is None or df.empty:
             continue
