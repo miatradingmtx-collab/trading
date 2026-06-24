@@ -122,7 +122,7 @@ async def startup_event():
     if firebase_inicializado and db is not None:
         try:
             # Lista de activos a validar
-            activos = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD"]
+            activos = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD"]
             coleccion_ref = db.collection("trading_matrix")
             
             print("| FIREBASE | Verificando inicialización de la matriz de activos...")
