@@ -1303,8 +1303,8 @@ class TechnicalUpdate(BaseModel):
 
 class FundamentalUpdate(BaseModel):
     activo: str
-    noticias_impacto_favorables: bool
-    ipo_spo_liquidez_positiva: bool
+    noticias_impacto_favorables: Optional[bool] = None
+    ipo_spo_liquidez_positiva: Optional[bool] = None
 
 class MT5SetupRequest(BaseModel):
     activo: str
@@ -1713,8 +1713,11 @@ def webhook_fundamental_update(update: FundamentalUpdate, authorization: Optiona
         if "confirmaciones_fundamentales" not in data:
             data["confirmaciones_fundamentales"] = {}
             
-        data["confirmaciones_fundamentales"]["noticias_impacto_favorables"] = update.noticias_impacto_favorables
-        data["confirmaciones_fundamentales"]["ipo_spo_liquidez_positiva"] = update.ipo_spo_liquidez_positiva
+        if update.noticias_impacto_favorables is not None:
+            data["confirmaciones_fundamentales"]["noticias_impacto_favorables"] = update.noticias_impacto_favorables
+            
+        if update.ipo_spo_liquidez_positiva is not None:
+            data["confirmaciones_fundamentales"]["ipo_spo_liquidez_positiva"] = update.ipo_spo_liquidez_positiva
         
         # Recalcular score
         true_confirmaciones = 0
