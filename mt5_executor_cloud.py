@@ -542,8 +542,8 @@ async def ejecutar_escaner_cloud(account, connection):
         
     for activo in ACTIVOS:
         simbolo = MAPEO_BROKER.get(activo)
-        # H1 = '1h' en MetaAPI
-        df = await obtener_velas_cloud(account, simbolo, '1h', 100)
+        # H4 = '4h' en MetaAPI (Cubre el rango Macro de 1h a 8h que solicitaste)
+        df = await obtener_velas_cloud(account, simbolo, '4h', 100)
         
         if df is None or df.empty:
             continue
@@ -604,7 +604,7 @@ async def run_escaner_loop():
             await ejecutar_escaner_cloud(account, connection)
         except Exception as e:
             print(f"| RUNNER CLOUD ERROR | Ocurrió un fallo en el escáner: {e}")
-        await asyncio.sleep(60) # Ejecutar cada 60 segundos
+        await asyncio.sleep(900) # Ejecutar cada 15 minutos (900 seg) para timeframes H1-H8
 
 async def abrir_posicion_test(simbolo: str, lote: float) -> str:
     """Función de prueba para abrir una posición directamente en MetaAPI."""
