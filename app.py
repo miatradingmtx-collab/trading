@@ -509,6 +509,34 @@ def notificar_botpress_mia(activo: str, data: dict):
     except Exception as e:
         print(f"| BOTPRESS ERROR | No se pudo notificar a Mia: {e}")
 
+def recalcular_score_ponderado(data: dict) -> float:
+    score = 0.0
+    
+    # 1. Técnicas (Max 40)
+    tech = data.get("confirmaciones_tecnicas", {})
+    if tech.get("order_block_detectado"): score += 10
+    if tech.get("fvg_detectado"): score += 5
+    if tech.get("breaker_block_detectado"): score += 5
+    if tech.get("sweep_liquidez_detectado"): score += 5
+    if tech.get("soporte_resistencia_activo"): score += 5
+    if tech.get("ema_50_200_crossover"): score += 5
+    if tech.get("rsi_sobrecompra_sobreventa"): score += 5
+        
+    # 2. Institucionales (Max 40)
+    inst = data.get("confirmaciones_institucionales", {})
+    if inst.get("dark_pools_amortizado"): score += 10
+    if inst.get("dark_pools_url_valid"): score += 10
+    if inst.get("whales_perdieron_fuerza"): score += 10
+    if inst.get("heatmap_ordenes_limite"): score += 10
+        
+    # 3. Fundamentales (Max 20)
+    fund = data.get("confirmaciones_fundamentales", {})
+    if fund.get("noticias_impacto_favorables"): score += 10
+    if fund.get("ipo_liquidez_positiva"): score += 5
+    if fund.get("spo_liquidez_positiva"): score += 5
+        
+    return min(score, 100.0)
+
 def normalizar_activo(activo: str) -> str:
     """Mapea símbolos de trading comunes a los 8 activos clave de Firebase"""
     act = activo.upper().strip()
@@ -562,17 +590,8 @@ def procesar_anomalia_firestore(anomaly: MarketAnomaly):
             data["confirmaciones_institucionales"]["heatmap_ordenes_limite"] = is_bullish
             print(f"| FIREBASE | Actualizando Heatmap de {activo_normalizado} a: {is_bullish}")
             
-        # Calcular el Score Porcentaje total basado en las 11 confirmaciones booleanas
-        true_confirmaciones = 0
-        total_confirmaciones = 12
-        
-        for cat in ["confirmaciones_tecnicas", "confirmaciones_fundamentales", "confirmaciones_institucionales"]:
-            if cat in data:
-                for k, v in data[cat].items():
-                    if v is True:
-                        true_confirmaciones += 1
-                        
-        score = (true_confirmaciones / total_confirmaciones) * 100.0
+        # Calcular el Score Porcentaje total basado en el nuevo modelo Institucional (100 pts)
+        score = recalcular_score_ponderado(data)
         data["score_porcentaje"] = round(score, 2)
         
         # El umbral configurado por el usuario es del 80% al 90%
@@ -1344,17 +1363,8 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         for k, v in update.confirmaciones_tecnicas.items():
             data["confirmaciones_tecnicas"][k] = bool(v)
             
-        # Calcular el Score Porcentaje total basado en las 12 confirmaciones booleanas
-        true_confirmaciones = 0
-        total_confirmaciones = 12
-        
-        for cat in ["confirmaciones_tecnicas", "confirmaciones_fundamentales", "confirmaciones_institucionales"]:
-            if cat in data:
-                for k, v in data[cat].items():
-                    if v is True:
-                        true_confirmaciones += 1
-                        
-        score = (true_confirmaciones / total_confirmaciones) * 100.0
+        # Calcular el Score Porcentaje total basado en el nuevo modelo Institucional (100 pts)
+        score = recalcular_score_ponderado(data)
         data["score_porcentaje"] = round(score, 2)
         data["gatillo_entrada"] = score >= 80.0
         
@@ -1727,15 +1737,7 @@ def webhook_fundamental_update(update: FundamentalUpdate, authorization: Optiona
             data["confirmaciones_fundamentales"]["spo_liquidez_positiva"] = update.spo_liquidez_positiva
         
         # Recalcular score
-        true_confirmaciones = 0
-        total_confirmaciones = 12
-        for cat in ["confirmaciones_tecnicas", "confirmaciones_fundamentales", "confirmaciones_institucionales"]:
-            if cat in data:
-                for k, v in data[cat].items():
-                    if v is True:
-                        true_confirmaciones += 1
-                        
-        score = (true_confirmaciones / total_confirmaciones) * 100.0
+        score = recalcular_score_ponderado(data)
         data["score_porcentaje"] = round(score, 2)
         data["gatillo_entrada"] = score >= 80.0
         
