@@ -213,16 +213,19 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
         "Content-Type": "application/json"
     }
     
+    smc_codes = []
+    if confirmaciones["order_block_detectado"]: smc_codes.append(1)
+    if confirmaciones["fvg_detectado"]: smc_codes.append(2)
+    if confirmaciones["breaker_block_detectado"]: smc_codes.append(3)
+    if confirmaciones["sweep_liquidez_detectado"]: smc_codes.append(4)
+    
     payload = {
         "activo": activo,
         "confirmaciones_tecnicas": {
             "soporte_resistencia_activo": bool(soporte_activo),
             "medias_moviles_alineadas": bool(ma_alineada),
             "rsi_sobrecompra_sobreventa": bool(rsi_val >= 80 or rsi_val <= 20),
-            "order_block_detectado": bool(confirmaciones["order_block_detectado"]),
-            "fvg_detectado": bool(confirmaciones["fvg_detectado"]),
-            "breaker_block_detectado": bool(confirmaciones["breaker_block_detectado"]),
-            "sweep_liquidez_detectado": bool(confirmaciones["sweep_liquidez_detectado"])
+            "smc_codes": smc_codes
         }
     }
 

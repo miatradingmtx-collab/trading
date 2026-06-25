@@ -142,10 +142,7 @@ async def startup_event():
                             "soporte_resistencia_activo": False,
                             "ema_50_200_crossover": False,
                             "rsi_sobrecompra_sobreventa": False,
-                            "order_block_detectado": False,
-                            "fvg_detectado": False,
-                            "breaker_block_detectado": False,
-                            "sweep_liquidez_detectado": False
+                            "smc_codes": []
                         },
                         
                         "confirmaciones_fundamentales": {
@@ -514,10 +511,14 @@ def recalcular_score_ponderado(data: dict) -> float:
     
     # 1. Técnicas (Max 40)
     tech = data.get("confirmaciones_tecnicas", {})
-    if tech.get("order_block_detectado"): score += 10
-    if tech.get("fvg_detectado"): score += 5
-    if tech.get("breaker_block_detectado"): score += 5
-    if tech.get("sweep_liquidez_detectado"): score += 5
+    smc_codes = tech.get("smc_codes", [])
+    
+    # Catálogo SMC: 1=OB, 2=FVG, 3=Breaker, 4=Sweep
+    if 1 in smc_codes: score += 10
+    if 2 in smc_codes: score += 5
+    if 3 in smc_codes: score += 5
+    if 4 in smc_codes: score += 5
+    
     if tech.get("soporte_resistencia_activo"): score += 5
     if tech.get("ema_50_200_crossover"): score += 5
     if tech.get("rsi_sobrecompra_sobreventa"): score += 5
@@ -1361,7 +1362,16 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
             
         # Actualizar confirmaciones técnicas
         for k, v in update.confirmaciones_tecnicas.items():
-            data["confirmaciones_tecnicas"][k] = bool(v)
+            if k == "smc_codes":
+                data["confirmaciones_tecnicas"][k] = v
+            else:
+                data["confirmaciones_tecnicas"][k] = bool(v)
+                
+        # Limpiar booleanos legacy si existen en la base de datos
+        legacy_keys = ["order_block_detectado", "fvg_detectado", "breaker_block_detectado", "sweep_liquidez_detectado"]
+        for lk in legacy_keys:
+            if lk in data["confirmaciones_tecnicas"]:
+                del data["confirmaciones_tecnicas"][lk]
             
         # Calcular el Score Porcentaje total basado en el nuevo modelo Institucional (100 pts)
         score = recalcular_score_ponderado(data)
@@ -1447,9 +1457,10 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
 
         # 2. VALIDACIÓN DE 'LEVEL KEYS' (Niveles técnicos clave). Al menos uno debe estar activo
         tecnicos = data.get("confirmaciones_tecnicas", {})
+        smc_codes = tecnicos.get("smc_codes", [])
         level_keys_valid = (
-            tecnicos.get("order_block_detectado", False) or 
-            tecnicos.get("breaker_block_detectado", False) or 
+            1 in smc_codes or 
+            3 in smc_codes or 
             tecnicos.get("soporte_resistencia_activo", False)
         )
         
@@ -1460,46 +1471,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
                 "level_keys_valid": False
             }
 
-        # 3. CÁLCULO DE PROBABILIDAD ESTADÍSTICA (Sumatoria con Pesos Específicos: 80% Fundamental e Institucional, 20% Técnico)
-        pesos = {
-            "confirmaciones_tecnicas": {
-                "order_block_detectado": 4.0,
-                "fvg_detectado": 4.0,
-                "breaker_block_detectado": 3.0,
-                "sweep_liquidez_detectado": 3.0,
-                "soporte_resistencia_activo": 3.0,
-                "medias_moviles_alineadas": 1.5,
-                "rsi_sobrecompra_sobreventa": 1.5
-            },
-            "confirmaciones_fundamentales": {
-                "noticias_impacto_favorables": 20.0,
-                "ipo_liquidez_positiva": 10.0,
-                "spo_liquidez_positiva": 10.0
-            },
-            "confirmaciones_institucionales": {
-                "dark_pools_compra_masiva": 20.0,
-                "heatmap_ordenes_limite": 20.0
-            }
-        }
-        
-        probabilidad = 0.0
-        for cat, campos in pesos.items():
-            if cat in data:
-                for campo, peso in campos.items():
-                    if data[cat].get(campo, False) is True:
-                        probabilidad += peso
-                        
-        # 4. MODO APRENDIZ (KB DE MIA): Aplicar factor de ajuste de probabilidad basado en el sentimiento acumulado del mercado
-        factor_ajuste = 0.0
-        if "aprendizaje_mia" in data:
-            apoyo = data["aprendizaje_mia"]
-            if apoyo.get("modo_aprendiz_activo", True):
-                factor_ajuste = apoyo.get("factor_ajuste_probabilidad", 0.0)
-                
-        probabilidad = probabilidad + factor_ajuste
-        # Limitar la probabilidad entre 0% y 100%
-        probabilidad = max(0.0, min(100.0, round(probabilidad, 2)))
-        
+        # 3. VALIDACIÓN FINAL DE PROBABILIDAD ESTADÍSTICA (Score >= 80%)
         # El score debe ser mayor o igual al 80% como primera condición
         score = data.get("score_porcentaje", 0.0)
         gatillo = data.get("gatillo_entrada", False)
@@ -1508,18 +1480,8 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         if not score_valido:
             return {
                 "authorized": False,
-                "reason": f"El score de validación booleana ({score}%) es menor al 80% requerido.",
-                "score_porcentaje": score,
-                "probabilidad_exito": probabilidad
-            }
-            
-        # Validación final de probabilidad estadística >= 80%
-        if probabilidad < 80.0:
-            return {
-                "authorized": False,
-                "reason": f"La probabilidad estadística ponderada ({probabilidad}%) es menor al 80% requerido para ejecución.",
-                "score_porcentaje": score,
-                "probabilidad_exito": probabilidad
+                "reason": f"El score de validación ({score}%) es menor al 80% requerido.",
+                "score_porcentaje": score
             }
             
         # Obtener memoria colectiva de Firestore si existe
