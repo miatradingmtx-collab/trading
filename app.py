@@ -454,6 +454,21 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
         # El método add genera un ID de documento aleatorio automáticamente
         doc_ref = db.collection("trading_alerts").add(data)
         print(f"| FIREBASE SUCCESS | Alerta guardada en Firestore. ID del documento: {doc_ref[1].id}")
+        
+        # Guardar en mia_audit_logs con el Ticket como ID (Para el Dashboard y KB)
+        if alert.ticket:
+            audit_ref = db.collection("mia_audit_logs").document(str(alert.ticket))
+            audit_data = {
+                "ticket": str(alert.ticket),
+                "activo": alert.activo,
+                "estrategia": alert.estrategia,
+                "pnl": alert.pnl if alert.pnl else 0.0,
+                "ultima_actualizacion": datetime.datetime.now().isoformat()
+            }
+            # Usamos merge=True para no sobreescribir el precio y score si ya fue guardado por la apertura
+            audit_ref.set(audit_data, merge=True)
+            print(f"| AUDIT LOG SUCCESS | Ticket {alert.ticket} guardado/actualizado en mia_audit_logs.")
+            
         return True
     except Exception as e:
         print(f"| FIREBASE ERROR | Error al guardar en Firestore: {e}")
@@ -853,7 +868,7 @@ def recalcular_memoria_colectiva():
     except Exception as e:
         print(f"| KB MIA ERROR | Error recalculando memoria colectiva: {e}")
 
-def actualizar_aprendizaje_mia(activo: str, pnl: float):
+def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
     """
     Stored Procedure (SP): Actualiza la base de conocimiento (mia_kb) leyendo las 
     confirmaciones de trading_matrix, calculando sesiones y patrones ICT/SMC.
@@ -957,23 +972,36 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float):
                         "combo": patron_key_parts,
                         "metodologia": "ICT/SMC",
                         "ocurrencias": 0,
-                        "trades_ganados": 0,
+                        "ganados": 0,
+                        "perdidos": 0,
                         "win_rate": 0.0,
-                        "pnl_acumulado": 0.0,
+                        "pnl_generado": 0.0,
+                        "tickets_ganadores": [],
+                        "tickets_perdedores": []
                     }
+                    
+                pat_data["ocurrencias"] = pat_data.get("ocurrencias", 0) + 1
                 
-                pat_data["ocurrencias"] += 1
                 if es_ganado:
-                    pat_data["trades_ganados"] += 1
-                pat_data["pnl_acumulado"] += pnl
+                    pat_data["ganados"] = pat_data.get("ganados", 0) + 1
+                    if ticket:
+                        ganadores_arr = pat_data.get("tickets_ganadores", [])
+                        ganadores_arr.append(str(ticket))
+                        pat_data["tickets_ganadores"] = ganadores_arr
+                else:
+                    pat_data["perdidos"] = pat_data.get("perdidos", 0) + 1
+                    if ticket:
+                        perdidos_arr = pat_data.get("tickets_perdedores", [])
+                        perdidos_arr.append(str(ticket))
+                        pat_data["tickets_perdedores"] = perdidos_arr
+                        
+                pat_data["pnl_generado"] = pat_data.get("pnl_generado", 0.0) + pnl
                 if pat_data["ocurrencias"] > 0:
-                    pat_data["win_rate"] = round(
-                        (pat_data["trades_ganados"] / pat_data["ocurrencias"]) * 100, 2
-                    )
+                    pat_data["win_rate"] = round((pat_data["ganados"] / pat_data["ocurrencias"]) * 100, 2)
                 pat_data["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
                 pat_ref.set(pat_data)
             except Exception as e:
-                print(f"| KB MIA WARN | Error actualizando patron {patron_key}: {e}")
+                print(f"| KB MIA WARN | Error actualizando patron ICT/SMC {patron_key}: {e}")
                 
         # 6. Recalcular Memoria Colectiva
         recalcular_memoria_colectiva()
@@ -1041,7 +1069,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     
     # 4. Modo Aprendiz (KB de Mia): Sincronizar resultados si es un cierre con PnL
     if alert.pnl != 0.0 or "CIERRE" in alert.accion.upper():
-        background_tasks.add_task(actualizar_aprendizaje_mia, alert.activo, alert.pnl)
+        background_tasks.add_task(actualizar_aprendizaje_mia, alert.activo, alert.pnl, alert.ticket)
         
     # 5. Notificar a Mia (Botpress) de que hubo un movimiento (Apertura o Cierre)
     if BOTPRESS_WEBHOOK_URL:
