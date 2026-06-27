@@ -509,32 +509,33 @@ def notificar_botpress_mia(activo: str, data: dict):
 def recalcular_score_ponderado(data: dict) -> float:
     score = 0.0
     
-    # 1. Técnicas (Max 40)
+    # 1. Técnicas (Max 100 - Modo 100% Técnico)
     tech = data.get("confirmaciones_tecnicas", {})
     smc_codes = tech.get("smc_codes", [])
     
-    # Catálogo SMC: 1=OB, 2=FVG, 3=Breaker, 4=Sweep
-    if 1 in smc_codes: score += 10
-    if 2 in smc_codes: score += 5
-    if 3 in smc_codes: score += 5
-    if 4 in smc_codes: score += 5
+    # Catálogo SMC (Max 70 puntos): 1=OB, 2=FVG, 3=Breaker, 4=Sweep
+    if 1 in smc_codes: score += 30  # Order Block (Estructura Fuerte)
+    if 2 in smc_codes: score += 20  # FVG (Aceleración)
+    if 3 in smc_codes: score += 10  # Breaker Block
+    if 4 in smc_codes: score += 10  # Liquidity Sweep
     
-    if tech.get("soporte_resistencia_activo"): score += 5
-    if tech.get("ema_50_200_crossover"): score += 5
-    if tech.get("rsi_sobrecompra_sobreventa"): score += 5
+    # Confirmadores (Max 30 puntos)
+    if tech.get("soporte_resistencia_activo"): score += 10
+    if tech.get("ema_50_200_crossover"): score += 10
+    if tech.get("rsi_sobrecompra_sobreventa"): score += 10
         
-    # 2. Institucionales (Max 40)
-    inst = data.get("confirmaciones_institucionales", {})
-    if inst.get("dark_pools_amortizado"): score += 10
-    if inst.get("dark_pools_url_valid"): score += 10
-    if inst.get("whales_perdieron_fuerza"): score += 10
-    if inst.get("heatmap_ordenes_limite"): score += 10
+    # 2. Institucionales (APAGADO TEMPORALMENTE - n8n bypass)
+    # inst = data.get("confirmaciones_institucionales", {})
+    # if inst.get("dark_pools_amortizado"): score += 10
+    # if inst.get("dark_pools_url_valid"): score += 10
+    # if inst.get("whales_perdieron_fuerza"): score += 10
+    # if inst.get("heatmap_ordenes_limite"): score += 10
         
-    # 3. Fundamentales (Max 20)
-    fund = data.get("confirmaciones_fundamentales", {})
-    if fund.get("noticias_impacto_favorables"): score += 10
-    if fund.get("ipo_liquidez_positiva"): score += 5
-    if fund.get("spo_liquidez_positiva"): score += 5
+    # 3. Fundamentales (APAGADO TEMPORALMENTE - n8n bypass)
+    # fund = data.get("confirmaciones_fundamentales", {})
+    # if fund.get("noticias_impacto_favorables"): score += 10
+    # if fund.get("ipo_liquidez_positiva"): score += 5
+    # if fund.get("spo_liquidez_positiva"): score += 5
         
     return min(score, 100.0)
 
