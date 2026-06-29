@@ -529,10 +529,10 @@ def recalcular_score_ponderado(data: dict) -> float:
     smc_codes = tech.get("smc_codes", [])
     
     # Catálogo SMC (Max 70 puntos): 1=OB, 2=FVG, 3=Breaker, 4=Sweep
-    if 1 in smc_codes: score += 30  # Order Block (Estructura Fuerte)
-    if 2 in smc_codes: score += 20  # FVG (Aceleración)
-    if 3 in smc_codes: score += 10  # Breaker Block
-    if 4 in smc_codes: score += 10  # Liquidity Sweep
+    if 1 in smc_codes: score += 60  # Order Block (Estructura Fuerte)
+    if 2 in smc_codes: score += 60  # FVG (Aceleración)
+    if 3 in smc_codes: score += 50  # Breaker Block
+    if 4 in smc_codes: score += 40  # Liquidity Sweep
     
     # Confirmadores (Max 30 puntos)
     if tech.get("soporte_resistencia_activo"): score += 10
