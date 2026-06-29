@@ -429,6 +429,25 @@ def actualizar_excel_local(alert: TradeAlert):
         print(f"| EXCEL ERROR | No se pudo actualizar el archivo Excel: {e}")
         return False
 
+def registrar_error_sistema(componente: str, mensaje: str):
+    """
+    Registra errores críticos del sistema (Railway, Firebase, MetaAPI) en la colección mia_system_logs
+    """
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        return
+        
+    try:
+        import time
+        doc_id = f"ERR_{int(time.time()*1000)}"
+        db.collection("mia_system_logs").document(doc_id).set({
+            "timestamp": datetime.datetime.now().isoformat(),
+            "componente": componente,
+            "mensaje": str(mensaje)
+        })
+    except:
+        pass
+
 def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None, precio_google: Optional[float] = None):
     """
     Registra la alerta de trading en la colección 'trading_alerts' de Firebase Firestore.
@@ -2111,7 +2130,8 @@ async def api_dashboard_data():
         "killzones": [],
         "indicadores": [],
         "matriz_scores": {},
-        "feed": []
+        "feed": [],
+        "system_logs": []
     }
 
     try:
@@ -2124,6 +2144,11 @@ async def api_dashboard_data():
         matrices = db.collection("trading_matrix").stream()
         for m in matrices:
             data["matriz_scores"][m.id] = m.to_dict().get("score_porcentaje", 0)
+
+        # 2.5 system_logs
+        sys_logs = db.collection("mia_system_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream()
+        for sl in sys_logs:
+            data["system_logs"].append(sl.to_dict())
 
         # 3. mia_audit_logs (Últimos 500 para cálculos de PnL y Rendimiento)
         # Requerimos índice compuesto en Firebase si ordenamos, así que traemos sin orden y ordenamos en Python

@@ -393,6 +393,17 @@
                 </div>
             </div>
         </div>
+        <!-- NEW ROW: SYSTEM LOGS -->
+        <div style="margin-top: 24px;">
+            <div class="card" style="border-top: 2px solid #ff4d4d;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="card-title" style="margin-bottom: 0; color: #ff4d4d;">System Health & Errors</div>
+                </div>
+                <div id="system-logs-container" style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; max-height: 150px; overflow-y: auto; padding-right: 10px;">
+                    <div style="font-size: 11px; color:#00e68a;">[✓] Ningún error crítico detectado en el sistema recientemente.</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- SCRIPT DE ACTUALIZACIÓN -->
@@ -596,8 +607,24 @@
 
                     // 9. Live Feed Detallado
                     if (d.feed) {
-                        window.liveFeedData = d.feed;
+                        window.liveFeedData = d.feed || [];
                         renderFeed();
+                        
+                        // Procesar System Logs
+                        if (d.system_logs && d.system_logs.length > 0) {
+                            const logsHtml = d.system_logs.map(log => {
+                                const date = log.timestamp ? log.timestamp.split('.')[0].replace('T', ' ') : 'N/A';
+                                return `
+                                <div style="background: rgba(255, 77, 77, 0.05); border-left: 2px solid #ff4d4d; padding: 6px 10px; border-radius: 0 4px 4px 0; font-family: monospace; font-size: 11px; display: flex; flex-direction: column; gap: 4px;">
+                                    <span style="color: #6b7194;">[${date}] <strong style="color: #ff4d4d;">${log.componente}</strong></span>
+                                    <span style="color: #c9d1d9;">${log.mensaje}</span>
+                                </div>
+                                `;
+                            }).join('');
+                            document.getElementById('system-logs-container').innerHTML = logsHtml;
+                        } else {
+                            document.getElementById('system-logs-container').innerHTML = `<div style="font-size: 11px; color:#00e68a;">[✓] Ningún error crítico detectado en el sistema recientemente.</div>`;
+                        }
                     }
                 }
             } catch (error) {
