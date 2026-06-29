@@ -1893,7 +1893,7 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         estrategia_base = "SMC Setup"
         str_ejecutada = "SÍ" if ejecucion.ejecutada_mt5 else "NO"
         
-        detalle_str = f"{ejecucion.activo} | {fecha} | {sesion} | {estrategia_base} | {confirmaciones_str} | EJECUTADA EN MT5: {str_ejecutada} | MOTIVO: {ejecucion.motivo}"
+        detalle_str = f"{ejecucion.activo} | {fecha} | {sesion} | {estrategia_base} | {confirmaciones_str} | SCORE: {ejecucion.score}% | EJECUTADA EN MT5: {str_ejecutada} | MOTIVO: {ejecucion.motivo}"
         
         audit_ref = db.collection("mia_audit_logs").document(str(ejecucion.ticket))
         audit_ref.set({
@@ -2091,7 +2091,7 @@ async def api_dashboard_data():
                 if not estrategia or estrategia.strip() == "":
                     estrategia = "SMC Setup"
                     
-                detalle = f"{activo} | {fecha} | {sesion} | {estrategia} | SETUP HISTÓRICO | EJECUTADA EN MT5: SÍ | MOTIVO: ALERTA HISTÓRICA"
+                detalle = f"{activo} | {fecha} | {sesion} | {estrategia} | SETUP HISTÓRICO | SCORE: {score_val}% | EJECUTADA EN MT5: SÍ | MOTIVO: ALERTA HISTÓRICA"
             
             data["feed"].append({
                 "texto": detalle,
