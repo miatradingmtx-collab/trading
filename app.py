@@ -15,8 +15,10 @@
 # ==============================================================================
 
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Header, Response
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
+import csv
+from io import StringIO
 from typing import Optional
 import requests
 import os
@@ -2168,3 +2170,45 @@ async def api_dashboard_data():
     except Exception as e:
         print(f"| API ERROR | Fallo al recopilar datos del dashboard: {e}")
         return {"status": "error", "message": str(e)}
+
+@app.get("/api/export_audit_csv")
+def export_audit_csv():
+    """
+    Exporta todos los logs de auditoría a formato CSV para análisis de datos duros.
+    """
+    if not firebase_inicializado or db is None:
+        raise HTTPException(status_code=503, detail="Firebase no inicializado")
+        
+    try:
+        logs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(1000).stream()
+        
+        output = StringIO()
+        writer = csv.writer(output)
+        # Escribir la cabecera
+        writer.writerow(["Ticket", "Timestamp", "Fecha", "Activo", "Accion", "Estrategia", "Score (%)", "Precio Ejecucion", "PNL", "Ejecutada MT5", "Detalle Setup"])
+        
+        for log in logs:
+            l = log.to_dict()
+            writer.writerow([
+                l.get("ticket", ""),
+                l.get("timestamp", ""),
+                l.get("fecha", ""),
+                l.get("activo", ""),
+                l.get("accion", ""),
+                l.get("estrategia", ""),
+                l.get("score", l.get("score_confluencias", 0)),
+                l.get("precio_ejecucion", 0.0),
+                l.get("pnl", 0.0),
+                "SÍ" if l.get("ejecutada_mt5", True) else "NO",
+                l.get("detalle_setup", "")
+            ])
+            
+        output.seek(0)
+        return StreamingResponse(
+            output, 
+            media_type="text/csv", 
+            headers={"Content-Disposition": "attachment; filename=mia_audit_logs.csv"}
+        )
+    except Exception as e:
+        print(f"| API EXPORT CSV ERROR | {e}")
+        raise HTTPException(status_code=500, detail=str(e))

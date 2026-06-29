@@ -375,7 +375,10 @@
         <!-- NEW ROW: FEED DE EJECUCIÓN DETALLADO -->
         <div style="margin-top: 24px;">
             <div class="card">
-                <div class="card-title">Live Feed: Detalle de Confirmaciones (Últimas Operaciones)</div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="card-title" style="margin-bottom: 0;">Live Feed: Detalle de Confirmaciones</div>
+                    <a href="/api/export_audit_csv" target="_blank" style="background: rgba(0, 230, 138, 0.1); color: #00e68a; border: 1px solid rgba(0, 230, 138, 0.3); padding: 4px 12px; border-radius: 4px; font-size: 11px; text-decoration: none; font-weight: bold; cursor: pointer; transition: 0.2s;">DESCARGAR CSV ↓</a>
+                </div>
                 <div id="live-feed-container" style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; max-height: 250px; overflow-y: auto; padding-right: 10px;">
                     <!-- Poblado por JS -->
                     <div style="font-size: 11px; color:#6b7194;">Esperando registros de auditoría...</div>
