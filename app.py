@@ -2067,8 +2067,8 @@ async def api_dashboard_data():
             else:
                 todas_las_entradas.append(l)
                 
-        # Procesar Feed de Oportunidades (Últimas 10)
-        todas_las_entradas = sorted(todas_las_entradas, key=lambda x: x.get("timestamp", ""), reverse=True)[:10]
+        # Procesar Feed de Oportunidades (Últimas 500)
+        todas_las_entradas = sorted(todas_las_entradas, key=lambda x: x.get("timestamp", ""), reverse=True)[:500]
         for e in todas_las_entradas:
             score_val = float(e.get("score", e.get("score_confluencias", 0)))
             detalle = e.get("detalle_setup")
@@ -2097,7 +2097,8 @@ async def api_dashboard_data():
             
             data["feed"].append({
                 "texto": detalle,
-                "color": "#00e68a" if score_val >= 80 else "#00b4d8"
+                "color": "#00e68a" if score_val >= 80 else "#00b4d8",
+                "timestamp": e.get("timestamp", "") or e.get("fecha", "")
             })
                 
         # Ordenar por timestamp

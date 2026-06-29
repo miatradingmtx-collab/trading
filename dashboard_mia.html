@@ -377,7 +377,15 @@
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div class="card-title" style="margin-bottom: 0;">Live Feed: Detalle de Confirmaciones</div>
-                    <a href="/api/export_audit_csv" target="_blank" style="background: rgba(0, 230, 138, 0.1); color: #00e68a; border: 1px solid rgba(0, 230, 138, 0.3); padding: 4px 12px; border-radius: 4px; font-size: 11px; text-decoration: none; font-weight: bold; cursor: pointer; transition: 0.2s;">DESCARGAR CSV ↓</a>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <select id="feed-filter" onchange="renderFeed()" style="background: rgba(255,255,255,0.05); color: #c9d1d9; border: 1px solid rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px; outline: none; cursor: pointer;">
+                            <option value="hoy">Hoy</option>
+                            <option value="mes">Este Mes</option>
+                            <option value="año">Este Año</option>
+                            <option value="todo">Todo el Histórico</option>
+                        </select>
+                        <a href="/api/export_audit_csv" target="_blank" style="background: rgba(0, 230, 138, 0.1); color: #00e68a; border: 1px solid rgba(0, 230, 138, 0.3); padding: 4px 12px; border-radius: 4px; font-size: 11px; text-decoration: none; font-weight: bold; cursor: pointer; transition: 0.2s;">DESCARGAR CSV ↓</a>
+                    </div>
                 </div>
                 <div id="live-feed-container" style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; max-height: 250px; overflow-y: auto; padding-right: 10px;">
                     <!-- Poblado por JS -->
@@ -389,6 +397,51 @@
 
     <!-- SCRIPT DE ACTUALIZACIÓN -->
     <script>
+        window.liveFeedData = [];
+
+        function renderFeed() {
+            const feedContainer = document.getElementById('live-feed-container');
+            if (!window.liveFeedData || window.liveFeedData.length === 0) {
+                feedContainer.innerHTML = '<div style="font-size: 11px; color:#6b7194;">No hay datos para el filtro seleccionado.</div>';
+                return;
+            }
+
+            const filterVal = document.getElementById('feed-filter').value;
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            const monthStr = todayStr.substring(0, 7);
+            const yearStr = todayStr.substring(0, 4);
+
+            let filtered = window.liveFeedData;
+
+            if (filterVal === 'hoy') {
+                filtered = filtered.filter(f => f.timestamp.startsWith(todayStr));
+            } else if (filterVal === 'mes') {
+                filtered = filtered.filter(f => f.timestamp.startsWith(monthStr));
+            } else if (filterVal === 'año') {
+                filtered = filtered.filter(f => f.timestamp.startsWith(yearStr));
+            }
+
+            feedContainer.innerHTML = '';
+            if (filtered.length === 0) {
+                feedContainer.innerHTML = '<div style="font-size: 11px; color:#6b7194;">No hay operaciones en este periodo de tiempo.</div>';
+                return;
+            }
+
+            filtered.forEach(f => {
+                const feedDiv = document.createElement('div');
+                feedDiv.style.padding = '10px 12px';
+                feedDiv.style.background = 'rgba(255, 255, 255, 0.03)';
+                feedDiv.style.borderRadius = '6px';
+                feedDiv.style.borderLeft = `3px solid ${f.color}`;
+                feedDiv.style.fontSize = '12px';
+                feedDiv.style.color = '#c9d1d9';
+                feedDiv.style.fontFamily = 'monospace';
+                feedDiv.innerHTML = f.texto;
+                feedContainer.appendChild(feedDiv);
+            });
+        }
+
         const formatMoney = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
         const formatPct = (val) => (val > 0 ? '+' : '') + val.toFixed(2) + '%';
         const getPctClass = (val) => val >= 0 ? 'positive' : 'negative';
@@ -538,21 +591,9 @@
                     }
 
                     // 9. Live Feed Detallado
-                    if (d.feed && d.feed.length > 0) {
-                        const feedContainer = document.getElementById('live-feed-container');
-                        feedContainer.innerHTML = '';
-                        d.feed.forEach(f => {
-                            const feedDiv = document.createElement('div');
-                            feedDiv.style.padding = '10px 12px';
-                            feedDiv.style.background = 'rgba(255, 255, 255, 0.03)';
-                            feedDiv.style.borderRadius = '6px';
-                            feedDiv.style.borderLeft = `3px solid ${f.color}`;
-                            feedDiv.style.fontSize = '12px';
-                            feedDiv.style.color = '#c9d1d9';
-                            feedDiv.style.fontFamily = 'monospace';
-                            feedDiv.innerHTML = f.texto;
-                            feedContainer.appendChild(feedDiv);
-                        });
+                    if (d.feed) {
+                        window.liveFeedData = d.feed;
+                        renderFeed();
                     }
                 }
             } catch (error) {
