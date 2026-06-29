@@ -460,13 +460,42 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
         
         # Guardar en mia_audit_logs con el Ticket como ID (Para el Dashboard y KB)
         if alert.ticket:
+            now_dt = datetime.datetime.now()
+            utc_hour = datetime.datetime.utcnow().hour
+            fecha_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+            iso_time = now_dt.isoformat()
+            
+            sesion = "NY"
+            if 0 <= utc_hour < 7: sesion = "ASIA"
+            elif 7 <= utc_hour < 12: sesion = "LONDRES"
+            
+            activo_norm = normalizar_activo(alert.activo)
+            score = 0
+            try:
+                m_doc = db.collection("trading_matrix").document(activo_norm).get()
+                if m_doc.exists:
+                    score = m_doc.to_dict().get("score_porcentaje", 0)
+            except: pass
+            
+            motivo = "Rechazada por Matriz Técnica (Score bajo o Killzone)"
+            if score >= 80:
+                motivo = "En validación de riesgo por el Broker..."
+                
+            detalle_str = f"{alert.activo} | {fecha_str} | {sesion} | {alert.estrategia} | EVALUANDO SETUP | SCORE: {score}% | EJECUTADA EN MT5: NO | MOTIVO: {motivo}"
+            
             audit_ref = db.collection("mia_audit_logs").document(str(alert.ticket))
             audit_data = {
                 "ticket": str(alert.ticket),
                 "activo": alert.activo,
                 "estrategia": alert.estrategia,
                 "pnl": alert.pnl if alert.pnl else 0.0,
-                "ultima_actualizacion": datetime.datetime.now().isoformat()
+                "ultima_actualizacion": iso_time,
+                "timestamp": iso_time,
+                "fecha": fecha_str,
+                "score": score,
+                "ejecutada_mt5": False,
+                "motivo": motivo,
+                "detalle_setup": detalle_str
             }
             # Usamos merge=True para no sobreescribir el precio y score si ya fue guardado por la apertura
             audit_ref.set(audit_data, merge=True)
