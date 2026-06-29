@@ -1384,6 +1384,7 @@ def get_asset_matrix(activo: str, authorization: Optional[str] = Header(None)):
 class TechnicalUpdate(BaseModel):
     activo: str
     confirmaciones_tecnicas: dict
+    killzone_activa: Optional[bool] = True
 
 class FundamentalUpdate(BaseModel):
     activo: str
@@ -1459,8 +1460,18 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         if 0 <= utc_hour < 7: sesion = "ASIA"
         elif 7 <= utc_hour < 12: sesion = "LONDRES"
         
-        motivo = "Evaluación Continua (Score insuficiente)" if score < 80 else "Setup Detectado (Esperando ejecución)"
-        
+        if score < 80:
+            motivo = "Evaluación Continua (Score insuficiente"
+            if update.killzone_activa is False:
+                motivo += " y Fuera de Killzone)"
+            else:
+                motivo += ")"
+        else:
+            if update.killzone_activa is False:
+                motivo = "Rechazada por Killzone (Fuera de horario)"
+            else:
+                motivo = "Setup Detectado (Esperando ejecución)"
+                
         confs = []
         for k, v in update.confirmaciones_tecnicas.items():
             if k == "smc_codes" and isinstance(v, list) and v:

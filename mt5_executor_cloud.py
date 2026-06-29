@@ -206,7 +206,7 @@ def analizar_smc_ict(df: pd.DataFrame) -> Dict[str, bool]:
 # ------------------------------------------------------------------------------
 # 4. COMUNICACIÓN CON FASTAPI (Nube)
 # ------------------------------------------------------------------------------
-async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool], rsi_val: float, ma_alineada: bool, soporte_activo: bool):
+async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool], rsi_val: float, ma_alineada: bool, soporte_activo: bool, killzone_activa: bool = True):
     url = f"{FASTAPI_URL}/webhook_technical_update"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
@@ -221,6 +221,7 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
     
     payload = {
         "activo": activo,
+        "killzone_activa": killzone_activa,
         "confirmaciones_tecnicas": {
             "soporte_resistencia_activo": bool(soporte_activo),
             "medias_moviles_alineadas": bool(ma_alineada),
@@ -608,7 +609,7 @@ async def ejecutar_escaner_cloud(account, connection):
         }
         
         # 1. Sincronizar confirmaciones con la matriz en Firestore (vía webhook)
-        await sincronizar_matriz_tecnica(activo, confirmaciones, rsi_actual, ma_alineada, soporte_activo)
+        await sincronizar_matriz_tecnica(activo, confirmaciones, rsi_actual, ma_alineada, soporte_activo, bool(killzone_activa))
         
         # 2. Si hay setup de entrada (FVG o OB detectados)
         if confirmaciones["fvg_detectado"] or confirmaciones["order_block_detectado"]:
