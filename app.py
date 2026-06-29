@@ -1449,6 +1449,43 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         doc_ref.set(data)
         print(f"| FIREBASE SUCCESS | Confirmaciones técnicas de {activo_normalizado} actualizadas. Score: {data['score_porcentaje']}%")
         
+        # --- GENERAR LOG DE EVALUACIÓN PARA EL LIVE FEED ---
+        now_dt = datetime.datetime.now()
+        fecha_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+        iso_time = now_dt.isoformat()
+        
+        utc_hour = datetime.datetime.utcnow().hour
+        sesion = "NY"
+        if 0 <= utc_hour < 7: sesion = "ASIA"
+        elif 7 <= utc_hour < 12: sesion = "LONDRES"
+        
+        motivo = "Evaluación Continua (Score insuficiente)" if score < 80 else "Setup Detectado (Esperando ejecución)"
+        
+        confs = []
+        for k, v in update.confirmaciones_tecnicas.items():
+            if k == "smc_codes" and isinstance(v, list) and v:
+                confs.append("SMC")
+            elif isinstance(v, bool) and v:
+                confs.append(k.replace("_", " ").upper())
+                
+        confirmaciones_str = " + ".join(confs) if confs else "Setup Base"
+        detalle_str = f"{activo_normalizado} | {fecha_str} | {sesion} | Escáner Cloud | {confirmaciones_str} | SCORE: {score}% | EJECUTADA EN MT5: NO | MOTIVO: {motivo}"
+        
+        import time
+        eval_id = f"EVAL_{activo_normalizado}_{int(time.time())}"
+        audit_ref = db.collection("mia_audit_logs").document(eval_id)
+        audit_ref.set({
+            "ticket": eval_id,
+            "activo": activo_normalizado,
+            "estrategia": "Escáner Cloud",
+            "score": score,
+            "ejecutada_mt5": False,
+            "motivo": motivo,
+            "fecha": fecha_str,
+            "timestamp": iso_time,
+            "detalle_setup": detalle_str
+        })
+        
         return {
             "status": "success",
             "activo": activo_normalizado,
