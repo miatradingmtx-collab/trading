@@ -477,7 +477,7 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
         
         sl = decision.get("stop_loss", precio_ejecucion - 200 if es_buy else precio_ejecucion + 200)
         tp = decision.get("take_profit", precio_ejecucion + 400 if es_buy else precio_ejecucion - 400)
-        lote = decision.get("lote", 0.1)
+        lote = decision.get("lote", 0.2)
 
         # Generar un clientId único que siga el patrón requerido y no supere la longitud
         short_sym = simbolo_broker.replace("/", "").replace("-", "")[:6]
