@@ -241,7 +241,21 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
                 print(f"| CLOUD ERROR | No se pudo actualizar matriz en la nube: {response.text}")
     except Exception as e:
         print(f"| CLOUD EXCEPTION | Error al conectar con FastAPI en sincronizar: {e}")
+        await reportar_error_nube("Sincronización FastAPI", str(e))
     return None
+
+async def reportar_error_nube(componente: str, mensaje: str):
+    url = f"{FASTAPI_URL}/webhook_log_error"
+    headers = {
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {"componente": componente, "mensaje": mensaje}
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(url, headers=headers, json=payload, timeout=3)
+    except:
+        pass
 
 async def solicitar_autorizacion_trade(activo: str, accion: str, precio: float) -> Optional[Dict]:
     url = f"{FASTAPI_URL}/webhook_mt5_setup"
@@ -646,6 +660,7 @@ async def run_escaner_loop():
             await ejecutar_escaner_cloud(account, connection)
         except Exception as e:
             print(f"| RUNNER CLOUD ERROR | Ocurrió un fallo en el escáner: {e}")
+            await reportar_error_nube("Escáner Core", str(e))
         await asyncio.sleep(900) # Ejecutar cada 15 minutos (900 seg) para timeframes H1-H8
 
 async def abrir_posicion_test(simbolo: str, lote: float) -> str:

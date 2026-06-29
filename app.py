@@ -427,6 +427,7 @@ def actualizar_excel_local(alert: TradeAlert):
         return True
     except Exception as e:
         print(f"| EXCEL ERROR | No se pudo actualizar el archivo Excel: {e}")
+        registrar_error_sistema("Excel Local", str(e))
         return False
 
 def registrar_error_sistema(componente: str, mensaje: str):
@@ -523,6 +524,7 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
         return True
     except Exception as e:
         print(f"| FIREBASE ERROR | Error al guardar en Firestore: {e}")
+        registrar_error_sistema("Firebase (Alerta/Audit)", str(e))
         return False
 
 
@@ -548,6 +550,7 @@ def notificar_telegram(mensaje: str):
             print(f"| TELEGRAM | Error al enviar: {response.text}")
     except Exception as e:
         print(f"| TELEGRAM ERROR | {e}")
+        registrar_error_sistema("Telegram", str(e))
 
 def notificar_botpress_mia(activo: str, data: dict):
     # Enviar también a Telegram
@@ -571,6 +574,7 @@ def notificar_botpress_mia(activo: str, data: dict):
         print(f"| BOTPRESS | Mia notificada exitosamente sobre setup en {activo}.")
     except Exception as e:
         print(f"| BOTPRESS ERROR | No se pudo notificar a Mia: {e}")
+        registrar_error_sistema("Botpress", str(e))
 
 def recalcular_score_ponderado(data: dict) -> float:
     score = 0.0
@@ -672,6 +676,7 @@ def procesar_anomalia_firestore(anomaly: MarketAnomaly):
         return True
     except Exception as e:
         print(f"| FIREBASE ERROR | Error al procesar anomalía en Firestore: {e}")
+        registrar_error_sistema("Firebase (Anomalía)", str(e))
         return False
 
 def obtener_precio_yahoo(activo: str) -> Optional[float]:
@@ -712,6 +717,7 @@ def obtener_precio_yahoo(activo: str) -> Optional[float]:
         return None
     except Exception as e:
         print(f"| YAHOO FINANCE ERROR | Ocurrió un error al obtener precio: {e}")
+        registrar_error_sistema("Yahoo Finance", str(e))
         return None
 
 def obtener_precio_google(activo: str) -> Optional[float]:
@@ -750,6 +756,7 @@ def obtener_precio_google(activo: str) -> Optional[float]:
         return None
     except Exception as e:
         print(f"| GOOGLE FINANCE ERROR | Ocurrió un error al raspar precio: {e}")
+        registrar_error_sistema("Google Finance", str(e))
         return None
 
 
@@ -833,6 +840,7 @@ async def webhook_market_alert(
             print("| FIREBASE | Alerta de mercado guardada en Firestore.")
         except Exception as e:
             print(f"| FIREBASE ERROR | No se pudo guardar alerta de mercado: {e}")
+            registrar_error_sistema("Firebase (Market Alert)", str(e))
 
     # Consultar Mia (Gemini/Grok) con el contexto del mercado si hay keywords críticos
     mia_response = None
@@ -853,6 +861,7 @@ async def webhook_market_alert(
                 mia_response = consultar_analisis_grok(fake_alert)
         except Exception as e:
             print(f"| MIA ERROR | No se pudo obtener análisis de Mia: {e}")
+            registrar_error_sistema("Mia AI (Analysis)", str(e))
 
     return {
         "status": "received",
@@ -918,6 +927,7 @@ def recalcular_memoria_colectiva():
         print(f"| KB MIA | Memoria colectiva recalculada exitosamente.")
     except Exception as e:
         print(f"| KB MIA ERROR | Error recalculando memoria colectiva: {e}")
+        registrar_error_sistema("Mia KB (Collective)", str(e))
 
 def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
     """
@@ -982,6 +992,7 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                     ind_ref.set(ind_data)
             except Exception as e:
                 print(f"| KB MIA WARN | Error actualizando indicador {indicador}: {e}")
+                registrar_error_sistema("Mia KB (Indicador)", str(e))
                 
         # 4. Actualizar Sesion de Rendimiento
         try:
@@ -1001,6 +1012,7 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                 ses_ref.set(ses_data)
         except Exception as e:
             print(f"| KB MIA WARN | Error actualizando sesion {sesion}: {e}")
+            registrar_error_sistema("Mia KB (Sesión)", str(e))
             
         # 5. Detectar y Actualizar Patrones ICT/SMC
         ict_fields = {
@@ -1053,6 +1065,7 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                 pat_ref.set(pat_data)
             except Exception as e:
                 print(f"| KB MIA WARN | Error actualizando patron ICT/SMC {patron_key}: {e}")
+                registrar_error_sistema("Mia KB (Patrón)", str(e))
                 
         # 6. Recalcular Memoria Colectiva
         recalcular_memoria_colectiva()
@@ -1073,6 +1086,7 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
         print(f"| KB MIA | Aprendizaje registrado para {activo_normalizado}. PnL: {pnl} | Sesion: {sesion}")
     except Exception as e:
         print(f"| APRENDIZAJE MIA ERROR | Error al procesar aprendizaje de trade: {e}")
+        registrar_error_sistema("Aprendizaje MIA", str(e))
 
 @app.post("/webhook")
 def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
@@ -1137,6 +1151,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                 print(f"| BOTPRESS | Mia notificada de {alert.accion} en {alert.activo}.")
             except Exception as e:
                 print(f"| BOTPRESS ERROR | No se pudo despertar a Mia: {e}")
+                registrar_error_sistema("Botpress", str(e))
         background_tasks.add_task(avisar_mia)
     
     return {
@@ -1204,6 +1219,7 @@ def recibir_alerta_get(
                 print(f"| BOTPRESS GET | Mia notificada de {alert.accion} en {alert.activo}.")
             except Exception as e:
                 print(f"| BOTPRESS ERROR | No se pudo despertar a Mia: {e}")
+                registrar_error_sistema("Botpress (GET)", str(e))
         background_tasks.add_task(avisar_mia_get)
         
     # <-- AÑADIDO: Notificar también a Telegram -->
@@ -1318,6 +1334,7 @@ async def test_boolean(activo: str = "XAUUSD", lote: float = 0.01):
         
     except Exception as e:
         print(f"| TEST BOOLEAN ERROR | Ocurrió un error en el test: {e}")
+        registrar_error_sistema("Test Boolean", str(e))
         return {"status": "error", "message": str(e)}
 
 
@@ -1371,6 +1388,7 @@ def get_matrix_activos(authorization: Optional[str] = Header(None)):
         return {"status": "success", "activos": activos}
     except Exception as e:
         print(f"| CLOUD ERROR | Error en get_matrix_activos: {e}")
+        registrar_error_sistema("Cloud API (Get Matrix)", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/get_asset_matrix")
@@ -1398,6 +1416,7 @@ def get_asset_matrix(activo: str, authorization: Optional[str] = Header(None)):
         raise
     except Exception as e:
         print(f"| CLOUD ERROR | Error al obtener matriz de activo {activo}: {e}")
+        registrar_error_sistema("Cloud API (Get Asset)", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 class TechnicalUpdate(BaseModel):
@@ -1416,6 +1435,16 @@ class MT5SetupRequest(BaseModel):
     accion: str
     precio: float
     estrategia: str
+
+class SystemErrorLog(BaseModel):
+    componente: str
+    mensaje: str
+
+@app.post("/webhook_log_error")
+def api_webhook_log_error(err: SystemErrorLog, authorization: Optional[str] = Header(None)):
+    verificar_token(authorization)
+    registrar_error_sistema(err.componente, err.mensaje)
+    return {"status": "ok"}
 
 @app.post("/webhook_technical_update")
 def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[str] = Header(None)):
@@ -1526,6 +1555,7 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         raise
     except Exception as e:
         print(f"| CLOUD ERROR | Error en webhook_technical_update: {e}")
+        registrar_error_sistema("Webhook Scanner Cloud", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/webhook_mt5_setup")
