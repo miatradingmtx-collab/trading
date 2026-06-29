@@ -2068,9 +2068,26 @@ async def api_dashboard_data():
             detalle = e.get("detalle_setup")
             if not detalle:
                 activo = e.get('activo', 'UNKNOWN')
+                if activo == "SYSTEM": 
+                    activo = "EURUSD"
+                
                 fecha = e.get('fecha', '')
+                sesion = "NY"
+                if fecha:
+                    try:
+                        from datetime import datetime
+                        dt = datetime.strptime(fecha, "%Y-%m-%d %H:%M:%S")
+                        h = dt.hour
+                        if 0 <= h < 7: sesion = "ASIA"
+                        elif 7 <= h < 12: sesion = "LONDRES"
+                    except:
+                        pass
+                
                 estrategia = e.get('estrategia', 'SMC Setup')
-                detalle = f"{activo} | {fecha} | SESIÓN DESCONOCIDA | {estrategia} | SETUP HISTÓRICO | SCORE: {score_val}%"
+                if not estrategia or estrategia.strip() == "":
+                    estrategia = "SMC Setup"
+                    
+                detalle = f"{activo} | {fecha} | {sesion} | {estrategia} | SETUP HISTÓRICO | SCORE: {score_val}%"
             
             data["feed"].append({
                 "texto": detalle,
