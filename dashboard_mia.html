@@ -350,6 +350,27 @@
                 </div>
             </div>
         </div>
+
+        <!-- NEW BOTTOM ROW: PONDERACIONES & KILLZONES -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px;">
+            <!-- INDICATORS IMPACT -->
+            <div class="card">
+                <div class="card-title">Impacto de Confirmaciones (Ponderación)</div>
+                <div class="strategy-list" id="lista-indicadores">
+                    <!-- Poblado por JS -->
+                    <div style="font-size: 11px; color:#6b7194;">Esperando datos de confirmaciones...</div>
+                </div>
+            </div>
+
+            <!-- KILLZONES PERFORMANCE -->
+            <div class="card">
+                <div class="card-title">Rendimiento por Sesión (Killzones)</div>
+                <div class="strategy-list" id="lista-killzones">
+                    <!-- Poblado por JS -->
+                    <div style="font-size: 11px; color:#6b7194;">Esperando datos de sesiones...</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- SCRIPT DE ACTUALIZACIÓN -->
@@ -465,6 +486,42 @@
                         `;
                         listaEst.appendChild(div);
                     });
+
+                    // 7. Indicadores Ponderados
+                    if (d.indicadores) {
+                        const listaInd = document.getElementById('lista-indicadores');
+                        listaInd.innerHTML = '';
+                        d.indicadores.forEach(ind => {
+                            const color = ind.win_rate > 70 ? '#00e68a' : (ind.win_rate > 50 ? '#00b4d8' : '#f85149');
+                            const div = document.createElement('div');
+                            div.className = 'strategy-item';
+                            div.innerHTML = `
+                                <div class="strategy-dot" style="background:${color};"></div>
+                                <div class="strategy-name">${ind.nombre.toUpperCase()} <span style="color:#6b7194;font-size:10px;">(${ind.trades} t)</span></div>
+                                <div class="strategy-bar-bg"><div class="strategy-bar-fill" style="width:${ind.win_rate}%; background:${color};"></div></div>
+                                <div class="strategy-pct" style="color:${color};">${ind.win_rate}%</div>
+                            `;
+                            listaInd.appendChild(div);
+                        });
+                    }
+
+                    // 8. Killzones
+                    if (d.killzones) {
+                        const listaKz = document.getElementById('lista-killzones');
+                        listaKz.innerHTML = '';
+                        d.killzones.forEach(kz => {
+                            const color = kz.win_rate > 70 ? '#f0b429' : (kz.win_rate > 50 ? '#818cf8' : '#f85149');
+                            const div = document.createElement('div');
+                            div.className = 'strategy-item';
+                            div.innerHTML = `
+                                <div class="strategy-dot" style="background:${color};"></div>
+                                <div class="strategy-name">${kz.nombre.toUpperCase()} <span style="color:#6b7194;font-size:10px;">(${kz.trades} t)</span></div>
+                                <div class="strategy-bar-bg"><div class="strategy-bar-fill" style="width:${kz.win_rate}%; background:${color};"></div></div>
+                                <div class="strategy-pct" style="color:${color};">${kz.win_rate}%</div>
+                            `;
+                            listaKz.appendChild(div);
+                        });
+                    }
                 }
             } catch (error) {
                 console.error("Error cargando dashboard:", error);

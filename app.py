@@ -2013,6 +2013,8 @@ async def api_dashboard_data():
         "rendimiento_activos": {},
         "curva_equity": [],
         "estrategias": [],
+        "killzones": [],
+        "indicadores": [],
         "matriz_scores": {}
     }
 
@@ -2081,6 +2083,32 @@ async def api_dashboard_data():
                 })
 
         data["estrategias"] = sorted(data["estrategias"], key=lambda x: x["win_rate"], reverse=True)
+
+        # 5. Killzones (mia_kb/sesiones_rendimiento)
+        sesiones = db.collection("mia_kb").document("sesiones_rendimiento").collection("detalle").stream()
+        for s in sesiones:
+            sdata = s.to_dict()
+            if sdata.get("trades_totales", 0) > 0:
+                data["killzones"].append({
+                    "nombre": s.id,
+                    "win_rate": sdata.get("win_rate", 0),
+                    "trades": sdata.get("trades_totales", 0),
+                    "ganados": sdata.get("trades_ganados", 0)
+                })
+        
+        # 6. Indicadores/Ponderaciones (mia_kb/indicadores_impacto)
+        indicadores = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream()
+        for ind in indicadores:
+            idata = ind.to_dict()
+            if idata.get("trades_con_indicador", 0) > 0:
+                data["indicadores"].append({
+                    "nombre": ind.id,
+                    "win_rate": idata.get("win_rate_indicador", 0),
+                    "trades": idata.get("trades_con_indicador", 0)
+                })
+
+        data["killzones"] = sorted(data["killzones"], key=lambda x: x["win_rate"], reverse=True)
+        data["indicadores"] = sorted(data["indicadores"], key=lambda x: x["win_rate"], reverse=True)
 
         return {"status": "success", "data": data}
 
