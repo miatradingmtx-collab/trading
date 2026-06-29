@@ -15,6 +15,7 @@
 # ==============================================================================
 
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Header, Response
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional
 import requests
@@ -1986,3 +1987,103 @@ def resumen_trades_hoy(authorization: Optional[str] = Header(None)):
     except Exception as e:
         print(f"| RESUMEN ERROR | Error al generar resumen de trades: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ------------------------------------------------------------------------------
+# DASHBOARD INSTITUCIONAL
+# ------------------------------------------------------------------------------
+@app.get("/dashboard", response_class=HTMLResponse)
+async def render_dashboard():
+    try:
+        with open("dashboard_mia.html", "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HTMLResponse(content=html_content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"No se pudo cargar el dashboard: {e}")
+
+@app.get("/api/dashboard_data")
+async def api_dashboard_data():
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        return {"status": "error", "message": "Firebase no inicializado"}
+
+    data = {
+        "balance_base": 5000.0,
+        "pnl_total": 0.0,
+        "kpis": {},
+        "rendimiento_activos": {},
+        "curva_equity": [],
+        "estrategias": [],
+        "matriz_scores": {}
+    }
+
+    try:
+        # 1. system_memory / mia_collective
+        mem_doc = db.collection("system_memory").document("mia_collective").get()
+        if mem_doc.exists:
+            data["kpis"] = mem_doc.to_dict()
+
+        # 2. trading_matrix (Scores en vivo)
+        matrices = db.collection("trading_matrix").stream()
+        for m in matrices:
+            data["matriz_scores"][m.id] = m.to_dict().get("score_porcentaje", 0)
+
+        # 3. mia_audit_logs (Últimos 500 para cálculos de PnL y Rendimiento)
+        # Requerimos índice compuesto en Firebase si ordenamos, así que traemos sin orden y ordenamos en Python
+        logs = db.collection("mia_audit_logs").stream()
+        
+        balance_actual = 5000.0
+        from datetime import datetime
+        hoy_str = datetime.now().strftime("%Y-%m-%d")
+        
+        activos_stats = {}
+        todos_los_logs = []
+        
+        for log in logs:
+            l = log.to_dict()
+            if l.get("accion") == "CIERRE_TOTAL":
+                todos_los_logs.append(l)
+                
+        # Ordenar por timestamp
+        todos_los_logs = sorted(todos_los_logs, key=lambda x: x.get("timestamp", ""))
+
+        for l in todos_los_logs:
+            pnl = l.get("pnl", 0.0)
+            activo = l.get("activo", "UNKNOWN")
+            fecha = l.get("fecha", "")
+            
+            data["pnl_total"] += pnl
+            balance_actual += pnl
+            
+            data["curva_equity"].append({
+                "fecha": fecha,
+                "balance": balance_actual
+            })
+
+            if activo not in activos_stats:
+                activos_stats[activo] = {"pnl_hoy": 0, "pnl_semana": 0, "pnl_total": 0, "trades": 0}
+            
+            activos_stats[activo]["pnl_total"] += pnl
+            activos_stats[activo]["trades"] += 1
+            if fecha.startswith(hoy_str):
+                activos_stats[activo]["pnl_hoy"] += pnl
+
+        data["rendimiento_activos"] = activos_stats
+
+        # 4. Estrategias (mia_kb/patrones_ict_smc)
+        patrones = db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream()
+        for p in patrones:
+            pdata = p.to_dict()
+            if pdata.get("ocurrencias", 0) > 0:
+                data["estrategias"].append({
+                    "nombre": p.id.replace("_", " + "),
+                    "win_rate": pdata.get("win_rate", 0),
+                    "ocurrencias": pdata.get("ocurrencias", 0)
+                })
+
+        data["estrategias"] = sorted(data["estrategias"], key=lambda x: x["win_rate"], reverse=True)
+
+        return {"status": "success", "data": data}
+
+    except Exception as e:
+        print(f"| API ERROR | Fallo al recopilar datos del dashboard: {e}")
+        return {"status": "error", "message": str(e)}

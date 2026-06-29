@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mia AI - Dashboard Institucional</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0e17;
+            color: #e4e6f0;
+            min-height: 100vh;
+        }
+
+        /* HEADER */
+        .header {
+            background: linear-gradient(135deg, #0f1220 0%, #1a1f35 100%);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding: 16px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-left .logo {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, #00e68a, #00b4d8);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 16px; color: #0b0e17;
+        }
+        .header-left h1 { font-size: 18px; font-weight: 600; }
+        .header-left h1 span { color: #00e68a; }
+        .header-right { display: flex; gap: 10px; align-items: center; }
+        .status-badge {
+            background: rgba(0,230,138,0.15);
+            color: #00e68a;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .status-dot {
+            width: 7px; height: 7px;
+            background: #00e68a;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* MAIN */
+        .main { padding: 24px 30px; }
+
+        /* KPI CARDS ROW */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .kpi-card {
+            background: linear-gradient(145deg, #141829 0%, #1a1f35 100%);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px;
+            padding: 18px;
+            position: relative;
+            overflow: hidden;
+        }
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            border-radius: 14px 14px 0 0;
+        }
+        .kpi-card:nth-child(1)::after { background: linear-gradient(90deg, #00e68a, #00b4d8); }
+        .kpi-card:nth-child(2)::after { background: linear-gradient(90deg, #f0b429, #f59e0b); }
+        .kpi-card:nth-child(3)::after { background: linear-gradient(90deg, #818cf8, #6366f1); }
+        .kpi-card:nth-child(4)::after { background: linear-gradient(90deg, #00b4d8, #0ea5e9); }
+        .kpi-card:nth-child(5)::after { background: linear-gradient(90deg, #f472b6, #ec4899); }
+        
+        .kpi-label { font-size: 11px; color: #6b7194; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .kpi-value { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+        .kpi-sub { font-size: 11px; color: #6b7194; }
+        .kpi-change { font-size: 12px; font-weight: 500; }
+        .positive { color: #00e68a; }
+        .negative { color: #f85149; }
+
+        /* MIDDLE ROW */
+        .middle-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: linear-gradient(145deg, #141829 0%, #1a1f35 100%);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px;
+            padding: 20px;
+        }
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #8b90b0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+
+        /* GAUGE */
+        .gauge-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .gauge {
+            position: relative;
+            width: 160px;
+            height: 90px;
+            overflow: hidden;
+        }
+        .gauge svg { width: 160px; height: 90px; }
+        .gauge-value {
+            position: absolute;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 28px;
+            font-weight: 700;
+            color: #00e68a;
+        }
+
+        /* STRATEGY LIST */
+        .strategy-list { display: flex; flex-direction: column; gap: 12px; }
+        .strategy-item { display: flex; align-items: center; gap: 10px; }
+        .strategy-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; background: #00e68a; }
+        .strategy-name { font-size: 12px; flex: 1; }
+        .strategy-bar-bg {
+            width: 80px;
+            height: 6px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .strategy-bar-fill { height: 100%; border-radius: 3px; background: #00e68a; }
+        .strategy-pct { font-size: 12px; font-weight: 600; width: 40px; text-align: right; }
+
+        /* TABLE */
+        .perf-table { width: 100%; border-collapse: collapse; }
+        .perf-table th {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #6b7194;
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .perf-table td {
+            padding: 12px;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">M</div>
+            <h1><span>Mia</span> AI — Dashboard Institucional</h1>
+        </div>
+        <div class="header-right">
+            <div class="status-badge">
+                <div class="status-dot"></div>
+                <span id="system-status">Escaneando Mercado</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div class="main">
+        
+        <!-- KPI ROW -->
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <div class="kpi-label">Balance de Cuenta</div>
+                <div class="kpi-value" id="kpi-balance">$5,000.00</div>
+                <div class="kpi-sub"><span id="kpi-pnl-total" class="positive">+$0.00</span> PNL Total</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">ROI Total</div>
+                <div class="kpi-value" id="kpi-roi">0.00%</div>
+                <div class="kpi-sub">Desde Inicio</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Win Rate Global</div>
+                <div class="kpi-value" id="kpi-winrate">0%</div>
+                <div class="kpi-sub" id="kpi-winrate-sub">Esperando trades...</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Trades Ejecutados</div>
+                <div class="kpi-value" id="kpi-trades">0</div>
+                <div class="kpi-sub">Totales en sistema</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Patrón Estrella</div>
+                <div class="kpi-value" style="font-size: 20px; line-height: 32px;" id="kpi-patron">-</div>
+                <div class="kpi-sub" id="kpi-patron-wr">Win Rate: -</div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
+            <!-- PERFORMANCE TABLE -->
+            <div class="card">
+                <div class="card-title">Rendimiento por Activo (ROI)</div>
+                <table class="perf-table" id="table-rendimiento">
+                    <thead>
+                        <tr>
+                            <th>Activo</th>
+                            <th>PnL Total</th>
+                            <th>ROI Total</th>
+                            <th>Trades</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Poblado por JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- STRATEGY BREAKDOWN -->
+            <div class="card">
+                <div class="card-title">Estrategias Ganadoras</div>
+                <div class="strategy-list" id="lista-estrategias">
+                    <!-- Poblado por JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DE ACTUALIZACIÓN -->
+    <script>
+        const formatMoney = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+        const formatPct = (val) => (val > 0 ? '+' : '') + val.toFixed(2) + '%';
+        const getPctClass = (val) => val >= 0 ? 'positive' : 'negative';
+
+        async function fetchDashboardData() {
+            try {
+                const response = await fetch('/api/dashboard_data');
+                const json = await response.json();
+                
+                if (json.status === "success") {
+                    const d = json.data;
+                    
+                    // 1. Balance y ROI
+                    const balance = d.balance_base + d.pnl_total;
+                    document.getElementById('kpi-balance').innerText = formatMoney(balance);
+                    
+                    const pnlSpan = document.getElementById('kpi-pnl-total');
+                    pnlSpan.innerText = (d.pnl_total > 0 ? '+' : '') + formatMoney(d.pnl_total);
+                    pnlSpan.className = getPctClass(d.pnl_total);
+
+                    const roiTotal = (d.pnl_total / d.balance_base) * 100;
+                    const roiEl = document.getElementById('kpi-roi');
+                    roiEl.innerText = formatPct(roiTotal);
+                    roiEl.style.color = roiTotal >= 0 ? '#00e68a' : '#f85149';
+
+                    // 2. KPIs de Memoria
+                    const kpis = d.kpis;
+                    document.getElementById('kpi-winrate').innerText = kpis.win_rate ? kpis.win_rate + '%' : '0%';
+                    document.getElementById('kpi-trades').innerText = kpis.total_trades || '0';
+                    document.getElementById('kpi-patron').innerText = kpis.patron_estrella || '-';
+                    document.getElementById('kpi-patron-wr').innerText = "Win Rate: " + (kpis.patron_estrella_wr || '0') + "%";
+
+                    // 3. Tabla de Rendimientos
+                    const tbody = document.querySelector('#table-rendimiento tbody');
+                    tbody.innerHTML = ''; // Clear
+                    
+                    for (const [activo, stats] of Object.entries(d.rendimiento_activos)) {
+                        const roiActivo = (stats.pnl_total / d.balance_base) * 100;
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td style="font-weight:600;">${activo}</td>
+                            <td class="${getPctClass(stats.pnl_total)}">${(stats.pnl_total > 0 ? '+' : '')}${formatMoney(stats.pnl_total)}</td>
+                            <td class="${getPctClass(roiActivo)}">${formatPct(roiActivo)}</td>
+                            <td>${stats.trades}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    }
+
+                    // 4. Estrategias
+                    const listaEst = document.getElementById('lista-estrategias');
+                    listaEst.innerHTML = '';
+                    d.estrategias.forEach(est => {
+                        const color = est.win_rate > 70 ? '#00e68a' : (est.win_rate > 50 ? '#00b4d8' : '#f85149');
+                        const div = document.createElement('div');
+                        div.className = 'strategy-item';
+                        div.innerHTML = `
+                            <div class="strategy-dot" style="background:${color};"></div>
+                            <div class="strategy-name">${est.nombre}</div>
+                            <div class="strategy-bar-bg"><div class="strategy-bar-fill" style="width:${est.win_rate}%; background:${color};"></div></div>
+                            <div class="strategy-pct" style="color:${color};">${est.win_rate}%</div>
+                        `;
+                        listaEst.appendChild(div);
+                    });
+                }
+            } catch (error) {
+                console.error("Error cargando dashboard:", error);
+                document.getElementById('system-status').innerText = "Desconectado";
+                document.getElementById('system-status').style.color = "#f85149";
+            }
+        }
+
+        // Cargar inmediatamente y luego cada 15 segundos
+        fetchDashboardData();
+        setInterval(fetchDashboardData, 15000);
+    </script>
+</body>
+</html>
