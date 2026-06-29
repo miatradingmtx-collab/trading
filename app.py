@@ -1888,7 +1888,8 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         if 0 <= utc_hour < 7: sesion = "ASIA"
         elif 7 <= utc_hour < 12: sesion = "LONDRES"
         
-        detalle_str = f"{ejecucion.activo} | {fecha} | {sesion} | {confirmaciones_str} | SCORE: {ejecucion.score}%"
+        estrategia_base = "SMC Setup"
+        detalle_str = f"{ejecucion.activo} | {fecha} | {sesion} | {estrategia_base} | {confirmaciones_str} | SCORE: {ejecucion.score}%"
         
         audit_ref = db.collection("mia_audit_logs").document(str(ejecucion.ticket))
         audit_ref.set({
@@ -2066,7 +2067,10 @@ async def api_dashboard_data():
             score_val = float(e.get("score", e.get("score_confluencias", 0)))
             detalle = e.get("detalle_setup")
             if not detalle:
-                detalle = f"{e.get('activo', 'UNKNOWN')} | {e.get('fecha', '')} | SMC Setup | SCORE: {score_val}%"
+                activo = e.get('activo', 'UNKNOWN')
+                fecha = e.get('fecha', '')
+                estrategia = e.get('estrategia', 'SMC Setup')
+                detalle = f"{activo} | {fecha} | SESIÓN DESCONOCIDA | {estrategia} | SETUP HISTÓRICO | SCORE: {score_val}%"
             
             data["feed"].append({
                 "texto": detalle,
