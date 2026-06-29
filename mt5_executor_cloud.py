@@ -529,6 +529,30 @@ def obtener_nombre_killzone() -> Optional[str]:
     return None
 
 # ------------------------------------------------------------------------------
+# 7.1 VERIFICACIÓN DE MERCADO ABIERTO
+# ------------------------------------------------------------------------------
+def es_mercado_abierto(activo: str) -> bool:
+    """Verifica si el mercado del activo está abierto (Hora de México GMT-6)."""
+    # Criptomonedas operan 24/7
+    if "BTC" in activo.upper() or "CRYPTO" in activo.upper():
+        return True
+        
+    gmt_minus_6 = datetime.timezone(datetime.timedelta(hours=-6))
+    ahora = datetime.datetime.now(gmt_minus_6)
+    dia = ahora.weekday() # 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun
+    hora = ahora.hour
+    
+    # Fin de semana (Forex/Metales): Cierra Viernes 15:00, Abre Domingo 15:00
+    if dia == 4 and hora >= 15: return False
+    if dia == 5: return False
+    if dia == 6 and hora < 15: return False
+    
+    # Receso diario (Forex/Metales): Lunes a Jueves de 15:00 a 16:00
+    if dia < 4 and hora == 15: return False
+    
+    return True
+
+# ------------------------------------------------------------------------------
 # 8. BUCLE PRINCIPAL DE ANÁLISIS EN LA NUBE
 # ------------------------------------------------------------------------------
 async def ejecutar_escaner_cloud(account, connection):
@@ -544,6 +568,10 @@ async def ejecutar_escaner_cloud(account, connection):
         print("| ESCANER CLOUD | Fuera de horario de Killzones. Sincronizando pero entradas desactivadas.")
         
     for activo in ACTIVOS:
+        if not es_mercado_abierto(activo):
+            print(f"| MERCADO CERRADO | {activo} en receso o fin de semana. Omitiendo escaneo.")
+            continue
+            
         simbolo = MAPEO_BROKER.get(activo)
         # Análisis Multi-Temporal (MTF): 1H y 4H
         df_1h = await obtener_velas_cloud(account, simbolo, '1h', 100)

@@ -1180,7 +1180,8 @@ async def test_buy(simbolo: str = "XAUUSD", lote: float = 0.01):
     return {"status": "success", "result": res}
 
 
-@app.get("/test_boolean")
+# BLOQUEADO TEMPORALMENTE (Evitar ejecuciones externas por bots de ping)
+# @app.get("/test_boolean")
 async def test_boolean(activo: str = "XAUUSD", lote: float = 0.01):
     """
     Ruta de prueba para validar la lógica booleana en Firebase:
