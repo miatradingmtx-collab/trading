@@ -429,12 +429,32 @@
 
             let filtered = window.liveFeedData;
 
-            if (filterVal === 'hoy') {
-                filtered = filtered.filter(f => f.timestamp.startsWith(todayStr));
-            } else if (filterVal === 'mes') {
-                filtered = filtered.filter(f => f.timestamp.startsWith(monthStr));
-            } else if (filterVal === 'año') {
-                filtered = filtered.filter(f => f.timestamp.startsWith(yearStr));
+            if (filterVal !== 'todo') {
+                filtered = filtered.filter(f => {
+                    if (!f.timestamp) return false;
+                    // Asegurar que procesamos la fecha correctamente (evitar doble Z o Z con offset)
+                    let utcDateStr = f.timestamp;
+                    if (!utcDateStr.includes('T')) {
+                        utcDateStr = utcDateStr.replace(' ', 'T');
+                    }
+                    if (!utcDateStr.endsWith('Z') && !utcDateStr.match(/[-+]\d{2}:\d{2}$/)) {
+                        utcDateStr += 'Z';
+                    }
+                    const localDate = new Date(utcDateStr);
+                    
+                    if (isNaN(localDate.getTime())) return false; // si es invalido
+                    
+                    const fYear = localDate.getFullYear();
+                    const fMonth = String(localDate.getMonth() + 1).padStart(2, '0');
+                    const fDay = String(localDate.getDate()).padStart(2, '0');
+                    
+                    const localTimestampStr = `${fYear}-${fMonth}-${fDay}`;
+                    
+                    if (filterVal === 'hoy') return localTimestampStr === todayStr;
+                    if (filterVal === 'mes') return localTimestampStr.startsWith(monthStr);
+                    if (filterVal === 'año') return localTimestampStr.startsWith(yearStr);
+                    return true;
+                });
             }
 
             feedContainer.innerHTML = '';

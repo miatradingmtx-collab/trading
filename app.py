@@ -480,7 +480,7 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
         
         # Guardar en mia_audit_logs con el Ticket como ID (Para el Dashboard y KB)
         if alert.ticket:
-            now_dt = datetime.datetime.now()
+            now_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-6)))
             utc_hour = datetime.datetime.utcnow().hour
             fecha_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
             iso_time = now_dt.isoformat()
@@ -1499,7 +1499,7 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         print(f"| FIREBASE SUCCESS | Confirmaciones técnicas de {activo_normalizado} actualizadas. Score: {data['score_porcentaje']}%")
         
         # --- GENERAR LOG DE EVALUACIÓN PARA EL LIVE FEED ---
-        now_dt = datetime.datetime.now()
+        now_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-6)))
         fecha_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
         iso_time = now_dt.isoformat()
         
