@@ -371,6 +371,17 @@
                 </div>
             </div>
         </div>
+
+        <!-- NEW ROW: FEED DE EJECUCIÓN DETALLADO -->
+        <div style="margin-top: 24px;">
+            <div class="card">
+                <div class="card-title">Live Feed: Detalle de Confirmaciones (Últimas Operaciones)</div>
+                <div id="live-feed-container" style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; max-height: 250px; overflow-y: auto; padding-right: 10px;">
+                    <!-- Poblado por JS -->
+                    <div style="font-size: 11px; color:#6b7194;">Esperando registros de auditoría...</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- SCRIPT DE ACTUALIZACIÓN -->
@@ -520,6 +531,24 @@
                                 <div class="strategy-pct" style="color:${color};">${kz.win_rate}%</div>
                             `;
                             listaKz.appendChild(div);
+                        });
+                    }
+
+                    // 9. Live Feed Detallado
+                    if (d.feed && d.feed.length > 0) {
+                        const feedContainer = document.getElementById('live-feed-container');
+                        feedContainer.innerHTML = '';
+                        d.feed.forEach(f => {
+                            const feedDiv = document.createElement('div');
+                            feedDiv.style.padding = '10px 12px';
+                            feedDiv.style.background = 'rgba(255, 255, 255, 0.03)';
+                            feedDiv.style.borderRadius = '6px';
+                            feedDiv.style.borderLeft = `3px solid ${f.color}`;
+                            feedDiv.style.fontSize = '12px';
+                            feedDiv.style.color = '#c9d1d9';
+                            feedDiv.style.fontFamily = 'monospace';
+                            feedDiv.innerHTML = f.texto;
+                            feedContainer.appendChild(feedDiv);
                         });
                     }
                 }

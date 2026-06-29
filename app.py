@@ -1879,7 +1879,17 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(f"[{fecha}] TICKET: {ejecucion.ticket} | ACTIVO: {ejecucion.activo} | SCORE: {ejecucion.score}% | PRECIO: {ejecucion.precio_ejecucion}\\n")
             
-        # Generar Log en Firebase (Para Dashboard UI/UX)
+        # Enriquecer log con detalles de confirmaciones de la matriz
+        activas = [k.replace("_", " ").upper() for k, v in data.get("confirmaciones_tecnicas", {}).items() if isinstance(v, bool) and v]
+        confirmaciones_str = " + ".join(activas) if activas else "Setup Base"
+        
+        utc_hour = datetime.now(timezone.utc).hour if hasattr(datetime, "timezone") else datetime.now().hour
+        sesion = "NY"
+        if 0 <= utc_hour < 7: sesion = "ASIA"
+        elif 7 <= utc_hour < 12: sesion = "LONDRES"
+        
+        detalle_str = f"{ejecucion.activo} | {fecha} | {sesion} | {confirmaciones_str} | SCORE: {ejecucion.score}%"
+        
         audit_ref = db.collection("mia_audit_logs").document(str(ejecucion.ticket))
         audit_ref.set({
             "ticket": ejecucion.ticket,
@@ -1887,7 +1897,8 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
             "score": ejecucion.score,
             "precio_ejecucion": ejecucion.precio_ejecucion,
             "fecha": fecha,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "detalle_setup": detalle_str
         })
             
         print(f"| AUDITORÍA | Trade registrado en TXT y Firebase (mia_audit_logs) para {ejecucion.activo}")
@@ -2015,7 +2026,8 @@ async def api_dashboard_data():
         "estrategias": [],
         "killzones": [],
         "indicadores": [],
-        "matriz_scores": {}
+        "matriz_scores": {},
+        "feed": []
     }
 
     try:
@@ -2039,11 +2051,27 @@ async def api_dashboard_data():
         
         activos_stats = {}
         todos_los_logs = []
+        todas_las_entradas = []
         
         for log in logs:
             l = log.to_dict()
             if l.get("accion") == "CIERRE_TOTAL":
                 todos_los_logs.append(l)
+            else:
+                todas_las_entradas.append(l)
+                
+        # Procesar Feed de Oportunidades (Últimas 10)
+        todas_las_entradas = sorted(todas_las_entradas, key=lambda x: x.get("timestamp", ""), reverse=True)[:10]
+        for e in todas_las_entradas:
+            score_val = float(e.get("score", e.get("score_confluencias", 0)))
+            detalle = e.get("detalle_setup")
+            if not detalle:
+                detalle = f"{e.get('activo', 'UNKNOWN')} | {e.get('fecha', '')} | SMC Setup | SCORE: {score_val}%"
+            
+            data["feed"].append({
+                "texto": detalle,
+                "color": "#00e68a" if score_val >= 80 else "#00b4d8"
+            })
                 
         # Ordenar por timestamp
         todos_los_logs = sorted(todos_los_logs, key=lambda x: x.get("timestamp", ""))
