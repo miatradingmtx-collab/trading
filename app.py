@@ -2531,6 +2531,7 @@ def export_audit_csv():
 async def get_chart_data(symbol: str):
     try:
         import yfinance as yf
+        import pandas as pd
         # Mapeo de símbolos de Mia a Yahoo Finance
         mapa = {
             "EURUSD": "EURUSD=X",
