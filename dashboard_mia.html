@@ -742,8 +742,13 @@
                 
                 tvChart = LightweightCharts.createChart(container, chartOptions);
                 candleSeries = tvChart.addCandlestickSeries({
-                    upColor: '#00e68a', downColor: '#f85149', borderVisible: false,
-                    wickUpColor: '#00e68a', wickDownColor: '#f85149'
+                    upColor: '#8b949e', 
+                    downColor: '#141724', 
+                    borderVisible: true,
+                    borderUpColor: '#8b949e',
+                    borderDownColor: '#f85149',
+                    wickUpColor: '#8b949e', 
+                    wickDownColor: '#f85149'
                 });
                 
                 window.addEventListener('resize', () => {
