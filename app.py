@@ -2086,7 +2086,15 @@ def webhook_marcar_rechazado(payload: dict, authorization: Optional[str] = Heade
     activo_norm = normalizar_activo(activo)
     
     try:
-        # Buscar el registro EVAL más reciente de este activo y actualizar su motivo
+        # 1. Resetear el semáforo en trading_matrix para que pueda volver a intentarlo en el futuro
+        doc_matrix_ref = db.collection("trading_matrix").document(activo_norm)
+        matrix_data = doc_matrix_ref.get().to_dict() or {}
+        if matrix_data.get("estado_ejecucion") == "EJECUTADO":
+            matrix_data["estado_ejecucion"] = "INACTIVO"
+            doc_matrix_ref.set(matrix_data, merge=True)
+            print(f"| SEMÁFORO | Reset a INACTIVO para {activo_norm} debido a rechazo de MetaAPI/Killzone.")
+            
+        # 2. Buscar el registro EVAL más reciente de este activo y actualizar su motivo
         docs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(20).stream()
         for doc in docs:
             data = doc.to_dict()
