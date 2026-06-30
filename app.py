@@ -1640,22 +1640,11 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
                 "estado_ejecucion": estado_actual
             }
 
-        # 2. VALIDACIÓN DE 'LEVEL KEYS' (Niveles técnicos clave). Al menos uno debe estar activo
-        tecnicos = data.get("confirmaciones_tecnicas", {})
-        smc_codes = tecnicos.get("smc_codes", [])
-        level_keys_valid = (
-            1 in smc_codes or 
-            3 in smc_codes or 
-            tecnicos.get("soporte_resistencia_activo", False)
-        )
-        
-        if not level_keys_valid:
-            return {
-                "authorized": False,
-                "reason": "Fallo de validación de 'level keys' (El precio no está en un nivel clave de estructura: Soporte/Resistencia, Order Block o Breaker Block)",
-                "level_keys_valid": False
-            }
-
+        # 2. (REMOVIDO) VALIDACIÓN DE 'LEVEL KEYS'
+        # Anteriormente se exigía Soporte/Resistencia, OB o BB de forma estricta.
+        # Esto fue removido porque la metodología SMC ya valida estas estructuras
+        # (incluyendo FVG y Sweep) y las pondera en el score. Si el score llega al 80%,
+        # la estructura es matemáticamente válida según la configuración de Mia.
         # 3. VALIDACIÓN FINAL DE PROBABILIDAD ESTADÍSTICA (Score >= 80%)
         # El score debe ser mayor o igual al 80% como primera condición
         score = data.get("score_porcentaje", 0.0)

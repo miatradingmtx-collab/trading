@@ -277,8 +277,10 @@ async def solicitar_autorizacion_trade(activo: str, accion: str, precio: float) 
     }
     
     try:
+        # Aumentamos el timeout a 45 segundos porque /webhook_mt5_setup 
+        # consulta a IAs como Gemini/ChatGPT que tardan en responder
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=headers, json=payload, timeout=5)
+            response = await client.post(url, headers=headers, json=payload, timeout=45.0)
             if response.status_code == 200:
                 return response.json()
     except Exception as e:
