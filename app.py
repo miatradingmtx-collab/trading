@@ -2237,6 +2237,7 @@ async def api_dashboard_data():
         "indicadores": [],
         "matriz_scores": {},
         "feed": [],
+        "operaciones_activas": [],
         "system_logs": []
     }
 
@@ -2258,12 +2259,34 @@ async def api_dashboard_data():
         todos_los_logs = []
         todas_las_entradas = []
         
+        tickets_cerrados = set()
+        dict_activas = {}
+        parciales_tomados = 0
+        
         for log in logs:
             l = log.to_dict()
-            if l.get("accion") == "CIERRE_TOTAL":
+            accion = l.get("accion", "")
+            ticket = l.get("ticket")
+            
+            if accion == "CIERRE_TOTAL":
                 todos_los_logs.append(l)
+                if ticket: tickets_cerrados.add(ticket)
+            elif accion == "CIERRE_PARCIAL":
+                parciales_tomados += 1
+                todas_las_entradas.append(l)
             else:
                 todas_las_entradas.append(l)
+                if ticket and accion in ["COMPRA", "VENTA"]:
+                    # Guardamos la mas reciente si hubiera duplicados
+                    if ticket not in dict_activas or l.get("timestamp", "") > dict_activas[ticket].get("timestamp", ""):
+                        dict_activas[ticket] = l
+                        
+        operaciones_activas = []
+        for t, d in dict_activas.items():
+            if t not in tickets_cerrados:
+                operaciones_activas.append(d)
+                
+        data["operaciones_activas"] = operaciones_activas
                 
         # Procesar Feed de Oportunidades (Últimas 500)
         todas_las_entradas = sorted(todas_las_entradas, key=lambda x: x.get("timestamp", ""), reverse=True)[:500]
@@ -2339,7 +2362,8 @@ async def api_dashboard_data():
             "win_rate": win_rate,
             "total_trades": total_trades,
             "patron_estrella": m.get("patron_estrella_ict_smc", "-"),
-            "patron_estrella_wr": m.get("patron_estrella_win_rate", 0)
+            "patron_estrella_wr": m.get("patron_estrella_win_rate", 0),
+            "parciales_tomados": parciales_tomados
         }
         
         # 2. trading_matrix (Scores en vivo)

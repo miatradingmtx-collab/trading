@@ -61,7 +61,7 @@
         /* KPI CARDS ROW */
         .kpi-row {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 16px;
             margin-bottom: 24px;
         }
@@ -285,6 +285,11 @@
                 <div class="kpi-value" style="font-size: 20px; line-height: 32px;" id="kpi-patron">-</div>
                 <div class="kpi-sub" id="kpi-patron-wr">Win Rate: -</div>
             </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Parciales Tomados</div>
+                <div class="kpi-value" id="kpi-parciales">0</div>
+                <div class="kpi-sub">Asegurando TP1 / 80%</div>
+            </div>
         </div>
 
         <!-- TV CHART ROW -->
@@ -399,6 +404,32 @@
                         <div>🧠 Win Rate → <span style="color:#818cf8;">mia_kb</span></div>
                         <div>🔑 Primary Key → <span style="color:#f0b429;">Ticket MT5</span></div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW ROW: OPERACIONES ACTIVAS -->
+        <div style="margin-top: 24px;">
+            <div class="card" style="border-top: 2px solid #00b4d8;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="card-title" style="margin-bottom: 0; color: #00b4d8;">Operaciones Activas (Running)</div>
+                </div>
+                <div style="margin-top: 12px; max-height: 200px; overflow-y: auto; padding-right: 10px;">
+                    <table class="styled-table" id="table-activas" style="margin-top: 0;">
+                        <thead>
+                            <tr>
+                                <th>Ticket</th>
+                                <th>Activo</th>
+                                <th>Dirección</th>
+                                <th>Precio Apertura</th>
+                                <th>Fecha/Hora (GMT-6)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Poblado por JS -->
+                            <tr><td colspan="5" style="text-align: center; color: #6b7194; border: none;">No hay operaciones activas</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -589,6 +620,7 @@
                     document.getElementById('kpi-trades').innerText = kpis.total_trades || '0';
                     document.getElementById('kpi-patron').innerText = kpis.patron_estrella || '-';
                     document.getElementById('kpi-patron-wr').innerText = "Win Rate: " + (kpis.patron_estrella_wr || '0') + "%";
+                    document.getElementById('kpi-parciales').innerText = kpis.parciales_tomados || '0';
 
                     // 3. Gauge Max Score
                     let maxScore = 0;
@@ -636,6 +668,25 @@
                             <td>${stats.trades}</td>
                         `;
                         tbody.appendChild(tr);
+                    }
+
+                    // 5.5 Tabla Operaciones Activas
+                    const tbodyActivas = document.querySelector('#table-activas tbody');
+                    tbodyActivas.innerHTML = '';
+                    if (d.operaciones_activas && d.operaciones_activas.length > 0) {
+                        d.operaciones_activas.forEach(op => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td>${op.ticket || '-'}</td>
+                                <td style="font-weight:600; color:#c9d1d9;">${op.activo || '-'}</td>
+                                <td style="color:${op.accion === 'COMPRA' ? '#00e68a' : '#f85149'}; font-weight:600;">${op.accion || '-'}</td>
+                                <td>${op.precio || '-'}</td>
+                                <td>${op.fecha || '-'}</td>
+                            `;
+                            tbodyActivas.appendChild(tr);
+                        });
+                    } else {
+                        tbodyActivas.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #6b7194; border: none;">No hay operaciones activas</td></tr>';
                     }
 
                     // 6. Estrategias
