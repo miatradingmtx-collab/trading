@@ -299,8 +299,8 @@
                 <div class="tv-buttons">
                     <button class="tv-btn active" onclick="loadTvChart('EURUSD')">EURUSD</button>
                     <button class="tv-btn" onclick="loadTvChart('XAUUSD')">XAUUSD</button>
-                    <button class="tv-btn" onclick="loadTvChart('NASDAQ100')">NASDAQ100</button>
-                    <button class="tv-btn" onclick="loadTvChart('BTCUSD')">BTCUSD</button>
+                    <button class="tv-btn" onclick="loadTvChart('GBPUSD')">GBPUSD</button>
+                    <button class="tv-btn" onclick="loadTvChart('GBPJPY')">GBPJPY</button>
                 </div>
             </div>
             <div id="tv-chart-wrapper" style="position: relative;">
@@ -777,6 +777,8 @@
         // TV CHART LOGIC
         let tvChart = null;
         let candleSeries = null;
+        let ema50Series = null;
+        let ema200Series = null;
         
         function initChart() {
             try {
@@ -800,6 +802,20 @@
                     borderDownColor: '#f85149',
                     wickUpColor: '#8b949e', 
                     wickDownColor: '#f85149'
+                });
+                
+                ema50Series = tvChart.addLineSeries({
+                    color: '#00b4d8',
+                    lineWidth: 2,
+                    crosshairMarkerVisible: false,
+                    priceLineVisible: false,
+                });
+
+                ema200Series = tvChart.addLineSeries({
+                    color: '#f0b429',
+                    lineWidth: 2,
+                    crosshairMarkerVisible: false,
+                    priceLineVisible: false,
                 });
                 
                 window.addEventListener('resize', () => {
@@ -831,6 +847,9 @@
                 
                 if (json.status === "success" && json.data.length > 0) {
                     candleSeries.setData(json.data);
+                    if (json.ema50) ema50Series.setData(json.ema50);
+                    if (json.ema200) ema200Series.setData(json.ema200);
+                    if (json.markers) candleSeries.setMarkers(json.markers);
                     tvChart.timeScale().fitContent();
                     loader.style.display = 'none';
                 } else {

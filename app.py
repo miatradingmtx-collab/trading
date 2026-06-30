@@ -2554,10 +2554,16 @@ async def get_chart_data(symbol: str):
             if df.empty:
                 return {"status": "error", "message": f"No se encontraron datos para {yf_symbol}"}
             
+        if not df.empty:
+            df['EMA50'] = df['Close'].ewm(span=50, adjust=False).mean()
+            df['EMA200'] = df['Close'].ewm(span=200, adjust=False).mean()
+            
         candles = []
+        ema50 = []
+        ema200 = []
+        
         for index, row in df.iterrows():
             ts = int(index.timestamp())
-            # TradingView necesita el time en segundos para intraday
             candles.append({
                 "time": ts,
                 "open": float(row["Open"]),
@@ -2565,9 +2571,51 @@ async def get_chart_data(symbol: str):
                 "low": float(row["Low"]),
                 "close": float(row["Close"])
             })
+            if not pd.isna(row.get("EMA50")):
+                ema50.append({"time": ts, "value": float(row["EMA50"])})
+            if not pd.isna(row.get("EMA200")):
+                ema200.append({"time": ts, "value": float(row["EMA200"])})
+                
+        # Consultar trades en Firebase para crear los marcadores visuales (flechas)
+        markers = []
+        try:
+            if firebase_inicializado and db:
+                logs_ref = db.collection("mia_audit_logs").where("activo", "==", symbol.upper()).stream()
+                for log in logs_ref:
+                    data = log.to_dict()
+                    accion = data.get("accion", "").upper()
+                    precio = float(data.get("precio_ejecucion", 0.0))
+                    fecha_str = data.get("fecha", "") # Ej: 2026-06-30 08:30:00
+                    
+                    if accion in ["COMPRA", "VENTA"] and fecha_str:
+                        # Convertir fecha a timestamp aproximado (UTC o local dependiendo de como se guardo)
+                        # Como yfinance devuelve los index en UTC o timezone local, intentamos simplificar
+                        from datetime import datetime
+                        dt = datetime.strptime(fecha_str, "%Y-%m-%d %H:%M:%S")
+                        ts_marker = int(dt.timestamp())
+                        
+                        is_buy = accion == "COMPRA"
+                        markers.append({
+                            "time": ts_marker,
+                            "position": "belowBar" if is_buy else "aboveBar",
+                            "color": "#00e68a" if is_buy else "#f85149",
+                            "shape": "arrowUp" if is_buy else "arrowDown",
+                            "text": "BUY" if is_buy else "SELL",
+                            "size": 2
+                        })
+        except Exception as mk_err:
+            print(f"| CHART MARKERS ERROR | {mk_err}")
             
-        return {"status": "success", "data": candles}
-        
+        # Ordenar markers por tiempo para evitar errores en LightweightCharts
+        markers = sorted(markers, key=lambda x: x["time"])
+            
+        return {
+            "status": "success", 
+            "data": candles,
+            "ema50": ema50,
+            "ema200": ema200,
+            "markers": markers
+        }
     except Exception as e:
         print(f"| CHART API ERROR | {e}")
         return {"status": "error", "message": str(e)}
