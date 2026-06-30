@@ -2051,6 +2051,43 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         print(f"| AUDITORÍA ERROR | {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/webhook_marcar_rechazado")
+def webhook_marcar_rechazado(payload: dict, authorization: Optional[str] = Header(None)):
+    """
+    Actualiza el Live Feed (mia_audit_logs) indicando el motivo exacto por el cual 
+    el cerebro o el MetaAPI rechazó la orden.
+    """
+    verificar_token(authorization)
+    
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        raise HTTPException(status_code=503, detail="Firebase no inicializado")
+        
+    activo = payload.get("activo", "")
+    motivo = payload.get("motivo", "Rechazado")
+    activo_norm = normalizar_activo(activo)
+    
+    try:
+        # Buscar el registro EVAL más reciente de este activo y actualizar su motivo
+        docs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(20).stream()
+        for doc in docs:
+            data = doc.to_dict()
+            if normalizar_activo(data.get("activo", "")) == activo_norm and not data.get("ejecutada_mt5", False):
+                data["motivo"] = motivo
+                detalle = data.get("detalle_setup", "")
+                if "MOTIVO: " in detalle:
+                    detalle = detalle.split("MOTIVO: ")[0] + f"MOTIVO: {motivo}"
+                    data["detalle_setup"] = detalle
+                    
+                db.collection("mia_audit_logs").document(doc.id).set(data, merge=True)
+                print(f"| AUDITORÍA | Motivo de rechazo actualizado para {activo_norm}: {motivo}")
+                break
+                
+        return {"status": "success", "mensaje": "Motivo de rechazo actualizado"}
+    except Exception as e:
+        print(f"| AUDITORÍA ERROR | Error al actualizar rechazo: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/webhook_marcar_parcial")
 def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[str] = Header(None)):
     """

@@ -330,6 +330,17 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
     except Exception as e:
         print(f"| CLOUD EXCEPTION | Error al reportar evento de trade: {e}")
 
+async def reportar_rechazo(activo: str, motivo: str):
+    """Notifica al backend que el trade no pudo ser ejecutado para actualizar el Live Feed"""
+    try:
+        url = f"{FASTAPI_URL}/webhook_marcar_rechazado"
+        headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
+        payload = {"activo": activo, "motivo": motivo}
+        async with httpx.AsyncClient() as client:
+            await client.post(url, headers=headers, json=payload, timeout=5)
+    except Exception as e:
+        print(f"| CLOUD ERROR | No se pudo reportar rechazo al backend: {e}")
+
 async def obtener_matriz_activo(activo: str) -> Optional[Dict]:
     url = f"{FASTAPI_URL}/get_asset_matrix?activo={activo}"
     headers = {
@@ -537,9 +548,11 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
         return True
 
     except Exception as e:
-        print(f"| METAAPI ERROR | Orden rechazada por broker o API: {e}")
+        error_str = str(e)
         if hasattr(e, 'details'):
-            print(f"  Detalles: {e.details}")
+            error_str += f" | {e.details}"
+        print(f"| METAAPI ERROR | Orden rechazada por broker o API: {error_str}")
+        await reportar_rechazo(activo, f"Rechazado por Broker (MetaAPI): {error_str}")
         return False
 
 # ------------------------------------------------------------------------------
@@ -664,10 +677,13 @@ async def ejecutar_escaner_cloud(account, connection):
             
             if decision and decision.get("authorized") is True:
                 print(f"| LEONA DE LA LIQUIDEZ CLOUD | ¡Gatillo Cruzado Exitoso! Entrando al mercado...")
-                await ejecutar_orden_cloud(connection, activo, accion, precio_actual, decision)
+                exito = await ejecutar_orden_cloud(connection, activo, accion, precio_actual, decision)
+                if not exito:
+                    print(f"| GATILLO RECHAZADO | Falló la ejecución en el broker.")
             else:
                 reason = decision.get("reason", "Razón desconocida") if decision else "No hubo respuesta del cerebro"
                 print(f"| GATILLO RECHAZADO | El cerebro (Mia) denegó la ejecución: {reason}")
+                await reportar_rechazo(activo, f"Mia Denegó: {reason}")
                 
         await asyncio.sleep(2)
 
