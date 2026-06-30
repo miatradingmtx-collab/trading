@@ -518,6 +518,7 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             audit_data = {
                 "ticket": str(alert.ticket),
                 "activo": alert.activo,
+                "accion": alert.accion,
                 "estrategia": alert.estrategia,
                 "pnl": alert.pnl if alert.pnl else 0.0,
                 "ultima_actualizacion": iso_time,
@@ -2056,7 +2057,7 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
             "fecha": fecha,
             "timestamp": datetime.now().isoformat(),
             "detalle_setup": detalle_str
-        })
+        }, merge=True)
             
         print(f"| AUDITORÍA | Trade registrado en TXT y Firebase (mia_audit_logs) para {ejecucion.activo}")
         

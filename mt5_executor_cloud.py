@@ -299,10 +299,10 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
         accion = "COMPRA" if is_buy else "VENTA"
         estrategia = f"APERTURA (Ticket {ticket})"
     elif evento == "CIERRE_PARCIAL":
-        accion = "CIERRE PARCIAL"
+        accion = "CIERRE_PARCIAL"
         estrategia = f"PARCIAL (Ticket {ticket}) - {comentario}"
     else:
-        accion = "CIERRE TOTAL"
+        accion = "CIERRE_TOTAL"
         estrategia = f"CIERRE (Ticket {ticket}) - {comentario}"
         
     activo_original = simbolo
