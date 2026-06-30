@@ -1601,6 +1601,10 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             (OPENAI_API_KEY and OPENAI_API_KEY != "TU_LLAVE_DE_OPENAI" and "coloca_aqui" not in OPENAI_API_KEY) or
             (GROK_API_KEY and GROK_API_KEY != "TU_LLAVE_DE_GROK" and "coloca_aqui" not in GROK_API_KEY)
         )
+        # Descomentar la siguiente línea para habilitar Notion e IA como requisitos obligatorios (quitando el bypass)
+        # live_keys_valid = live_keys_notion and live_keys_firebase and live_keys_ai
+        
+        # BYPASS ACTIVO: Solo Firebase es requerido para ejecutar en MT5
         live_keys_valid = live_keys_firebase
         
         if not live_keys_valid:
