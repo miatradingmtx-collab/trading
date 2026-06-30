@@ -463,11 +463,17 @@
                 return;
             }
 
-            // Ordenar de la hora más antigua (arriba) a la más reciente (abajo) - Orden Cronológico Real
+            // Ordenar de la más reciente (arriba) a la más antigua (abajo) - Más nuevo primero
             filtered.sort((a, b) => {
-                let dateA = new Date(a.timestamp || 0).getTime();
-                let dateB = new Date(b.timestamp || 0).getTime();
-                return dateA - dateB; 
+                const parseSafe = (ts) => {
+                    if (!ts) return 0;
+                    let s = ts;
+                    if (!s.includes('T')) s = s.replace(' ', 'T');
+                    if (!s.endsWith('Z') && !s.match(/[-+]\d{2}:\d{2}$/)) s += 'Z';
+                    const ms = new Date(s).getTime();
+                    return isNaN(ms) ? 0 : ms;
+                };
+                return parseSafe(b.timestamp) - parseSafe(a.timestamp); 
             });
 
             filtered.forEach(f => {
