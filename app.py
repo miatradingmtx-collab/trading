@@ -1727,6 +1727,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             
         sl = round(sl, 5)
         tp = round(tp, 5)
+        probabilidad = score # Asignamos la probabilidad para evitar UnboundLocalError
         
         # Logs en segundo plano (Notion, Excel Local y Firestore)
         background_tasks.add_task(enviar_a_notion, alert)
