@@ -298,8 +298,9 @@
                     <button class="tv-btn" onclick="loadTvChart('BTCUSD')">BTCUSD</button>
                 </div>
             </div>
-            <div id="tv-chart">
+            <div id="tv-chart-wrapper" style="position: relative;">
                 <div class="tv-loader" id="tv-loader">Cargando velas...</div>
+                <div id="tv-chart"></div>
             </div>
         </div>
 
@@ -727,15 +728,17 @@
         let candleSeries = null;
         
         function initChart() {
+            const container = document.getElementById('tv-chart');
             const chartOptions = { 
-                layout: { textColor: '#c9d1d9', background: { type: 'solid', color: 'transparent' } },
+                width: container.clientWidth || 800,
+                height: 400,
+                layout: { textColor: '#c9d1d9', background: { type: 'solid', color: '#141724' } },
                 grid: { vertLines: { color: 'rgba(255, 255, 255, 0.02)' }, horzLines: { color: 'rgba(255, 255, 255, 0.02)' } },
                 crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
                 rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
                 timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true }
             };
             
-            const container = document.getElementById('tv-chart');
             tvChart = LightweightCharts.createChart(container, chartOptions);
             candleSeries = tvChart.addCandlestickSeries({
                 upColor: '#00e68a', downColor: '#f85149', borderVisible: false,
