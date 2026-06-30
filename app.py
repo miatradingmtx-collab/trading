@@ -1601,11 +1601,11 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             (OPENAI_API_KEY and OPENAI_API_KEY != "TU_LLAVE_DE_OPENAI" and "coloca_aqui" not in OPENAI_API_KEY) or
             (GROK_API_KEY and GROK_API_KEY != "TU_LLAVE_DE_GROK" and "coloca_aqui" not in GROK_API_KEY)
         )
-        live_keys_valid = live_keys_notion and live_keys_firebase and live_keys_ai
+        live_keys_valid = live_keys_firebase
         
         if not live_keys_valid:
             detalles_faltantes = []
-            if not live_keys_notion: detalles_faltantes.append("Notion API Token")
+            if not live_keys_notion: detalles_faltantes.append("Notion API Token (Advertencia: No se registrará en Notion, pero la ejecución continuará si las demás APIs están bien)")
             if not live_keys_firebase: detalles_faltantes.append("Conexión Firestore de Firebase")
             if not live_keys_ai: detalles_faltantes.append("Al menos una API Key de IA (Gemini, ChatGPT o Grok)")
             
