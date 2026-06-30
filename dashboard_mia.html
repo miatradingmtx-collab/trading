@@ -463,6 +463,13 @@
                 return;
             }
 
+            // Ordenar de la más antigua a la más reciente (Z a A / Chronological)
+            filtered.sort((a, b) => {
+                let dateA = new Date(a.timestamp || 0).getTime();
+                let dateB = new Date(b.timestamp || 0).getTime();
+                return dateA - dateB; 
+            });
+
             filtered.forEach(f => {
                 const feedDiv = document.createElement('div');
                 feedDiv.style.padding = '10px 12px';
