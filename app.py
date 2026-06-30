@@ -2153,6 +2153,38 @@ def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[
         print(f"| AUDITORÍA ERROR | {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/pnl_hoy")
+def api_pnl_hoy(authorization: Optional[str] = Header(None)):
+    """
+    Devuelve la suma total del PNL de todas las operaciones cerradas el día de hoy.
+    """
+    verificar_token(authorization)
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        raise HTTPException(status_code=503, detail="Firebase no inicializado")
+        
+    try:
+        from datetime import datetime
+        hoy_str = datetime.now().strftime("%Y-%m-%d")
+        
+        docs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(100).stream()
+        
+        pnl_total = 0.0
+        for doc in docs:
+            data = doc.to_dict()
+            fecha_doc = data.get("fecha", "")
+            if fecha_doc.startswith(hoy_str):
+                # Solo sumar si es un CIERRE_TOTAL (o PARCIAL si se incluye)
+                accion = data.get("accion", "")
+                if accion in ["CIERRE_TOTAL", "CIERRE_PARCIAL_80", "CIERRE_PARCIAL"]:
+                    pnl_total += float(data.get("pnl", 0.0))
+                    
+        return {"status": "success", "pnl_hoy": pnl_total}
+    except Exception as e:
+        print(f"| API ERROR | Error calculando PNL de hoy: {e}")
+        return {"status": "error", "pnl_hoy": 0.0, "detalle": str(e)}
+
+
 @app.get("/resumen_trades_hoy")
 def resumen_trades_hoy(authorization: Optional[str] = Header(None)):
     """

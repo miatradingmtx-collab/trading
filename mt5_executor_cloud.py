@@ -121,6 +121,67 @@ async def conectar_metaapi():
         print(f"❌ Error en la conexión a MetaAPI: {e}")
         return None, None
 
+async def obtener_balance(connection) -> float:
+    """Obtiene el balance actual de la cuenta conectada."""
+    try:
+        info = await connection.get_account_information()
+        return float(info.get('balance', 0.0))
+    except Exception as e:
+        print(f"| GESTOR RIESGO | Error al obtener balance: {e}")
+        return 0.0
+
+def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: float, sl_price: float, simbolo: str) -> float:
+    """Calcula el lote basado en un riesgo % del balance y la distancia del SL."""
+    if balance <= 0 or sl_price == 0 or entry_price == 0 or entry_price == sl_price:
+        return 0.02 # Fallback
+        
+    riesgo_dinero = balance * (riesgo_pct / 100.0)
+    distancia_precio = abs(entry_price - sl_price)
+    
+    # 1 Lote estandar (1.00) = $10 por pip (Forex) o $10 por $1 move (Oro)
+    if "JPY" in simbolo:
+        distancia_pips = distancia_precio * 100
+        valor_pip_lote_estandar = 6.5 # Approx para GBPJPY
+    elif "XAU" in simbolo or "GOLD" in simbolo:
+        distancia_pips = distancia_precio * 10
+        valor_pip_lote_estandar = 10.0
+    else:
+        distancia_pips = distancia_precio * 10000
+        valor_pip_lote_estandar = 10.0
+        
+    if distancia_pips <= 0:
+        return 0.02
+        
+    lotes = riesgo_dinero / (distancia_pips * valor_pip_lote_estandar)
+    
+    # Limites minimos y maximos de lotaje para evitar errores de broker
+    lotes = round(lotes, 2)
+    if lotes < 0.01: lotes = 0.01
+    if lotes > 10.0: lotes = 10.0
+    
+    return lotes
+
+async def verificar_drawdown_diario(balance: float, limite_pct: float = 3.0) -> bool:
+    """Consulta el backend para ver si el PNL de hoy supera la pérdida máxima permitida."""
+    url = f"{FASTAPI_URL}/api/pnl_hoy"
+    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                pnl_hoy = float(data.get("pnl_hoy", 0.0))
+                limite_dinero = -(balance * (limite_pct / 100.0))
+                
+                # Si la pérdida actual superó el límite (ej. pnl -150 <= -100)
+                if pnl_hoy <= limite_dinero:
+                    print(f"| GESTOR RIESGO ALERTA | ⛔ DRAWDOWN DIARIO ALCANZADO: PNL Hoy ${pnl_hoy:.2f} <= Límite ${limite_dinero:.2f} (-{limite_pct}%). Modo Pausa Activo.")
+                    return True
+                return False
+    except Exception as e:
+        print(f"| GESTOR RIESGO EXCEPTION | No se pudo verificar PNL diario: {e}")
+    return False
+
 async def obtener_velas_cloud(account, simbolo: str, temporalidad: str, cantidad: int = 100) -> Optional[pd.DataFrame]:
     """Descarga las últimas velas para un símbolo usando la API de MetaAPI"""
     try:
@@ -140,6 +201,8 @@ async def obtener_velas_cloud(account, simbolo: str, temporalidad: str, cantidad
     except Exception as e:
         print(f"| METAAPI ERROR | Error al obtener velas para {simbolo}: {e}")
         return None
+
+
 
 # ------------------------------------------------------------------------------
 # 2. CÁLCULO DE INDICADORES TÉCNICOS
@@ -361,7 +424,7 @@ async def obtener_matriz_activo(activo: str) -> Optional[Dict]:
 # ------------------------------------------------------------------------------
 # 5. GESTIÓN DE POSICIONES ACTIVAS (MetaAPI)
 # ------------------------------------------------------------------------------
-async def gestionar_posiciones_activas(connection):
+async def gestionar_posiciones_activas(connection, balance: float):
     global POSICIONES_ACTIVAS
     
     try:
@@ -404,26 +467,25 @@ async def gestionar_posiciones_activas(connection):
         tp = pos.takeProfit or 0.0
         sl = pos.stopLoss or 0.0
         volume = pos.volume
+        profit_flotante = float(getattr(pos, 'profit', getattr(pos, 'unrealizedProfit', 0.0)))
         
         if tp == 0.0:
             continue
             
-        # Target Parcial (TP1) al 40% de la distancia al TP final para asegurar ganancias rápido
-        distancia_total = tp - entry_price
-        tp1 = entry_price + (distancia_total * 0.4)
-        
         es_buy = pos.type == 'POSITION_TYPE_BUY'
-        alcanzo_tp1 = (es_buy and current_price >= tp1) or (not es_buy and current_price <= tp1)
         
-        # A. Tomar Parciales al 80% si no se ha tomado (lote remanente >= 0.02 y alcanzó TP1)
-        if alcanzo_tp1 and volume >= 0.02 and not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
+        # A. Tomar Parciales al 80% si el Profit Flotante alcanzó el 1% de la cuenta
+        objetivo_ganancia_parcial = balance * 0.01
+        alcanzo_objetivo_pnl = (profit_flotante >= objetivo_ganancia_parcial) and (objetivo_ganancia_parcial > 0)
+        
+        if alcanzo_objetivo_pnl and volume >= 0.02 and not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
             lote_a_cerrar = round(volume * 0.8, 2)
             # Asegurar que siempre quede al menos 0.01 para el runner
             if volume - lote_a_cerrar < 0.01:
                 lote_a_cerrar = round(volume - 0.01, 2)
                 
             if lote_a_cerrar >= 0.01:
-                print(f"| GESTOR PARCIALES | Intentando cerrar parcialmente {lote_a_cerrar} lotes de {ticket}...")
+                print(f"| GESTOR PARCIALES | Objetivo 1% alcanzado (${profit_flotante:.2f}). Cerrando {lote_a_cerrar} lotes de {ticket}...")
                 try:
                     close_result = await connection.close_position_partially(ticket, lote_a_cerrar)
                     POSICIONES_ACTIVAS[ticket]["parcial_tomado"] = True
@@ -439,17 +501,17 @@ async def gestionar_posiciones_activas(connection):
                     except Exception as sl_e:
                         print(f"| GESTOR RIESGO WARNING | No se pudo mover SL a BE: {sl_e}")
 
-                    # PnL estimado de esta parcial (MetaAPI no devuelve deals historicos directamente de forma facil en RPC de inmediato, estimamos o enviamos 0.0)
-                    pnl_parcial = (current_price - entry_price) * lote_a_cerrar * 100 # Estimado basico
+                    # PnL estimado de esta parcial
+                    pnl_parcial = (current_price - entry_price) * lote_a_cerrar * 100
                     if not es_buy:
                         pnl_parcial = -pnl_parcial
                     
-                    await reportar_evento_trade(pos.symbol, ticket, pos.type, "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado 80% ({lote_a_cerrar:.2f} lotes)")
+                    await reportar_evento_trade(pos.symbol, ticket, pos.type, "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado 80% al alcanzar 1% PNL")
                 except Exception as e:
                     print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial para ticket {ticket}: {e}")
                     
-        # B. Gestión de Break-Even dinámico relativo a Liquidez Institucional
-        distancia_tp1 = abs(tp1 - entry_price)
+        # B. Gestión de Break-Even dinámico relativo a Liquidez Institucional (Opcional, retenemos la lógica de seguridad por si regresa al SL original antes del TP)
+        distancia_tp1 = abs(tp - entry_price) * 0.4
         rango_tolerancia = distancia_tp1 * 0.15
         
         esta_en_zona_entrada = False
@@ -490,9 +552,7 @@ async def gestionar_posiciones_activas(connection):
         print(f"| SEGUIMIENTO | Posición cerrada detectada. Ticket: {ticket}")
         
         # En la nube estimamos PnL final desde los precios o intentamos leer información de la cuenta
-        # Para simplificar y mantener la consistencia con Notion/Excel:
         try:
-            # Recuperar precio actual del activo para reporte
             price = await connection.get_symbol_price(info["symbol"])
             precio_cierre = price.get('bid' if info["type"] == 'POSITION_TYPE_BUY' else 'ask', info["price_open"])
         except Exception:
@@ -508,7 +568,7 @@ async def gestionar_posiciones_activas(connection):
 # ------------------------------------------------------------------------------
 # 6. GESTOR DE OPERACIONES (Apertura de Órdenes)
 # ------------------------------------------------------------------------------
-async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: float, decision: Dict) -> bool:
+async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: float, decision: Dict, balance: float) -> bool:
     simbolo_broker = MAPEO_BROKER.get(activo, activo)
     
     try:
@@ -522,7 +582,11 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
         
         sl = decision.get("stop_loss", precio_ejecucion - 200 if es_buy else precio_ejecucion + 200)
         tp = decision.get("take_profit", precio_ejecucion + 400 if es_buy else precio_ejecucion - 400)
-        lote = decision.get("lote", 0.2)
+        
+        # LOTAJE DINAMICO (1% de riesgo de la cuenta por defecto)
+        riesgo_pct = 1.0 
+        lote = calcular_lotaje_dinamico(balance, riesgo_pct, precio_ejecucion, sl, simbolo_broker)
+        decision["lote"] = lote
 
         # Generar un clientId único que siga el patrón requerido y no supere la longitud
         short_sym = simbolo_broker.replace("/", "").replace("-", "")[:6]
@@ -532,9 +596,10 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
             'clientId': client_id
         }
 
-        print(f"| TRADING | Enviando orden de {accion} en {simbolo_broker} (Lote: {lote})...")
+        print(f"| TRADING RIESGO | Enviando {accion} en {simbolo_broker} (Balance: ${balance:.2f} | Riesgo {riesgo_pct}% | SL: {sl:.4f} | LOTE: {lote})")
         if es_buy:
             result = await connection.create_market_buy_order(simbolo_broker, lote, sl, tp, options)
+
         else:
             result = await connection.create_market_sell_order(simbolo_broker, lote, sl, tp, options)
 
@@ -622,10 +687,18 @@ def es_mercado_abierto(activo: str) -> bool:
 # 8. BUCLE PRINCIPAL DE ANÁLISIS EN LA NUBE
 # ------------------------------------------------------------------------------
 async def ejecutar_escaner_cloud(account, connection):
+    # 1. Obtener balance y validar Drawdown Diario
+    balance = await obtener_balance(connection)
+    en_drawdown = await verificar_drawdown_diario(balance, limite_pct=3.0)
+    
     try:
-        await gestionar_posiciones_activas(connection)
+        await gestionar_posiciones_activas(connection, balance)
     except Exception as e:
         print(f"| GESTOR POSICIONES ERROR | Falló gestión de posiciones en la nube: {e}")
+        
+    if en_drawdown:
+        print("| ESCANER CLOUD | ⛔ Deteniendo escaneo de nuevas entradas por Drawdown Diario (-3%).")
+        return # Skip scanning
         
     killzone_activa = obtener_nombre_killzone()
     if killzone_activa:
@@ -691,7 +764,7 @@ async def ejecutar_escaner_cloud(account, connection):
             
             if decision and decision.get("authorized") is True:
                 print(f"| LEONA DE LA LIQUIDEZ CLOUD | ¡Gatillo Cruzado Exitoso! Entrando al mercado...")
-                exito = await ejecutar_orden_cloud(connection, activo, accion, precio_actual, decision)
+                exito = await ejecutar_orden_cloud(connection, activo, accion, precio_actual, decision, balance)
                 if not exito:
                     print(f"| GATILLO RECHAZADO | Falló la ejecución en el broker.")
             else:
