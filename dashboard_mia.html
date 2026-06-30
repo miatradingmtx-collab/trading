@@ -202,7 +202,42 @@
             font-size: 13px;
             border-bottom: 1px solid rgba(255,255,255,0.03);
         }
+        
+        /* TV CHART */
+        .tv-card {
+            background: #141724;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .tv-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .tv-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .tv-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #c9d1d9;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .tv-btn:hover { background: rgba(255,255,255,0.1); }
+        .tv-btn.active { background: rgba(0, 230, 138, 0.15); color: #00e68a; border-color: #00e68a; font-weight: 600; }
+        #tv-chart { width: 100%; height: 400px; position: relative; }
+        .tv-loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #6b7194; font-size: 14px; z-index: 10; display: none; }
     </style>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
 
@@ -249,6 +284,22 @@
                 <div class="kpi-label">Patrón Estrella</div>
                 <div class="kpi-value" style="font-size: 20px; line-height: 32px;" id="kpi-patron">-</div>
                 <div class="kpi-sub" id="kpi-patron-wr">Win Rate: -</div>
+            </div>
+        </div>
+
+        <!-- TV CHART ROW -->
+        <div class="tv-card">
+            <div class="tv-header">
+                <div class="card-title" id="tv-title" style="margin-bottom: 0;">Gráfico Interactivo: EURUSD (1H)</div>
+                <div class="tv-buttons">
+                    <button class="tv-btn active" onclick="loadTvChart('EURUSD')">EURUSD</button>
+                    <button class="tv-btn" onclick="loadTvChart('XAUUSD')">XAUUSD</button>
+                    <button class="tv-btn" onclick="loadTvChart('NASDAQ100')">NASDAQ100</button>
+                    <button class="tv-btn" onclick="loadTvChart('BTCUSD')">BTCUSD</button>
+                </div>
+            </div>
+            <div id="tv-chart">
+                <div class="tv-loader" id="tv-loader">Cargando velas...</div>
             </div>
         </div>
 
@@ -670,6 +721,64 @@
         fetchDashboardData();
         // Aumentado a 30s ya que el servidor ahora usa caché y se invalida automáticamente con nuevas señales
         setInterval(fetchDashboardData, 30000);
+
+        // TV CHART LOGIC
+        let tvChart = null;
+        let candleSeries = null;
+        
+        function initChart() {
+            const chartOptions = { 
+                layout: { textColor: '#c9d1d9', background: { type: 'solid', color: 'transparent' } },
+                grid: { vertLines: { color: 'rgba(255, 255, 255, 0.02)' }, horzLines: { color: 'rgba(255, 255, 255, 0.02)' } },
+                crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true }
+            };
+            
+            const container = document.getElementById('tv-chart');
+            tvChart = LightweightCharts.createChart(container, chartOptions);
+            candleSeries = tvChart.addCandlestickSeries({
+                upColor: '#00e68a', downColor: '#f85149', borderVisible: false,
+                wickUpColor: '#00e68a', wickDownColor: '#f85149'
+            });
+            
+            window.addEventListener('resize', () => {
+                tvChart.applyOptions({ width: container.clientWidth });
+            });
+        }
+        
+        async function loadTvChart(symbol) {
+            document.getElementById('tv-title').innerText = `Gráfico Interactivo: ${symbol} (1H)`;
+            document.querySelectorAll('.tv-btn').forEach(b => b.classList.remove('active'));
+            // Usamos un selector un poco más permisivo en caso de quotes
+            document.querySelectorAll('.tv-btn').forEach(b => {
+                if (b.innerText === symbol) b.classList.add('active');
+            });
+            
+            const loader = document.getElementById('tv-loader');
+            loader.style.display = 'block';
+            
+            if (!tvChart) initChart();
+            
+            try {
+                const response = await fetch(`/api/chart_data/${symbol}`);
+                const json = await response.json();
+                
+                if (json.status === "success" && json.data.length > 0) {
+                    candleSeries.setData(json.data);
+                    tvChart.timeScale().fitContent();
+                } else {
+                    console.error("Error loading TV chart:", json.message);
+                }
+            } catch (err) {
+                console.error("Fetch error TV chart:", err);
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+        
+        // Inicializar con EURUSD
+        loadTvChart('EURUSD');
     </script>
 </body>
 </html>

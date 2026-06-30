@@ -2425,3 +2425,48 @@ def export_audit_csv():
     except Exception as e:
         print(f"| API EXPORT CSV ERROR | {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/chart_data/{symbol}")
+async def get_chart_data(symbol: str):
+    try:
+        import yfinance as yf
+        # Mapeo de símbolos de Mia a Yahoo Finance
+        mapa = {
+            "EURUSD": "EURUSD=X",
+            "XAUUSD": "GC=F",
+            "NASDAQ100": "NQ=F",
+            "BTCUSD": "BTC-USD",
+            "US30": "YM=F",
+            "SP500": "ES=F"
+        }
+        
+        yf_symbol = mapa.get(symbol.upper(), symbol.upper())
+        
+        # Descargar data de 7 días, intervalos de 1 hora
+        ticker = yf.Ticker(yf_symbol)
+        df = ticker.history(period="7d", interval="1h")
+        
+        if df.empty:
+            # Reintentar con símbolo spot si es oro o un futuro
+            if yf_symbol == "GC=F":
+                df = yf.Ticker("XAUUSD=X").history(period="7d", interval="1h")
+            if df.empty:
+                return {"status": "error", "message": f"No se encontraron datos para {yf_symbol}"}
+            
+        candles = []
+        for index, row in df.iterrows():
+            ts = int(index.timestamp())
+            # TradingView necesita el time en segundos para intraday
+            candles.append({
+                "time": ts,
+                "open": float(row["Open"]),
+                "high": float(row["High"]),
+                "low": float(row["Low"]),
+                "close": float(row["Close"])
+            })
+            
+        return {"status": "success", "data": candles}
+        
+    except Exception as e:
+        print(f"| CHART API ERROR | {e}")
+        return {"status": "error", "message": str(e)}
