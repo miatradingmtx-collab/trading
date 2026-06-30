@@ -515,6 +515,25 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
 
         order_id = result.get("orderId", "N/A")
         print(f"| METAAPI SUCCESS | Orden colocada con éxito en {simbolo_broker}. Ticket ID: {order_id}")
+        
+        # Avisar al backend que ya se ejecutó para que apague el semáforo y evite doble ejecución
+        try:
+            url = f"{FASTAPI_URL}/webhook_marcar_ejecutado"
+            headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
+            payload = {
+                "ticket": str(order_id),
+                "activo": activo,
+                "accion": accion,
+                "score": 100.0,
+                "precio_ejecucion": precio_ejecucion,
+                "ejecutada_mt5": True,
+                "motivo": "Ejecutada por Escáner Cloud"
+            }
+            async with httpx.AsyncClient() as client:
+                await client.post(url, headers=headers, json=payload, timeout=5)
+        except Exception as e:
+            print(f"| CLOUD ERROR | No se pudo marcar como ejecutado: {e}")
+            
         return True
 
     except Exception as e:
@@ -646,6 +665,9 @@ async def ejecutar_escaner_cloud(account, connection):
             if decision and decision.get("authorized") is True:
                 print(f"| LEONA DE LA LIQUIDEZ CLOUD | ¡Gatillo Cruzado Exitoso! Entrando al mercado...")
                 await ejecutar_orden_cloud(connection, activo, accion, precio_actual, decision)
+            else:
+                reason = decision.get("reason", "Razón desconocida") if decision else "No hubo respuesta del cerebro"
+                print(f"| GATILLO RECHAZADO | El cerebro (Mia) denegó la ejecución: {reason}")
                 
         await asyncio.sleep(2)
 

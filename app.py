@@ -513,8 +513,8 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 "timestamp": iso_time,
                 "fecha": fecha_str,
                 "score": score,
-                "ejecutada_mt5": False,
-                "motivo": motivo,
+                "ejecutada_mt5": True if alert.ticket else False,
+                "motivo": "Ejecutada y Activa en Broker" if alert.ticket else motivo,
                 "detalle_setup": detalle_str
             }
             # Usamos merge=True para no sobreescribir el precio y score si ya fue guardado por la apertura
@@ -1498,6 +1498,10 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         if data["gatillo_entrada"] and data.get("estado_ejecucion", "INACTIVO") == "INACTIVO":
             data["estado_ejecucion"] = "PENDIENTE_EJECUCIÓN"
             print(f"| SEMÁFORO | {activo_normalizado} ha cambiado a PENDIENTE_EJECUCIÓN")
+        elif not data["gatillo_entrada"] and data.get("estado_ejecucion") != "INACTIVO":
+            # Resetear semáforo si se perdió el setup
+            data["estado_ejecucion"] = "INACTIVO"
+            print(f"| SEMÁFORO | {activo_normalizado} ha cambiado a INACTIVO (Score insuficiente)")
             
         data["ultimo_update"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
         
