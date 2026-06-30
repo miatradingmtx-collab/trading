@@ -2316,7 +2316,7 @@ async def api_dashboard_data():
                 if not estrategia or estrategia.strip() == "":
                     estrategia = "SMC Setup"
                     
-                detalle = f"{activo} | {fecha} | {sesion} | {estrategia} | SETUP HISTÓRICO | SCORE: {score_val}% | EJECUTADA EN MT5: SÍ | MOTIVO: ALERTA HISTÓRICA"
+                detalle = f"{activo} | {fecha} | {sesion} | {estrategia} | EVALUACIÓN | SCORE: {score_val}% | EJECUTADA EN MT5: {('SÍ' if e.get('ejecutada_mt5') else 'NO')} | MOTIVO: {e.get('motivo', '')}"
             
             data["feed"].append({
                 "texto": detalle,
@@ -2354,7 +2354,9 @@ async def api_dashboard_data():
         ganados = len([l for l in todos_los_logs if l.get("pnl", 0) > 0])
         total_cerrados = len(todos_los_logs)
         win_rate = round((ganados / total_cerrados * 100), 2) if total_cerrados > 0 else 0
-        total_trades = len(todas_las_entradas)
+        # Identificar los verdaderos trades ejecutados (no EVALs)
+        verdaderos_trades = [t for t in todas_las_entradas if t.get("ejecutada_mt5") == True or t.get("accion") in ["COMPRA", "VENTA", "CIERRE_PARCIAL", "CIERRE_TOTAL"] or "Ejecutada por Escáner Cloud" in str(t.get("detalle_setup", ""))]
+        total_trades = len(verdaderos_trades) + total_cerrados
         
         # Integrar mia_collective con KPIs calculados
         mem_doc = db.collection("system_memory").document("mia_collective").get()
@@ -2385,18 +2387,44 @@ async def api_dashboard_data():
 
         data["estrategias"] = sorted(data["estrategias"], key=lambda x: x["win_rate"], reverse=True)
 
-        # 5. Killzones (mia_kb/sesiones_rendimiento)
-        sesiones = db.collection("mia_kb").document("sesiones_rendimiento").collection("detalle").stream()
-        for s in sesiones:
-            sdata = s.to_dict()
-            if sdata.get("trades_totales", 0) > 0:
-                data["killzones"].append({
-                    "nombre": s.id,
-                    "win_rate": sdata.get("win_rate", 0),
-                    "trades": sdata.get("trades_totales", 0),
-                    "ganados": sdata.get("trades_ganados", 0)
-                })
+        # 5. Killzones Dinámicas (Calculadas a partir de todos_los_logs)
+        killzone_stats = {
+            "LONDRES": {"ganados": 0, "perdidos": 0},
+            "NUEVA_YORK": {"ganados": 0, "perdidos": 0},
+            "ASIA": {"ganados": 0, "perdidos": 0}
+        }
         
+        for l in todos_los_logs:
+            pnl = l.get("pnl", 0.0)
+            fecha = l.get("fecha", "")
+            ses = "NUEVA_YORK"
+            if fecha:
+                try:
+                    dt = datetime.strptime(fecha, "%Y-%m-%d %H:%M:%S")
+                    h = dt.hour
+                    if 1 <= h < 6: ses = "LONDRES"
+                    elif 6 <= h < 16: ses = "NUEVA_YORK"
+                    else: ses = "ASIA"
+                except: pass
+                
+            if pnl > 0:
+                killzone_stats[ses]["ganados"] += 1
+            else:
+                killzone_stats[ses]["perdidos"] += 1
+                
+        data["killzones"] = []
+        for kz, stats in killzone_stats.items():
+            tot = stats["ganados"] + stats["perdidos"]
+            if tot > 0:
+                data["killzones"].append({
+                    "nombre": kz,
+                    "win_rate": round(stats["ganados"] / tot * 100, 2),
+                    "trades": tot,
+                    "ganados": stats["ganados"],
+                    "perdidos": stats["perdidos"]
+                })
+        data["killzones"] = sorted(data["killzones"], key=lambda x: x["win_rate"], reverse=True)
+
         # 6. Indicadores/Ponderaciones (mia_kb/indicadores_impacto)
         indicadores = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream()
         for ind in indicadores:
@@ -2408,7 +2436,6 @@ async def api_dashboard_data():
                     "trades": idata.get("trades_con_indicador", 0)
                 })
 
-        data["killzones"] = sorted(data["killzones"], key=lambda x: x["win_rate"], reverse=True)
         data["indicadores"] = sorted(data["indicadores"], key=lambda x: x["win_rate"], reverse=True)
 
         # Actualizar la caché global
