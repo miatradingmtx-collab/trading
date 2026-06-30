@@ -186,13 +186,18 @@ def analizar_smc_ict(df: pd.DataFrame) -> Dict[str, bool]:
     elif df['high'].iloc[i] < df['low'].iloc[i-2]:
         confirmaciones["fvg_detectado"] = True
 
-    rango_total = df['high'].iloc[i] - df['low'].iloc[i]
-    rango_cuerpo = abs(df['close'].iloc[i] - df['open'].iloc[i])
-    
-    if rango_total > 0:
-        porcentaje_cuerpo = (rango_cuerpo / rango_total) * 100
-        mecha_inferior = min(df['open'].iloc[i], df['close'].iloc[i]) - df['low'].iloc[i]
-        if porcentaje_cuerpo < 30 and mecha_inferior > (rango_total * 0.5):
+    # Detección de Barrido de Liquidez (Sweep Liquidity) real
+    # Buscamos si el precio actual o de la vela anterior barrió mínimos/máximos pasados (pools de liquidez) y regresó
+    if i >= 15:
+        minimo_previo = df['low'].iloc[i-15:i-2].min()
+        maximo_previo = df['high'].iloc[i-15:i-2].max()
+        
+        # Barrido Bajista (Toma liquidez de Sell Stops y rechaza al alza)
+        if df['low'].iloc[i] < minimo_previo and df['close'].iloc[i] > minimo_previo:
+            confirmaciones["sweep_liquidez_detectado"] = True
+            
+        # Barrido Alcista (Toma liquidez de Buy Stops y rechaza a la baja)
+        if df['high'].iloc[i] > maximo_previo and df['close'].iloc[i] < maximo_previo:
             confirmaciones["sweep_liquidez_detectado"] = True
 
     if df['close'].iloc[i-1] < df['open'].iloc[i-1] and df['close'].iloc[i] > df['high'].iloc[i-1]:
@@ -623,10 +628,12 @@ async def ejecutar_escaner_cloud(account, connection):
         }
         
         # 1. Sincronizar confirmaciones con la matriz en Firestore (vía webhook)
-        await sincronizar_matriz_tecnica(activo, confirmaciones, rsi_actual, ma_alineada, soporte_activo, bool(killzone_activa))
+        webhook_response = await sincronizar_matriz_tecnica(activo, confirmaciones, rsi_actual, ma_alineada, soporte_activo, bool(killzone_activa))
         
-        # 2. Si hay setup de entrada (FVG o OB detectados)
-        if confirmaciones["fvg_detectado"] or confirmaciones["order_block_detectado"]:
+        # 2. Validar si el backend (Firebase) autorizó el gatillo (Score >= 80%)
+        gatillo_autorizado = webhook_response and webhook_response.get("gatillo_entrada") is True
+        
+        if gatillo_autorizado:
             if not killzone_activa:
                 print(f"| GATILLO CLOUD OMITIDO | Setup detectado en {activo} pero está fuera de Killzone.")
                 continue

@@ -578,34 +578,40 @@ def notificar_botpress_mia(activo: str, data: dict):
 
 def recalcular_score_ponderado(data: dict) -> float:
     score = 0.0
-    
-    # 1. Técnicas (Max 100 - Modo 100% Técnico)
     tech = data.get("confirmaciones_tecnicas", {})
+    
+    # 1. Filtro Direccional (Gatillo Obligatorio)
+    # Se debe confirmar tendencia (Medias Móviles Alineadas) O estar en zona de reversión (RSI Extremo)
+    ma_alineada = tech.get("medias_moviles_alineadas", False)
+    # Soporte para keys legacy y nueva
+    rsi_extremo = tech.get("rsi_sobrecompra_sobreventa", False) or tech.get("rsi_extremo", False)
+    
+    if not (ma_alineada or rsi_extremo):
+        return 0.0  # Sin dirección clara, no hay trade
+        
+    score += 40 # Base Direccional Macro (40% asegurado por tendencia correcta)
+    
+    # 2. Confirmadores adicionales
+    if tech.get("soporte_resistencia_activo"): score += 10
+    
+    # 3. Módulos SMC e ICT (Suman los otros 40-60%)
     smc_codes = tech.get("smc_codes", [])
     
-    # Catálogo SMC (Max 70 puntos): 1=OB, 2=FVG, 3=Breaker, 4=Sweep
-    if 1 in smc_codes: score += 60  # Order Block (Estructura Fuerte)
-    if 2 in smc_codes: score += 60  # FVG (Aceleración)
-    if 3 in smc_codes: score += 50  # Breaker Block
-    if 4 in smc_codes: score += 40  # Liquidity Sweep
+    # Pesos estructurales primarios (Con cualquiera de estos se llega a 80%)
+    if 1 in smc_codes: score += 40  # Order Block (OB)
+    if 2 in smc_codes: score += 40  # Fair Value Gap (FVG)
     
-    # Confirmadores (Max 30 puntos)
-    if tech.get("soporte_resistencia_activo"): score += 10
-    if tech.get("ema_50_200_crossover"): score += 10
-    if tech.get("rsi_sobrecompra_sobreventa"): score += 10
+    # Confluencias estructurales secundarias
+    if 3 in smc_codes: score += 30  # Breaker Block
+    if 4 in smc_codes: score += 20  # Liquidity Sweep
         
     # 2. Institucionales (APAGADO TEMPORALMENTE - n8n bypass)
     # inst = data.get("confirmaciones_institucionales", {})
     # if inst.get("dark_pools_amortizado"): score += 10
-    # if inst.get("dark_pools_url_valid"): score += 10
-    # if inst.get("whales_perdieron_fuerza"): score += 10
-    # if inst.get("heatmap_ordenes_limite"): score += 10
-        
+    
     # 3. Fundamentales (APAGADO TEMPORALMENTE - n8n bypass)
     # fund = data.get("confirmaciones_fundamentales", {})
     # if fund.get("noticias_impacto_favorables"): score += 10
-    # if fund.get("ipo_liquidez_positiva"): score += 5
-    # if fund.get("spo_liquidez_positiva"): score += 5
         
     return min(score, 100.0)
 
