@@ -827,7 +827,11 @@
             }
         }
         
-        async function loadTvChart(symbol) {
+        let currentTvSymbol = 'EURUSD';
+
+        async function loadTvChart(symbol, isSilent = false) {
+            currentTvSymbol = symbol;
+            
             document.getElementById('tv-title').innerText = `Gráfico Interactivo: ${symbol} (1H)`;
             document.querySelectorAll('.tv-btn').forEach(b => b.classList.remove('active'));
             // Usamos un selector un poco más permisivo en caso de quotes
@@ -836,8 +840,10 @@
             });
             
             const loader = document.getElementById('tv-loader');
-            loader.innerText = 'Cargando velas...';
-            loader.style.display = 'block';
+            if (!isSilent) {
+                loader.innerText = 'Cargando velas...';
+                loader.style.display = 'block';
+            }
             
             if (!tvChart) initChart();
             
@@ -850,20 +856,31 @@
                     if (json.ema50) ema50Series.setData(json.ema50);
                     if (json.ema200) ema200Series.setData(json.ema200);
                     if (json.markers) candleSeries.setMarkers(json.markers);
-                    tvChart.timeScale().fitContent();
+                    if (!isSilent) tvChart.timeScale().fitContent();
                     loader.style.display = 'none';
                 } else {
-                    console.error("Error loading TV chart:", json.message);
-                    loader.innerText = "Error cargando datos: " + (json.message || "Sin datos");
+                    if (!isSilent) {
+                        console.error("Error loading TV chart:", json.message);
+                        loader.innerText = "Error cargando datos: " + (json.message || "Sin datos");
+                    }
                 }
             } catch (err) {
-                console.error("Fetch error TV chart:", err);
-                loader.innerText = "Error de red: " + err.message;
+                if (!isSilent) {
+                    console.error("Fetch error TV chart:", err);
+                    loader.innerText = "Error de red: " + err.message;
+                }
             }
         }
         
         // Inicializar con EURUSD
         loadTvChart('EURUSD');
+        
+        // Auto-actualizar la gráfica cada 60 segundos de forma silenciosa
+        setInterval(() => {
+            if (currentTvSymbol) {
+                loadTvChart(currentTvSymbol, true);
+            }
+        }, 60000);
     </script>
 </body>
 </html>
