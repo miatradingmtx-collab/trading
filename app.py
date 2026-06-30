@@ -33,6 +33,7 @@ load_dotenv()
 import json
 import firebase_admin
 from firebase_admin import credentials, firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 # Inicializar Firebase de forma segura (redundancia local y nube)
 firebase_inicializado = False
@@ -2583,7 +2584,7 @@ async def get_chart_data(symbol: str):
         markers = []
         try:
             if firebase_inicializado and db:
-                logs_ref = db.collection("mia_audit_logs").where("activo", "==", symbol.upper()).stream()
+                logs_ref = db.collection("mia_audit_logs").where(filter=FieldFilter("activo", "==", symbol.upper())).stream()
                 for log in logs_ref:
                     data = log.to_dict()
                     accion = data.get("accion", "").upper()
