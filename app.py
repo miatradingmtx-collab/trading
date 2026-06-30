@@ -495,10 +495,11 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             fecha_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
             iso_time = now_dt.isoformat()
             
-            sesion = "NY"
-            if 0 <= utc_hour < 7: sesion = "ASIA"
-            elif 7 <= utc_hour < 12: sesion = "LONDRES"
-            
+            sesion = "NUEVA_YORK"
+            h_local = now_dt.hour
+            if 1 <= h_local < 6: sesion = "LONDRES"
+            elif 6 <= h_local < 16: sesion = "NUEVA_YORK"
+            else: sesion = "ASIA"
             activo_norm = normalizar_activo(alert.activo)
             score = 0
             try:
@@ -993,19 +994,22 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                 ind_doc = ind_ref.get()
                 if ind_doc.exists:
                     ind_data = ind_doc.to_dict()
-                    ind_data["trades_con_indicador"] = ind_data.get("trades_con_indicador", 0) + 1
-                    if es_ganado:
-                        ind_data["trades_ganados_con"] = ind_data.get("trades_ganados_con", 0) + 1
-                    else:
-                        ind_data["trades_perdidos_con"] = ind_data.get("trades_perdidos_con", 0) + 1
-                        
-                    ind_data["pnl_acumulado"] = ind_data.get("pnl_acumulado", 0.0) + pnl
-                    if ind_data["trades_con_indicador"] > 0:
-                        ind_data["win_rate_indicador"] = round(
-                            (ind_data["trades_ganados_con"] / ind_data["trades_con_indicador"]) * 100, 2
-                        )
-                    ind_data["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
-                    ind_ref.set(ind_data)
+                else:
+                    ind_data = {"trades_con_indicador": 0, "trades_ganados_con": 0, "trades_perdidos_con": 0, "pnl_acumulado": 0.0, "win_rate_indicador": 0.0}
+                    
+                ind_data["trades_con_indicador"] = ind_data.get("trades_con_indicador", 0) + 1
+                if es_ganado:
+                    ind_data["trades_ganados_con"] = ind_data.get("trades_ganados_con", 0) + 1
+                else:
+                    ind_data["trades_perdidos_con"] = ind_data.get("trades_perdidos_con", 0) + 1
+                    
+                ind_data["pnl_acumulado"] = ind_data.get("pnl_acumulado", 0.0) + pnl
+                if ind_data["trades_con_indicador"] > 0:
+                    ind_data["win_rate_indicador"] = round(
+                        (ind_data["trades_ganados_con"] / ind_data["trades_con_indicador"]) * 100, 2
+                    )
+                ind_data["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
+                ind_ref.set(ind_data)
             except Exception as e:
                 print(f"| KB MIA WARN | Error actualizando indicador {indicador}: {e}")
                 registrar_error_sistema("Mia KB (Indicador)", str(e))
@@ -1016,16 +1020,19 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
             ses_doc = ses_ref.get()
             if ses_doc.exists:
                 ses_data = ses_doc.to_dict()
-                ses_data["trades_totales"] = ses_data.get("trades_totales", 0) + 1
-                if es_ganado:
-                    ses_data["trades_ganados"] = ses_data.get("trades_ganados", 0) + 1
-                ses_data["pnl_total"] = ses_data.get("pnl_total", 0.0) + pnl
-                if ses_data["trades_totales"] > 0:
-                    ses_data["win_rate"] = round(
-                        (ses_data["trades_ganados"] / ses_data["trades_totales"]) * 100, 2
-                    )
-                ses_data["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
-                ses_ref.set(ses_data)
+            else:
+                ses_data = {"trades_totales": 0, "trades_ganados": 0, "pnl_total": 0.0, "win_rate": 0.0}
+                
+            ses_data["trades_totales"] = ses_data.get("trades_totales", 0) + 1
+            if es_ganado:
+                ses_data["trades_ganados"] = ses_data.get("trades_ganados", 0) + 1
+            ses_data["pnl_total"] = ses_data.get("pnl_total", 0.0) + pnl
+            if ses_data["trades_totales"] > 0:
+                ses_data["win_rate"] = round(
+                    (ses_data["trades_ganados"] / ses_data["trades_totales"]) * 100, 2
+                )
+            ses_data["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
+            ses_ref.set(ses_data)
         except Exception as e:
             print(f"| KB MIA WARN | Error actualizando sesion {sesion}: {e}")
             registrar_error_sistema("Mia KB (Sesión)", str(e))
@@ -2234,16 +2241,6 @@ async def api_dashboard_data():
     }
 
     try:
-        # 1. system_memory / mia_collective
-        mem_doc = db.collection("system_memory").document("mia_collective").get()
-        if mem_doc.exists:
-            data["kpis"] = mem_doc.to_dict()
-
-        # 2. trading_matrix (Scores en vivo)
-        matrices = db.collection("trading_matrix").stream()
-        for m in matrices:
-            data["matriz_scores"][m.id] = m.to_dict().get("score_porcentaje", 0)
-
         # 2.5 system_logs
         sys_logs = db.collection("mia_system_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream()
         for sl in sys_logs:
@@ -2279,14 +2276,15 @@ async def api_dashboard_data():
                     activo = "EURUSD"
                 
                 fecha = e.get('fecha', '')
-                sesion = "NY"
+                sesion = "NUEVA_YORK"
                 if fecha:
                     try:
                         from datetime import datetime
                         dt = datetime.strptime(fecha, "%Y-%m-%d %H:%M:%S")
                         h = dt.hour
-                        if 0 <= h < 7: sesion = "ASIA"
-                        elif 7 <= h < 12: sesion = "LONDRES"
+                        if 1 <= h < 6: sesion = "LONDRES"
+                        elif 6 <= h < 16: sesion = "NUEVA_YORK"
+                        else: sesion = "ASIA"
                     except:
                         pass
                 
@@ -2327,6 +2325,27 @@ async def api_dashboard_data():
                 activos_stats[activo]["pnl_hoy"] += pnl
 
         data["rendimiento_activos"] = activos_stats
+
+        # Calcular KPIs dinámicos
+        ganados = len([l for l in todos_los_logs if l.get("pnl", 0) > 0])
+        total_cerrados = len(todos_los_logs)
+        win_rate = round((ganados / total_cerrados * 100), 2) if total_cerrados > 0 else 0
+        total_trades = len(todas_las_entradas)
+        
+        # Integrar mia_collective con KPIs calculados
+        mem_doc = db.collection("system_memory").document("mia_collective").get()
+        m = mem_doc.to_dict() if mem_doc.exists else {}
+        data["kpis"] = {
+            "win_rate": win_rate,
+            "total_trades": total_trades,
+            "patron_estrella": m.get("patron_estrella_ict_smc", "-"),
+            "patron_estrella_wr": m.get("patron_estrella_win_rate", 0)
+        }
+        
+        # 2. trading_matrix (Scores en vivo)
+        matrices = db.collection("trading_matrix").stream()
+        for m in matrices:
+            data["matriz_scores"][m.id] = m.to_dict().get("score_porcentaje", 0)
 
         # 4. Estrategias (mia_kb/patrones_ict_smc)
         patrones = db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream()
