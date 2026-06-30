@@ -2535,6 +2535,8 @@ async def get_chart_data(symbol: str):
         # Mapeo de símbolos de Mia a Yahoo Finance
         mapa = {
             "EURUSD": "EURUSD=X",
+            "GBPUSD": "GBPUSD=X",
+            "GBPJPY": "GBPJPY=X",
             "XAUUSD": "GC=F",
             "NASDAQ100": "NQ=F",
             "BTCUSD": "BTC-USD",
