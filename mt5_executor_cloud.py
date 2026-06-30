@@ -408,17 +408,20 @@ async def gestionar_posiciones_activas(connection):
         if tp == 0.0:
             continue
             
-        # Target 1 (TP1) al 50% de la distancia al TP final
+        # Target Parcial (TP1) al 40% de la distancia al TP final para asegurar ganancias rápido
         distancia_total = tp - entry_price
-        tp1 = entry_price + (distancia_total * 0.5)
+        tp1 = entry_price + (distancia_total * 0.4)
         
         es_buy = pos.type == 'POSITION_TYPE_BUY'
         alcanzo_tp1 = (es_buy and current_price >= tp1) or (not es_buy and current_price <= tp1)
         
-        # A. Tomar Parciales al 80% si no se ha tomado (lote remanente > 0.02 y alcanzó TP1)
-        if alcanzo_tp1 and volume > 0.02 and not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
-            lote_a_cerrar = volume * 0.8
-            lote_a_cerrar = round(lote_a_cerrar, 2)
+        # A. Tomar Parciales al 80% si no se ha tomado (lote remanente >= 0.02 y alcanzó TP1)
+        if alcanzo_tp1 and volume >= 0.02 and not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
+            lote_a_cerrar = round(volume * 0.8, 2)
+            # Asegurar que siempre quede al menos 0.01 para el runner
+            if volume - lote_a_cerrar < 0.01:
+                lote_a_cerrar = round(volume - 0.01, 2)
+                
             if lote_a_cerrar >= 0.01:
                 print(f"| GESTOR PARCIALES | Intentando cerrar parcialmente {lote_a_cerrar} lotes de {ticket}...")
                 try:
@@ -427,6 +430,15 @@ async def gestionar_posiciones_activas(connection):
                     POSICIONES_ACTIVAS[ticket]["volume"] = volume - lote_a_cerrar
                     
                     await asyncio.sleep(1)
+                    # Mover Stop Loss a Break Even + pequeño buffer
+                    buffer_be = 0.0001 if not pos.symbol.endswith("JPY") and "XAU" not in pos.symbol else 0.01
+                    nuevo_sl = entry_price + buffer_be if es_buy else entry_price - buffer_be
+                    try:
+                        await connection.modify_position(ticket, stop_loss=nuevo_sl)
+                        print(f"| GESTOR RIESGO | SL movido a Break Even para {ticket}")
+                    except Exception as sl_e:
+                        print(f"| GESTOR RIESGO WARNING | No se pudo mover SL a BE: {sl_e}")
+
                     # PnL estimado de esta parcial (MetaAPI no devuelve deals historicos directamente de forma facil en RPC de inmediato, estimamos o enviamos 0.0)
                     pnl_parcial = (current_price - entry_price) * lote_a_cerrar * 100 # Estimado basico
                     if not es_buy:
