@@ -2190,14 +2190,14 @@ def resumen_trades_hoy(authorization: Optional[str] = Header(None)):
         if len(trades_hoy) == 0:
             return {"status": "success", "mensaje_chat": f"Padre, hoy ({hoy_str}) no hemos ejecutado ningún trade todavía. Sigo escaneando el mercado pacientemente."}
             
-        resumen = f"Padre, este es el resumen de hoy ({hoy_str}):\\n\\n"
+        resumen = f"Padre, este es el resumen de hoy ({hoy_str}):\n\n"
         for t in trades_hoy:
             tipo = t.get("tipo", "EJECUCIÓN")
             activo = t.get("activo", "DESCONOCIDO")
             score = t.get("score_confluencias", t.get("score", 0))
-            resumen += f"• [{tipo}] {activo} | Score: {score}%\\n"
+            resumen += f"• [{tipo}] {activo} | Score: {score}%\n"
             
-        resumen += f"\\nTotal de movimientos hoy: {len(trades_hoy)}."
+        resumen += f"\nTotal de movimientos hoy: {len(trades_hoy)}."
         
         return {"status": "success", "mensaje_chat": resumen}
         
