@@ -38,6 +38,15 @@ from firebase_admin import credentials, firestore
 firebase_inicializado = False
 db = None
 
+# Variables globales para caché del Dashboard
+DASHBOARD_CACHE_DATA = None
+DASHBOARD_CACHE_TIME = 0.0
+import time
+
+def invalidar_cache_dashboard():
+    global DASHBOARD_CACHE_TIME
+    DASHBOARD_CACHE_TIME = 0.0
+
 try:
     # 1. Intentar cargar desde un archivo local serviceAccountKey.json
     if os.path.exists("serviceAccountKey.json"):
@@ -431,6 +440,7 @@ def actualizar_excel_local(alert: TradeAlert):
         return False
 
 def registrar_error_sistema(componente: str, mensaje: str):
+    invalidar_cache_dashboard()
     """
     Registra errores críticos del sistema (Railway, Firebase, MetaAPI) en la colección mia_system_logs
     """
@@ -1339,7 +1349,7 @@ async def test_boolean(activo: str = "XAUUSD", lote: float = 0.01):
         }
         
     except Exception as e:
-        print(f"| TEST BOOLEAN ERROR | Ocurrió un error en el test: {e}")
+        print(f"| TEST BOOLEAN ERROR | Ocurrió un error al conectar: {e}")
         registrar_error_sistema("Test Boolean", str(e))
         return {"status": "error", "message": str(e)}
 
@@ -1459,6 +1469,7 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
     de MetaTrader 5 y actualiza la matriz en Firebase.
     """
     verificar_token(authorization)
+    invalidar_cache_dashboard()
     
     global firebase_inicializado, db
     if not firebase_inicializado or db is None:
@@ -1575,6 +1586,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
     para el contexto fundamental/sentimiento geopolítico, y retorna la autorización final del trade.
     """
     verificar_token(authorization)
+    invalidar_cache_dashboard()
     
     global firebase_inicializado, db
     if not firebase_inicializado or db is None:
@@ -1997,6 +2009,7 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
     Cambia el estado a EJECUTADO, llama a la KB, y genera el log de auditoría inmutable.
     """
     verificar_token(authorization)
+    invalidar_cache_dashboard()
     
     global firebase_inicializado, db
     if not firebase_inicializado or db is None:
@@ -2062,6 +2075,7 @@ def webhook_marcar_rechazado(payload: dict, authorization: Optional[str] = Heade
     el cerebro o el MetaAPI rechazó la orden.
     """
     verificar_token(authorization)
+    invalidar_cache_dashboard()
     
     global firebase_inicializado, db
     if not firebase_inicializado or db is None:
@@ -2197,7 +2211,13 @@ async def render_dashboard():
 
 @app.get("/api/dashboard_data")
 async def api_dashboard_data():
-    global firebase_inicializado, db
+    global firebase_inicializado, db, DASHBOARD_CACHE_DATA, DASHBOARD_CACHE_TIME
+    
+    # Caché de 5 minutos (300 segundos) para evitar agotar la cuota (429)
+    if DASHBOARD_CACHE_DATA and (time.time() - DASHBOARD_CACHE_TIME < 300):
+        # print("| CACHE | Sirviendo dashboard desde memoria RAM")
+        return {"status": "success", "data": DASHBOARD_CACHE_DATA}
+
     if not firebase_inicializado or db is None:
         return {"status": "error", "message": "Firebase no inicializado"}
 
@@ -2349,10 +2369,19 @@ async def api_dashboard_data():
         data["killzones"] = sorted(data["killzones"], key=lambda x: x["win_rate"], reverse=True)
         data["indicadores"] = sorted(data["indicadores"], key=lambda x: x["win_rate"], reverse=True)
 
+        # Actualizar la caché global
+        DASHBOARD_CACHE_DATA = data
+        DASHBOARD_CACHE_TIME = time.time()
+        print("| CACHE | Datos del dashboard actualizados y guardados en memoria")
+
         return {"status": "success", "data": data}
 
     except Exception as e:
         print(f"| API ERROR | Fallo al recopilar datos del dashboard: {e}")
+        # Si falla por 429 u otro error, intentar devolver la caché antigua si existe
+        if DASHBOARD_CACHE_DATA:
+            print("| CACHE FALLBACK | Sirviendo datos antiguos por fallo en Firebase")
+            return {"status": "success", "data": DASHBOARD_CACHE_DATA, "warning": str(e)}
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/export_audit_csv")

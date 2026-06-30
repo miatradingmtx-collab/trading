@@ -668,7 +668,8 @@
         }
 
         fetchDashboardData();
-        setInterval(fetchDashboardData, 15000);
+        // Aumentado a 30s ya que el servidor ahora usa caché y se invalida automáticamente con nuevas señales
+        setInterval(fetchDashboardData, 30000);
     </script>
 </body>
 </html>
