@@ -463,11 +463,11 @@
                 return;
             }
 
-            // Ordenar de la más reciente (arriba) a la más antigua (abajo) - Mayor a Menor
+            // Ordenar de la hora más antigua (arriba) a la más reciente (abajo) - Orden Cronológico Real
             filtered.sort((a, b) => {
                 let dateA = new Date(a.timestamp || 0).getTime();
                 let dateB = new Date(b.timestamp || 0).getTime();
-                return dateB - dateA; 
+                return dateA - dateB; 
             });
 
             filtered.forEach(f => {
