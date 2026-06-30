@@ -728,26 +728,31 @@
         let candleSeries = null;
         
         function initChart() {
-            const container = document.getElementById('tv-chart');
-            const chartOptions = { 
-                width: container.clientWidth || 800,
-                height: 400,
-                layout: { textColor: '#c9d1d9', background: { type: 'solid', color: '#141724' } },
-                grid: { vertLines: { color: 'rgba(255, 255, 255, 0.02)' }, horzLines: { color: 'rgba(255, 255, 255, 0.02)' } },
-                crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-                rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
-                timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true }
-            };
-            
-            tvChart = LightweightCharts.createChart(container, chartOptions);
-            candleSeries = tvChart.addCandlestickSeries({
-                upColor: '#00e68a', downColor: '#f85149', borderVisible: false,
-                wickUpColor: '#00e68a', wickDownColor: '#f85149'
-            });
-            
-            window.addEventListener('resize', () => {
-                tvChart.applyOptions({ width: container.clientWidth });
-            });
+            try {
+                const container = document.getElementById('tv-chart');
+                const chartOptions = { 
+                    width: container.clientWidth || 800,
+                    height: 400,
+                    layout: { textColor: '#c9d1d9', background: { type: 'solid', color: '#141724' } },
+                    grid: { vertLines: { color: 'rgba(255, 255, 255, 0.02)' }, horzLines: { color: 'rgba(255, 255, 255, 0.02)' } },
+                    crosshair: { mode: 0 }, // 0 = Normal, evitamos usar el enum por si falla
+                    rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                    timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true }
+                };
+                
+                tvChart = LightweightCharts.createChart(container, chartOptions);
+                candleSeries = tvChart.addCandlestickSeries({
+                    upColor: '#00e68a', downColor: '#f85149', borderVisible: false,
+                    wickUpColor: '#00e68a', wickDownColor: '#f85149'
+                });
+                
+                window.addEventListener('resize', () => {
+                    tvChart.applyOptions({ width: container.clientWidth });
+                });
+            } catch(e) {
+                document.getElementById('tv-loader').innerText = "JS Error in initChart: " + e.message;
+                throw e;
+            }
         }
         
         async function loadTvChart(symbol) {
@@ -759,6 +764,7 @@
             });
             
             const loader = document.getElementById('tv-loader');
+            loader.innerText = 'Cargando velas...';
             loader.style.display = 'block';
             
             if (!tvChart) initChart();
@@ -770,13 +776,14 @@
                 if (json.status === "success" && json.data.length > 0) {
                     candleSeries.setData(json.data);
                     tvChart.timeScale().fitContent();
+                    loader.style.display = 'none';
                 } else {
                     console.error("Error loading TV chart:", json.message);
+                    loader.innerText = "Error cargando datos: " + (json.message || "Sin datos");
                 }
             } catch (err) {
                 console.error("Fetch error TV chart:", err);
-            } finally {
-                loader.style.display = 'none';
+                loader.innerText = "Error de red: " + err.message;
             }
         }
         
