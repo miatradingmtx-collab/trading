@@ -690,23 +690,24 @@ def es_mercado_abierto(activo: str) -> bool:
 # ------------------------------------------------------------------------------
 # 8. BUCLE PRINCIPAL DE ANÁLISIS EN LA NUBE
 # ------------------------------------------------------------------------------
-async def ejecutar_escaner_cloud(account, connection):
+async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
     # 1. Obtener balance y validar Drawdown Diario
     balance, equity = await obtener_balance(connection)
     en_drawdown = await verificar_drawdown_diario(balance, limite_pct=3.0)
     
-    try:
-        if FASTAPI_URL and balance > 0:
-            import httpx
-            async with httpx.AsyncClient() as client:
-                await client.post(f"{FASTAPI_URL}/webhook_update_balance", json={"balance": balance, "equity": equity, "floating_pnl": equity - balance}, headers={"Authorization": f"Bearer {ACCESS_TOKEN}"})
-    except Exception as e:
-        print(f"| GESTOR BALANCE | Error al enviar webhook_update_balance: {e}")
-    
-    try:
-        await gestionar_posiciones_activas(connection, balance)
-    except Exception as e:
-        print(f"| GESTOR POSICIONES ERROR | Falló gestión de posiciones en la nube: {e}")
+    if not skip_risk:
+        try:
+            if FASTAPI_URL and balance > 0:
+                import httpx
+                async with httpx.AsyncClient() as client:
+                    await client.post(f"{FASTAPI_URL}/webhook_update_balance", json={"balance": balance, "equity": equity, "floating_pnl": equity - balance}, headers={"Authorization": f"Bearer {ACCESS_TOKEN}"})
+        except Exception as e:
+            print(f"| GESTOR BALANCE | Error al enviar webhook_update_balance: {e}")
+        
+        try:
+            await gestionar_posiciones_activas(connection, balance)
+        except Exception as e:
+            print(f"| GESTOR POSICIONES ERROR | Falló gestión de posiciones en la nube: {e}")
         
     if en_drawdown:
         print("| ESCANER CLOUD | ⛔ Deteniendo escaneo de nuevas entradas por Drawdown Diario (-3%).")
@@ -799,13 +800,40 @@ async def run_escaner_loop():
             await asyncio.sleep(15)
             
     print("🚀 Escáner de trading asíncrono iniciado correctamente.")
+    
+    # Temporizador para el escáner pesado (cada 15 min)
+    ultima_ejecucion_escaner = 0
+    
     while True:
         try:
-            await ejecutar_escaner_cloud(account, connection)
+            from time import time
+            ahora = time()
+            
+            # Ejecutar SIEMPRE el Gestor de Posiciones y Balance (Cada 30s)
+            balance, equity = await obtener_balance(connection)
+            if FASTAPI_URL and balance > 0:
+                try:
+                    import httpx
+                    async with httpx.AsyncClient() as client:
+                        await client.post(f"{FASTAPI_URL}/webhook_update_balance", json={"balance": balance, "equity": equity, "floating_pnl": equity - balance}, headers={"Authorization": f"Bearer {ACCESS_TOKEN}"})
+                except Exception as e:
+                    pass
+                    
+            try:
+                await gestionar_posiciones_activas(connection, balance)
+            except Exception as e:
+                print(f"| GESTOR POSICIONES ERROR | {e}")
+            
+            # Ejecutar Escáner de Mercado cada 15 Minutos (900s)
+            if ahora - ultima_ejecucion_escaner >= 900:
+                await ejecutar_escaner_cloud(account, connection, skip_risk=True)
+                ultima_ejecucion_escaner = ahora
+                
         except Exception as e:
             print(f"| RUNNER CLOUD ERROR | Ocurrió un fallo en el escáner: {e}")
             await reportar_error_nube("Escáner Core", str(e))
-        await asyncio.sleep(900) # Ejecutar cada 15 minutos (900 seg) para timeframes H1-H8
+            
+        await asyncio.sleep(30) # Loop base cada 30 segundos
 
 async def abrir_posicion_test(simbolo: str, lote: float) -> str:
     """Función de prueba para abrir una posición directamente en MetaAPI."""

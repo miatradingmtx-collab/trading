@@ -2231,17 +2231,18 @@ def api_pnl_hoy(authorization: Optional[str] = Header(None)):
         from datetime import datetime
         hoy_str = datetime.now().strftime("%Y-%m-%d")
         
-        docs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(100).stream()
+        asegurar_cache_firebase()
+        global GLOBAL_AUDIT_LOGS
         
         pnl_total = 0.0
-        for doc in docs:
-            data = doc.to_dict()
-            fecha_doc = data.get("fecha", "")
-            if fecha_doc.startswith(hoy_str):
-                # Solo sumar si es un CIERRE_TOTAL (o PARCIAL si se incluye)
-                accion = data.get("accion", "")
-                if accion in ["CIERRE_TOTAL", "CIERRE_PARCIAL_80", "CIERRE_PARCIAL"]:
-                    pnl_total += float(data.get("pnl", 0.0))
+        if GLOBAL_AUDIT_LOGS:
+            for data in GLOBAL_AUDIT_LOGS:
+                fecha_doc = data.get("fecha", "")
+                if fecha_doc.startswith(hoy_str):
+                    # Solo sumar si es un CIERRE_TOTAL (o PARCIAL si se incluye)
+                    accion = data.get("accion", "")
+                    if accion in ["CIERRE_TOTAL", "CIERRE_PARCIAL_80", "CIERRE_PARCIAL"]:
+                        pnl_total += float(data.get("pnl", 0.0))
                     
         return {"status": "success", "pnl_hoy": pnl_total}
     except Exception as e:
@@ -2269,17 +2270,17 @@ def resumen_trades_hoy(authorization: Optional[str] = Header(None)):
         # Obtener la fecha de hoy en formato YYYY-MM-DD
         hoy_str = datetime.now().strftime("%Y-%m-%d")
         
-        # Consultar mia_audit_logs filtrando por los que empiecen con la fecha de hoy
-        # Como Firestore no soporta un simple "startswith" eficientemente sin un índice complejo,
-        # descargaremos los recientes y filtraremos en memoria (suficiente para volumen diario bajo)
-        docs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(50).stream()
+        asegurar_cache_firebase()
+        global GLOBAL_AUDIT_LOGS
         
         trades_hoy = []
-        for doc in docs:
-            data = doc.to_dict()
-            fecha_doc = data.get("fecha", "")
-            if fecha_doc.startswith(hoy_str):
-                trades_hoy.append(data)
+        if GLOBAL_AUDIT_LOGS:
+            # Ordenamos por timestamp descendente simulando la base de datos
+            logs_ordenados = sorted(GLOBAL_AUDIT_LOGS, key=lambda x: x.get("timestamp", ""), reverse=True)
+            for data in logs_ordenados:
+                fecha_doc = data.get("fecha", "")
+                if fecha_doc.startswith(hoy_str):
+                    trades_hoy.append(data)
                 
         if len(trades_hoy) == 0:
             return {"status": "success", "mensaje_chat": f"Padre, hoy ({hoy_str}) no hemos ejecutado ningún trade todavía. Sigo escaneando el mercado pacientemente."}
@@ -2316,6 +2317,49 @@ GLOBAL_PATRONES = None
 GLOBAL_MATRICES = None
 ULTIMO_FETCH_FIREBASE = None
 
+def asegurar_cache_firebase():
+    global firebase_inicializado, db
+    global GLOBAL_AUDIT_LOGS, GLOBAL_SYSTEM_LOGS, GLOBAL_PATRONES, GLOBAL_MATRICES, ULTIMO_FETCH_FIREBASE
+    
+    if not firebase_inicializado or db is None:
+        return
+        
+    from datetime import datetime
+    ahora = datetime.now()
+    
+    # Refrescar caché de Firebase cada 6 horas para evitar agotar cuota (50k reads)
+    necesita_refresh = False
+    if ULTIMO_FETCH_FIREBASE is None or GLOBAL_AUDIT_LOGS is None:
+        necesita_refresh = True
+    elif (ahora - ULTIMO_FETCH_FIREBASE).total_seconds() > 21600:
+        necesita_refresh = True
+        
+    if necesita_refresh:
+        try:
+            # system_logs
+            sys_logs = db.collection("mia_system_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream()
+            GLOBAL_SYSTEM_LOGS = [sl.to_dict() for sl in sys_logs]
+            
+            # mia_audit_logs
+            logs = db.collection("mia_audit_logs").stream()
+            GLOBAL_AUDIT_LOGS = [l.to_dict() for l in logs]
+            
+            # trading_matrix
+            matrices = db.collection("trading_matrix").stream()
+            GLOBAL_MATRICES = {m.id: m.to_dict().get("score_porcentaje", 0) for m in matrices}
+            
+            # mia_kb / patrones
+            patrones = db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream()
+            GLOBAL_PATRONES = [p.to_dict() for p in patrones]
+            
+            ULTIMO_FETCH_FIREBASE = ahora
+        except Exception as fe:
+            print(f"| FIREBASE CACHE ERROR | Error recargando caché: {fe}")
+            if GLOBAL_AUDIT_LOGS is None: GLOBAL_AUDIT_LOGS = []
+            if GLOBAL_SYSTEM_LOGS is None: GLOBAL_SYSTEM_LOGS = []
+            if GLOBAL_PATRONES is None: GLOBAL_PATRONES = []
+            if GLOBAL_MATRICES is None: GLOBAL_MATRICES = {}
+
 @app.get("/api/dashboard_data")
 def api_dashboard_data(authorization: Optional[str] = Header(None)):
     """Devuelve los datos estructurados para renderizar el Dashboard."""
@@ -2345,42 +2389,7 @@ def api_dashboard_data(authorization: Optional[str] = Header(None)):
     }
 
     try:
-        from datetime import datetime, timedelta
-        ahora = datetime.now()
-        
-        # Refrescar caché de Firebase cada 6 horas para evitar agotar cuota (50k reads)
-        necesita_refresh = False
-        if ULTIMO_FETCH_FIREBASE is None or GLOBAL_AUDIT_LOGS is None:
-            necesita_refresh = True
-        elif (ahora - ULTIMO_FETCH_FIREBASE).total_seconds() > 21600:
-            necesita_refresh = True
-            
-        if necesita_refresh:
-            try:
-                # system_logs
-                sys_logs = db.collection("mia_system_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream()
-                GLOBAL_SYSTEM_LOGS = [sl.to_dict() for sl in sys_logs]
-                
-                # mia_audit_logs
-                logs = db.collection("mia_audit_logs").stream()
-                GLOBAL_AUDIT_LOGS = [l.to_dict() for l in logs]
-                
-                # trading_matrix
-                matrices = db.collection("trading_matrix").stream()
-                GLOBAL_MATRICES = {m.id: m.to_dict().get("score_porcentaje", 0) for m in matrices}
-                
-                # mia_kb / patrones
-                patrones = db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream()
-                GLOBAL_PATRONES = [p.to_dict() for p in patrones]
-                
-                ULTIMO_FETCH_FIREBASE = ahora
-            except Exception as fe:
-                print(f"| FIREBASE CACHE ERROR | Error recargando caché: {fe}")
-                # Si falla (ej. Quota exceeded), usaremos lo que tengamos en memoria o listas vacías
-                if GLOBAL_AUDIT_LOGS is None: GLOBAL_AUDIT_LOGS = []
-                if GLOBAL_SYSTEM_LOGS is None: GLOBAL_SYSTEM_LOGS = []
-                if GLOBAL_PATRONES is None: GLOBAL_PATRONES = []
-                if GLOBAL_MATRICES is None: GLOBAL_MATRICES = {}
+        asegurar_cache_firebase()
 
         data["system_logs"] = GLOBAL_SYSTEM_LOGS
         
