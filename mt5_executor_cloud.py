@@ -719,12 +719,24 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
     else:
         print("| ESCANER CLOUD | Fuera de horario de Killzones. Sincronizando pero entradas desactivadas.")
         
+    try:
+        posiciones_activas = await connection.get_positions()
+        simbolos_abiertos = [pos.get('symbol') for pos in posiciones_activas]
+    except Exception as e:
+        print(f"| ESCANER ERROR | No se pudieron obtener las posiciones activas: {e}")
+        simbolos_abiertos = []
+        
     for activo in ACTIVOS:
         if not es_mercado_abierto(activo):
             print(f"| MERCADO CERRADO | {activo} en receso o fin de semana. Omitiendo escaneo.")
             continue
             
         simbolo = MAPEO_BROKER.get(activo)
+        
+        if simbolo in simbolos_abiertos:
+            print(f"| PROTECCIÓN DOBLE TRADE | Ya existe una posición abierta para {activo} ({simbolo}). Omitiendo escáner para evitar sobreexposición.")
+            continue
+            
         # Análisis Multi-Temporal (MTF): 1H y 4H
         df_1h = await obtener_velas_cloud(account, simbolo, '1h', 100)
         df_4h = await obtener_velas_cloud(account, simbolo, '4h', 300)
