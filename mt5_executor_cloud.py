@@ -437,8 +437,11 @@ async def gestionar_posiciones_activas(connection, balance: float):
     
     for pos in positions:
         # pos fields: id, symbol, type, openPrice, currentPrice, volume, stopLoss, takeProfit, profit, swap, commission, magic
-        # solo monitoreamos las que tengan el magic de Leona
-        if getattr(pos, 'magic', 0) != 20260616:
+        client_id = getattr(pos, 'clientId', '')
+        magic = getattr(pos, 'magic', 0)
+        
+        # Validar si es una operación de Mia (por Magic Number o Client ID)
+        if magic != 20260616 and not (isinstance(client_id, str) and client_id.startswith('L_')):
             continue
 
         ticket = pos.id
@@ -469,8 +472,7 @@ async def gestionar_posiciones_activas(connection, balance: float):
         volume = pos.volume
         profit_flotante = float(getattr(pos, 'profit', getattr(pos, 'unrealizedProfit', 0.0)))
         
-        if tp == 0.0:
-            continue
+        profit_flotante = float(getattr(pos, 'profit', getattr(pos, 'unrealizedProfit', 0.0)))
             
         es_buy = pos.type == 'POSITION_TYPE_BUY'
         
@@ -515,10 +517,11 @@ async def gestionar_posiciones_activas(connection, balance: float):
         rango_tolerancia = distancia_tp1 * 0.15
         
         esta_en_zona_entrada = False
-        if es_buy:
-            esta_en_zona_entrada = (current_price <= entry_price + rango_tolerancia) and (sl < entry_price)
-        else:
-            esta_en_zona_entrada = (current_price >= entry_price - rango_tolerancia) and (sl > entry_price or sl == 0.0)
+        if tp > 0.0:
+            if es_buy:
+                esta_en_zona_entrada = (current_price <= entry_price + rango_tolerancia) and (sl < entry_price)
+            else:
+                esta_en_zona_entrada = (current_price >= entry_price - rango_tolerancia) and (sl > entry_price or sl == 0.0)
             
         if esta_en_zona_entrada:
             # Consultar base de datos en la nube para volumen institucional (Firestore)
@@ -696,7 +699,7 @@ async def ejecutar_escaner_cloud(account, connection):
         if FASTAPI_URL and balance > 0:
             import httpx
             async with httpx.AsyncClient() as client:
-                await client.post(f"{FASTAPI_URL}/webhook_update_balance", json={"balance": balance}, headers={"Authorization": f"Bearer {API_KEY}"})
+                await client.post(f"{FASTAPI_URL}/webhook_update_balance", json={"balance": balance}, headers={"Authorization": f"Bearer {ACCESS_TOKEN}"})
     except Exception as e:
         print(f"| GESTOR BALANCE | Error al enviar webhook_update_balance: {e}")
     

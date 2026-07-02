@@ -2176,6 +2176,8 @@ def webhook_update_balance(payload: UpdateBalancePayload, authorization: Optiona
             "live_balance": payload.balance,
             "timestamp": datetime.now().isoformat()
         }, merge=True)
+        
+        invalidar_cache_dashboard()
         return {"status": "success", "mensaje": "Balance actualizado"}
     except Exception as e:
         print(f"| GESTOR BALANCE ERROR | {e}")
