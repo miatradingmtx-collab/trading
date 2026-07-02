@@ -693,6 +693,14 @@ async def ejecutar_escaner_cloud(account, connection):
     en_drawdown = await verificar_drawdown_diario(balance, limite_pct=3.0)
     
     try:
+        if FASTAPI_URL and balance > 0:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                await client.post(f"{FASTAPI_URL}/webhook_update_balance", json={"balance": balance}, headers={"Authorization": f"Bearer {API_KEY}"})
+    except Exception as e:
+        print(f"| GESTOR BALANCE | Error al enviar webhook_update_balance: {e}")
+    
+    try:
         await gestionar_posiciones_activas(connection, balance)
     except Exception as e:
         print(f"| GESTOR POSICIONES ERROR | Falló gestión de posiciones en la nube: {e}")

@@ -606,7 +606,7 @@
                     const d = json.data;
                     
                     // 1. Balance y ROI
-                    const balance = d.balance_base + d.pnl_total;
+                    const balance = d.balance_actual || (d.balance_base + d.pnl_total);
                     document.getElementById('kpi-balance').innerText = formatMoney(balance);
                     
                     const pnlSpan = document.getElementById('kpi-pnl-total');

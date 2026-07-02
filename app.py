@@ -2156,6 +2156,31 @@ def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[
         print(f"| AUDITORÍA ERROR | {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+class UpdateBalancePayload(BaseModel):
+    balance: float
+
+@app.post("/webhook_update_balance")
+def webhook_update_balance(payload: UpdateBalancePayload, authorization: Optional[str] = Header(None)):
+    """
+    Recibe el balance en vivo desde el MT5 Executor (Nube) y lo guarda en Firebase para el Dashboard.
+    """
+    verificar_token(authorization)
+    
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        raise HTTPException(status_code=503, detail="Firebase no inicializado")
+        
+    try:
+        from datetime import datetime
+        db.collection("system_memory").document("broker_state").set({
+            "live_balance": payload.balance,
+            "timestamp": datetime.now().isoformat()
+        }, merge=True)
+        return {"status": "success", "mensaje": "Balance actualizado"}
+    except Exception as e:
+        print(f"| GESTOR BALANCE ERROR | {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/pnl_hoy")
 def api_pnl_hoy(authorization: Optional[str] = Header(None)):
     """
@@ -2264,6 +2289,7 @@ async def api_dashboard_data():
 
     data = {
         "balance_base": 5000.0,
+        "balance_actual": 5000.0,
         "pnl_total": 0.0,
         "kpis": {},
         "rendimiento_activos": {},
@@ -2288,6 +2314,14 @@ async def api_dashboard_data():
         logs = db.collection("mia_audit_logs").stream()
         
         balance_actual = 5000.0
+        try:
+            broker_doc = db.collection("system_memory").document("broker_state").get()
+            if broker_doc.exists:
+                balance_actual = float(broker_doc.to_dict().get("live_balance", 5000.0))
+        except: pass
+        
+        data["balance_actual"] = balance_actual
+        
         from datetime import datetime
         hoy_str = datetime.now().strftime("%Y-%m-%d")
         
@@ -2376,17 +2410,19 @@ async def api_dashboard_data():
         sem_atras = now - timedelta(days=180)
         anio_atras = now - timedelta(days=365)
         
+        balance_curva = 5000.0
+        
         for l in todos_los_logs:
             pnl = l.get("pnl", 0.0)
             activo = l.get("activo", "UNKNOWN")
             fecha_str = l.get("fecha", "")
             
             data["pnl_total"] += pnl
-            balance_actual += pnl
+            balance_curva += pnl
             
             data["curva_equity"].append({
                 "fecha": fecha_str,
-                "balance": balance_actual
+                "balance": balance_curva
             })
 
             if activo not in activos_stats:
