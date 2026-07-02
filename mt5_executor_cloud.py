@@ -593,7 +593,8 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
         client_id = f"L_{short_sym}_{random.randint(1000, 9999)}"
         options = {
             'comment': 'Mia',
-            'clientId': client_id
+            'clientId': client_id,
+            'magic': 20260616
         }
 
         print(f"| TRADING RIESGO | Enviando {accion} en {simbolo_broker} (Balance: ${balance:.2f} | Riesgo {riesgo_pct}% | SL: {sl:.4f} | LOTE: {lote})")
@@ -613,7 +614,7 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
             payload = {
                 "ticket": str(order_id),
                 "activo": activo,
-                "accion": accion,
+                "accion": accion.upper(),
                 "score": 100.0,
                 "precio_ejecucion": precio_ejecucion,
                 "ejecutada_mt5": True,

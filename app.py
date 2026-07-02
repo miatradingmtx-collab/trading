@@ -1996,6 +1996,7 @@ def test_rss_llm_polling(authorization: Optional[str] = Header(None)):
 class MetaApiExecution(BaseModel):
     activo: str
     ticket: str
+    accion: str = ""
     score: float
     precio_ejecucion: float
     ejecutada_mt5: bool = True
@@ -2053,6 +2054,7 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         audit_ref.set({
             "ticket": ejecucion.ticket,
             "activo": ejecucion.activo,
+            "accion": ejecucion.accion,
             "score": ejecucion.score,
             "precio_ejecucion": ejecucion.precio_ejecucion,
             "fecha": fecha,
