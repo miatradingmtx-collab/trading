@@ -373,13 +373,17 @@
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
             <!-- PERFORMANCE TABLE -->
             <div class="card">
-                <div class="card-title">Rendimiento por Activo (ROI)</div>
+                <div class="card-title">Rendimiento por Activo y Periodo</div>
                 <table class="perf-table" id="table-rendimiento">
                     <thead>
                         <tr>
                             <th>Activo</th>
-                            <th>PnL Total</th>
-                            <th>ROI Total</th>
+                            <th>Hoy</th>
+                            <th>Semana</th>
+                            <th>Mes</th>
+                            <th>Trimestre</th>
+                            <th>Semestre</th>
+                            <th>Anual</th>
                             <th>Trades</th>
                         </tr>
                     </thead>
@@ -654,21 +658,61 @@
                         });
                     }
 
-                    // 5. Tabla de Rendimientos
+                    // 5. Tabla de Rendimientos por Periodo
                     const tbody = document.querySelector('#table-rendimiento tbody');
                     tbody.innerHTML = ''; 
                     
+                    const totales = { hoy: 0, semana: 0, mes: 0, trimestre: 0, semestre: 0, anual: 0, trades: 0 };
+                    
+                    const assetColors = {
+                        "XAUUSD": "#f0b429",
+                        "EURUSD": "#00b4d8",
+                        "GBPJPY": "#f85149",
+                        "AUDUSD": "#818cf8",
+                        "GBPUSD": "#00e68a"
+                    };
+
                     for (const [activo, stats] of Object.entries(d.rendimiento_activos)) {
-                        const roiActivo = (stats.pnl_total / d.balance_base) * 100;
                         const tr = document.createElement('tr');
+                        const color = assetColors[activo] || "#c9d1d9";
+                        
+                        const calcRoi = (pnl) => (pnl / d.balance_base) * 100;
+                        
+                        totales.hoy += calcRoi(stats.hoy || 0);
+                        totales.semana += calcRoi(stats.semana || 0);
+                        totales.mes += calcRoi(stats.mes || 0);
+                        totales.trimestre += calcRoi(stats.trimestre || 0);
+                        totales.semestre += calcRoi(stats.semestre || 0);
+                        totales.anual += calcRoi(stats.anual || 0);
+                        totales.trades += (stats.trades || 0);
+                        
                         tr.innerHTML = `
-                            <td style="font-weight:600;">${activo}</td>
-                            <td class="${getPctClass(stats.pnl_total)}">${(stats.pnl_total > 0 ? '+' : '')}${formatMoney(stats.pnl_total)}</td>
-                            <td class="${getPctClass(roiActivo)}">${formatPct(roiActivo)}</td>
-                            <td>${stats.trades}</td>
+                            <td style="font-weight:600;"><span style="color:${color}; margin-right:6px;">●</span>${activo}</td>
+                            <td class="${getPctClass(calcRoi(stats.hoy))}">${formatPct(calcRoi(stats.hoy))}</td>
+                            <td class="${getPctClass(calcRoi(stats.semana))}">${formatPct(calcRoi(stats.semana))}</td>
+                            <td class="${getPctClass(calcRoi(stats.mes))}">${formatPct(calcRoi(stats.mes))}</td>
+                            <td class="${getPctClass(calcRoi(stats.trimestre))}">${formatPct(calcRoi(stats.trimestre))}</td>
+                            <td class="${getPctClass(calcRoi(stats.semestre))}">${formatPct(calcRoi(stats.semestre))}</td>
+                            <td class="${getPctClass(calcRoi(stats.anual))}">${formatPct(calcRoi(stats.anual))}</td>
+                            <td>${stats.trades || 0}</td>
                         `;
                         tbody.appendChild(tr);
                     }
+                    
+                    // Fila Total
+                    const trTotal = document.createElement('tr');
+                    trTotal.style.borderTop = "1px solid rgba(255,255,255,0.1)";
+                    trTotal.innerHTML = `
+                        <td style="font-weight:bold;">TOTAL CUENTA</td>
+                        <td style="font-weight:bold;" class="${getPctClass(totales.hoy)}">${formatPct(totales.hoy)}</td>
+                        <td style="font-weight:bold;" class="${getPctClass(totales.semana)}">${formatPct(totales.semana)}</td>
+                        <td style="font-weight:bold;" class="${getPctClass(totales.mes)}">${formatPct(totales.mes)}</td>
+                        <td style="font-weight:bold;" class="${getPctClass(totales.trimestre)}">${formatPct(totales.trimestre)}</td>
+                        <td style="font-weight:bold;" class="${getPctClass(totales.semestre)}">${formatPct(totales.semestre)}</td>
+                        <td style="font-weight:bold;" class="${getPctClass(totales.anual)}">${formatPct(totales.anual)}</td>
+                        <td style="font-weight:bold;">${totales.trades}</td>
+                    `;
+                    tbody.appendChild(trTotal);
 
                     // 5.5 Tabla Operaciones Activas
                     const tbodyActivas = document.querySelector('#table-activas tbody');

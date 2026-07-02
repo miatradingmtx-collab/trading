@@ -2362,26 +2362,49 @@ async def api_dashboard_data():
         # Ordenar por timestamp
         todos_los_logs = sorted(todos_los_logs, key=lambda x: x.get("timestamp", ""))
 
+        base_assets = ["XAUUSD", "EURUSD", "GBPJPY", "AUDUSD", "GBPUSD"]
+        activos_stats = {
+            a: {"hoy": 0, "semana": 0, "mes": 0, "trimestre": 0, "semestre": 0, "anual": 0, "trades": 0}
+            for a in base_assets
+        }
+        
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        semana_atras = now - timedelta(days=7)
+        mes_atras = now - timedelta(days=30)
+        trim_atras = now - timedelta(days=90)
+        sem_atras = now - timedelta(days=180)
+        anio_atras = now - timedelta(days=365)
+        
         for l in todos_los_logs:
             pnl = l.get("pnl", 0.0)
             activo = l.get("activo", "UNKNOWN")
-            fecha = l.get("fecha", "")
+            fecha_str = l.get("fecha", "")
             
             data["pnl_total"] += pnl
             balance_actual += pnl
             
             data["curva_equity"].append({
-                "fecha": fecha,
+                "fecha": fecha_str,
                 "balance": balance_actual
             })
 
             if activo not in activos_stats:
-                activos_stats[activo] = {"pnl_hoy": 0, "pnl_semana": 0, "pnl_total": 0, "trades": 0}
+                activos_stats[activo] = {"hoy": 0, "semana": 0, "mes": 0, "trimestre": 0, "semestre": 0, "anual": 0, "trades": 0}
             
-            activos_stats[activo]["pnl_total"] += pnl
             activos_stats[activo]["trades"] += 1
-            if fecha.startswith(hoy_str):
-                activos_stats[activo]["pnl_hoy"] += pnl
+            if fecha_str.startswith(hoy_str):
+                activos_stats[activo]["hoy"] += pnl
+                
+            if fecha_str:
+                try:
+                    dt = datetime.strptime(fecha_str, "%Y-%m-%d %H:%M:%S")
+                    if dt >= anio_atras: activos_stats[activo]["anual"] += pnl
+                    if dt >= sem_atras: activos_stats[activo]["semestre"] += pnl
+                    if dt >= trim_atras: activos_stats[activo]["trimestre"] += pnl
+                    if dt >= mes_atras: activos_stats[activo]["mes"] += pnl
+                    if dt >= semana_atras: activos_stats[activo]["semana"] += pnl
+                except: pass
 
         data["rendimiento_activos"] = activos_stats
 
