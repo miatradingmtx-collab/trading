@@ -121,14 +121,14 @@ async def conectar_metaapi():
         print(f"❌ Error en la conexión a MetaAPI: {e}")
         return None, None
 
-async def obtener_balance(connection) -> float:
-    """Obtiene el balance actual de la cuenta conectada."""
+async def obtener_balance(connection) -> tuple:
+    """Obtiene el balance y la equidad actual de la cuenta conectada."""
     try:
         info = await connection.get_account_information()
-        return float(info.get('balance', 0.0))
+        return float(info.get('balance', 0.0)), float(info.get('equity', 0.0))
     except Exception as e:
         print(f"| GESTOR RIESGO | Error al obtener balance: {e}")
-        return 0.0
+        return 0.0, 0.0
 
 def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: float, sl_price: float, simbolo: str) -> float:
     """Calcula el lote basado en un riesgo % del balance y la distancia del SL."""
@@ -692,14 +692,14 @@ def es_mercado_abierto(activo: str) -> bool:
 # ------------------------------------------------------------------------------
 async def ejecutar_escaner_cloud(account, connection):
     # 1. Obtener balance y validar Drawdown Diario
-    balance = await obtener_balance(connection)
+    balance, equity = await obtener_balance(connection)
     en_drawdown = await verificar_drawdown_diario(balance, limite_pct=3.0)
     
     try:
         if FASTAPI_URL and balance > 0:
             import httpx
             async with httpx.AsyncClient() as client:
-                await client.post(f"{FASTAPI_URL}/webhook_update_balance", json={"balance": balance}, headers={"Authorization": f"Bearer {ACCESS_TOKEN}"})
+                await client.post(f"{FASTAPI_URL}/webhook_update_balance", json={"balance": balance, "equity": equity, "floating_pnl": equity - balance}, headers={"Authorization": f"Bearer {ACCESS_TOKEN}"})
     except Exception as e:
         print(f"| GESTOR BALANCE | Error al enviar webhook_update_balance: {e}")
     

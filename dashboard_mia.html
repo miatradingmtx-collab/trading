@@ -606,12 +606,17 @@
                     const d = json.data;
                     
                     // 1. Balance y ROI
-                    const balance = d.balance_actual || (d.balance_base + d.pnl_total);
-                    document.getElementById('kpi-balance').innerText = formatMoney(balance);
+                    const equity = d.equity || d.balance_actual || (d.balance_base + d.pnl_total);
+                    document.getElementById('kpi-balance').innerText = formatMoney(equity);
                     
                     const pnlSpan = document.getElementById('kpi-pnl-total');
-                    pnlSpan.innerText = (d.pnl_total > 0 ? '+' : '') + formatMoney(d.pnl_total);
-                    pnlSpan.className = getPctClass(d.pnl_total);
+                    if (d.floating_pnl !== undefined && d.floating_pnl !== 0) {
+                        pnlSpan.innerText = (d.floating_pnl > 0 ? '+' : '') + formatMoney(d.floating_pnl) + ' PNL Flotante';
+                        pnlSpan.className = getPctClass(d.floating_pnl);
+                    } else {
+                        pnlSpan.innerText = (d.pnl_total > 0 ? '+' : '') + formatMoney(d.pnl_total) + ' PNL Total';
+                        pnlSpan.className = getPctClass(d.pnl_total);
+                    }
 
                     const roiTotal = (d.pnl_total / d.balance_base) * 100;
                     const roiEl = document.getElementById('kpi-roi');

@@ -534,6 +534,20 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             audit_ref.set(audit_data, merge=True)
             print(f"| AUDIT LOG SUCCESS | Ticket {alert.ticket} guardado/actualizado en mia_audit_logs.")
             
+            # Actualizar Caché Global en RAM
+            global GLOBAL_AUDIT_LOGS
+            if GLOBAL_AUDIT_LOGS is not None:
+                encontrado = False
+                for i, log in enumerate(GLOBAL_AUDIT_LOGS):
+                    if log.get("ticket") == str(alert.ticket):
+                        GLOBAL_AUDIT_LOGS[i].update(audit_data)
+                        encontrado = True
+                        break
+                if not encontrado:
+                    GLOBAL_AUDIT_LOGS.append(audit_data)
+                    
+            invalidar_cache_dashboard()
+            
         return True
     except Exception as e:
         print(f"| FIREBASE ERROR | Error al guardar en Firestore: {e}")
@@ -2108,6 +2122,15 @@ def webhook_marcar_rechazado(payload: dict, authorization: Optional[str] = Heade
                     
                 db.collection("mia_audit_logs").document(doc.id).set(data, merge=True)
                 print(f"| AUDITORÍA | Motivo de rechazo actualizado para {activo_norm}: {motivo}")
+                
+                # Actualizar Caché Global en RAM
+                global GLOBAL_AUDIT_LOGS
+                if GLOBAL_AUDIT_LOGS is not None:
+                    for i, log in enumerate(GLOBAL_AUDIT_LOGS):
+                        if log.get("ticket") == str(data.get("ticket")) or (log.get("activo") == data.get("activo") and not log.get("ejecutada_mt5")):
+                            GLOBAL_AUDIT_LOGS[i] = data
+                            break
+                            
                 break
                 
         return {"status": "success", "mensaje": "Motivo de rechazo actualizado"}
@@ -2138,8 +2161,7 @@ def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[
         
         # Generar Log en Firebase
         fecha = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        audit_ref = db.collection("mia_audit_logs").document(f"PARCIAL_{ejecucion.ticket}_{ejecucion.activo}")
-        audit_ref.set({
+        audit_data = {
             "tipo": "CIERRE_PARCIAL_80",
             "ticket": ejecucion.ticket,
             "activo": ejecucion.activo,
@@ -2147,9 +2169,17 @@ def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[
             "precio_ejecucion": ejecucion.precio_ejecucion,
             "fecha": fecha,
             "timestamp": datetime.datetime.now().isoformat()
-        })
+        }
+        audit_ref = db.collection("mia_audit_logs").document(f"PARCIAL_{ejecucion.ticket}_{ejecucion.activo}")
+        audit_ref.set(audit_data)
             
         print(f"| AUDITORÍA PARCIAL | Cierre Parcial registrado en Firebase para {ejecucion.activo}")
+        
+        # Actualizar Caché Global en RAM
+        global GLOBAL_AUDIT_LOGS
+        if GLOBAL_AUDIT_LOGS is not None:
+            GLOBAL_AUDIT_LOGS.append(audit_data)
+            invalidar_cache_dashboard()
         
         return {"status": "success", "mensaje": "Cierre Parcial auditado en Firebase"}
     except Exception as e:
@@ -2158,6 +2188,8 @@ def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[
 
 class UpdateBalancePayload(BaseModel):
     balance: float
+    equity: float = 0.0
+    floating_pnl: float = 0.0
 
 @app.post("/webhook_update_balance")
 def webhook_update_balance(payload: UpdateBalancePayload, authorization: Optional[str] = Header(None)):
@@ -2174,6 +2206,8 @@ def webhook_update_balance(payload: UpdateBalancePayload, authorization: Optiona
         from datetime import datetime
         db.collection("system_memory").document("broker_state").set({
             "live_balance": payload.balance,
+            "equity": payload.equity,
+            "floating_pnl": payload.floating_pnl,
             "timestamp": datetime.now().isoformat()
         }, merge=True)
         
@@ -2276,22 +2310,27 @@ async def render_dashboard():
         return HTMLResponse(content=html_content)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo cargar el dashboard: {e}")
+GLOBAL_AUDIT_LOGS = None
+GLOBAL_SYSTEM_LOGS = None
+GLOBAL_PATRONES = None
+GLOBAL_MATRICES = None
+ULTIMO_FETCH_FIREBASE = None
 
 @app.get("/api/dashboard_data")
-async def api_dashboard_data():
-    global firebase_inicializado, db, DASHBOARD_CACHE_DATA, DASHBOARD_CACHE_TIME
+def api_dashboard_data(authorization: Optional[str] = Header(None)):
+    """Devuelve los datos estructurados para renderizar el Dashboard."""
+    verificar_token(authorization)
+    global firebase_inicializado, db
+    global GLOBAL_AUDIT_LOGS, GLOBAL_SYSTEM_LOGS, GLOBAL_PATRONES, GLOBAL_MATRICES, ULTIMO_FETCH_FIREBASE
     
-    # Caché de 5 minutos (300 segundos) para evitar agotar la cuota (429)
-    if DASHBOARD_CACHE_DATA and (time.time() - DASHBOARD_CACHE_TIME < 300):
-        # print("| CACHE | Sirviendo dashboard desde memoria RAM")
-        return {"status": "success", "data": DASHBOARD_CACHE_DATA}
-
     if not firebase_inicializado or db is None:
         return {"status": "error", "message": "Firebase no inicializado"}
 
     data = {
         "balance_base": 5000.0,
         "balance_actual": 5000.0,
+        "equity": 5000.0,
+        "floating_pnl": 0.0,
         "pnl_total": 0.0,
         "kpis": {},
         "rendimiento_activos": {},
@@ -2306,14 +2345,44 @@ async def api_dashboard_data():
     }
 
     try:
-        # 2.5 system_logs
-        sys_logs = db.collection("mia_system_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream()
-        for sl in sys_logs:
-            data["system_logs"].append(sl.to_dict())
+        from datetime import datetime, timedelta
+        ahora = datetime.now()
+        
+        # Refrescar caché de Firebase cada 6 horas para evitar agotar cuota (50k reads)
+        necesita_refresh = False
+        if ULTIMO_FETCH_FIREBASE is None or GLOBAL_AUDIT_LOGS is None:
+            necesita_refresh = True
+        elif (ahora - ULTIMO_FETCH_FIREBASE).total_seconds() > 21600:
+            necesita_refresh = True
+            
+        if necesita_refresh:
+            try:
+                # system_logs
+                sys_logs = db.collection("mia_system_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream()
+                GLOBAL_SYSTEM_LOGS = [sl.to_dict() for sl in sys_logs]
+                
+                # mia_audit_logs
+                logs = db.collection("mia_audit_logs").stream()
+                GLOBAL_AUDIT_LOGS = [l.to_dict() for l in logs]
+                
+                # trading_matrix
+                matrices = db.collection("trading_matrix").stream()
+                GLOBAL_MATRICES = {m.id: m.to_dict().get("score_porcentaje", 0) for m in matrices}
+                
+                # mia_kb / patrones
+                patrones = db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream()
+                GLOBAL_PATRONES = [p.to_dict() for p in patrones]
+                
+                ULTIMO_FETCH_FIREBASE = ahora
+            except Exception as fe:
+                print(f"| FIREBASE CACHE ERROR | Error recargando caché: {fe}")
+                # Si falla (ej. Quota exceeded), usaremos lo que tengamos en memoria o listas vacías
+                if GLOBAL_AUDIT_LOGS is None: GLOBAL_AUDIT_LOGS = []
+                if GLOBAL_SYSTEM_LOGS is None: GLOBAL_SYSTEM_LOGS = []
+                if GLOBAL_PATRONES is None: GLOBAL_PATRONES = []
+                if GLOBAL_MATRICES is None: GLOBAL_MATRICES = {}
 
-        # 3. mia_audit_logs (Últimos 500 para cálculos de PnL y Rendimiento)
-        # Requerimos índice compuesto en Firebase si ordenamos, así que traemos sin orden y ordenamos en Python
-        logs = db.collection("mia_audit_logs").stream()
+        data["system_logs"] = GLOBAL_SYSTEM_LOGS
         
         balance_actual = 5000.0
         try:
@@ -2466,17 +2535,16 @@ async def api_dashboard_data():
         }
         
         # 2. trading_matrix (Scores en vivo)
-        matrices = db.collection("trading_matrix").stream()
-        for m in matrices:
-            data["matriz_scores"][m.id] = m.to_dict().get("score_porcentaje", 0)
+        for m_id, score_p in GLOBAL_MATRICES.items():
+            data["matriz_scores"][m_id] = score_p
 
         # 4. Estrategias (mia_kb/patrones_ict_smc)
-        patrones = db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream()
-        for p in patrones:
-            pdata = p.to_dict()
+        for pdata in GLOBAL_PATRONES:
             if pdata.get("ocurrencias", 0) > 0:
+                # Tratamos de recuperar el ID original (nombre) pero no lo tenemos en el dict a menos que lo guardemos.
+                # Como un hack, usaremos patron_estrella si coincide
                 data["estrategias"].append({
-                    "nombre": p.id.replace("_", " + "),
+                    "nombre": pdata.get("nombre", "Patrón").replace("_", " + "),
                     "win_rate": pdata.get("win_rate", 0),
                     "ocurrencias": pdata.get("ocurrencias", 0)
                 })
