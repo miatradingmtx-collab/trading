@@ -2406,8 +2406,8 @@ def api_dashboard_data():
 
         data["system_logs"] = GLOBAL_SYSTEM_LOGS
         
-        balance_actual = 5000.0
-        equity_actual = 5000.0
+        balance_actual = None
+        equity_actual = None
         floating_pnl = 0.0
         try:
             broker_doc = db.collection("system_memory").document("broker_state").get()
@@ -2418,8 +2418,6 @@ def api_dashboard_data():
                 floating_pnl = float(broker_data.get("floating_pnl", 0.0))
         except: pass
         
-        data["balance_actual"] = balance_actual
-        data["equity"] = equity_actual
         data["floating_pnl"] = floating_pnl
         
         from datetime import datetime
@@ -2512,7 +2510,16 @@ def api_dashboard_data():
         
         # Calcular el balance de la curva de forma retroactiva para que el ultimo punto coincida con el balance actual real
         pnl_sum_total = sum(l.get("pnl", 0.0) for l in todos_los_logs)
-        balance_inicial_curva = balance_actual - pnl_sum_total
+        if balance_actual is not None:
+            balance_inicial_curva = balance_actual - pnl_sum_total
+        else:
+            balance_inicial_curva = 5000.0
+            balance_actual = balance_inicial_curva + pnl_sum_total
+            equity_actual = balance_actual + floating_pnl
+            
+        data["balance_actual"] = balance_actual
+        data["equity"] = equity_actual
+        
         balance_curva = balance_inicial_curva
         data["balance_base"] = balance_inicial_curva
         
