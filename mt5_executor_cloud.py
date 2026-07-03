@@ -445,7 +445,8 @@ async def gestionar_posiciones_activas(connection, balance: float):
             continue
 
         ticket = pos.id
-        tickets_actuales.add(ticket)
+        ticket = pos.id
+        tickets_actuales.add(str(ticket))
         
         # 1. SI ES UNA NUEVA POSICIÓN: Registrar e informar de APERTURA
         if ticket not in POSICIONES_ACTIVAS:
@@ -464,6 +465,7 @@ async def gestionar_posiciones_activas(connection, balance: float):
         activo = next((act for act in ACTIVOS if MAPEO_BROKER.get(act) == pos.symbol), None)
         if not activo:
             continue
+
             
         entry_price = pos.openPrice
         current_price = pos.currentPrice
@@ -573,6 +575,20 @@ async def gestionar_posiciones_activas(connection, balance: float):
             
         await reportar_evento_trade(info["symbol"], ticket, info["type"], "CIERRE_TOTAL", precio_cierre, info["sl"], info["tp"], pnl=pnl_final, comentario="Cerrado totalmente")
         del POSICIONES_ACTIVAS[ticket]
+
+    # Sincronizar cierres perdidos (manuales o de sesiones anteriores)
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.get(f"{FASTAPI_URL}/api/open_trades")
+            if r.status_code == 200:
+                data = r.json()
+                fb_open = data.get("open_tickets", [])
+                for t in fb_open:
+                    if str(t) not in POSICIONES_ACTIVAS and str(t) not in tickets_actuales:
+                        print(f"| GESTOR RIESGO | Sincronizando cierre faltante para ticket {t}")
+                        await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=0.0, comentario="Sincronizado por desaparición en MT5")
+    except Exception as api_err:
+        pass
 
 # ------------------------------------------------------------------------------
 # 6. GESTOR DE OPERACIONES (Apertura de Órdenes)

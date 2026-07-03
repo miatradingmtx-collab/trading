@@ -2649,6 +2649,23 @@ def api_dashboard_data():
             return {"status": "success", "data": DASHBOARD_CACHE_DATA, "warning": str(e)}
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/open_trades")
+def api_open_trades():
+    """
+    Retorna la lista de tickets que están activos en Firebase (COMPRA/VENTA)
+    y que aún no han sido cerrados. Lee directo de la memoria RAM.
+    """
+    if GLOBAL_AUDIT_LOGS is None:
+        asegurar_cache_firebase()
+    
+    open_tickets = []
+    if GLOBAL_AUDIT_LOGS:
+        for l in GLOBAL_AUDIT_LOGS:
+            if l.get("accion") in ["COMPRA", "VENTA"] and l.get("ticket"):
+                open_tickets.append(str(l.get("ticket")))
+                
+    return {"status": "success", "open_tickets": open_tickets}
+
 @app.get("/api/export_audit_csv")
 def export_audit_csv():
     """
