@@ -2315,11 +2315,14 @@ GLOBAL_AUDIT_LOGS = None
 GLOBAL_SYSTEM_LOGS = None
 GLOBAL_PATRONES = None
 GLOBAL_MATRICES = None
+GLOBAL_MIA_COLLECTIVE = None
+GLOBAL_INDICADORES = None
 ULTIMO_FETCH_FIREBASE = None
 
 def asegurar_cache_firebase():
     global firebase_inicializado, db
     global GLOBAL_AUDIT_LOGS, GLOBAL_SYSTEM_LOGS, GLOBAL_PATRONES, GLOBAL_MATRICES, ULTIMO_FETCH_FIREBASE
+    global GLOBAL_MIA_COLLECTIVE, GLOBAL_INDICADORES
     
     if not firebase_inicializado or db is None:
         return
@@ -2351,6 +2354,17 @@ def asegurar_cache_firebase():
             # mia_kb / patrones
             patrones = db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream()
             GLOBAL_PATRONES = [p.to_dict() for p in patrones]
+            
+            # mia_collective
+            try:
+                mem_doc = db.collection("system_memory").document("mia_collective").get()
+                GLOBAL_MIA_COLLECTIVE = mem_doc.to_dict() if mem_doc.exists else {}
+            except:
+                GLOBAL_MIA_COLLECTIVE = {}
+                
+            # indicadores_impacto
+            indicadores = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream()
+            GLOBAL_INDICADORES = [{"nombre": ind.id, **ind.to_dict()} for ind in indicadores]
             
             ULTIMO_FETCH_FIREBASE = ahora
         except Exception as fe:
@@ -2413,8 +2427,7 @@ def api_dashboard_data(authorization: Optional[str] = Header(None)):
         dict_activas = {}
         parciales_tomados = 0
         
-        for log in logs:
-            l = log.to_dict()
+        for l in GLOBAL_AUDIT_LOGS:
             accion = l.get("accion", "")
             ticket = l.get("ticket")
             
@@ -2533,8 +2546,7 @@ def api_dashboard_data(authorization: Optional[str] = Header(None)):
         total_trades = len(verdaderos_trades) + total_cerrados
         
         # Integrar mia_collective con KPIs calculados
-        mem_doc = db.collection("system_memory").document("mia_collective").get()
-        m = mem_doc.to_dict() if mem_doc.exists else {}
+        m = GLOBAL_MIA_COLLECTIVE if GLOBAL_MIA_COLLECTIVE else {}
         data["kpis"] = {
             "win_rate": win_rate,
             "total_trades": total_trades,
@@ -2599,15 +2611,14 @@ def api_dashboard_data(authorization: Optional[str] = Header(None)):
         data["killzones"] = sorted(data["killzones"], key=lambda x: x["win_rate"], reverse=True)
 
         # 6. Indicadores/Ponderaciones (mia_kb/indicadores_impacto)
-        indicadores = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream()
-        for ind in indicadores:
-            idata = ind.to_dict()
-            if idata.get("trades_con_indicador", 0) > 0:
-                data["indicadores"].append({
-                    "nombre": ind.id,
-                    "win_rate": idata.get("win_rate_indicador", 0),
-                    "trades": idata.get("trades_con_indicador", 0)
-                })
+        if GLOBAL_INDICADORES:
+            for idata in GLOBAL_INDICADORES:
+                if idata.get("trades_con_indicador", 0) > 0:
+                    data["indicadores"].append({
+                        "nombre": idata.get("nombre"),
+                        "win_rate": idata.get("win_rate_indicador", 0),
+                        "trades": idata.get("trades_con_indicador", 0)
+                    })
 
         data["indicadores"] = sorted(data["indicadores"], key=lambda x: x["win_rate"], reverse=True)
 
@@ -2635,15 +2646,15 @@ def export_audit_csv():
         raise HTTPException(status_code=503, detail="Firebase no inicializado")
         
     try:
-        logs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(1000).stream()
+        asegurar_cache_firebase()
         
         output = StringIO()
         writer = csv.writer(output)
         # Escribir la cabecera
         writer.writerow(["Ticket", "Timestamp", "Fecha", "Activo", "Accion", "Estrategia", "Score (%)", "Precio Ejecucion", "PNL", "Ejecutada MT5", "Detalle Setup"])
         
-        for log in logs:
-            l = log.to_dict()
+        if GLOBAL_AUDIT_LOGS:
+            for l in GLOBAL_AUDIT_LOGS:
             writer.writerow([
                 l.get("ticket", ""),
                 l.get("timestamp", ""),
