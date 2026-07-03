@@ -2375,9 +2375,8 @@ def asegurar_cache_firebase():
             if GLOBAL_MATRICES is None: GLOBAL_MATRICES = {}
 
 @app.get("/api/dashboard_data")
-def api_dashboard_data(authorization: Optional[str] = Header(None)):
+def api_dashboard_data():
     """Devuelve los datos estructurados para renderizar el Dashboard."""
-    verificar_token(authorization)
     global firebase_inicializado, db
     global GLOBAL_AUDIT_LOGS, GLOBAL_SYSTEM_LOGS, GLOBAL_PATRONES, GLOBAL_MATRICES, ULTIMO_FETCH_FIREBASE
     
