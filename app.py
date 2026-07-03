@@ -2655,9 +2655,9 @@ def export_audit_csv():
         
         if GLOBAL_AUDIT_LOGS:
             for l in GLOBAL_AUDIT_LOGS:
-            writer.writerow([
-                l.get("ticket", ""),
-                l.get("timestamp", ""),
+                writer.writerow([
+                    l.get("ticket", ""),
+                    l.get("timestamp", ""),
                 l.get("fecha", ""),
                 l.get("activo", ""),
                 l.get("accion", ""),
