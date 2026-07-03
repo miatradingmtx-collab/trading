@@ -476,18 +476,24 @@ async def gestionar_posiciones_activas(connection, balance: float):
             
         es_buy = pos.type == 'POSITION_TYPE_BUY'
         
-        # A. Tomar Parciales al 80% si el Profit Flotante alcanzó el 1% de la cuenta
-        objetivo_ganancia_parcial = balance * 0.01
-        alcanzo_objetivo_pnl = (profit_flotante >= objetivo_ganancia_parcial) and (objetivo_ganancia_parcial > 0)
+        # A. Tomar Parciales al 50% de la distancia al Take Profit
+        alcanzo_mitad_tp = False
+        if tp > 0.0 and entry_price > 0.0:
+            distancia_total = abs(tp - entry_price)
+            distancia_recorrida = abs(current_price - entry_price)
+            # Aseguramos que vamos en direccion a favor
+            en_ganancia = (es_buy and current_price > entry_price) or (not es_buy and current_price < entry_price)
+            if en_ganancia and distancia_total > 0 and distancia_recorrida >= (distancia_total * 0.5):
+                alcanzo_mitad_tp = True
         
-        if alcanzo_objetivo_pnl and volume >= 0.02 and not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
-            lote_a_cerrar = round(volume * 0.8, 2)
+        if alcanzo_mitad_tp and volume >= 0.02 and not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
+            lote_a_cerrar = round(volume * 0.5, 2)
             # Asegurar que siempre quede al menos 0.01 para el runner
             if volume - lote_a_cerrar < 0.01:
                 lote_a_cerrar = round(volume - 0.01, 2)
                 
             if lote_a_cerrar >= 0.01:
-                print(f"| GESTOR PARCIALES | Objetivo 1% alcanzado (${profit_flotante:.2f}). Cerrando {lote_a_cerrar} lotes de {ticket}...")
+                print(f"| GESTOR PARCIALES | 50% del TP alcanzado. Cerrando {lote_a_cerrar} lotes de {ticket}...")
                 try:
                     close_result = await connection.close_position_partially(ticket, lote_a_cerrar)
                     POSICIONES_ACTIVAS[ticket]["parcial_tomado"] = True
@@ -508,7 +514,7 @@ async def gestionar_posiciones_activas(connection, balance: float):
                     if not es_buy:
                         pnl_parcial = -pnl_parcial
                     
-                    await reportar_evento_trade(pos.symbol, ticket, pos.type, "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado 80% al alcanzar 1% PNL")
+                    await reportar_evento_trade(pos.symbol, ticket, pos.type, "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado 50% al alcanzar mitad del TP")
                 except Exception as e:
                     print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial para ticket {ticket}: {e}")
                     
@@ -586,8 +592,8 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
         sl = decision.get("stop_loss", precio_ejecucion - 200 if es_buy else precio_ejecucion + 200)
         tp = decision.get("take_profit", precio_ejecucion + 400 if es_buy else precio_ejecucion - 400)
         
-        # LOTAJE DINAMICO (1% de riesgo de la cuenta por defecto)
-        riesgo_pct = 1.0 
+        # LOTAJE DINAMICO (Riesgo configurado sobre el balance diario real, 2% recomendado)
+        riesgo_pct = 2.0 
         lote = calcular_lotaje_dinamico(balance, riesgo_pct, precio_ejecucion, sl, simbolo_broker)
         decision["lote"] = lote
 

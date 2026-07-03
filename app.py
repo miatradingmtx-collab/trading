@@ -2407,13 +2407,20 @@ def api_dashboard_data():
         data["system_logs"] = GLOBAL_SYSTEM_LOGS
         
         balance_actual = 5000.0
+        equity_actual = 5000.0
+        floating_pnl = 0.0
         try:
             broker_doc = db.collection("system_memory").document("broker_state").get()
             if broker_doc.exists:
-                balance_actual = float(broker_doc.to_dict().get("live_balance", 5000.0))
+                broker_data = broker_doc.to_dict()
+                balance_actual = float(broker_data.get("live_balance", 5000.0))
+                equity_actual = float(broker_data.get("equity", balance_actual))
+                floating_pnl = float(broker_data.get("floating_pnl", 0.0))
         except: pass
         
         data["balance_actual"] = balance_actual
+        data["equity"] = equity_actual
+        data["floating_pnl"] = floating_pnl
         
         from datetime import datetime
         hoy_str = datetime.now().strftime("%Y-%m-%d")
@@ -2430,12 +2437,13 @@ def api_dashboard_data():
             accion = l.get("accion", "")
             ticket = l.get("ticket")
             
-            if accion == "CIERRE_TOTAL":
+            if accion in ["CIERRE_TOTAL", "CIERRE_PARCIAL"]:
                 todos_los_logs.append(l)
-                if ticket: tickets_cerrados.add(ticket)
-            elif accion == "CIERRE_PARCIAL":
-                parciales_tomados += 1
-                todas_las_entradas.append(l)
+                if accion == "CIERRE_TOTAL" and ticket:
+                    tickets_cerrados.add(ticket)
+                if accion == "CIERRE_PARCIAL":
+                    parciales_tomados += 1
+                    todas_las_entradas.append(l)
             else:
                 todas_las_entradas.append(l)
                 if ticket and accion in ["COMPRA", "VENTA"]:
@@ -2502,7 +2510,11 @@ def api_dashboard_data():
         sem_atras = now - timedelta(days=180)
         anio_atras = now - timedelta(days=365)
         
-        balance_curva = 5000.0
+        # Calcular el balance de la curva de forma retroactiva para que el ultimo punto coincida con el balance actual real
+        pnl_sum_total = sum(l.get("pnl", 0.0) for l in todos_los_logs)
+        balance_inicial_curva = balance_actual - pnl_sum_total
+        balance_curva = balance_inicial_curva
+        data["balance_base"] = balance_inicial_curva
         
         for l in todos_los_logs:
             pnl = l.get("pnl", 0.0)
@@ -2608,6 +2620,7 @@ def api_dashboard_data():
                     "perdidos": stats["perdidos"]
                 })
         data["killzones"] = sorted(data["killzones"], key=lambda x: x["win_rate"], reverse=True)
+        data["rendimiento_sesiones"] = data["killzones"]
 
         # 6. Indicadores/Ponderaciones (mia_kb/indicadores_impacto)
         if GLOBAL_INDICADORES:
