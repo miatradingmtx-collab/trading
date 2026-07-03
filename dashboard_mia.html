@@ -625,7 +625,11 @@
 
                     // 2. KPIs de Memoria
                     const kpis = d.kpis;
-                    document.getElementById('kpi-winrate').innerText = kpis.win_rate ? kpis.win_rate + '%' : '0%';
+                    const wrVal = kpis.win_rate || 0;
+                    const wrEl = document.getElementById('kpi-winrate');
+                    wrEl.innerText = wrVal + '%';
+                    wrEl.style.color = wrVal >= 50 ? '#00e68a' : '#f85149';
+                    
                     document.getElementById('kpi-trades').innerText = kpis.total_trades || '0';
                     document.getElementById('kpi-patron').innerText = kpis.patron_estrella || '-';
                     document.getElementById('kpi-patron-wr').innerText = "Win Rate: " + (kpis.patron_estrella_wr || '0') + "%";
