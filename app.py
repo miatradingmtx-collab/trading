@@ -2377,6 +2377,9 @@ def asegurar_cache_firebase():
 @app.route('/api/export_trades')
 def api_export_trades():
     global GLOBAL_AUDIT_LOGS
+    try:
+        asegurar_cache_firebase()
+    except: pass
     from flask import jsonify
     return jsonify({"status": "success", "data": GLOBAL_AUDIT_LOGS})
 
