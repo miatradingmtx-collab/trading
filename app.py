@@ -2374,6 +2374,12 @@ def asegurar_cache_firebase():
             if GLOBAL_PATRONES is None: GLOBAL_PATRONES = []
             if GLOBAL_MATRICES is None: GLOBAL_MATRICES = {}
 
+@app.route('/api/export_trades')
+def api_export_trades():
+    global GLOBAL_AUDIT_LOGS
+    from flask import jsonify
+    return jsonify({"status": "success", "data": GLOBAL_AUDIT_LOGS})
+
 @app.get("/api/dashboard_data")
 def api_dashboard_data():
     """Devuelve los datos estructurados para renderizar el Dashboard."""
