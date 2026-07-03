@@ -2498,7 +2498,7 @@ def api_dashboard_data():
 
         base_assets = ["XAUUSD", "EURUSD", "GBPJPY", "AUDUSD", "GBPUSD"]
         activos_stats = {
-            a: {"hoy": 0, "semana": 0, "mes": 0, "trimestre": 0, "semestre": 0, "anual": 0, "trades": 0}
+            a: {"hoy": 0, "semana": 0, "mes": 0, "trimestre": 0, "semestre": 0, "anual": 0, "trades": 0, "pnl_total": 0}
             for a in base_assets
         }
         
@@ -2530,9 +2530,10 @@ def api_dashboard_data():
             })
 
             if activo not in activos_stats:
-                activos_stats[activo] = {"hoy": 0, "semana": 0, "mes": 0, "trimestre": 0, "semestre": 0, "anual": 0, "trades": 0}
+                activos_stats[activo] = {"hoy": 0, "semana": 0, "mes": 0, "trimestre": 0, "semestre": 0, "anual": 0, "trades": 0, "pnl_total": 0}
             
             activos_stats[activo]["trades"] += 1
+            activos_stats[activo]["pnl_total"] += pnl
             if fecha_str.startswith(hoy_str):
                 activos_stats[activo]["hoy"] += pnl
                 

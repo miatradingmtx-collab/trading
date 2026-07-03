@@ -353,9 +353,9 @@
                         <line x1="0" y1="70" x2="400" y2="70" stroke="#1e2240" stroke-width="0.5"/>
                         <line x1="0" y1="105" x2="400" y2="105" stroke="#1e2240" stroke-width="0.5"/>
                         <!-- Área temporal estática (Se volverá dinámica con más trades) -->
-                        <path d="M 0 120 L 30 110 60 105 90 100 120 95 150 85 180 90 210 75 240 70 270 60 300 55 330 45 360 40 390 30 400 25 400 140 0 140 Z" fill="url(#eqGrad)"/>
-                        <path d="M 0 120 L 30 110 60 105 90 100 120 95 150 85 180 90 210 75 240 70 270 60 300 55 330 45 360 40 390 30 400 25" fill="none" stroke="#00e68a" stroke-width="2.5"/>
-                        <circle cx="400" cy="25" r="4" fill="#00e68a"/>
+                        <path id="equity-area" d="M 0 120 L 30 110 60 105 90 100 120 95 150 85 180 90 210 75 240 70 270 60 300 55 330 45 360 40 390 30 400 25 400 140 0 140 Z" fill="url(#eqGrad)"/>
+                        <path id="equity-line" d="M 0 120 L 30 110 60 105 90 100 120 95 150 85 180 90 210 75 240 70 270 60 300 55 330 45 360 40 390 30 400 25" fill="none" stroke="#00e68a" stroke-width="2.5"/>
+                        <circle id="equity-dot" cx="400" cy="25" r="4" fill="#00e68a"/>
                     </svg>
                 </div>
             </div>
@@ -643,6 +643,60 @@
                         }
                     }
                     setGaugeValue(maxScore);
+
+                    // 3.5 Equity Curve
+                    if (d.curva_equity && d.curva_equity.length > 0) {
+                        const eqData = d.curva_equity;
+                        const svgWidth = 400;
+                        const svgHeight = 140;
+                        const paddingY = 20;
+                        
+                        let minBal = eqData[0].balance;
+                        let maxBal = eqData[0].balance;
+                        eqData.forEach(p => {
+                            if(p.balance < minBal) minBal = p.balance;
+                            if(p.balance > maxBal) maxBal = p.balance;
+                        });
+                        
+                        if(maxBal === minBal) { maxBal += 1; minBal -= 1; }
+                        
+                        let pathD = "M 0 140 ";
+                        let lineD = "";
+                        const stepX = svgWidth / Math.max(1, eqData.length - 1);
+                        const rangeY = maxBal - minBal;
+                        
+                        eqData.forEach((p, i) => {
+                            const x = i * stepX;
+                            const y = svgHeight - paddingY - ((p.balance - minBal) / rangeY) * (svgHeight - paddingY * 2);
+                            pathD += `L ${x} ${y} `;
+                            if (i === 0) lineD += `M ${x} ${y} `;
+                            else lineD += `L ${x} ${y} `;
+                        });
+                        
+                        pathD += `L ${svgWidth} 140 Z`;
+                        
+                        document.getElementById('equity-area').setAttribute('d', pathD);
+                        document.getElementById('equity-line').setAttribute('d', lineD);
+                        
+                        const lastY = svgHeight - paddingY - ((eqData[eqData.length - 1].balance - minBal) / rangeY) * (svgHeight - paddingY * 2);
+                        const dot = document.getElementById('equity-dot');
+                        dot.setAttribute('cx', svgWidth);
+                        dot.setAttribute('cy', lastY);
+                        
+                        const firstBal = eqData[0].balance;
+                        const lastBal = eqData[eqData.length - 1].balance;
+                        const eqColor = lastBal >= firstBal ? '#00e68a' : '#f85149';
+                        
+                        document.getElementById('equity-line').setAttribute('stroke', eqColor);
+                        dot.setAttribute('fill', eqColor);
+                        
+                        const grad = document.getElementById('eqGrad');
+                        grad.innerHTML = `
+                            <stop offset="0%" style="stop-color:${eqColor}; stop-opacity:0.3"/>
+                            <stop offset="100%" style="stop-color:${eqColor}; stop-opacity:0"/>
+                        `;
+                    }
+
 
                     // 4. Bar Chart PnL
                     const barChart = document.getElementById('pnl-bar-chart');
