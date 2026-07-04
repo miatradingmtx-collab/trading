@@ -637,6 +637,8 @@ def recalcular_score_ponderado(data: dict) -> float:
     if 3 in smc_codes: score += 30  # Breaker Block
     if 4 in smc_codes: score += 20  # Liquidity Sweep
         
+    # Firebase es el único juez de la validación. Permitimos scores > 100% para mostrar fuerza extrema.
+    return score
     # 2. Institucionales (APAGADO TEMPORALMENTE - n8n bypass)
     # inst = data.get("confirmaciones_institucionales", {})
     # if inst.get("dark_pools_amortizado"): score += 10
