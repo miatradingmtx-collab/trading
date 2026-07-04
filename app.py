@@ -2363,8 +2363,8 @@ def asegurar_cache_firebase():
             sys_logs = db.collection("mia_system_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream()
             GLOBAL_SYSTEM_LOGS = [sl.to_dict() for sl in sys_logs]
             
-            # mia_audit_logs
-            logs = db.collection("mia_audit_logs").stream()
+            # mia_audit_logs (Limitamos a 1500 para evitar desbordar la memoria RAM de Railway o causar Timeout)
+            logs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(1500).stream()
             GLOBAL_AUDIT_LOGS = [l.to_dict() for l in logs]
             
             # trading_matrix
