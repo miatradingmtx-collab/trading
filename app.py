@@ -135,7 +135,7 @@ async def startup_event():
     if firebase_inicializado and db is not None:
         try:
             # Lista de activos a validar
-            activos = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "SPX500", "NAS100", "US30"]
+            activos = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD", "SPX500", "NAS100", "US30"]
             coleccion_ref = db.collection("trading_matrix")
             
             print("| FIREBASE | Verificando inicialización de la matriz de activos...")
@@ -503,17 +503,20 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             else: sesion = "ASIA"
             activo_norm = normalizar_activo(alert.activo)
             score = 0
+            poc_price = 0.0
             try:
                 m_doc = db.collection("trading_matrix").document(activo_norm).get()
                 if m_doc.exists:
-                    score = m_doc.to_dict().get("score_porcentaje", 0)
+                    m_data = m_doc.to_dict()
+                    score = m_data.get("score_porcentaje", 0)
+                    poc_price = m_data.get("confirmaciones_tecnicas", {}).get("poc_price", 0.0)
             except: pass
             
             motivo = "Rechazada por Matriz Técnica (Score bajo o Killzone)"
             if score >= 80:
                 motivo = "En validación de riesgo por el Broker..."
                 
-            detalle_str = f"{alert.activo} | {fecha_str} | {sesion} | {alert.estrategia} | EVALUANDO SETUP | SCORE: {score}% | EJECUTADA EN MT5: NO | MOTIVO: {motivo}"
+            detalle_str = f"{alert.activo} | {fecha_str} | {sesion} | {alert.estrategia} | EVALUANDO SETUP | SCORE: {score}% | POC: {poc_price:.5f} | EJECUTADA EN MT5: NO | MOTIVO: {motivo}"
             
             audit_ref = db.collection("mia_audit_logs").document(str(alert.ticket))
             audit_data = {
@@ -526,6 +529,7 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 "timestamp": iso_time,
                 "fecha": fecha_str,
                 "score": score,
+                "poc_price": poc_price,
                 "ejecutada_mt5": True if alert.ticket else False,
                 "motivo": "Ejecutada y Activa en Broker" if alert.ticket else motivo,
                 "detalle_setup": detalle_str
@@ -607,40 +611,34 @@ def recalcular_score_ponderado(data: dict) -> float:
     score = 0.0
     tech = data.get("confirmaciones_tecnicas", {})
     
-    # 1. Filtro Direccional (Gatillo Obligatorio)
-    # Se debe confirmar tendencia (Medias Móviles Alineadas) O estar en zona de reversión (RSI Extremo)
+    # 1. Indicadores Macro (Filtros de Tendencia y Agotamiento)
     ma_alineada = tech.get("medias_moviles_alineadas", False)
-    # Soporte para keys legacy y nueva
     rsi_extremo = tech.get("rsi_sobrecompra_sobreventa", False) or tech.get("rsi_extremo", False)
     
     if not (ma_alineada or rsi_extremo):
-        return 0.0  # Sin dirección clara, no hay trade
+        return 0.0  # Sin dirección clara ni zona de reversión, se rechaza
         
-    score += 40 # Base Direccional Macro (40% asegurado por tendencia correcta)
+    if ma_alineada: score += 20
+    if rsi_extremo: score += 20
     
-    # 2. Confirmadores adicionales
-    if tech.get("soporte_resistencia_activo"): score += 10
+    # 2. Confirmadores de Zonas Clave (POC y Soportes/Resistencias)
+    if tech.get("soporte_resistencia_activo"): 
+        score += 10 # (En mt5_executor_cloud, el POC ya se cuenta como soporte/resistencia)
+        
+    if tech.get("poc_price", 0.0) > 0:
+        score += 10 # Bonus por tener confirmación clara de Perfil de Volumen
     
-    # 3. Módulos SMC e ICT (Suman los otros 40-60%)
+    # 3. Módulos SMC e ICT (Institucional)
     smc_codes = tech.get("smc_codes", [])
     
-    # Pesos estructurales primarios (Con cualquiera de estos se llega a 80%)
+    # Pesos estructurales (Se suman a los indicadores para buscar >= 80%)
     if 1 in smc_codes: score += 40  # Order Block (OB)
     if 2 in smc_codes: score += 40  # Fair Value Gap (FVG)
-    
-    # Confluencias estructurales secundarias
     if 3 in smc_codes: score += 30  # Breaker Block
     if 4 in smc_codes: score += 20  # Liquidity Sweep
         
-    # 2. Institucionales (APAGADO TEMPORALMENTE - n8n bypass)
-    # inst = data.get("confirmaciones_institucionales", {})
-    # if inst.get("dark_pools_amortizado"): score += 10
-    
-    # 3. Fundamentales (APAGADO TEMPORALMENTE - n8n bypass)
-    # fund = data.get("confirmaciones_fundamentales", {})
-    # if fund.get("noticias_impacto_favorables"): score += 10
-        
-    return min(score, 100.0)
+    # Firebase es el único juez de la validación. Permitimos scores > 100% para mostrar fuerza extrema.
+    return score
 
 def normalizar_activo(activo: str) -> str:
     """Mapea símbolos de trading comunes a los 8 activos clave de Firebase"""
@@ -1141,12 +1139,34 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     
     # 0. Lógica de Horarios (Forex cerrado en fin de semana, Crypto 24/7)
     es_cripto_activo = alert.es_crypto or alert.activo.startswith("BTC") or alert.activo.startswith("ETH") or "USD" not in alert.activo and alert.activo != "XAUUSD"
+    ahora = datetime.datetime.now(datetime.timezone.utc)
     if not es_cripto_activo:
-        ahora = datetime.datetime.now(datetime.timezone.utc)
         # Viernes después de 21:00 UTC hasta Domingo a las 21:00 UTC es fin de semana en Forex (aprox)
         if ahora.weekday() == 5 or (ahora.weekday() == 4 and ahora.hour >= 21) or (ahora.weekday() == 6 and ahora.hour < 21):
             print(f"| REGLA DE HORARIO | Mercado Forex cerrado. Rechazando orden de {alert.activo}.")
             return {"resultado": "rechazado", "mensaje": "Mercado Forex cerrado en fin de semana."}
+
+    # 0.5 Filtro de Killzones por Activo (Usando hora NY / EST)
+    # Convertimos UTC a EST (restando 5 horas o 4 en Daylight Saving, usaremos aprox UTC-4 para verano, UTC-5 invierno. Simplificando a UTC-4)
+    hora_ny = (ahora.hour - 4) % 24
+    
+    # Definición de Killzones
+    en_asia = (20 <= hora_ny <= 23) or (0 <= hora_ny < 2) # 20:00 a 02:00
+    en_londres = (2 <= hora_ny < 6) # 02:00 a 06:00
+    en_ny = (7 <= hora_ny < 11) # 07:00 a 11:00
+    en_killzone_activa = False
+    
+    activo_upper = alert.activo.upper()
+    if es_cripto_activo:
+        en_killzone_activa = True # Crypto 24/7
+    elif "EUR" in activo_upper or "USD" in activo_upper or "XAU" in activo_upper:
+        if en_londres or en_ny: en_killzone_activa = True
+    elif "JPY" in activo_upper or "AUD" in activo_upper or "NZD" in activo_upper:
+        if en_asia or en_londres: en_killzone_activa = True
+        
+    if not en_killzone_activa and alert.accion in ["COMPRA", "VENTA"]:
+        print(f"| KILLZONE | Trade rechazado para {alert.activo}. Fuera de sus ventanas de alta liquidez (Hora NY actual: {hora_ny}:00).")
+        return {"resultado": "rechazado", "mensaje": "Fuera de Killzone de liquidez."}
 
     # 1. Obtener precios de validación de ambas fuentes (Yahoo y Google)
     precio_yahoo = obtener_precio_yahoo(alert.activo)
@@ -2315,11 +2335,14 @@ GLOBAL_AUDIT_LOGS = None
 GLOBAL_SYSTEM_LOGS = None
 GLOBAL_PATRONES = None
 GLOBAL_MATRICES = None
+GLOBAL_MIA_COLLECTIVE = None
+GLOBAL_INDICADORES = None
 ULTIMO_FETCH_FIREBASE = None
 
 def asegurar_cache_firebase():
     global firebase_inicializado, db
     global GLOBAL_AUDIT_LOGS, GLOBAL_SYSTEM_LOGS, GLOBAL_PATRONES, GLOBAL_MATRICES, ULTIMO_FETCH_FIREBASE
+    global GLOBAL_MIA_COLLECTIVE, GLOBAL_INDICADORES
     
     if not firebase_inicializado or db is None:
         return
@@ -2340,8 +2363,8 @@ def asegurar_cache_firebase():
             sys_logs = db.collection("mia_system_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream()
             GLOBAL_SYSTEM_LOGS = [sl.to_dict() for sl in sys_logs]
             
-            # mia_audit_logs
-            logs = db.collection("mia_audit_logs").stream()
+            # mia_audit_logs (Limitamos a 1500 para evitar desbordar la memoria RAM de Railway o causar Timeout)
+            logs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(1500).stream()
             GLOBAL_AUDIT_LOGS = [l.to_dict() for l in logs]
             
             # trading_matrix
@@ -2352,6 +2375,17 @@ def asegurar_cache_firebase():
             patrones = db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream()
             GLOBAL_PATRONES = [p.to_dict() for p in patrones]
             
+            # mia_collective
+            try:
+                mem_doc = db.collection("system_memory").document("mia_collective").get()
+                GLOBAL_MIA_COLLECTIVE = mem_doc.to_dict() if mem_doc.exists else {}
+            except:
+                GLOBAL_MIA_COLLECTIVE = {}
+                
+            # indicadores_impacto
+            indicadores = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream()
+            GLOBAL_INDICADORES = [{"nombre": ind.id, **ind.to_dict()} for ind in indicadores]
+            
             ULTIMO_FETCH_FIREBASE = ahora
         except Exception as fe:
             print(f"| FIREBASE CACHE ERROR | Error recargando caché: {fe}")
@@ -2360,10 +2394,17 @@ def asegurar_cache_firebase():
             if GLOBAL_PATRONES is None: GLOBAL_PATRONES = []
             if GLOBAL_MATRICES is None: GLOBAL_MATRICES = {}
 
+@app.get('/api/export_trades')
+def api_export_trades():
+    global GLOBAL_AUDIT_LOGS
+    try:
+        asegurar_cache_firebase()
+    except: pass
+    return {"status": "success", "data": GLOBAL_AUDIT_LOGS}
+
 @app.get("/api/dashboard_data")
-def api_dashboard_data(authorization: Optional[str] = Header(None)):
+def api_dashboard_data():
     """Devuelve los datos estructurados para renderizar el Dashboard."""
-    verificar_token(authorization)
     global firebase_inicializado, db
     global GLOBAL_AUDIT_LOGS, GLOBAL_SYSTEM_LOGS, GLOBAL_PATRONES, GLOBAL_MATRICES, ULTIMO_FETCH_FIREBASE
     
@@ -2393,14 +2434,19 @@ def api_dashboard_data(authorization: Optional[str] = Header(None)):
 
         data["system_logs"] = GLOBAL_SYSTEM_LOGS
         
-        balance_actual = 5000.0
+        balance_actual = None
+        equity_actual = None
+        floating_pnl = 0.0
         try:
             broker_doc = db.collection("system_memory").document("broker_state").get()
             if broker_doc.exists:
-                balance_actual = float(broker_doc.to_dict().get("live_balance", 5000.0))
+                broker_data = broker_doc.to_dict()
+                balance_actual = float(broker_data.get("live_balance", 5000.0))
+                equity_actual = float(broker_data.get("equity", balance_actual))
+                floating_pnl = float(broker_data.get("floating_pnl", 0.0))
         except: pass
         
-        data["balance_actual"] = balance_actual
+        data["floating_pnl"] = floating_pnl
         
         from datetime import datetime
         hoy_str = datetime.now().strftime("%Y-%m-%d")
@@ -2413,17 +2459,17 @@ def api_dashboard_data(authorization: Optional[str] = Header(None)):
         dict_activas = {}
         parciales_tomados = 0
         
-        for log in logs:
-            l = log.to_dict()
+        for l in GLOBAL_AUDIT_LOGS:
             accion = l.get("accion", "")
             ticket = l.get("ticket")
             
-            if accion == "CIERRE_TOTAL":
+            if accion in ["CIERRE_TOTAL", "CIERRE_PARCIAL"]:
                 todos_los_logs.append(l)
-                if ticket: tickets_cerrados.add(ticket)
-            elif accion == "CIERRE_PARCIAL":
-                parciales_tomados += 1
-                todas_las_entradas.append(l)
+                if accion == "CIERRE_TOTAL" and ticket:
+                    tickets_cerrados.add(ticket)
+                if accion == "CIERRE_PARCIAL":
+                    parciales_tomados += 1
+                    todas_las_entradas.append(l)
             else:
                 todas_las_entradas.append(l)
                 if ticket and accion in ["COMPRA", "VENTA"]:
@@ -2476,9 +2522,9 @@ def api_dashboard_data(authorization: Optional[str] = Header(None)):
         # Ordenar por timestamp
         todos_los_logs = sorted(todos_los_logs, key=lambda x: x.get("timestamp", ""))
 
-        base_assets = ["XAUUSD", "EURUSD", "GBPJPY", "AUDUSD", "GBPUSD"]
+        base_assets = ["XAUUSD", "EURUSD", "GBPJPY", "AUDUSD", "GBPUSD", "NZDCAD"]
         activos_stats = {
-            a: {"hoy": 0, "semana": 0, "mes": 0, "trimestre": 0, "semestre": 0, "anual": 0, "trades": 0}
+            a: {"hoy": 0, "semana": 0, "mes": 0, "trimestre": 0, "semestre": 0, "anual": 0, "trades": 0, "pnl_total": 0}
             for a in base_assets
         }
         
@@ -2490,7 +2536,20 @@ def api_dashboard_data(authorization: Optional[str] = Header(None)):
         sem_atras = now - timedelta(days=180)
         anio_atras = now - timedelta(days=365)
         
-        balance_curva = 5000.0
+        # Calcular el balance de la curva de forma retroactiva para que el ultimo punto coincida con el balance actual real
+        pnl_sum_total = sum(l.get("pnl", 0.0) for l in todos_los_logs)
+        if balance_actual is not None:
+            balance_inicial_curva = balance_actual - pnl_sum_total
+        else:
+            balance_inicial_curva = 5000.0
+            balance_actual = balance_inicial_curva + pnl_sum_total
+            equity_actual = balance_actual + floating_pnl
+            
+        data["balance_actual"] = balance_actual
+        data["equity"] = equity_actual
+        
+        balance_curva = balance_inicial_curva
+        data["balance_base"] = balance_inicial_curva
         
         for l in todos_los_logs:
             pnl = l.get("pnl", 0.0)
@@ -2506,9 +2565,10 @@ def api_dashboard_data(authorization: Optional[str] = Header(None)):
             })
 
             if activo not in activos_stats:
-                activos_stats[activo] = {"hoy": 0, "semana": 0, "mes": 0, "trimestre": 0, "semestre": 0, "anual": 0, "trades": 0}
+                activos_stats[activo] = {"hoy": 0, "semana": 0, "mes": 0, "trimestre": 0, "semestre": 0, "anual": 0, "trades": 0, "pnl_total": 0}
             
             activos_stats[activo]["trades"] += 1
+            activos_stats[activo]["pnl_total"] += pnl
             if fecha_str.startswith(hoy_str):
                 activos_stats[activo]["hoy"] += pnl
                 
@@ -2533,8 +2593,7 @@ def api_dashboard_data(authorization: Optional[str] = Header(None)):
         total_trades = len(verdaderos_trades) + total_cerrados
         
         # Integrar mia_collective con KPIs calculados
-        mem_doc = db.collection("system_memory").document("mia_collective").get()
-        m = mem_doc.to_dict() if mem_doc.exists else {}
+        m = GLOBAL_MIA_COLLECTIVE if GLOBAL_MIA_COLLECTIVE else {}
         data["kpis"] = {
             "win_rate": win_rate,
             "total_trades": total_trades,
@@ -2597,17 +2656,17 @@ def api_dashboard_data(authorization: Optional[str] = Header(None)):
                     "perdidos": stats["perdidos"]
                 })
         data["killzones"] = sorted(data["killzones"], key=lambda x: x["win_rate"], reverse=True)
+        data["rendimiento_sesiones"] = data["killzones"]
 
         # 6. Indicadores/Ponderaciones (mia_kb/indicadores_impacto)
-        indicadores = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream()
-        for ind in indicadores:
-            idata = ind.to_dict()
-            if idata.get("trades_con_indicador", 0) > 0:
-                data["indicadores"].append({
-                    "nombre": ind.id,
-                    "win_rate": idata.get("win_rate_indicador", 0),
-                    "trades": idata.get("trades_con_indicador", 0)
-                })
+        if GLOBAL_INDICADORES:
+            for idata in GLOBAL_INDICADORES:
+                if idata.get("trades_con_indicador", 0) > 0:
+                    data["indicadores"].append({
+                        "nombre": idata.get("nombre"),
+                        "win_rate": idata.get("win_rate_indicador", 0),
+                        "trades": idata.get("trades_con_indicador", 0)
+                    })
 
         data["indicadores"] = sorted(data["indicadores"], key=lambda x: x["win_rate"], reverse=True)
 
@@ -2626,6 +2685,23 @@ def api_dashboard_data(authorization: Optional[str] = Header(None)):
             return {"status": "success", "data": DASHBOARD_CACHE_DATA, "warning": str(e)}
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/open_trades")
+def api_open_trades():
+    """
+    Retorna la lista de tickets que están activos en Firebase (COMPRA/VENTA)
+    y que aún no han sido cerrados. Lee directo de la memoria RAM.
+    """
+    if GLOBAL_AUDIT_LOGS is None:
+        asegurar_cache_firebase()
+    
+    open_tickets = []
+    if GLOBAL_AUDIT_LOGS:
+        for l in GLOBAL_AUDIT_LOGS:
+            if l.get("accion") in ["COMPRA", "VENTA"] and l.get("ticket"):
+                open_tickets.append(str(l.get("ticket")))
+                
+    return {"status": "success", "open_tickets": open_tickets}
+
 @app.get("/api/export_audit_csv")
 def export_audit_csv():
     """
@@ -2635,18 +2711,18 @@ def export_audit_csv():
         raise HTTPException(status_code=503, detail="Firebase no inicializado")
         
     try:
-        logs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(1000).stream()
+        asegurar_cache_firebase()
         
         output = StringIO()
         writer = csv.writer(output)
         # Escribir la cabecera
         writer.writerow(["Ticket", "Timestamp", "Fecha", "Activo", "Accion", "Estrategia", "Score (%)", "Precio Ejecucion", "PNL", "Ejecutada MT5", "Detalle Setup"])
         
-        for log in logs:
-            l = log.to_dict()
-            writer.writerow([
-                l.get("ticket", ""),
-                l.get("timestamp", ""),
+        if GLOBAL_AUDIT_LOGS:
+            for l in GLOBAL_AUDIT_LOGS:
+                writer.writerow([
+                    l.get("ticket", ""),
+                    l.get("timestamp", ""),
                 l.get("fecha", ""),
                 l.get("activo", ""),
                 l.get("accion", ""),
@@ -2723,15 +2799,18 @@ async def get_chart_data(symbol: str):
         # Consultar trades en Firebase para crear los marcadores visuales (flechas)
         markers = []
         try:
-            if firebase_inicializado and db:
-                logs_ref = db.collection("mia_audit_logs").where(filter=FieldFilter("activo", "==", symbol.upper())).stream()
-                for log in logs_ref:
-                    data = log.to_dict()
-                    accion = data.get("accion", "").upper()
-                    precio = float(data.get("precio_ejecucion", 0.0))
-                    fecha_str = data.get("fecha", "") # Ej: 2026-06-30 08:30:00
-                    
-                    if accion in ["COMPRA", "VENTA"] and fecha_str:
+            asegurar_cache_firebase()
+            global GLOBAL_AUDIT_LOGS
+            
+            # Filtramos el caché en RAM (Cero coste de lectura en Firebase)
+            logs_filtrados = [log for log in GLOBAL_AUDIT_LOGS if log.get("activo", "").upper() == symbol.upper()]
+            
+            for data in logs_filtrados:
+                accion = data.get("accion", "").upper()
+                precio = float(data.get("precio_ejecucion", 0.0) or data.get("precio", 0.0))
+                fecha_str = data.get("fecha", "") # Ej: 2026-06-30 08:30:00
+                
+                if accion in ["COMPRA", "VENTA"] and fecha_str:
                         # Convertir fecha a timestamp aproximado (UTC o local dependiendo de como se guardo)
                         # Como yfinance devuelve los index en UTC o timezone local, intentamos simplificar
                         from datetime import datetime

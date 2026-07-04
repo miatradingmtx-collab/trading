@@ -47,8 +47,7 @@ MT5_SERVER = os.getenv("MT5_SERVER", "MetaQuotes-Demo")
 # ticket -> {"volume": float, "symbol": str, "type": int, "price_open": float, "tp": float, "sl": float, "parcial_tomado": bool}
 POSICIONES_ACTIVAS = {}
 
-ACTIVOS = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD"]
-
+ACTIVOS = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD"]
 
 # Mapeo de nombres de activos locales a símbolos del Broker
 MAPEO_BROKER = {
@@ -59,7 +58,9 @@ MAPEO_BROKER = {
     "GBPJPY": "GBPJPY",
     "GBPUSD": "GBPUSD",
     "EURUSD": "EURUSD",
-    "XAUUSD": "XAUUSD"
+    "XAUUSD": "XAUUSD",
+    "AUDUSD": "AUDUSD",
+    "NZDCAD": "NZDCAD"
 }
 
 # ------------------------------------------------------------------------------
@@ -135,6 +136,11 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
     if balance <= 0 or sl_price == 0 or entry_price == 0 or entry_price == sl_price:
         return 0.02 # Fallback
         
+    # Escudo de Drawdown
+    if balance < 4200.0:
+        riesgo_pct = 0.5
+        print(f"| GESTOR RIESGO | Escudo de Drawdown activado (Balance < $4200). Reduciendo riesgo al {riesgo_pct}%")
+        
     riesgo_dinero = balance * (riesgo_pct / 100.0)
     distancia_precio = abs(entry_price - sl_price)
     
@@ -207,6 +213,50 @@ async def obtener_velas_cloud(account, simbolo: str, temporalidad: str, cantidad
 # ------------------------------------------------------------------------------
 # 2. CÁLCULO DE INDICADORES TÉCNICOS
 # ------------------------------------------------------------------------------
+def calcular_volume_profile_poc(df: pd.DataFrame, num_bins: int = 50) -> float:
+    """
+    Calcula el Point of Control (POC) basado en el Perfil de Volumen de las velas proporcionadas.
+    Retorna el nivel de precio (centro del bin) con mayor volumen operado.
+    """
+    if df is None or df.empty or 'tickVolume' not in df.columns:
+        return 0.0
+        
+    try:
+        # Calcular el precio representativo de la vela
+        df['typical_price'] = (df['high'] + df['low'] + df['close']) / 3
+        min_price = df['low'].min()
+        max_price = df['high'].max()
+        
+        # Crear los rangos de precio (bins)
+        bins = np.linspace(min_price, max_price, num_bins)
+        
+        # Asignar cada vela a un bin
+        indices = np.digitize(df['typical_price'], bins)
+        
+        vol_profile = {}
+        for i in range(len(df)):
+            bin_idx = indices[i]
+            vol = df['tickVolume'].iloc[i]
+            if pd.isna(vol): vol = 0
+            
+            if bin_idx not in vol_profile:
+                vol_profile[bin_idx] = 0
+            vol_profile[bin_idx] += vol
+            
+        # Encontrar el bin con maximo volumen
+        max_bin_idx = max(vol_profile, key=vol_profile.get)
+        
+        # El POC es el centro aproximado de ese bin
+        if max_bin_idx < len(bins):
+            poc_price = bins[max_bin_idx - 1] if max_bin_idx > 0 else bins[0]
+        else:
+            poc_price = bins[-1]
+            
+        return float(poc_price)
+    except Exception as e:
+        print(f"| POC ERROR | Error calculando Volume Profile: {e}")
+        return 0.0
+
 def calcular_rsi(df: pd.DataFrame, periodo: int = 14) -> pd.Series:
     delta = df['close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=periodo).mean()
@@ -274,7 +324,7 @@ def analizar_smc_ict(df: pd.DataFrame) -> Dict[str, bool]:
 # ------------------------------------------------------------------------------
 # 4. COMUNICACIÓN CON FASTAPI (Nube)
 # ------------------------------------------------------------------------------
-async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool], rsi_val: float, ma_alineada: bool, soporte_activo: bool, killzone_activa: bool = True):
+async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool], rsi_val: float, ma_alineada: bool, soporte_activo: bool, killzone_activa: bool = True, poc_price: float = 0.0):
     url = f"{FASTAPI_URL}/webhook_technical_update"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
@@ -294,7 +344,8 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
             "soporte_resistencia_activo": bool(soporte_activo),
             "medias_moviles_alineadas": bool(ma_alineada),
             "rsi_sobrecompra_sobreventa": bool(rsi_val >= 80 or rsi_val <= 20),
-            "smc_codes": smc_codes
+            "smc_codes": smc_codes,
+            "poc_price": poc_price
         }
     }
 
@@ -445,7 +496,8 @@ async def gestionar_posiciones_activas(connection, balance: float):
             continue
 
         ticket = pos.id
-        tickets_actuales.add(ticket)
+        ticket = pos.id
+        tickets_actuales.add(str(ticket))
         
         # 1. SI ES UNA NUEVA POSICIÓN: Registrar e informar de APERTURA
         if ticket not in POSICIONES_ACTIVAS:
@@ -464,6 +516,7 @@ async def gestionar_posiciones_activas(connection, balance: float):
         activo = next((act for act in ACTIVOS if MAPEO_BROKER.get(act) == pos.symbol), None)
         if not activo:
             continue
+
             
         entry_price = pos.openPrice
         current_price = pos.currentPrice
@@ -476,18 +529,24 @@ async def gestionar_posiciones_activas(connection, balance: float):
             
         es_buy = pos.type == 'POSITION_TYPE_BUY'
         
-        # A. Tomar Parciales al 80% si el Profit Flotante alcanzó el 1% de la cuenta
-        objetivo_ganancia_parcial = balance * 0.01
-        alcanzo_objetivo_pnl = (profit_flotante >= objetivo_ganancia_parcial) and (objetivo_ganancia_parcial > 0)
+        # A. Tomar Parciales al 50% de la distancia al Take Profit
+        alcanzo_mitad_tp = False
+        if tp > 0.0 and entry_price > 0.0:
+            distancia_total = abs(tp - entry_price)
+            distancia_recorrida = abs(current_price - entry_price)
+            # Aseguramos que vamos en direccion a favor
+            en_ganancia = (es_buy and current_price > entry_price) or (not es_buy and current_price < entry_price)
+            if en_ganancia and distancia_total > 0 and distancia_recorrida >= (distancia_total * 0.5):
+                alcanzo_mitad_tp = True
         
-        if alcanzo_objetivo_pnl and volume >= 0.02 and not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
-            lote_a_cerrar = round(volume * 0.8, 2)
+        if alcanzo_mitad_tp and volume >= 0.02 and not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
+            lote_a_cerrar = round(volume * 0.5, 2)
             # Asegurar que siempre quede al menos 0.01 para el runner
             if volume - lote_a_cerrar < 0.01:
                 lote_a_cerrar = round(volume - 0.01, 2)
                 
             if lote_a_cerrar >= 0.01:
-                print(f"| GESTOR PARCIALES | Objetivo 1% alcanzado (${profit_flotante:.2f}). Cerrando {lote_a_cerrar} lotes de {ticket}...")
+                print(f"| GESTOR PARCIALES | 50% del TP alcanzado. Cerrando {lote_a_cerrar} lotes de {ticket}...")
                 try:
                     close_result = await connection.close_position_partially(ticket, lote_a_cerrar)
                     POSICIONES_ACTIVAS[ticket]["parcial_tomado"] = True
@@ -508,7 +567,7 @@ async def gestionar_posiciones_activas(connection, balance: float):
                     if not es_buy:
                         pnl_parcial = -pnl_parcial
                     
-                    await reportar_evento_trade(pos.symbol, ticket, pos.type, "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado 80% al alcanzar 1% PNL")
+                    await reportar_evento_trade(pos.symbol, ticket, pos.type, "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado 50% al alcanzar mitad del TP")
                 except Exception as e:
                     print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial para ticket {ticket}: {e}")
                     
@@ -568,6 +627,20 @@ async def gestionar_posiciones_activas(connection, balance: float):
         await reportar_evento_trade(info["symbol"], ticket, info["type"], "CIERRE_TOTAL", precio_cierre, info["sl"], info["tp"], pnl=pnl_final, comentario="Cerrado totalmente")
         del POSICIONES_ACTIVAS[ticket]
 
+    # Sincronizar cierres perdidos (manuales o de sesiones anteriores)
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.get(f"{FASTAPI_URL}/api/open_trades")
+            if r.status_code == 200:
+                data = r.json()
+                fb_open = data.get("open_tickets", [])
+                for t in fb_open:
+                    if str(t) not in POSICIONES_ACTIVAS and str(t) not in tickets_actuales:
+                        print(f"| GESTOR RIESGO | Sincronizando cierre faltante para ticket {t}")
+                        await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=0.0, comentario="Sincronizado por desaparición en MT5")
+    except Exception as api_err:
+        pass
+
 # ------------------------------------------------------------------------------
 # 6. GESTOR DE OPERACIONES (Apertura de Órdenes)
 # ------------------------------------------------------------------------------
@@ -586,8 +659,8 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
         sl = decision.get("stop_loss", precio_ejecucion - 200 if es_buy else precio_ejecucion + 200)
         tp = decision.get("take_profit", precio_ejecucion + 400 if es_buy else precio_ejecucion - 400)
         
-        # LOTAJE DINAMICO (1% de riesgo de la cuenta por defecto)
-        riesgo_pct = 1.0 
+        # LOTAJE DINAMICO (Riesgo configurado sobre el balance diario real, 2% recomendado)
+        riesgo_pct = 2.0 
         lote = calcular_lotaje_dinamico(balance, riesgo_pct, precio_ejecucion, sl, simbolo_broker)
         decision["lote"] = lote
 
@@ -719,12 +792,24 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
     else:
         print("| ESCANER CLOUD | Fuera de horario de Killzones. Sincronizando pero entradas desactivadas.")
         
+    try:
+        posiciones_activas = await connection.get_positions()
+        simbolos_abiertos = [pos.get('symbol') for pos in posiciones_activas]
+    except Exception as e:
+        print(f"| ESCANER ERROR | No se pudieron obtener las posiciones activas: {e}")
+        simbolos_abiertos = []
+        
     for activo in ACTIVOS:
         if not es_mercado_abierto(activo):
             print(f"| MERCADO CERRADO | {activo} en receso o fin de semana. Omitiendo escaneo.")
             continue
             
         simbolo = MAPEO_BROKER.get(activo)
+        
+        if simbolo in simbolos_abiertos:
+            print(f"| PROTECCIÓN DOBLE TRADE | Ya existe una posición abierta para {activo} ({simbolo}). Omitiendo escáner para evitar sobreexposición.")
+            continue
+            
         # Análisis Multi-Temporal (MTF): 1H y 4H
         df_1h = await obtener_velas_cloud(account, simbolo, '1h', 100)
         df_4h = await obtener_velas_cloud(account, simbolo, '4h', 300)
@@ -732,9 +817,20 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         if df_1h is None or df_1h.empty or df_4h is None or df_4h.empty:
             continue
             
-        # 1. Indicadores Macro (Basados en 4H para mayor fiabilidad)
-        rsi_series = calcular_rsi(df_4h)
-        rsi_actual = rsi_series.iloc[-1]
+        # 1. Indicadores Macro (Basados en 4H para mayor fiabilidad y MTF para RSI)
+        df_2h = await obtener_velas_cloud(account, simbolo, '2h', 100)
+        df_3h = await obtener_velas_cloud(account, simbolo, '3h', 100)
+        
+        rsi_1h = calcular_rsi(df_1h).iloc[-1] if df_1h is not None and not df_1h.empty else 50
+        rsi_2h = calcular_rsi(df_2h).iloc[-1] if df_2h is not None and not df_2h.empty else 50
+        rsi_3h = calcular_rsi(df_3h).iloc[-1] if df_3h is not None and not df_3h.empty else 50
+        rsi_4h = calcular_rsi(df_4h).iloc[-1] if df_4h is not None and not df_4h.empty else 50
+        
+        rsi_avg = (rsi_1h + rsi_2h + rsi_3h + rsi_4h) / 4.0
+        rsi_actual = rsi_avg # Reemplazamos rsi_actual por el promedio MTF
+        
+        poc_price = calcular_volume_profile_poc(df_4h)
+        print(f"| POC {activo} | POC Price: {poc_price:.5f} | RSI AVG: {rsi_avg:.2f}")
         
         ema_50 = df_4h['close'].ewm(span=50, adjust=False).mean().iloc[-1]
         ema_200 = df_4h['close'].ewm(span=200, adjust=False).mean().iloc[-1]
@@ -743,8 +839,13 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         
         niveles = detectar_soportes_resistencias(df_4h)
         soporte_activo = False
-        for sup in niveles["soportes"]:
-            if abs(precio_actual - sup) < (precio_actual * 0.001):
+        
+        # Agregar POC como un nivel fuerte de soporte/resistencia
+        niveles_totales = niveles["soportes"] + niveles["resistencias"]
+        if poc_price > 0: niveles_totales.append(poc_price)
+        
+        for nivel in niveles_totales:
+            if abs(precio_actual - nivel) < (precio_actual * 0.001):
                 soporte_activo = True
                 break
                 
@@ -760,7 +861,7 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         }
         
         # 1. Sincronizar confirmaciones con la matriz en Firestore (vía webhook)
-        webhook_response = await sincronizar_matriz_tecnica(activo, confirmaciones, rsi_actual, ma_alineada, soporte_activo, bool(killzone_activa))
+        webhook_response = await sincronizar_matriz_tecnica(activo, confirmaciones, rsi_actual, ma_alineada, soporte_activo, bool(killzone_activa), poc_price)
         
         # 2. Validar si el backend (Firebase) autorizó el gatillo (Score >= 80%)
         gatillo_autorizado = webhook_response and webhook_response.get("gatillo_entrada") is True
