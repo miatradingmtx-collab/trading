@@ -503,17 +503,20 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             else: sesion = "ASIA"
             activo_norm = normalizar_activo(alert.activo)
             score = 0
+            poc_price = 0.0
             try:
                 m_doc = db.collection("trading_matrix").document(activo_norm).get()
                 if m_doc.exists:
-                    score = m_doc.to_dict().get("score_porcentaje", 0)
+                    m_data = m_doc.to_dict()
+                    score = m_data.get("score_porcentaje", 0)
+                    poc_price = m_data.get("confirmaciones_tecnicas", {}).get("poc_price", 0.0)
             except: pass
             
             motivo = "Rechazada por Matriz Técnica (Score bajo o Killzone)"
             if score >= 80:
                 motivo = "En validación de riesgo por el Broker..."
                 
-            detalle_str = f"{alert.activo} | {fecha_str} | {sesion} | {alert.estrategia} | EVALUANDO SETUP | SCORE: {score}% | EJECUTADA EN MT5: NO | MOTIVO: {motivo}"
+            detalle_str = f"{alert.activo} | {fecha_str} | {sesion} | {alert.estrategia} | EVALUANDO SETUP | SCORE: {score}% | POC: {poc_price:.5f} | EJECUTADA EN MT5: NO | MOTIVO: {motivo}"
             
             audit_ref = db.collection("mia_audit_logs").document(str(alert.ticket))
             audit_data = {
@@ -526,6 +529,7 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 "timestamp": iso_time,
                 "fecha": fecha_str,
                 "score": score,
+                "poc_price": poc_price,
                 "ejecutada_mt5": True if alert.ticket else False,
                 "motivo": "Ejecutada y Activa en Broker" if alert.ticket else motivo,
                 "detalle_setup": detalle_str
@@ -1141,12 +1145,34 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     
     # 0. Lógica de Horarios (Forex cerrado en fin de semana, Crypto 24/7)
     es_cripto_activo = alert.es_crypto or alert.activo.startswith("BTC") or alert.activo.startswith("ETH") or "USD" not in alert.activo and alert.activo != "XAUUSD"
+    ahora = datetime.datetime.now(datetime.timezone.utc)
     if not es_cripto_activo:
-        ahora = datetime.datetime.now(datetime.timezone.utc)
         # Viernes después de 21:00 UTC hasta Domingo a las 21:00 UTC es fin de semana en Forex (aprox)
         if ahora.weekday() == 5 or (ahora.weekday() == 4 and ahora.hour >= 21) or (ahora.weekday() == 6 and ahora.hour < 21):
             print(f"| REGLA DE HORARIO | Mercado Forex cerrado. Rechazando orden de {alert.activo}.")
             return {"resultado": "rechazado", "mensaje": "Mercado Forex cerrado en fin de semana."}
+
+    # 0.5 Filtro de Killzones por Activo (Usando hora NY / EST)
+    # Convertimos UTC a EST (restando 5 horas o 4 en Daylight Saving, usaremos aprox UTC-4 para verano, UTC-5 invierno. Simplificando a UTC-4)
+    hora_ny = (ahora.hour - 4) % 24
+    
+    # Definición de Killzones
+    en_asia = (20 <= hora_ny <= 23) or (0 <= hora_ny < 2) # 20:00 a 02:00
+    en_londres = (2 <= hora_ny < 6) # 02:00 a 06:00
+    en_ny = (7 <= hora_ny < 11) # 07:00 a 11:00
+    en_killzone_activa = False
+    
+    activo_upper = alert.activo.upper()
+    if es_cripto_activo:
+        en_killzone_activa = True # Crypto 24/7
+    elif "EUR" in activo_upper or "USD" in activo_upper or "XAU" in activo_upper:
+        if en_londres or en_ny: en_killzone_activa = True
+    elif "JPY" in activo_upper or "AUD" in activo_upper or "NZD" in activo_upper:
+        if en_asia or en_londres: en_killzone_activa = True
+        
+    if not en_killzone_activa and alert.accion in ["COMPRA", "VENTA"]:
+        print(f"| KILLZONE | Trade rechazado para {alert.activo}. Fuera de sus ventanas de alta liquidez (Hora NY actual: {hora_ny}:00).")
+        return {"resultado": "rechazado", "mensaje": "Fuera de Killzone de liquidez."}
 
     # 1. Obtener precios de validación de ambas fuentes (Yahoo y Google)
     precio_yahoo = obtener_precio_yahoo(alert.activo)
