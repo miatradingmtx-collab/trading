@@ -2800,15 +2800,18 @@ async def get_chart_data(symbol: str):
         # Consultar trades en Firebase para crear los marcadores visuales (flechas)
         markers = []
         try:
-            if firebase_inicializado and db:
-                logs_ref = db.collection("mia_audit_logs").where(filter=FieldFilter("activo", "==", symbol.upper())).stream()
-                for log in logs_ref:
-                    data = log.to_dict()
-                    accion = data.get("accion", "").upper()
-                    precio = float(data.get("precio_ejecucion", 0.0))
-                    fecha_str = data.get("fecha", "") # Ej: 2026-06-30 08:30:00
-                    
-                    if accion in ["COMPRA", "VENTA"] and fecha_str:
+            asegurar_cache_firebase()
+            global GLOBAL_AUDIT_LOGS
+            
+            # Filtramos el caché en RAM (Cero coste de lectura en Firebase)
+            logs_filtrados = [log for log in GLOBAL_AUDIT_LOGS if log.get("activo", "").upper() == symbol.upper()]
+            
+            for data in logs_filtrados:
+                accion = data.get("accion", "").upper()
+                precio = float(data.get("precio_ejecucion", 0.0) or data.get("precio", 0.0))
+                fecha_str = data.get("fecha", "") # Ej: 2026-06-30 08:30:00
+                
+                if accion in ["COMPRA", "VENTA"] and fecha_str:
                         # Convertir fecha a timestamp aproximado (UTC o local dependiendo de como se guardo)
                         # Como yfinance devuelve los index en UTC o timezone local, intentamos simplificar
                         from datetime import datetime
