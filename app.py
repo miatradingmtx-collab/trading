@@ -611,28 +611,29 @@ def recalcular_score_ponderado(data: dict) -> float:
     score = 0.0
     tech = data.get("confirmaciones_tecnicas", {})
     
-    # 1. Filtro Direccional (Gatillo Obligatorio)
-    # Se debe confirmar tendencia (Medias Móviles Alineadas) O estar en zona de reversión (RSI Extremo)
+    # 1. Indicadores Macro (Filtros de Tendencia y Agotamiento)
     ma_alineada = tech.get("medias_moviles_alineadas", False)
-    # Soporte para keys legacy y nueva
     rsi_extremo = tech.get("rsi_sobrecompra_sobreventa", False) or tech.get("rsi_extremo", False)
     
     if not (ma_alineada or rsi_extremo):
-        return 0.0  # Sin dirección clara, no hay trade
+        return 0.0  # Sin dirección clara ni zona de reversión, se rechaza
         
-    score += 40 # Base Direccional Macro (40% asegurado por tendencia correcta)
+    if ma_alineada: score += 20
+    if rsi_extremo: score += 20
     
-    # 2. Confirmadores adicionales
-    if tech.get("soporte_resistencia_activo"): score += 10
+    # 2. Confirmadores de Zonas Clave (POC y Soportes/Resistencias)
+    if tech.get("soporte_resistencia_activo"): 
+        score += 10 # (En mt5_executor_cloud, el POC ya se cuenta como soporte/resistencia)
+        
+    if tech.get("poc_price", 0.0) > 0:
+        score += 10 # Bonus por tener confirmación clara de Perfil de Volumen
     
-    # 3. Módulos SMC e ICT (Suman los otros 40-60%)
+    # 3. Módulos SMC e ICT (Institucional)
     smc_codes = tech.get("smc_codes", [])
     
-    # Pesos estructurales primarios (Con cualquiera de estos se llega a 80%)
+    # Pesos estructurales (Se suman a los indicadores para buscar >= 80%)
     if 1 in smc_codes: score += 40  # Order Block (OB)
     if 2 in smc_codes: score += 40  # Fair Value Gap (FVG)
-    
-    # Confluencias estructurales secundarias
     if 3 in smc_codes: score += 30  # Breaker Block
     if 4 in smc_codes: score += 20  # Liquidity Sweep
         
