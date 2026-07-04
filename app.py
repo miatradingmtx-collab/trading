@@ -135,7 +135,7 @@ async def startup_event():
     if firebase_inicializado and db is not None:
         try:
             # Lista de activos a validar
-            activos = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "SPX500", "NAS100", "US30"]
+            activos = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD", "SPX500", "NAS100", "US30"]
             coleccion_ref = db.collection("trading_matrix")
             
             print("| FIREBASE | Verificando inicialización de la matriz de activos...")
@@ -2529,7 +2529,7 @@ def api_dashboard_data():
         # Ordenar por timestamp
         todos_los_logs = sorted(todos_los_logs, key=lambda x: x.get("timestamp", ""))
 
-        base_assets = ["XAUUSD", "EURUSD", "GBPJPY", "AUDUSD", "GBPUSD"]
+        base_assets = ["XAUUSD", "EURUSD", "GBPJPY", "AUDUSD", "GBPUSD", "NZDCAD"]
         activos_stats = {
             a: {"hoy": 0, "semana": 0, "mes": 0, "trimestre": 0, "semestre": 0, "anual": 0, "trades": 0, "pnl_total": 0}
             for a in base_assets
