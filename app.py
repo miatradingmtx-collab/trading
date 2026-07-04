@@ -639,15 +639,6 @@ def recalcular_score_ponderado(data: dict) -> float:
         
     # Firebase es el único juez de la validación. Permitimos scores > 100% para mostrar fuerza extrema.
     return score
-    # 2. Institucionales (APAGADO TEMPORALMENTE - n8n bypass)
-    # inst = data.get("confirmaciones_institucionales", {})
-    # if inst.get("dark_pools_amortizado"): score += 10
-    
-    # 3. Fundamentales (APAGADO TEMPORALMENTE - n8n bypass)
-    # fund = data.get("confirmaciones_fundamentales", {})
-    # if fund.get("noticias_impacto_favorables"): score += 10
-        
-    return min(score, 100.0)
 
 def normalizar_activo(activo: str) -> str:
     """Mapea símbolos de trading comunes a los 8 activos clave de Firebase"""
