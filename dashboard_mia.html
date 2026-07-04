@@ -820,36 +820,151 @@
             }
         }
 
-        /* -------------------------------------------------------------
-           SECCIÓN DE CÓDIGO ORIGINAL DEL DASHBOARD (Lógica de app.py) 
-           ------------------------------------------------------------- */
         
-        // ... (Aquí mantengo la función fetchDashboardData() y initChart() originales)
-        // Por motivos de eficiencia del DOM, simularemos que la función de fetchDashboardData de tu código anterior se ejecuta.
-        // Debido a que todos los IDs (kpi-balance, etc.) se mantienen en la vista "Dashboard",
-        // tu integración original con FastAPI no se rompe y los datos reales fluirán.
-        
+        const formatMoney = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+        const formatPct = (val) => (val > 0 ? '+' : '') + val.toFixed(2) + '%';
+        const getPctClass = (val) => val >= 0 ? 'positive' : 'negative';
+
+        // Safe DOM getter
+        const $el = (id) => document.getElementById(id) || { innerText:'', innerHTML:'', style:{}, classList:{add:()=>{}, remove:()=>{}}, setAttribute:()=>{}, appendChild:()=>{} };
+        const $query = (sel) => document.querySelector(sel) || { innerText:'', innerHTML:'', style:{}, classList:{add:()=>{}, remove:()=>{}}, setAttribute:()=>{}, appendChild:()=>{} };
+
         async function fetchDashboardData() {
             try {
                 const response = await fetch('/api/dashboard_data');
                 const json = await response.json();
+                
                 if (json.status === "success") {
                     const d = json.data;
+                    
                     const equity = d.equity || d.balance_actual || (d.balance_base + d.pnl_total);
+                    $el('kpi-balance').innerText = formatMoney(equity);
                     
-                    const formatMoney = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
-                    if(document.getElementById('kpi-balance')) document.getElementById('kpi-balance').innerText = formatMoney(equity);
+                    const pnlSpan = $el('kpi-pnl-total');
+                    if (d.floating_pnl !== undefined && d.floating_pnl !== 0) {
+                        pnlSpan.innerText = (d.floating_pnl > 0 ? '+' : '') + formatMoney(d.floating_pnl) + ' PNL Flotante';
+                        pnlSpan.className = getPctClass(d.floating_pnl);
+                        pnlSpan.style.color = d.floating_pnl >= 0 ? 'var(--neon-green)' : '#ff4d4d';
+                    } else {
+                        pnlSpan.innerText = (d.pnl_total > 0 ? '+' : '') + formatMoney(d.pnl_total) + ' PNL Total';
+                        pnlSpan.className = getPctClass(d.pnl_total);
+                        pnlSpan.style.color = d.pnl_total >= 0 ? 'var(--neon-green)' : '#ff4d4d';
+                    }
+
+                    const roiTotal = (d.pnl_total / d.balance_base) * 100;
+                    const roiEl = $el('kpi-roi');
+                    roiEl.innerText = formatPct(roiTotal);
+                    roiEl.style.color = roiTotal >= 0 ? 'var(--neon-yellow)' : '#ff4d4d';
+
+                    if (d.kpis) {
+                        const kpis = d.kpis;
+                        $el('kpi-winrate').innerText = kpis.win_rate ? kpis.win_rate + '%' : '0%';
+                        $el('kpi-trades').innerText = kpis.total_trades || '0';
+                        $el('kpi-patron').innerText = kpis.patron_estrella || '-';
+                        $el('kpi-patron-wr').innerText = "Win Rate: " + (kpis.patron_estrella_wr || '0') + "%";
+                        $el('kpi-parciales').innerText = kpis.parciales_tomados || '0';
+                    }
                     
-                    // Aquí irían el resto de asignaciones a las tarjetas del View 1.
-                    // Adicionalmente, podemos crear endpoints futuros /api/history_data para el View 4 (History).
+                    // History view KPI population (mock mapping for the new layout IDs)
+                    // If we had IDs for them. Right now they are hardcoded in the new layout.
                 }
-            } catch (e) {
-                console.log("A la espera del endpoint de API real en Railway...");
+            } catch (error) {
+                console.error("Error cargando dashboard:", error);
+                $el('system-status').innerText = "Market Status: Offline";
+                $el('system-status').style.color = "#ff4d4d";
+            }
+        }
+
+        fetchDashboardData();
+        setInterval(fetchDashboardData, 30000);
+
+        // TV CHART LOGIC
+        let tvChart = null;
+        let candleSeries = null;
+        let ema50Series = null;
+        let ema200Series = null;
+        
+        function initChart() {
+            try {
+                const container = document.getElementById('tv-chart');
+                if(!container) return;
+                
+                const chartOptions = { 
+                    width: container.clientWidth || 800,
+                    height: 450,
+                    layout: { textColor: '#8b949e', background: { type: 'solid', color: 'transparent' } },
+                    grid: { vertLines: { color: 'rgba(255, 255, 255, 0.03)' }, horzLines: { color: 'rgba(255, 255, 255, 0.03)' } },
+                    crosshair: { mode: 0 },
+                    rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                    timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true }
+                };
+                
+                tvChart = LightweightCharts.createChart(container, chartOptions);
+                candleSeries = tvChart.addCandlestickSeries({
+                    upColor: '#00ff9d', 
+                    downColor: '#ff4d4d', 
+                    borderVisible: false,
+                    wickUpColor: '#00ff9d', 
+                    wickDownColor: '#ff4d4d'
+                });
+                
+                ema50Series = tvChart.addLineSeries({
+                    color: '#00d2ff',
+                    lineWidth: 2,
+                    crosshairMarkerVisible: false,
+                    priceLineVisible: false,
+                });
+
+                ema200Series = tvChart.addLineSeries({
+                    color: '#ffb800',
+                    lineWidth: 2,
+                    crosshairMarkerVisible: false,
+                    priceLineVisible: false,
+                });
+                
+                window.addEventListener('resize', () => {
+                    if(tvChart && container.clientWidth > 0) {
+                        tvChart.applyOptions({ width: container.clientWidth });
+                    }
+                });
+            } catch(e) {
+                console.error("JS Error in initChart: " + e.message);
             }
         }
         
-        // Simular primer render
-        fetchDashboardData();
+        let currentTvSymbol = 'EURUSD';
+
+        async function loadTvChart(symbol, isSilent = false) {
+            currentTvSymbol = symbol;
+            
+            const titleEl = document.getElementById('tv-title');
+            if(titleEl) titleEl.innerHTML = `<i class="fa-solid fa-chart-simple text-green"></i> GRÁFICO INTERACTIVO: ${symbol} (1H)`;
+            
+            if (!tvChart) initChart();
+            if (!tvChart) return;
+            
+            try {
+                const response = await fetch(`/api/chart_data/${symbol}`);
+                const json = await response.json();
+                
+                if (json.status === "success" && json.data.length > 0) {
+                    candleSeries.setData(json.data);
+                    if (json.ema50) ema50Series.setData(json.ema50);
+                    if (json.ema200) ema200Series.setData(json.ema200);
+                    if (json.markers) candleSeries.setMarkers(json.markers);
+                    if (!isSilent) tvChart.timeScale().fitContent();
+                }
+            } catch (err) {
+                console.error("TV Chart Error:", err);
+            }
+        }
+        
+        // Wait for DOM to be ready before initiating chart
+        setTimeout(() => {
+            loadTvChart('EURUSD');
+            setInterval(() => { if (currentTvSymbol) loadTvChart(currentTvSymbol, true); }, 60000);
+        }, 500);
+
     </script>
 </body>
 </html>
