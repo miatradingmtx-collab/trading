@@ -136,14 +136,10 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
     if balance <= 0 or sl_price == 0 or entry_price == 0 or entry_price == sl_price:
         return 0.02 # Fallback
         
-    # Escudo de Drawdown Dinámico Proporcional
-    if balance < 4200.0:
-        if balance <= 3000.0:
-            riesgo_pct = 0.5
-        else:
-            factor_proporcional = (balance - 3000.0) / (4200.0 - 3000.0)
-            riesgo_pct = 0.5 + (riesgo_pct - 0.5) * factor_proporcional
-        print(f"| GESTOR RIESGO | Escudo de Drawdown proporcional activado (Balance < $4200). Riesgo ajustado: {riesgo_pct:.2f}%")
+    # Escudo de Drawdown (Regla de cuenta <= $4200)
+    if balance <= 4200.0:
+        riesgo_pct = riesgo_pct * 0.5
+        print(f"| GESTOR RIESGO | Escudo de Drawdown activado (Balance <= $4200). Reduciendo riesgo al 50% de la propuesta: {riesgo_pct:.2f}%")
         
     riesgo_dinero = balance * (riesgo_pct / 100.0)
     distancia_precio = abs(entry_price - sl_price)
