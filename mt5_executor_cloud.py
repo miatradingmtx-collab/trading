@@ -556,8 +556,8 @@ async def gestionar_posiciones_activas(connection, balance: float):
                     buffer_be = 0.0001 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.01
                     nuevo_sl = entry_price + buffer_be if es_buy else entry_price - buffer_be
                     try:
-                        await connection.modify_position(ticket, stop_loss=nuevo_sl)
-                        print(f"| GESTOR RIESGO | SL movido a Break Even para {ticket}")
+                        await connection.modify_position(ticket, stop_loss=nuevo_sl, take_profit=tp)
+                        print(f"| GESTOR RIESGO | SL movido a Break Even para {ticket} (TP mantenido: {tp})")
                     except Exception as sl_e:
                         print(f"| GESTOR RIESGO WARNING | No se pudo mover SL a BE: {sl_e}")
 
@@ -596,8 +596,8 @@ async def gestionar_posiciones_activas(connection, balance: float):
                 print(f"| GESTOR BE | {activo} regresando a entrada sin soporte institucional. Colocando Break-Even.")
                 try:
                     # Modificar SL a Break-Even
-                    await connection.modify_position(ticket, entry_price, tp)
-                    print(f"| GESTOR BE SUCCESS | Ticket {ticket} modificado a Break-Even (SL={entry_price}).")
+                    await connection.modify_position(ticket, stop_loss=entry_price, take_profit=tp)
+                    print(f"| GESTOR BE SUCCESS | Ticket {ticket} modificado a Break-Even (SL={entry_price}, TP={tp}).")
                     POSICIONES_ACTIVAS[ticket]["sl"] = entry_price
                 except Exception as e:
                     print(f"| GESTOR BE ERROR | No se pudo modificar ticket {ticket} a BE: {e}")
