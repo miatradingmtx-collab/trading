@@ -478,6 +478,16 @@ async def obtener_matriz_activo(activo: str) -> Optional[Dict]:
 async def gestionar_posiciones_activas(connection, balance: float):
     global POSICIONES_ACTIVAS
     
+    # 0. Obtener tickets abiertos en Firebase para validación cruzada y autocuración
+    fb_open = []
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(f"{FASTAPI_URL}/api/open_trades")
+            if r.status_code == 200:
+                fb_open = [str(t) for t in r.json().get("open_tickets", [])]
+    except Exception as api_err:
+        print(f"| GESTOR RIESGO WARN | No se pudo sincronizar tickets de Firebase: {api_err}")
+
     try:
         positions = await connection.get_positions()
     except Exception as e:
@@ -488,16 +498,17 @@ async def gestionar_posiciones_activas(connection, balance: float):
     
     for p in positions:
         pos = p if isinstance(p, dict) else getattr(p, '__dict__', {})
+        ticket = str(pos.get('id', ''))
         
         # pos fields: id, symbol, type, openPrice, currentPrice, volume, stopLoss, takeProfit, profit, swap, commission, magic
         client_id = pos.get('clientId', '')
         magic = pos.get('magic', 0)
         
-        # Validar si es una operación de Mia (por Magic Number o Client ID)
-        if magic != 20260616 and not (isinstance(client_id, str) and client_id.startswith('L_')):
+        # Validar si es una operación de Mia (por Magic Number, Client ID o si está activa en Firebase)
+        is_mia = (magic == 20260616) or (isinstance(client_id, str) and client_id.startswith('L_')) or (ticket in fb_open)
+        if not is_mia:
             continue
 
-        ticket = str(pos.get('id', ''))
         tickets_actuales.add(ticket)
         
         # 1. SI ES UNA NUEVA POSICIÓN: Registrar e informar de APERTURA
@@ -648,19 +659,11 @@ async def gestionar_posiciones_activas(connection, balance: float):
         await reportar_evento_trade(info["symbol"], ticket, info["type"], "CIERRE_TOTAL", precio_cierre, info["sl"], info["tp"], pnl=pnl_final, comentario="Cerrado totalmente")
         del POSICIONES_ACTIVAS[ticket]
 
-    # Sincronizar cierres perdidos (manuales o de sesiones anteriores)
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.get(f"{FASTAPI_URL}/api/open_trades")
-            if r.status_code == 200:
-                data = r.json()
-                fb_open = data.get("open_tickets", [])
-                for t in fb_open:
-                    if str(t) not in POSICIONES_ACTIVAS and str(t) not in tickets_actuales:
-                        print(f"| GESTOR RIESGO | Sincronizando cierre faltante para ticket {t}")
-                        await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=0.0, comentario="Sincronizado por desaparición en MT5")
-    except Exception as api_err:
-        pass
+    # Sincronizar cierres perdidos (manuales o de sesiones anteriores) usando fb_open pre-recuperado
+    for t in fb_open:
+        if str(t) not in POSICIONES_ACTIVAS and str(t) not in tickets_actuales:
+            print(f"| GESTOR RIESGO | Sincronizando cierre faltante para ticket {t}")
+            await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=0.0, comentario="Sincronizado por desaparición en MT5")
 
 # ------------------------------------------------------------------------------
 # 6. GESTOR DE OPERACIONES (Apertura de Órdenes)
