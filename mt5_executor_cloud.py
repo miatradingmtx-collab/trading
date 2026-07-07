@@ -43,6 +43,11 @@ MT5_LOGIN = os.getenv("MT5_LOGIN", "5051870219")
 MT5_PASSWORD = os.getenv("MT5_PASSWORD", "*5FkZuJe")
 MT5_SERVER = os.getenv("MT5_SERVER", "MetaQuotes-Demo")
 
+# Parámetros de la Matriz de Riesgo Residual (Inteligencia de Negocio)
+BASE_BALANCE_MENSUAL = 5000.0
+OBJETIVO_MENSUAL_PCT = 10.0
+RIESGO_RESIDUAL_MAX_PCT = 25.0  # Porcentaje máximo del colchón residual a arriesgar por trade
+
 # Diccionario global para trackear posiciones y detectar aperturas, parciales y cierres en bucle
 # ticket -> {"volume": float, "symbol": str, "type": int, "price_open": float, "tp": float, "sl": float, "parcial_tomado": bool}
 POSICIONES_ACTIVAS = {}
@@ -136,12 +141,26 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
     if balance <= 0 or sl_price == 0 or entry_price == 0 or entry_price == sl_price:
         return 0.02 # Fallback
         
-    # Escudo de Drawdown (Regla de cuenta <= $4200)
-    if balance <= 4200.0:
-        riesgo_pct = riesgo_pct * 0.5
-        print(f"| GESTOR RIESGO | Escudo de Drawdown activado (Balance <= $4200). Reduciendo riesgo al 50% de la propuesta: {riesgo_pct:.2f}%")
+    # 1. Calcular objetivo del mes
+    objetivo_dinero = BASE_BALANCE_MENSUAL * (1.0 + OBJETIVO_MENSUAL_PCT / 100.0)
+    
+    # 2. Lógica de Riesgo Residual (Cushion)
+    es_colchon_activo = False
+    if balance > objetivo_dinero:
+        es_colchon_activo = True
+        colchon_residual = balance - objetivo_dinero
+        # Arriesgamos un porcentaje del colchón acumulado
+        riesgo_dinero = colchon_residual * (RIESGO_RESIDUAL_MAX_PCT / 100.0)
+        print(f"| GESTOR RIESGO | Colchón Residual Activo (Meta del {OBJETIVO_MENSUAL_PCT}% superada). Colchón: ${colchon_residual:.2f}. Riesgo asignado: ${riesgo_dinero:.2f}")
+    else:
+        # 3. Lógica Normal / Escudo de Drawdown
+        if balance <= 4200.0:
+            riesgo_pct = riesgo_pct * 0.5
+            print(f"| GESTOR RIESGO | Escudo de Drawdown activado (Balance <= $4200). Reduciendo riesgo al 50%: {riesgo_pct:.2f}%")
         
-    riesgo_dinero = balance * (riesgo_pct / 100.0)
+        riesgo_dinero = balance * (riesgo_pct / 100.0)
+
+    # 4. Calcular distancia de pips y valor del lote
     distancia_precio = abs(entry_price - sl_price)
     
     # 1 Lote estandar (1.00) = $10 por pip (Forex) o $10 por $1 move (Oro)
@@ -159,9 +178,22 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
         return 0.02
         
     lotes = riesgo_dinero / (distancia_pips * valor_pip_lote_estandar)
-    
-    # Limites minimos y maximos de lotaje para evitar errores de broker
     lotes = round(lotes, 2)
+    
+    # Validar restricción estricta de pérdida máxima si estamos sobre el objetivo
+    if es_colchon_activo:
+        max_perdida_posible = lotes * distancia_pips * valor_pip_lote_estandar
+        # Si la pérdida esperada supera el colchón residual total, reducimos el lote al mínimo seguro
+        if max_perdida_posible > colchon_residual:
+            lotes = colchon_residual / (distancia_pips * valor_pip_lote_estandar)
+            lotes = round(lotes, 2)
+            
+        # Si el colchón no alcanza ni para el lote mínimo de 0.01, cancelamos la entrada para proteger el ancla
+        if lotes < 0.01:
+            print(f"| GESTOR RIESGO CANCEL | Trade cancelado para proteger el ancla de ganancias (${objetivo_dinero}). Colchón insuficiente.")
+            return 0.0
+            
+    # Limites operativos normales
     if lotes < 0.01: lotes = 0.01
     if lotes > 10.0: lotes = 10.0
     
