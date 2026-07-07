@@ -433,7 +433,7 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
         "take_profit": float(tp) if tp else 0.0,
         "estrategia": estrategia,
         "pnl": float(pnl),
-        "ticket": int(ticket) if ticket.isdigit() else 0
+        "ticket": str(ticket)
     }
     
     try:
