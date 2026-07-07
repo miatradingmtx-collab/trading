@@ -502,17 +502,39 @@ async def gestionar_posiciones_activas(connection, balance: float):
         
         # 1. SI ES UNA NUEVA POSICIÓN: Registrar e informar de APERTURA
         if ticket not in POSICIONES_ACTIVAS:
+            tp_original = pos.get('takeProfit', 0.0)
+            parcial_ya_tomado = False
+            
+            # Autocuración: Si no tiene TP, intentar recuperarlo de Firebase
+            if tp_original == 0.0:
+                try:
+                    async with httpx.AsyncClient() as client:
+                        r = await client.get(f"{FASTAPI_URL}/api/get_trade_tp/{ticket}", timeout=5)
+                        if r.status_code == 200:
+                            res_data = r.json()
+                            if res_data.get("status") == "success":
+                                if res_data.get("tp", 0.0) > 0.0:
+                                    tp_original = res_data["tp"]
+                                    print(f"| AUTOCURACIÓN | Ticket {ticket} sin TP detectado. Restaurando TP original: {tp_original}")
+                                    try:
+                                        await connection.modify_position(ticket, stop_loss=pos.get('stopLoss', 0.0), take_profit=tp_original)
+                                    except Exception as modify_err:
+                                        print(f"| AUTOCURACIÓN ERROR | No se pudo inyectar TP en MT5: {modify_err}")
+                                parcial_ya_tomado = res_data.get("parcial_tomado", False)
+                except Exception as auto_e:
+                    print(f"| AUTOCURACIÓN WARN | Fallo al buscar TP en Firebase: {auto_e}")
+            
             POSICIONES_ACTIVAS[ticket] = {
                 "volume": pos.get('volume', 0.0),
                 "symbol": pos.get('symbol', ''),
                 "type": pos.get('type', ''),
                 "price_open": pos.get('openPrice', 0.0),
-                "tp": pos.get('takeProfit', 0.0),
+                "tp": tp_original,
                 "sl": pos.get('stopLoss', 0.0),
-                "parcial_tomado": False
+                "parcial_tomado": parcial_ya_tomado
             }
             print(f"| SEGUIMIENTO | Nueva posición detectada. Ticket: {ticket} | Lote: {pos.get('volume')}")
-            await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), pos.get('takeProfit', 0.0))
+            await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original)
             
         activo = next((act for act in ACTIVOS if MAPEO_BROKER.get(act) == pos.get('symbol')), None)
         if not activo:

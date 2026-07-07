@@ -2763,6 +2763,46 @@ def api_open_trades():
                 
     return {"status": "success", "open_tickets": open_tickets}
 
+@app.get("/api/get_trade_tp/{ticket}")
+def get_trade_tp(ticket: str):
+    """
+    Busca en mia_audit_logs el log original del ticket para devolver su take_profit original
+    y si ya tiene registrado un cierre parcial en Firebase.
+    """
+    if not firebase_inicializado or db is None:
+        return {"status": "error", "message": "Firebase no inicializado"}
+    try:
+        doc = db.collection("mia_audit_logs").document(str(ticket)).get()
+        tp = 0.0
+        if doc.exists:
+            data = doc.to_dict()
+            tp = data.get("take_profit", data.get("tp", 0.0))
+            
+        if not tp:
+            # Buscar en trading_alerts si no está en mia_audit_logs
+            alerts = db.collection("trading_alerts").where("ticket", "==", int(ticket)).limit(1).stream()
+            for a in alerts:
+                tp = a.to_dict().get("take_profit", 0.0)
+                
+        # Buscar si ya se tomó un parcial (si existe un documento que empiece por PARCIAL_{ticket} o un log con accion CIERRE_PARCIAL)
+        parcial_tomado = False
+        if GLOBAL_AUDIT_LOGS:
+            for l in GLOBAL_AUDIT_LOGS:
+                if str(l.get("ticket")) == str(ticket) and l.get("accion") == "CIERRE_PARCIAL":
+                    parcial_tomado = True
+                    break
+        
+        # Fallback de búsqueda directa en Firestore si no está en caché
+        if not parcial_tomado:
+            p_doc = db.collection("mia_audit_logs").document(f"PARCIAL_{ticket}").get()
+            if p_doc.exists:
+                parcial_tomado = True
+                
+        return {"status": "success", "tp": float(tp), "parcial_tomado": parcial_tomado}
+    except Exception as e:
+        print(f"| API ERROR | Fallo al buscar TP para ticket {ticket}: {e}")
+    return {"status": "error", "tp": 0.0, "parcial_tomado": False}
+
 @app.get("/api/export_audit_csv")
 def export_audit_csv():
     """
