@@ -2025,14 +2025,14 @@ def test_rss_llm_polling(authorization: Optional[str] = Header(None)):
         print(f"| TEST RSS LLM ERROR | {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-
 class MetaApiExecution(BaseModel):
     activo: str
     ticket: str
     accion: str = ""
     score: float
     precio_ejecucion: float
+    stop_loss: Optional[float] = 0.0
+    take_profit: Optional[float] = 0.0
     ejecutada_mt5: bool = True
     motivo: str = "Cumple parámetros de matriz técnica y de riesgo"
 
@@ -2068,7 +2068,7 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         with open(log_path, "a", encoding="utf-8") as f:
-            f.write(f"[{fecha}] TICKET: {ejecucion.ticket} | ACTIVO: {ejecucion.activo} | SCORE: {ejecucion.score}% | PRECIO: {ejecucion.precio_ejecucion}\\n")
+            f.write(f"[{fecha}] TICKET: {ejecucion.ticket} | ACTIVO: {ejecucion.activo} | SCORE: {ejecucion.score}% | PRECIO: {ejecucion.precio_ejecucion}\n")
             
         # Enriquecer log con detalles de confirmaciones de la matriz
         activas = [k.replace("_", " ").upper() for k, v in data.get("confirmaciones_tecnicas", {}).items() if isinstance(v, bool) and v]
@@ -2091,6 +2091,10 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
             "accion": ejecucion.accion,
             "score": ejecucion.score,
             "precio_ejecucion": ejecucion.precio_ejecucion,
+            "stop_loss": ejecucion.stop_loss,
+            "take_profit": ejecucion.take_profit,
+            "tp": ejecucion.take_profit,
+            "sl": ejecucion.stop_loss,
             "fecha": fecha,
             "timestamp": datetime.now().isoformat(),
             "detalle_setup": detalle_str

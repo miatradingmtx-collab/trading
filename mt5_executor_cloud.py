@@ -718,6 +718,8 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
                 "accion": accion.upper(),
                 "score": 100.0,
                 "precio_ejecucion": precio_ejecucion,
+                "stop_loss": float(sl),
+                "take_profit": float(tp),
                 "ejecutada_mt5": True,
                 "motivo": "Ejecutada por Escáner Cloud"
             }
