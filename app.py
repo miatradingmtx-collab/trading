@@ -960,6 +960,61 @@ def recalcular_memoria_colectiva():
         print(f"| KB MIA ERROR | Error recalculando memoria colectiva: {e}")
         registrar_error_sistema("Mia KB (Collective)", str(e))
 
+def determinar_tipo_salida_ticket(ticket: str):
+    """
+    Stored Procedure de análisis: Determina el tipo exacto de salida de un ticket
+    agrupando todos los logs históricos asociados en Firebase.
+    """
+    if not ticket or str(ticket) == "0" or str(ticket) == "None":
+        return "DESCONOCIDO"
+        
+    global GLOBAL_AUDIT_LOGS
+    t_logs = []
+    if GLOBAL_AUDIT_LOGS:
+        t_logs = [l for l in GLOBAL_AUDIT_LOGS if str(l.get("ticket")) == str(ticket)]
+        
+    if not t_logs:
+        return "DESCONOCIDO"
+        
+    acciones = [str(l.get("accion", "")).upper() for l in t_logs]
+    pnls = [float(l.get("pnl", 0.0)) for l in t_logs]
+    comentarios = [str(l.get("estrategia", "")).upper() for l in t_logs]
+    
+    has_cierre_total = "CIERRE_TOTAL" in acciones
+    has_cierre_parcial = "CIERRE_PARCIAL" in acciones or any("PARCIAL" in c for c in comentarios)
+    
+    if not has_cierre_total:
+        return "ABIERTO"
+        
+    if has_cierre_parcial:
+        cierre_total_log = next((l for l in t_logs if str(l.get("accion")).upper() == "CIERRE_TOTAL"), None)
+        if cierre_total_log:
+            pnl_cierre = float(cierre_total_log.get("pnl", 0.0))
+            if abs(pnl_cierre) <= 1.5:
+                return "PARCIAL_BE"
+            else:
+                return "PARCIAL_MANUAL"
+        else:
+            return "PARCIAL_BE"
+    else:
+        cierre_total_log = next((l for l in t_logs if str(l.get("accion")).upper() == "CIERRE_TOTAL"), None)
+        if cierre_total_log:
+            ct_comentario = str(cierre_total_log.get("estrategia", "")).upper()
+            pnl_cierre = float(cierre_total_log.get("pnl", 0.0))
+            
+            if pnl_cierre < 0:
+                return "SL_ORIGINAL"
+            elif "DESAPARICION" in ct_comentario or "MANUAL" in ct_comentario:
+                return "MANUAL_DIRECTO"
+            else:
+                return "TP_COMPLETO"
+        else:
+            pnl_final = sum(pnls)
+            if pnl_final < 0:
+                return "SL_ORIGINAL"
+            else:
+                return "TP_COMPLETO"
+
 def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
     """
     Stored Procedure (SP): Actualiza la base de conocimiento (mia_kb) leyendo las 
@@ -1077,23 +1132,49 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                         "win_rate": 0.0,
                         "pnl_generado": 0.0,
                         "tickets_ganadores": [],
-                        "tickets_perdedores": []
+                        "tickets_perdedores": [],
+                        "cierres_tp_completo": 0,
+                        "cierres_sl_original": 0,
+                        "cierres_parcial_be": 0,
+                        "cierres_parcial_manual": 0,
+                        "cierres_manual_directo": 0
                     }
                     
                 pat_data["ocurrencias"] = pat_data.get("ocurrencias", 0) + 1
+                
+                # Clasificar tipo de cierre para el patrón
+                tipo_salida = determinar_tipo_salida_ticket(ticket)
+                pat_data["cierres_tp_completo"] = pat_data.get("cierres_tp_completo", 0)
+                pat_data["cierres_sl_original"] = pat_data.get("cierres_sl_original", 0)
+                pat_data["cierres_parcial_be"] = pat_data.get("cierres_parcial_be", 0)
+                pat_data["cierres_parcial_manual"] = pat_data.get("cierres_parcial_manual", 0)
+                pat_data["cierres_manual_directo"] = pat_data.get("cierres_manual_directo", 0)
+                
+                if tipo_salida == "TP_COMPLETO":
+                    pat_data["cierres_tp_completo"] += 1
+                elif tipo_salida == "SL_ORIGINAL":
+                    pat_data["cierres_sl_original"] += 1
+                elif tipo_salida == "PARCIAL_BE":
+                    pat_data["cierres_parcial_be"] += 1
+                elif tipo_salida == "PARCIAL_MANUAL":
+                    pat_data["cierres_parcial_manual"] += 1
+                elif tipo_salida == "MANUAL_DIRECTO":
+                    pat_data["cierres_manual_directo"] += 1
                 
                 if es_ganado:
                     pat_data["ganados"] = pat_data.get("ganados", 0) + 1
                     if ticket:
                         ganadores_arr = pat_data.get("tickets_ganadores", [])
-                        ganadores_arr.append(str(ticket))
-                        pat_data["tickets_ganadores"] = ganadores_arr
+                        if str(ticket) not in ganadores_arr:
+                            ganadores_arr.append(str(ticket))
+                            pat_data["tickets_ganadores"] = ganadores_arr
                 else:
                     pat_data["perdidos"] = pat_data.get("perdidos", 0) + 1
                     if ticket:
                         perdidos_arr = pat_data.get("tickets_perdedores", [])
-                        perdidos_arr.append(str(ticket))
-                        pat_data["tickets_perdedores"] = perdidos_arr
+                        if str(ticket) not in perdidos_arr:
+                            perdidos_arr.append(str(ticket))
+                            pat_data["tickets_perdedores"] = perdidos_arr
                         
                 pat_data["pnl_generado"] = pat_data.get("pnl_generado", 0.0) + pnl
                 if pat_data["ocurrencias"] > 0:
