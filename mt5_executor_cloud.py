@@ -486,48 +486,47 @@ async def gestionar_posiciones_activas(connection, balance: float):
 
     tickets_actuales = set()
     
-    for pos in positions:
+    for p in positions:
+        pos = p if isinstance(p, dict) else getattr(p, '__dict__', {})
+        
         # pos fields: id, symbol, type, openPrice, currentPrice, volume, stopLoss, takeProfit, profit, swap, commission, magic
-        client_id = getattr(pos, 'clientId', '')
-        magic = getattr(pos, 'magic', 0)
+        client_id = pos.get('clientId', '')
+        magic = pos.get('magic', 0)
         
         # Validar si es una operación de Mia (por Magic Number o Client ID)
         if magic != 20260616 and not (isinstance(client_id, str) and client_id.startswith('L_')):
             continue
 
-        ticket = pos.id
-        ticket = pos.id
-        tickets_actuales.add(str(ticket))
+        ticket = str(pos.get('id', ''))
+        tickets_actuales.add(ticket)
         
         # 1. SI ES UNA NUEVA POSICIÓN: Registrar e informar de APERTURA
         if ticket not in POSICIONES_ACTIVAS:
             POSICIONES_ACTIVAS[ticket] = {
-                "volume": pos.volume,
-                "symbol": pos.symbol,
-                "type": pos.type,
-                "price_open": pos.openPrice,
-                "tp": pos.takeProfit or 0.0,
-                "sl": pos.stopLoss or 0.0,
+                "volume": pos.get('volume', 0.0),
+                "symbol": pos.get('symbol', ''),
+                "type": pos.get('type', ''),
+                "price_open": pos.get('openPrice', 0.0),
+                "tp": pos.get('takeProfit', 0.0),
+                "sl": pos.get('stopLoss', 0.0),
                 "parcial_tomado": False
             }
-            print(f"| SEGUIMIENTO | Nueva posición detectada. Ticket: {ticket} | Lote: {pos.volume}")
-            await reportar_evento_trade(pos.symbol, ticket, pos.type, "APERTURA", pos.openPrice, pos.stopLoss or 0.0, pos.takeProfit or 0.0)
+            print(f"| SEGUIMIENTO | Nueva posición detectada. Ticket: {ticket} | Lote: {pos.get('volume')}")
+            await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), pos.get('takeProfit', 0.0))
             
-        activo = next((act for act in ACTIVOS if MAPEO_BROKER.get(act) == pos.symbol), None)
+        activo = next((act for act in ACTIVOS if MAPEO_BROKER.get(act) == pos.get('symbol')), None)
         if not activo:
             continue
-
             
-        entry_price = pos.openPrice
-        current_price = pos.currentPrice
-        tp = pos.takeProfit or 0.0
-        sl = pos.stopLoss or 0.0
-        volume = pos.volume
-        profit_flotante = float(getattr(pos, 'profit', getattr(pos, 'unrealizedProfit', 0.0)))
+        entry_price = pos.get('openPrice', 0.0)
+        current_price = pos.get('currentPrice', 0.0)
+        tp = pos.get('takeProfit', 0.0)
+        sl = pos.get('stopLoss', 0.0)
+        volume = pos.get('volume', 0.0)
         
-        profit_flotante = float(getattr(pos, 'profit', getattr(pos, 'unrealizedProfit', 0.0)))
+        profit_flotante = float(pos.get('profit', pos.get('unrealizedProfit', 0.0)))
             
-        es_buy = pos.type == 'POSITION_TYPE_BUY'
+        es_buy = str(pos.get('type')) in ['POSITION_TYPE_BUY', '0']
         
         # A. Tomar Parciales al 50% de la distancia al Take Profit
         alcanzo_mitad_tp = False
@@ -554,7 +553,7 @@ async def gestionar_posiciones_activas(connection, balance: float):
                     
                     await asyncio.sleep(1)
                     # Mover Stop Loss a Break Even + pequeño buffer
-                    buffer_be = 0.0001 if not pos.symbol.endswith("JPY") and "XAU" not in pos.symbol else 0.01
+                    buffer_be = 0.0001 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.01
                     nuevo_sl = entry_price + buffer_be if es_buy else entry_price - buffer_be
                     try:
                         await connection.modify_position(ticket, stop_loss=nuevo_sl)
@@ -567,7 +566,7 @@ async def gestionar_posiciones_activas(connection, balance: float):
                     if not es_buy:
                         pnl_parcial = -pnl_parcial
                     
-                    await reportar_evento_trade(pos.symbol, ticket, pos.type, "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado 50% al alcanzar mitad del TP")
+                    await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado 50% al alcanzar mitad del TP")
                 except Exception as e:
                     print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial para ticket {ticket}: {e}")
                     
