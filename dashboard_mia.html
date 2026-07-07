@@ -320,7 +320,7 @@
                     <div class="kpi-card orange">
                         <div class="kpi-card-title">Parciales Tomados</div>
                         <div class="kpi-card-value" id="kpi-parciales">0</div>
-                        <div class="kpi-card-sub">Asegurando TP1 / 80%</div>
+                        <div class="kpi-card-sub" id="kpi-parciales-sub">BE: 0 | Cierre Manual: 0</div>
                     </div>
                 </div>
 
@@ -859,10 +859,21 @@
                     if (d.kpis) {
                         const kpis = d.kpis;
                         $el('kpi-winrate').innerText = kpis.win_rate ? kpis.win_rate + '%' : '0%';
+                        
+                        const tpCount = kpis.total_tp || 0;
+                        const slCount = kpis.total_sl || 0;
+                        const actCount = d.operaciones_activas ? d.operaciones_activas.length : 0;
+                        $el('kpi-winrate-sub').innerText = `TP: ${tpCount} | SL: ${slCount} | Activos: ${actCount}`;
+                        
                         $el('kpi-trades').innerText = kpis.total_trades || '0';
                         $el('kpi-patron').innerText = kpis.patron_estrella || '-';
                         $el('kpi-patron-wr').innerText = "Win Rate: " + (kpis.patron_estrella_wr || '0') + "%";
+                        
                         $el('kpi-parciales').innerText = kpis.parciales_tomados || '0';
+                        
+                        const beCount = kpis.total_be || 0;
+                        const manCount = (kpis.total_manual_parcial || 0) + (kpis.total_manual_directo || 0);
+                        $el('kpi-parciales-sub').innerText = `BE: ${beCount} | Cierre Manual: ${manCount}`;
                     }
                     
                     // History view KPI population (mock mapping for the new layout IDs)

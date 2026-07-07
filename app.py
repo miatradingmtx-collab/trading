@@ -2584,10 +2584,66 @@ def api_dashboard_data():
 
         data["rendimiento_activos"] = activos_stats
 
-        # Calcular KPIs dinámicos
+        # Calcular KPIs dinámicos con clasificación de cierres por ticket
+        from collections import defaultdict
+        logs_por_ticket = defaultdict(list)
+        if GLOBAL_AUDIT_LOGS:
+            for l in GLOBAL_AUDIT_LOGS:
+                t = str(l.get("ticket", ""))
+                if t and t != "0" and t != "None":
+                    logs_por_ticket[t].append(l)
+
+        total_tp = 0
+        total_sl = 0
+        total_be = 0
+        total_manual_parcial = 0
+        total_manual_directo = 0
+        
+        for t, t_logs in logs_por_ticket.items():
+            acciones = [str(l.get("accion", "")).upper() for l in t_logs]
+            pnls = [float(l.get("pnl", 0.0)) for l in t_logs]
+            comentarios = [str(l.get("estrategia", "")).upper() for l in t_logs]
+            
+            has_cierre_total = "CIERRE_TOTAL" in acciones
+            has_cierre_parcial = "CIERRE_PARCIAL" in acciones or any("PARCIAL" in c for c in comentarios)
+            
+            if not has_cierre_total:
+                continue
+                
+            if has_cierre_parcial:
+                cierre_total_log = next((l for l in t_logs if str(l.get("accion")).upper() == "CIERRE_TOTAL"), None)
+                if cierre_total_log:
+                    pnl_cierre = float(cierre_total_log.get("pnl", 0.0))
+                    # Si el PnL del cierre final es cercano a 0 (BE), lo contamos como BE
+                    if abs(pnl_cierre) <= 1.5:
+                        total_be += 1
+                    else:
+                        total_manual_parcial += 1
+                else:
+                    total_be += 1
+            else:
+                cierre_total_log = next((l for l in t_logs if str(l.get("accion")).upper() == "CIERRE_TOTAL"), None)
+                if cierre_total_log:
+                    ct_comentario = str(cierre_total_log.get("estrategia", "")).upper()
+                    pnl_cierre = float(cierre_total_log.get("pnl", 0.0))
+                    
+                    if pnl_cierre < 0:
+                        total_sl += 1
+                    elif "DESAPARICION" in ct_comentario or "MANUAL" in ct_comentario:
+                        total_manual_directo += 1
+                    else:
+                        total_tp += 1
+                else:
+                    pnl_final = sum(pnls)
+                    if pnl_final < 0:
+                        total_sl += 1
+                    else:
+                        total_tp += 1
+
         ganados = len([l for l in todos_los_logs if l.get("pnl", 0) > 0])
         total_cerrados = len(todos_los_logs)
         win_rate = round((ganados / total_cerrados * 100), 2) if total_cerrados > 0 else 0
+        
         # Identificar los verdaderos trades ejecutados (no EVALs)
         verdaderos_trades = [t for t in todas_las_entradas if t.get("ejecutada_mt5") == True or t.get("accion") in ["COMPRA", "VENTA", "CIERRE_PARCIAL", "CIERRE_TOTAL"] or "Ejecutada por Escáner Cloud" in str(t.get("detalle_setup", ""))]
         total_trades = len(verdaderos_trades) + total_cerrados
@@ -2599,7 +2655,12 @@ def api_dashboard_data():
             "total_trades": total_trades,
             "patron_estrella": m.get("patron_estrella_ict_smc", "-"),
             "patron_estrella_wr": m.get("patron_estrella_win_rate", 0),
-            "parciales_tomados": parciales_tomados
+            "parciales_tomados": parciales_tomados,
+            "total_tp": total_tp,
+            "total_sl": total_sl,
+            "total_be": total_be,
+            "total_manual_parcial": total_manual_parcial,
+            "total_manual_directo": total_manual_directo
         }
         
         # 2. trading_matrix (Scores en vivo)
