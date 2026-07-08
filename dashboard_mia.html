@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mia AI - Institutional Dashboard Completo</title>
+    <title>Mia AI - Panel Institucional Completo</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
@@ -242,19 +242,19 @@
             <div class="brand-logo"><i class="fa-solid fa-robot"></i></div>
             <div class="brand-text">
                 <h2>Mia AI</h2>
-                <span>Institutional Dashboard</span>
+                <span>Panel Institucional</span>
             </div>
         </div>
         <div class="nav-menu">
-            <a class="nav-item active" onclick="switchView('dashboard', this)"><i class="fa-solid fa-border-all"></i> Dashboard</a>
-            <a class="nav-item" onclick="switchView('assets', this)"><i class="fa-solid fa-chart-line"></i> Assets</a>
-            <a class="nav-item" onclick="switchView('strategies', this)"><i class="fa-solid fa-chess-knight"></i> Strategies</a>
-            <a class="nav-item" onclick="switchView('history', this)"><i class="fa-solid fa-clock-rotate-left"></i> History</a>
-            <a class="nav-item" onclick="switchView('settings', this)"><i class="fa-solid fa-gear"></i> Settings</a>
+            <a class="nav-item active" onclick="switchView('dashboard', this)"><i class="fa-solid fa-border-all"></i> Panel Central</a>
+            <a class="nav-item" onclick="switchView('assets', this)"><i class="fa-solid fa-chart-line"></i> Activos</a>
+            <a class="nav-item" onclick="switchView('strategies', this)"><i class="fa-solid fa-chess-knight"></i> Estrategias</a>
+            <a class="nav-item" onclick="switchView('history', this)"><i class="fa-solid fa-clock-rotate-left"></i> Historial</a>
+            <a class="nav-item" onclick="switchView('settings', this)"><i class="fa-solid fa-gear"></i> Configuración</a>
         </div>
         <div class="sidebar-bottom">
-            <a href="#" class="nav-item"><i class="fa-regular fa-circle-question"></i> Support</a>
-            <a href="#" class="nav-item danger"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out</a>
+            <a href="#" class="nav-item"><i class="fa-regular fa-circle-question"></i> Soporte</a>
+            <a href="#" class="nav-item danger"><i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar Sesión</a>
         </div>
     </div>
 
@@ -263,19 +263,19 @@
         <!-- GLOBAL HEADER -->
         <div class="header">
             <div class="header-title">
-                <h1 id="header-view-title"><span>Mia AI</span> — Dashboard</h1>
+                <h1 id="header-view-title"><span>Mia AI</span> — Panel Central</h1>
             </div>
             <div class="header-actions">
                 <div class="status-pill">
                     <div class="dot"></div>
-                    <span id="system-status">Market Status: Scanning</span>
+                    <span id="system-status">Estado del Mercado: Escaneando</span>
                 </div>
                 <div style="font-size: 11px; color: var(--text-muted); display:flex; flex-direction:column; align-items:flex-end;">
-                    <span>Live Feed</span>
-                    <span class="text-green">System Health</span>
+                    <span>Feed en Vivo</span>
+                    <span class="text-green">Salud del Sistema</span>
                 </div>
-                <button class="header-btn primary">Account Summary</button>
-                <a href="/api/export_audit_csv" target="_blank" class="header-btn">Download CSV</a>
+                <button class="header-btn primary">Resumen de Cuenta</button>
+                <a href="/api/export_audit_csv" target="_blank" class="header-btn">Descargar CSV</a>
                 <div class="header-icons">
                     <i class="fa-regular fa-bell"></i>
                     <i class="fa-solid fa-gear"></i>
@@ -305,12 +305,12 @@
                     <div class="kpi-card blue">
                         <div class="kpi-card-title">Win Rate Global</div>
                         <div class="kpi-card-value text-blue" id="kpi-winrate">0%</div>
-                        <div class="kpi-card-sub" id="kpi-winrate-sub">Esperando trades...</div>
+                        <div class="kpi-card-sub" id="kpi-winrate-sub">Esperando operaciones...</div>
                     </div>
                     <div class="kpi-card purple">
                         <div class="kpi-card-title">Trades Ejecutados</div>
                         <div class="kpi-card-value" id="kpi-trades">0</div>
-                        <div class="kpi-card-sub">Totales en sistema</div>
+                        <div class="kpi-card-sub">Totales en el sistema</div>
                     </div>
                     <div class="kpi-card pink">
                         <div class="kpi-card-title">Patrón Estrella</div>
@@ -342,10 +342,10 @@
             <!-- ============================== -->
             <div id="view-assets" class="view-section">
                 <div class="assets-grid-top">
-                    <!-- Portfolio Allocation -->
+                    <!-- Distribución de Portafolio -->
                     <div class="card">
-                        <div class="card-title" style="display:flex; justify-content:space-between;">Portfolio Allocation <i class="fa-solid fa-chart-pie"></i></div>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top:-10px; margin-bottom:20px;">Asset Class Distribution</div>
+                        <div class="card-title" style="display:flex; justify-content:space-between;">Distribución de Portafolio <i class="fa-solid fa-chart-pie"></i></div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:-10px; margin-bottom:20px;">Clasificación de Activos</div>
                         <div class="donut-container">
                             <svg viewBox="0 0 100 100" width="160" height="160">
                                 <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--neon-green)" stroke-width="8" stroke-dasharray="150 251" />
@@ -354,7 +354,7 @@
                             </svg>
                             <div class="donut-hole">
                                 <h3 id="portfolio-value">$4.2M</h3>
-                                <span>Total Value</span>
+                                <span>Valor Total</span>
                             </div>
                         </div>
                         <div style="display:flex; justify-content:space-around; margin-top:10px; font-size:12px; font-weight:600;">
@@ -364,10 +364,10 @@
                         </div>
                     </div>
 
-                    <!-- Asset Exposure -->
+                    <!-- Exposición de Activos -->
                     <div class="card">
-                        <div class="card-title" style="display:flex; justify-content:space-between;">Asset Exposure <i class="fa-solid fa-expand"></i></div>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top:-10px; margin-bottom:20px;">Weighted Risk by Liquidity</div>
+                        <div class="card-title" style="display:flex; justify-content:space-between;">Exposición de Activos <i class="fa-solid fa-expand"></i></div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:-10px; margin-bottom:20px;">Riesgo Ponderado por Liquidez</div>
                         <div class="treemap">
                             <div class="tm-box" style="grid-row: span 2; background: rgba(0,255,157,0.1); border-color: rgba(0,255,157,0.3);">
                                 <h4>BTC</h4>
@@ -392,33 +392,33 @@
 
                     <!-- Order Terminal (Right) -->
                     <div class="terminal-panel">
-                        <div class="terminal-header"><i class="fa-solid fa-bolt"></i> ORDER TERMINAL</div>
+                        <div class="terminal-header"><i class="fa-solid fa-bolt"></i> TERMINAL DE ÓRDENES</div>
                         <div style="display:flex; gap:10px; margin-bottom:20px;">
-                            <button class="btn-green" style="flex:1; padding:10px;">Buy</button>
-                            <button class="btn-red" style="flex:1; padding:10px;">Sell</button>
+                            <button class="btn-green" style="flex:1; padding:10px;">Comprar</button>
+                            <button class="btn-red" style="flex:1; padding:10px;">Vender</button>
                         </div>
                         <div class="order-form">
-                            <label>Asset Pair</label>
+                            <label>Par de Activos</label>
                             <select><option>BTCUSD</option><option>EURUSD</option></select>
                             
-                            <label>Execution Type</label>
+                            <label>Tipo de Ejecución</label>
                             <select><option>Market</option><option>Limit</option></select>
                             
-                            <label>Amount (USD)</label>
+                            <label>Monto (USD)</label>
                             <input type="text" value="$10,000.00">
                             
                             <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); margin-bottom:4px;">
-                                <span>EST. FEE</span><span>$12.50</span>
+                                <span>COMISIÓN EST.</span><span>$12.50</span>
                             </div>
                             <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted);">
-                                <span>SLIPPAGE</span><span class="text-green">< 0.01%</span>
+                                <span>DESLIZAMIENTO</span><span class="text-green">< 0.01%</span>
                             </div>
                             
-                            <button class="btn-execute">Execute Trade</button>
+                            <button class="btn-execute">Ejecutar Trade</button>
                         </div>
                         
                         <div class="live-signals">
-                            <span style="color:var(--text-muted); font-weight:bold; margin-top:10px; font-size:10px; border-bottom:1px solid var(--border-color); padding-bottom:4px;">LIVE SIGNALS</span>
+                            <span style="color:var(--text-muted); font-weight:bold; margin-top:10px; font-size:10px; border-bottom:1px solid var(--border-color); padding-bottom:4px;">SEÑALES EN VIVO</span>
                             <div><span class="text-green">[14:22:01] BUY</span> BTC/USD Signal @ $64.3k</div>
                             <div><span class="text-red">[14:21:45] SELL</span> EUR/USD Order Filled</div>
                             <div><span class="text-blue">[14:20:12] INFO</span> Liquidity pool rebalanced</div>
@@ -429,12 +429,12 @@
                 <!-- Watchlist -->
                 <div class="card">
                     <div class="strat-header-tabs" style="margin-bottom:16px;">
-                        <span class="strat-tab active">Watchlist</span>
-                        <span class="strat-tab">Active Positions</span>
-                        <span class="strat-tab">Global Markets</span>
+                        <span class="strat-tab active">Lista de Seguimiento</span>
+                        <span class="strat-tab">Posiciones Activas</span>
+                        <span class="strat-tab">Mercados Globales</span>
                     </div>
                     <table class="styled-table">
-                        <thead><tr><th>Asset / Pair</th><th>Price</th><th>24H Change</th><th>Vol Index</th><th>Market Cap</th><th>Action</th></tr></thead>
+                        <thead><tr><th>Activo / Par</th><th>Precio</th><th>Cambio 24H</th><th>Índice Vol</th><th>Cap. Mercado</th><th>Acción</th></tr></thead>
                         <tbody>
                             <tr>
                                 <td><div style="display:flex; align-items:center; gap:10px;"><div style="width:24px;height:24px;background:#1a2b22;color:var(--neon-green);border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:bold;">B</div> <div><strong>BTCUSD</strong><br><span style="font-size:10px;color:var(--text-muted);">Bitcoin/US Dollar</span></div></div></td>
@@ -442,7 +442,7 @@
                                 <td class="text-green">+4.25%</td>
                                 <td>72.4 <div style="width:50px;height:2px;background:var(--neon-green);margin-top:4px;"></div></td>
                                 <td>$1.26T</td>
-                                <td><button class="btn-green">Trade</button></td>
+                                <td><button class="btn-green">Operar</button></td>
                             </tr>
                             <tr>
                                 <td><div style="display:flex; align-items:center; gap:10px;"><div style="width:24px;height:24px;background:#2a2510;color:var(--neon-yellow);border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:bold;">G</div> <div><strong>XAUUSD</strong><br><span style="font-size:10px;color:var(--text-muted);">Gold/US Dollar</span></div></div></td>
@@ -450,7 +450,7 @@
                                 <td class="text-red">-0.12%</td>
                                 <td>14.8 <div style="width:20px;height:2px;background:var(--neon-yellow);margin-top:4px;"></div></td>
                                 <td>$14.5T</td>
-                                <td><button class="btn-green">Trade</button></td>
+                                <td><button class="btn-green">Operar</button></td>
                             </tr>
                             <tr>
                                 <td><div style="display:flex; align-items:center; gap:10px;"><div style="width:24px;height:24px;background:#102230;color:var(--neon-blue);border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:bold;">E</div> <div><strong>EURUSD</strong><br><span style="font-size:10px;color:var(--text-muted);">Euro/US Dollar</span></div></div></td>
@@ -458,7 +458,7 @@
                                 <td class="text-green">+0.05%</td>
                                 <td>8.2 <div style="width:10px;height:2px;background:var(--neon-blue);margin-top:4px;"></div></td>
                                 <td>Liquid</td>
-                                <td><button class="btn-green">Trade</button></td>
+                                <td><button class="btn-green">Operar</button></td>
                             </tr>
                         </tbody>
                     </table>
@@ -471,14 +471,14 @@
             <div id="view-strategies" class="view-section">
                 <div class="strat-header-tabs">
                     <span class="strat-tab active">Strategies</span>
-                    <span class="strat-tab">Active Desk</span>
-                    <span class="strat-tab">Optimization Queue</span>
-                    <span class="strat-tab">System Health <i class="fa-solid fa-circle text-green" style="font-size:8px; margin-left:4px;"></i></span>
+                    <span class="strat-tab">Escritorio Activo</span>
+                    <span class="strat-tab">Cola de Optimización</span>
+                    <span class="strat-tab">Salud del Sistema <i class="fa-solid fa-circle text-green" style="font-size:8px; margin-left:4px;"></i></span>
                 </div>
 
                 <div class="strat-grid">
                     <div>
-                        <div class="card-title">Deployed Algos <span style="font-size:10px; text-transform:none; font-weight:normal; display:block; margin-top:4px;">Managing 12 active institutional strategies</span></div>
+                        <div class="card-title">Algoritmos Desplegados <span style="font-size:10px; text-transform:none; font-weight:normal; display:block; margin-top:4px;">Gestionando 12 estrategias institucionales activas</span></div>
                         <div class="algo-cards">
                             <!-- Algo 1 -->
                             <div class="algo-card" style="border-top: 2px solid var(--neon-green);">
@@ -531,37 +531,37 @@
                             <!-- New -->
                             <div class="algo-card" style="display:flex; flex-direction:column; align-items:center; justify-content:center; border: 1px dashed rgba(255,255,255,0.2); cursor:pointer;">
                                 <i class="fa-solid fa-circle-plus" style="font-size:24px; color:var(--text-muted); margin-bottom:12px;"></i>
-                                <h4 style="color:var(--text-main);">New Strategy</h4>
+                                <h4 style="color:var(--text-main);">Nueva Estrategia</h4>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Wizard Engine -->
+                    <!-- Motor Wizard -->
                     <div class="wizard-engine">
-                        <div class="wizard-title">Wizard Engine</div>
-                        <div class="wizard-step">Step 1: Core Parameters</div>
+                        <div class="wizard-title">Motor Wizard</div>
+                        <div class="wizard-step">Paso 1: Parámetros Centrales</div>
                         
                         <div class="form-group">
-                            <label>Strategy Name</label>
+                            <label>Nombre de Estrategia</label>
                             <input type="text" placeholder="e.g. Quantum Momentum">
                         </div>
                         <div class="form-group">
-                            <label>Model Architecture</label>
+                            <label>Arquitectura del Modelo</label>
                             <select style="width:100%; padding:12px; background:rgba(0,0,0,0.2); border:1px solid var(--border-color); color:var(--text-main); border-radius:6px; margin-bottom:16px;"><option>XGBoost Regressor</option></select>
                         </div>
                         <div style="display:flex; gap:12px;">
-                            <div class="form-group" style="flex:1;"><label>Base Asset</label><input type="text" value="BTC/USDT"></div>
-                            <div class="form-group" style="flex:1;"><label>Timeframe</label><input type="text" value="15m"></div>
+                            <div class="form-group" style="flex:1;"><label>Activo Base</label><input type="text" value="BTC/USDT"></div>
+                            <div class="form-group" style="flex:1;"><label>Temporalidad</label><input type="text" value="15m"></div>
                         </div>
                         <div class="form-group">
-                            <label>Risk Limit (%)</label>
+                            <label>Límite de Riesgo (%)</label>
                             <input type="range" style="width:100%; margin: 10px 0;">
-                            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted);"><span>Conservative (0.5%)</span><span>Aggressive (5.0%)</span></div>
+                            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted);"><span>Conservador (0.5%)</span><span>Agresivo (5.0%)</span></div>
                         </div>
                         
                         <div style="display:flex; gap:12px; margin-top:30px;">
-                            <button class="header-btn" style="flex:1;">Discard</button>
-                            <button class="btn-execute" style="flex:1; margin:0; background:var(--neon-blue);">Run Simulation</button>
+                            <button class="header-btn" style="flex:1;">Descartar</button>
+                            <button class="btn-execute" style="flex:1; margin:0; background:var(--neon-blue);">Ejecutar Simulación</button>
                         </div>
                     </div>
                 </div>
@@ -570,13 +570,13 @@
                 <div class="card" style="margin-top:24px;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
                         <div>
-                            <div class="card-title" style="margin:0; font-size:16px; color:var(--text-main);">Backtesting Results</div>
+                            <div class="card-title" style="margin:0; font-size:16px; color:var(--text-main);">Resultados de Backtesting</div>
                             <div style="font-size:11px; color:var(--text-muted);">Simulation Engine v4.2 | 100,000 iterations</div>
                         </div>
                         <div style="display:flex; gap:20px; align-items:center;">
-                            <div style="text-align:right;"><span style="font-size:10px; color:var(--text-muted);">Expectancy</span><br><strong class="text-green">+0.42R</strong></div>
+                            <div style="text-align:right;"><span style="font-size:10px; color:var(--text-muted);">Esperanza Matemática</span><br><strong class="text-green">+0.42R</strong></div>
                             <div style="text-align:right;"><span style="font-size:10px; color:var(--text-muted);">Kelly Criterion</span><br><strong class="text-blue">0.18</strong></div>
-                            <button class="btn-green" style="padding:8px 16px;"><i class="fa-solid fa-play"></i> Deploy to Live</button>
+                            <button class="btn-green" style="padding:8px 16px;"><i class="fa-solid fa-play"></i> Desplegar en Vivo</button>
                         </div>
                     </div>
                     
@@ -590,9 +590,9 @@
                             </svg>
                         </div>
                         <div>
-                            <h4 style="font-size:10px; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px;">Performance Metrics</h4>
-                            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-color); padding:8px 0; font-size:12px;"><span>Total Trades</span><strong>1,248</strong></div>
-                            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-color); padding:8px 0; font-size:12px;"><span>Avg. Profit / Trade</span><strong class="text-green">+$142.50</strong></div>
+                            <h4 style="font-size:10px; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px;">Métricas de Rendimiento</h4>
+                            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-color); padding:8px 0; font-size:12px;"><span>Total de Trades</span><strong>1,248</strong></div>
+                            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-color); padding:8px 0; font-size:12px;"><span>Promedio de Ganancia / Trade</span><strong class="text-green">+$142.50</strong></div>
                             <div style="display:flex; justify-content:space-between; padding:8px 0; font-size:12px;"><span>Z-Score</span><strong>2.14</strong></div>
                         </div>
                     </div>
@@ -605,24 +605,24 @@
             <div id="view-history" class="view-section">
                 <div class="history-kpi-row">
                     <div class="hk-card" style="border-top: 2px solid var(--neon-green);">
-                        <div class="hk-title">Lifetime Profit <i class="fa-solid fa-money-bill-trend-up text-green"></i></div>
+                        <div class="hk-title">Beneficio Histórico <i class="fa-solid fa-money-bill-trend-up text-green"></i></div>
                         <div class="hk-val green">$428,901</div>
-                        <div class="hk-sub"><span class="text-green">↗ +12.4%</span> vs last month</div>
+                        <div class="hk-sub"><span class="text-green">↗ +12.4%</span> vs mes pasado</div>
                     </div>
                     <div class="hk-card" style="border-top: 2px solid var(--neon-blue);">
-                        <div class="hk-title">Total Trades <i class="fa-solid fa-layer-group text-blue"></i></div>
+                        <div class="hk-title">Total de Trades <i class="fa-solid fa-layer-group text-blue"></i></div>
                         <div class="hk-val">12,482</div>
                         <div class="hk-sub">Win Rate: 68.2%</div>
                     </div>
                     <div class="hk-card" style="border-top: 2px solid var(--neon-purple);">
-                        <div class="hk-title">Average Win <i class="fa-solid fa-star text-purple"></i></div>
+                        <div class="hk-title">Promedio de Ganancia <i class="fa-solid fa-star text-purple"></i></div>
                         <div class="hk-val">$1,244</div>
-                        <div class="hk-sub">Median trade duration: 14m</div>
+                        <div class="hk-sub">Duración mediana: 14m</div>
                     </div>
                     <div class="hk-card">
-                        <div class="hk-title">System Pulse</div>
+                        <div class="hk-title">Pulso del Sistema</div>
                         <div style="flex:1; display:flex; align-items:center;">
-                            <div class="status-pill" style="border:none; padding:0;"><div class="dot"></div> Live Audit Streaming</div>
+                            <div class="status-pill" style="border:none; padding:0;"><div class="dot"></div> Streaming de Auditoría en Vivo</div>
                         </div>
                     </div>
                 </div>
@@ -631,17 +631,17 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                         <div style="background:rgba(255,255,255,0.05); padding:8px 12px; border-radius:6px; display:flex; align-items:center; gap:8px; width:300px;">
                             <i class="fa-solid fa-magnifying-glass text-muted"></i>
-                            <input type="text" placeholder="Search ticket ID, asset..." style="background:none; border:none; color:var(--text-main); width:100%; outline:none; font-size:13px;">
+                            <input type="text" placeholder="Buscar ID de ticket, activo..." style="background:none; border:none; color:var(--text-main); width:100%; outline:none; font-size:13px;">
                         </div>
                         <div style="display:flex; gap:12px; align-items:center;">
-                            <button class="header-btn"><i class="fa-solid fa-filter"></i> Filters</button>
+                            <button class="header-btn"><i class="fa-solid fa-filter"></i> Filtros</button>
                             <div style="background:rgba(255,255,255,0.05); border-radius:6px; padding:2px; display:flex;">
                                 <button class="header-btn" style="border:none; background:var(--neon-green); color:var(--bg-dark); padding:4px 10px;">1D</button>
                                 <button class="header-btn" style="border:none; padding:4px 10px;">1W</button>
                                 <button class="header-btn" style="border:none; padding:4px 10px;">1M</button>
-                                <button class="header-btn" style="border:none; padding:4px 10px;">ALL</button>
+                                <button class="header-btn" style="border:none; padding:4px 10px;">TODO</button>
                             </div>
-                            <button class="btn-green" style="padding:8px 16px;"><i class="fa-solid fa-download"></i> EXPORT AUDIT LOG</button>
+                            <button class="btn-green" style="padding:8px 16px;"><i class="fa-solid fa-download"></i> EXPORTAR LOG DE AUDITORÍA</button>
                         </div>
                     </div>
 
@@ -649,13 +649,13 @@
                         <thead>
                             <tr>
                                 <th>Ticket ID</th>
-                                <th>Timestamp</th>
-                                <th>Asset</th>
+                                <th>Fecha/Hora</th>
+                                <th>Activo</th>
                                 <th>Dir</th>
-                                <th>Entry</th>
-                                <th>Exit</th>
+                                <th>Entrada</th>
+                                <th>Salida</th>
                                 <th>PNL ($)</th>
-                                <th>Status</th>
+                                <th>Motivo / Estado</th>
                             </tr>
                         </thead>
                         <tbody id="history-tbody">
@@ -877,7 +877,38 @@
                     }
                     
                     // History view KPI population (mock mapping for the new layout IDs)
-                    // If we had IDs for them. Right now they are hardcoded in the new layout.
+                    if (d.recent_logs && d.recent_logs.length > 0) {
+                        const tbody = document.getElementById('history-tbody');
+                        if (tbody) {
+                            tbody.innerHTML = '';
+                            d.recent_logs.forEach(log => {
+                                const tr = document.createElement('tr');
+                                const isExecuted = log.ejecutada_mt5 !== false;
+                                const actionColor = log.accion === 'BUY' ? 'btn-green' : 'btn-red';
+                                const pnlColor = (log.pnl || 0) >= 0 ? 'text-green' : 'text-red';
+                                const pnlFormatted = (log.pnl || 0) >= 0 ? '+' + (log.pnl||0).toFixed(2) : (log.pnl||0).toFixed(2);
+                                
+                                let statusHtml = '';
+                                if (isExecuted) {
+                                    statusHtml = '<i class=\"fa-solid fa-circle-check text-green\" title=\"Ejecutado\"></i> ' + (log.motivo || 'Ejecutado');
+                                } else {
+                                    statusHtml = '<i class=\"fa-solid fa-circle-xmark text-red\" title=\"Rechazado\"></i> ' + (log.motivo || 'No Ejecutado');
+                                }
+                                
+                                tr.innerHTML = `
+                                    <td style=\"color:var(--text-muted);\">${log.ticket || 'EVAL'}</td>
+                                    <td>${log.fecha || log.timestamp}</td>
+                                    <td><span style=\"background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:6px;\">${(log.activo || 'UNK').substring(0,3)}</span>${log.activo || 'UNK'}</td>
+                                    <td><span class=\"${actionColor}\" style=\"padding:2px 6px;\">${log.accion || 'EVAL'}</span></td>
+                                    <td>${log.precio_ejecucion || 'N/A'}</td>
+                                    <td>${log.tp || 'N/A'}</td>
+                                    <td class=\"${pnlColor} font-weight-bold\">${pnlFormatted}</td>
+                                    <td style=\"font-size: 11px;\">${statusHtml}</td>
+                                `;
+                                tbody.appendChild(tr);
+                            });
+                        }
+                    }
                 }
             } catch (error) {
                 console.error("Error cargando dashboard:", error);
@@ -906,7 +937,7 @@
                     layout: { textColor: '#8b949e', background: { type: 'solid', color: 'transparent' } },
                     grid: { vertLines: { color: 'rgba(255, 255, 255, 0.03)' }, horzLines: { color: 'rgba(255, 255, 255, 0.03)' } },
                     crosshair: { mode: 0 },
-                    rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                    rightPrecioScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
                     timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true }
                 };
                 
