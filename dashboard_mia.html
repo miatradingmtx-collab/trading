@@ -1029,8 +1029,8 @@
                     <td>${log.fecha || log.timestamp}</td>
                     <td><span style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:6px;">${(log.activo || 'UNK').substring(0,3)}</span>${log.activo || 'UNK'}</td>
                     <td><span class="${actionColor}" style="padding:2px 6px;">${log.accion || 'EVAL'}</span></td>
-                    <td>${log.precio_ejecucion || 'N/A'}</td>
-                    <td>${log.tp || 'N/A'}</td>
+                    <td>${log.precio_ejecucion || log.precio || 'N/A'}</td>
+                    <td>${log.precio_cierre || log.take_profit || log.tp || 'N/A'}</td>
                     <td class="${pnlColor} font-weight-bold">${pnlFormatted}</td>
                     <td style="font-size: 11px;">${statusHtml}</td>
                 `;

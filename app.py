@@ -491,6 +491,23 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
         
         # Guardar en mia_audit_logs con el Ticket como ID (Para el Dashboard y KB)
         if alert.ticket:
+            # FIX: Si viene como UNKNOWN (p. ej. desde mt5_executor_cloud por cierre de desaparición), 
+            # recuperar los datos reales de la base de datos ANTES de sobrescribir
+            if alert.activo == "UNKNOWN" or alert.pnl == 0.0:
+                try:
+                    existente_doc = db.collection("mia_audit_logs").document(str(alert.ticket)).get()
+                    if existente_doc.exists:
+                        exist_data = existente_doc.to_dict()
+                        if alert.activo == "UNKNOWN":
+                            alert.activo = exist_data.get("activo", "UNKNOWN")
+                        if alert.pnl == 0.0 and exist_data.get("pnl", 0.0) != 0.0:
+                            alert.pnl = exist_data.get("pnl", 0.0)
+                        # También restauramos precios para que no queden en 0
+                        if alert.precio == 0.0:
+                            alert.precio = exist_data.get("precio_ejecucion", exist_data.get("precio", 0.0))
+                except Exception as e:
+                    print(f"| FIREBASE | Error recuperando doc previo para {alert.ticket}: {e}")
+
             now_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-6)))
             utc_hour = datetime.datetime.utcnow().hour
             fecha_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
