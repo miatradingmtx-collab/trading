@@ -594,6 +594,18 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 
             detalle_str = f"{alert.activo} | {fecha_str} | {sesion} | {alert.estrategia} | EVALUANDO SETUP | SCORE: {score}% | POC: {poc_price:.5f} | EJECUTADA EN MT5: NO | MOTIVO: {motivo}"
             
+            # Determinar si es apertura de trade o cierre
+            es_cierre = alert.accion in ["CIERRE_TOTAL", "CIERRE_PARCIAL"]
+            
+            if es_cierre:
+                pnl_val = alert.pnl if alert.pnl else 0.0
+                motivo_final = f"Cerrado en MT5 | PNL: ${pnl_val:.2f}" if alert.ticket else motivo
+                ejecutada_flag = True  # El cierre confirma que el trade SI existio en MT5
+            else:
+                # Es apertura COMPRA/VENTA
+                motivo_final = "Ejecutada y Activa en Broker" if alert.ticket else motivo
+                ejecutada_flag = True if alert.ticket else False
+            
             audit_ref = db.collection("mia_audit_logs").document(str(alert.ticket))
             audit_data = {
                 "ticket": str(alert.ticket),
@@ -606,8 +618,8 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 "fecha": fecha_str,
                 "score": score,
                 "poc_price": poc_price,
-                "ejecutada_mt5": True if alert.ticket else False,
-                "motivo": "Ejecutada y Activa en Broker" if alert.ticket else motivo,
+                "ejecutada_mt5": ejecutada_flag,
+                "motivo": motivo_final,
                 "detalle_setup": detalle_str
             }
             # Usamos merge=True para no sobreescribir el precio y score si ya fue guardado por la apertura
