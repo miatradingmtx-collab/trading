@@ -126,68 +126,82 @@ except Exception as e:
 # Si un activo nuevo llega via webhook o se detecta en el broker y NO existe
 # en la matriz de Firebase, esta función lo crea automáticamente con el esquema
 # completo del modelo de inteligencia financiera de Mia.
+#
+# OPTIMIZACIÓN DE TOKENS FIREBASE:
+# - Usa el set ACTIVOS_INICIALIZADOS en RAM como primera barrera.
+# - Si el activo ya está en el set → 0 lecturas a Firestore (costo $0).
+# - Solo lee/escribe Firebase si el activo es genuinamente nuevo.
 # ==============================================================================
 def auto_inicializar_activo(activo: str) -> bool:
     """Inicializa un activo nuevo en la trading_matrix con el esquema completo de Mia si no existe."""
-    global firebase_inicializado, db
+    global firebase_inicializado, db, ACTIVOS_INICIALIZADOS
     if not firebase_inicializado or db is None:
         return False
     activo_norm = normalizar_activo(activo)
+    
+    # 🔑 BARRERA DE RAM: Si ya está en caché, no gastamos ni un token de Firebase
+    if activo_norm in ACTIVOS_INICIALIZADOS:
+        return False
+    
     try:
         doc_ref = db.collection("trading_matrix").document(activo_norm)
-        doc = doc_ref.get()
-        if not doc.exists:
-            # Determinar parámetros financieros por tipo de activo
-            precio_ref = 1.0
-            if activo_norm in ["XAUUSD"]:
-                precio_ref = 2300.0
-            elif activo_norm in ["GBPJPY", "USDJPY", "EURJPY", "CHFJPY", "CADJPY", "AUDJPY", "NZDJPY"]:
-                precio_ref = 170.0
-            elif activo_norm in ["BTC", "ETH"]:
-                precio_ref = 60000.0
-            elif activo_norm in ["NAS100", "SPX500", "US30"]:
-                precio_ref = 18000.0
+        doc = doc_ref.get()  # Solo se ejecuta si NO está en el caché RAM
+        if doc.exists:
+            # Ya existía en Firebase pero no estaba en RAM → agregar al caché
+            ACTIVOS_INICIALIZADOS.add(activo_norm)
+            return False
+        
+        # Es genuinamente nuevo: crear con el esquema completo de Mia
+        precio_ref = 1.0
+        if activo_norm in ["XAUUSD"]:
+            precio_ref = 2300.0
+        elif activo_norm in ["GBPJPY", "USDJPY", "EURJPY", "CHFJPY", "CADJPY", "AUDJPY", "NZDJPY"]:
+            precio_ref = 170.0
+        elif activo_norm in ["BTC", "ETH"]:
+            precio_ref = 60000.0
+        elif activo_norm in ["NAS100", "SPX500", "US30"]:
+            precio_ref = 18000.0
 
-            esquema_activo = {
-                "activo": activo_norm,
-                "estado_ejecucion": "INACTIVO",
-                "ultimo_update": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                "score_porcentaje": 0.0,
-                "gatillo_entrada": False,
-                "precio_referencia": precio_ref,
-                "confirmaciones_tecnicas": {
-                    "soporte_resistencia_activo": False,
-                    "ema_50_200_crossover": False,
-                    "rsi_sobrecompra_sobreventa": False,
-                    "medias_moviles_alineadas": False,
-                    "poc_price": False,
-                    "smc_codes": []
-                },
-                "confirmaciones_fundamentales": {
-                    "noticias_impacto_favorables": False,
-                    "ipo_liquidez_positiva": False,
-                    "spo_liquidez_positiva": False
-                },
-                "confirmaciones_institucionales": {
-                    "dark_pools_amortizado": True,
-                    "dark_pools_url_valid": False,
-                    "whales_perdieron_fuerza": False,
-                    "heatmap_ordenes_limite": False
-                },
-                "aprendizaje_mia": {
-                    "modo_aprendiz_activo": True,
-                    "trades_totales": 0,
-                    "trades_ganados": 0,
-                    "win_rate_historico": 50.0,
-                    "racha_actual": 0,
-                    "sentimiento_alcista": False,
-                    "factor_ajuste_probabilidad": 0.0
-                }
+        esquema_activo = {
+            "activo": activo_norm,
+            "estado_ejecucion": "INACTIVO",
+            "ultimo_update": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "score_porcentaje": 0.0,
+            "gatillo_entrada": False,
+            "precio_referencia": precio_ref,
+            "confirmaciones_tecnicas": {
+                "soporte_resistencia_activo": False,
+                "ema_50_200_crossover": False,
+                "rsi_sobrecompra_sobreventa": False,
+                "medias_moviles_alineadas": False,
+                "poc_price": False,
+                "smc_codes": []
+            },
+            "confirmaciones_fundamentales": {
+                "noticias_impacto_favorables": False,
+                "ipo_liquidez_positiva": False,
+                "spo_liquidez_positiva": False
+            },
+            "confirmaciones_institucionales": {
+                "dark_pools_amortizado": True,
+                "dark_pools_url_valid": False,
+                "whales_perdieron_fuerza": False,
+                "heatmap_ordenes_limite": False
+            },
+            "aprendizaje_mia": {
+                "modo_aprendiz_activo": True,
+                "trades_totales": 0,
+                "trades_ganados": 0,
+                "win_rate_historico": 50.0,
+                "racha_actual": 0,
+                "sentimiento_alcista": False,
+                "factor_ajuste_probabilidad": 0.0
             }
-            doc_ref.set(esquema_activo)
-            print(f"| FIREBASE AUTO-VIP | ✔ Nuevo activo '{activo_norm}' detectado y matriculado automáticamente con esquema completo de Mia.")
-            return True
-        return False  # Ya existia
+        }
+        doc_ref.set(esquema_activo)
+        ACTIVOS_INICIALIZADOS.add(activo_norm)  # Agregar al caché RAM inmediatamente
+        print(f"| FIREBASE AUTO-VIP | ✔ Nuevo activo '{activo_norm}' matriculado automáticamente con esquema Mia completo.")
+        return True
     except Exception as e:
         print(f"| FIREBASE AUTO-VIP ERROR | No se pudo inicializar '{activo}': {e}")
         return False
@@ -206,14 +220,29 @@ async def startup_event():
     if firebase_inicializado and db is not None:
         try:
             # Lista de activos a validar
-            # Lista VIP de activos base — se agregan activos nuevos automáticamente
-            activos_vip = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD", "SPX500", "NAS100", "US30", "USDJPY", "USDCAD", "EURGBP", "GBPCAD", "CHFJPY", "USDCHF", "EURJPY"]
-            coleccion_ref = db.collection("trading_matrix")
+            # Lista VIP base (pares del broker)
+            activos_vip = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD",
+                           "SPX500", "NAS100", "US30", "USDJPY", "USDCAD", "EURGBP",
+                           "GBPCAD", "CHFJPY", "USDCHF", "EURJPY"]
             
-            print("| FIREBASE | Verificando inicialización de la matriz de activos VIP...")
-            for activo in activos_vip:
-                auto_inicializar_activo(activo)
-            print("| FIREBASE | Verificación de matriz VIP completada.")
+            print("| FIREBASE VIP | Cargando activos ya existentes en Firebase (1 sola lectura batch)...")
+            
+            # 1 SOLA LECTURA BATCH: lee toda la colección de una vez
+            docs_existentes = db.collection("trading_matrix").stream()
+            for doc in docs_existentes:
+                ACTIVOS_INICIALIZADOS.add(doc.id)  # Poblar caché RAM con los que ya existen
+            
+            print(f"| FIREBASE VIP | {len(ACTIVOS_INICIALIZADOS)} activos ya cargados en caché RAM: {sorted(ACTIVOS_INICIALIZADOS)}")
+            
+            # Solo inicializar los que NO estén ya en Firebase
+            nuevos = [a for a in activos_vip if a not in ACTIVOS_INICIALIZADOS]
+            if nuevos:
+                print(f"| FIREBASE VIP | Inicializando {len(nuevos)} activos VIP nuevos: {nuevos}")
+                for activo in nuevos:
+                    auto_inicializar_activo(activo)
+            else:
+                print("| FIREBASE VIP | Todos los activos VIP ya están matriculados. Sin lecturas adicionales.")
+            print("| FIREBASE VIP | ✔ Verificación de matriz VIP completada.")
         except Exception as e:
             print(f"| FIREBASE ERROR | Falló la auto-inicialización en startup: {e}")
             
@@ -2506,6 +2535,9 @@ GLOBAL_MATRICES = None
 GLOBAL_MIA_COLLECTIVE = None
 GLOBAL_INDICADORES = None
 ULTIMO_FETCH_FIREBASE = None
+# Caché RAM de activos ya matriculados en Firebase. Evita lecturas repetidas a Firestore.
+# Se llena en startup y se actualiza cuando se detecta un activo nuevo.
+ACTIVOS_INICIALIZADOS: set = set()
 
 def asegurar_cache_firebase():
     global firebase_inicializado, db
