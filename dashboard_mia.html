@@ -140,6 +140,8 @@
         .btn-green { background: rgba(0,255,157,0.1); color: var(--neon-green); border: 1px solid rgba(0,255,157,0.3); padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-green:hover { background: rgba(0,255,157,0.2); }
         .btn-red { background: rgba(255,77,77,0.1); color: var(--danger); border: 1px solid rgba(255,77,77,0.3); padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
+        .btn-orange { background: rgba(255,152,0,0.1); color: #ff9800; border: 1px solid rgba(255,152,0,0.3); padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
+
 
         .text-green { color: var(--neon-green); }
         .text-blue { color: var(--neon-blue); }
@@ -1027,14 +1029,20 @@
                 const isClosure = accion === 'CIERRE_TOTAL' || accion === 'CIERRE_PARCIAL';
                 const isEval = !accion || (log.ticket || '').toString().startsWith('EVAL');
                 
-                // Badge color: green for BUY/COMPRA, red for SELL/VENTA/CIERRE, gray for EVAL
-                let actionColor = 'btn-green';
-                if (accion === 'VENTA' || accion === 'SELL' || isClosure) actionColor = 'btn-red';
-                if (isEval) actionColor = '';
-                
-                // Badge label
-                let accionLabel = log.accion || 'EVAL';
-                if (isClosure) accionLabel = '🔒 CIERRE';
+                 // Badge color: green for BUY/COMPRA, red for SELL/VENTA, orange for partial closures, red/dark-red for total closures
+                 let actionColor = 'btn-green';
+                 if (accion === 'VENTA' || accion === 'SELL') actionColor = 'btn-red';
+                 if (accion === 'CIERRE_PARCIAL') actionColor = 'btn-orange'; // Naranja para denotar parcial activo
+                 if (accion === 'CIERRE_TOTAL') actionColor = 'btn-red';
+                 if (isEval) actionColor = '';
+                 
+                 // Badge label
+                 let accionLabel = log.accion || 'EVAL';
+                 if (accion === 'CIERRE_PARCIAL') {
+                     accionLabel = '🔒 PARCIAL (ACTIVO)';
+                 } else if (accion === 'CIERRE_TOTAL') {
+                     accionLabel = '🔒 CIERRE TOTAL';
+                 }
                 
                 const pnl = parseFloat(log.pnl) || 0;
                 const pnlColor = pnl >= 0 ? 'text-green' : 'text-red';
