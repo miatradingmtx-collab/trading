@@ -939,9 +939,8 @@
 
         const dateFilterEl = document.getElementById('history-date-filter');
         if (dateFilterEl) {
-            // Set today's date by default
-            const todayStr = new Date().toISOString().split('T')[0];
-            dateFilterEl.value = todayStr;
+            // Leave date filter empty by default to prevent timezone mismatch hiding recent logs
+            dateFilterEl.value = '';
             dateFilterEl.addEventListener('change', renderHistoryTable);
         }
 
@@ -995,9 +994,14 @@
 
             // Filter by Tab
             if (currentHistoryTab === 'executed') {
-                logs = logs.filter(l => l.ejecutada_mt5 !== false);
+                // Show all real broker trades (opened and closed)
+                logs = logs.filter(l => {
+                    const acc = (l.accion || '').toUpperCase();
+                    return acc === 'COMPRA' || acc === 'VENTA' || acc === 'CIERRE_TOTAL' || acc === 'CIERRE_PARCIAL';
+                });
             } else {
-                logs = logs.filter(l => l.ejecutada_mt5 === false);
+                // Show EVAL entries (evaluated by Mia but not executed in MT5)
+                logs = logs.filter(l => l.ejecutada_mt5 === false || (l.ticket || '').toString().startsWith('EVAL'));
             }
             
             // Render Table
@@ -1012,25 +1016,44 @@
             
             logs.slice(0, 50).forEach(log => {
                 const tr = document.createElement('tr');
-                const isExecuted = log.ejecutada_mt5 !== false;
-                const actionColor = log.accion === 'BUY' ? 'btn-green' : 'btn-red';
-                const pnlColor = (log.pnl || 0) >= 0 ? 'text-green' : 'text-red';
-                const pnlFormatted = (log.pnl || 0) >= 0 ? '+' + (log.pnl||0).toFixed(2) : (log.pnl||0).toFixed(2);
+                const accion = (log.accion || '').toUpperCase();
+                const isClosure = accion === 'CIERRE_TOTAL' || accion === 'CIERRE_PARCIAL';
+                const isEval = !accion || (log.ticket || '').toString().startsWith('EVAL');
+                
+                // Badge color: green for BUY/COMPRA, red for SELL/VENTA/CIERRE, gray for EVAL
+                let actionColor = 'btn-green';
+                if (accion === 'VENTA' || accion === 'SELL' || isClosure) actionColor = 'btn-red';
+                if (isEval) actionColor = '';
+                
+                // Badge label
+                let accionLabel = log.accion || 'EVAL';
+                if (isClosure) accionLabel = '🔒 CIERRE';
+                
+                const pnl = parseFloat(log.pnl) || 0;
+                const pnlColor = pnl >= 0 ? 'text-green' : 'text-red';
+                const pnlFormatted = pnl >= 0 ? '+' + pnl.toFixed(2) : pnl.toFixed(2);
+                const isExecuted = accion === 'COMPRA' || accion === 'VENTA' || isClosure;
                 
                 let statusHtml = '';
                 if (isExecuted) {
-                    statusHtml = '<i class="fa-solid fa-circle-check text-green" title="Ejecutado"></i> ' + (log.motivo || 'Ejecutado');
+                    statusHtml = '<i class="fa-solid fa-circle-check text-green" title="Ejecutado"></i> ' + (log.motivo || 'Ejecutado en MT5');
+                } else if (isEval) {
+                    const evalScore = log.score || log.score_porcentaje || 0;
+                    statusHtml = '<i class="fa-solid fa-brain" style="color:#a78bfa" title="EVAL"></i> SCORE: ' + evalScore + '% | ' + (log.motivo || 'En evaluación');
                 } else {
                     statusHtml = '<i class="fa-solid fa-circle-xmark text-red" title="Rechazado"></i> ' + (log.motivo || 'No Ejecutado');
                 }
                 
+                const entrada = log.precio_ejecucion || log.precio || '—';
+                const salida = log.precio_cierre || log.take_profit || log.tp || '—';
+                
                 tr.innerHTML = `
-                    <td style="color:var(--text-muted);">${log.ticket || 'EVAL'}</td>
-                    <td>${log.fecha || log.timestamp}</td>
-                    <td><span style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:6px;">${(log.activo || 'UNK').substring(0,3)}</span>${log.activo || 'UNK'}</td>
-                    <td><span class="${actionColor}" style="padding:2px 6px;">${log.accion || 'EVAL'}</span></td>
-                    <td>${log.precio_ejecucion || log.precio || 'N/A'}</td>
-                    <td>${log.precio_cierre || log.take_profit || log.tp || 'N/A'}</td>
+                    <td style="color:var(--text-muted); font-family:monospace">#${log.ticket || 'EVAL'}</td>
+                    <td>${log.fecha || (log.timestamp || '').substring(0,19)}</td>
+                    <td><span style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:6px;">${(log.activo || 'UNK').substring(0,6)}</span>${log.activo || 'UNK'}</td>
+                    <td><span class="${actionColor}" style="padding:2px 6px; font-size:11px;">${accionLabel}</span></td>
+                    <td>${entrada}</td>
+                    <td>${salida}</td>
                     <td class="${pnlColor} font-weight-bold">${pnlFormatted}</td>
                     <td style="font-size: 11px;">${statusHtml}</td>
                 `;

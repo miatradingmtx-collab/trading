@@ -121,6 +121,77 @@ try:
 except Exception as e:
     print(f"| FIREBASE ERROR | Falló la inicialización de Firebase: {e}")
 
+# ==============================================================================
+# AUTO-INICIALIZADOR VIP DE ACTIVOS
+# Si un activo nuevo llega via webhook o se detecta en el broker y NO existe
+# en la matriz de Firebase, esta función lo crea automáticamente con el esquema
+# completo del modelo de inteligencia financiera de Mia.
+# ==============================================================================
+def auto_inicializar_activo(activo: str) -> bool:
+    """Inicializa un activo nuevo en la trading_matrix con el esquema completo de Mia si no existe."""
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        return False
+    activo_norm = normalizar_activo(activo)
+    try:
+        doc_ref = db.collection("trading_matrix").document(activo_norm)
+        doc = doc_ref.get()
+        if not doc.exists:
+            # Determinar parámetros financieros por tipo de activo
+            precio_ref = 1.0
+            if activo_norm in ["XAUUSD"]:
+                precio_ref = 2300.0
+            elif activo_norm in ["GBPJPY", "USDJPY", "EURJPY", "CHFJPY", "CADJPY", "AUDJPY", "NZDJPY"]:
+                precio_ref = 170.0
+            elif activo_norm in ["BTC", "ETH"]:
+                precio_ref = 60000.0
+            elif activo_norm in ["NAS100", "SPX500", "US30"]:
+                precio_ref = 18000.0
+
+            esquema_activo = {
+                "activo": activo_norm,
+                "estado_ejecucion": "INACTIVO",
+                "ultimo_update": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "score_porcentaje": 0.0,
+                "gatillo_entrada": False,
+                "precio_referencia": precio_ref,
+                "confirmaciones_tecnicas": {
+                    "soporte_resistencia_activo": False,
+                    "ema_50_200_crossover": False,
+                    "rsi_sobrecompra_sobreventa": False,
+                    "medias_moviles_alineadas": False,
+                    "poc_price": False,
+                    "smc_codes": []
+                },
+                "confirmaciones_fundamentales": {
+                    "noticias_impacto_favorables": False,
+                    "ipo_liquidez_positiva": False,
+                    "spo_liquidez_positiva": False
+                },
+                "confirmaciones_institucionales": {
+                    "dark_pools_amortizado": True,
+                    "dark_pools_url_valid": False,
+                    "whales_perdieron_fuerza": False,
+                    "heatmap_ordenes_limite": False
+                },
+                "aprendizaje_mia": {
+                    "modo_aprendiz_activo": True,
+                    "trades_totales": 0,
+                    "trades_ganados": 0,
+                    "win_rate_historico": 50.0,
+                    "racha_actual": 0,
+                    "sentimiento_alcista": False,
+                    "factor_ajuste_probabilidad": 0.0
+                }
+            }
+            doc_ref.set(esquema_activo)
+            print(f"| FIREBASE AUTO-VIP | ✔ Nuevo activo '{activo_norm}' detectado y matriculado automáticamente con esquema completo de Mia.")
+            return True
+        return False  # Ya existia
+    except Exception as e:
+        print(f"| FIREBASE AUTO-VIP ERROR | No se pudo inicializar '{activo}': {e}")
+        return False
+
 # Inicialización de la aplicación FastAPI (El estándar moderno de Web Services)
 app = FastAPI(
     title="Trading Automation Bridge",
@@ -135,55 +206,14 @@ async def startup_event():
     if firebase_inicializado and db is not None:
         try:
             # Lista de activos a validar
-            activos = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD", "SPX500", "NAS100", "US30"]
+            # Lista VIP de activos base — se agregan activos nuevos automáticamente
+            activos_vip = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD", "SPX500", "NAS100", "US30", "USDJPY", "USDCAD", "EURGBP", "GBPCAD", "CHFJPY", "USDCHF", "EURJPY"]
             coleccion_ref = db.collection("trading_matrix")
             
-            print("| FIREBASE | Verificando inicialización de la matriz de activos...")
-            for activo in activos:
-                doc_ref = coleccion_ref.document(activo)
-                doc = doc_ref.get()
-                if not doc.exists:
-                    # Crear el esquema booleano inicial si el documento no existe
-                    esquema_activo = {
-                        "activo": activo,
-                        "estado_ejecucion": "INACTIVO",
-                        "ultimo_update": datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat(),
-                        "score_porcentaje": 0.0,
-                        "gatillo_entrada": False,
-                        
-                        "confirmaciones_tecnicas": {
-                            "soporte_resistencia_activo": False,
-                            "ema_50_200_crossover": False,
-                            "rsi_sobrecompra_sobreventa": False,
-                            "smc_codes": []
-                        },
-                        
-                        "confirmaciones_fundamentales": {
-                            "noticias_impacto_favorables": False,
-                            "ipo_liquidez_positiva": False,
-                            "spo_liquidez_positiva": False
-                        },
-                        
-                        "confirmaciones_institucionales": {
-                            "dark_pools_amortizado": True,
-                            "dark_pools_url_valid": False,
-                            "whales_perdieron_fuerza": False,
-                            "heatmap_ordenes_limite": False
-                        },
-                        
-                        "aprendizaje_mia": {
-                            "modo_aprendiz_activo": True,
-                            "trades_totales": 0,
-                            "trades_ganados": 0,
-                            "win_rate_historico": 50.0,
-                            "racha_actual": 0,
-                            "sentimiento_alcista": False,
-                            "factor_ajuste_probabilidad": 0.0
-                        }
-                    }
-                    doc_ref.set(esquema_activo)
-                    print(f"| FIREBASE | ✔ Activo '{activo}' inicializado en Firestore.")
-            print("| FIREBASE | Verificación de matriz completada.")
+            print("| FIREBASE | Verificando inicialización de la matriz de activos VIP...")
+            for activo in activos_vip:
+                auto_inicializar_activo(activo)
+            print("| FIREBASE | Verificación de matriz VIP completada.")
         except Exception as e:
             print(f"| FIREBASE ERROR | Falló la auto-inicialización en startup: {e}")
             
@@ -1249,6 +1279,10 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     print(f"ALERTA RECIBIDA DE TRADINGVIEW: {alert.accion} en {alert.activo}")
     print(f"Precio Alerta: {alert.precio} | Estrategia: {alert.estrategia}")
     print(f"========================================================")
+    
+    # AUTO-VIP: Si el activo no está en la matriz, lo registramos automáticamente con el esquema completo
+    if alert.activo and alert.activo != "UNKNOWN":
+        auto_inicializar_activo(alert.activo)
     
     # 0. Lógica de Horarios (Forex cerrado en fin de semana, Crypto 24/7)
     es_cripto_activo = alert.es_crypto or alert.activo.startswith("BTC") or alert.activo.startswith("ETH") or "USD" not in alert.activo and alert.activo != "XAUUSD"
