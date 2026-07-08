@@ -634,17 +634,23 @@
                             <input type="text" placeholder="Buscar ID de ticket, activo..." style="background:none; border:none; color:var(--text-main); width:100%; outline:none; font-size:13px;">
                         </div>
                         <div style="display:flex; gap:12px; align-items:center;">
+                            <input type="date" id="history-date-filter" class="header-btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-light); color:var(--text-main); outline:none;">
                             <button class="header-btn"><i class="fa-solid fa-filter"></i> Filtros</button>
-                            <div style="background:rgba(255,255,255,0.05); border-radius:6px; padding:2px; display:flex;">
-                                <button class="header-btn" style="border:none; background:var(--neon-green); color:var(--bg-dark); padding:4px 10px;">1D</button>
+                            <div style="background:rgba(255,255,255,0.05); border-radius:6px; padding:2px; display:flex;" id="history-time-filters">
+                                <button class="header-btn active-time" style="border:none; background:var(--neon-green); color:var(--bg-dark); padding:4px 10px;">1D</button>
                                 <button class="header-btn" style="border:none; padding:4px 10px;">1W</button>
                                 <button class="header-btn" style="border:none; padding:4px 10px;">1M</button>
                                 <button class="header-btn" style="border:none; padding:4px 10px;">TODO</button>
                             </div>
-                            <button class="btn-green" style="padding:8px 16px;"><i class="fa-solid fa-download"></i> EXPORTAR LOG DE AUDITORÍA</button>
+                            <button class="btn-green" style="padding:8px 16px;" onclick="window.open('/api/export_audit_csv', '_blank')"><i class="fa-solid fa-download"></i> EXPORTAR CSV</button>
                         </div>
                     </div>
 
+                    
+                    <div class="strat-header-tabs" style="margin-bottom:16px;">
+                        <span class="strat-tab active" id="tab-executed" onclick="switchHistoryTab('executed')">Trades Ejecutados en Vivo</span>
+                        <span class="strat-tab" id="tab-eval" onclick="switchHistoryTab('eval')">Detalles de Confirmación (EVAL >= 80%)</span>
+                    </div>
                     <table class="styled-table" id="history-table">
                         <thead>
                             <tr>
@@ -877,38 +883,12 @@
                     }
                     
                     // History view KPI population (mock mapping for the new layout IDs)
-                    if (d.recent_logs && d.recent_logs.length > 0) {
-                        const tbody = document.getElementById('history-tbody');
-                        if (tbody) {
-                            tbody.innerHTML = '';
-                            d.recent_logs.forEach(log => {
-                                const tr = document.createElement('tr');
-                                const isExecuted = log.ejecutada_mt5 !== false;
-                                const actionColor = log.accion === 'BUY' ? 'btn-green' : 'btn-red';
-                                const pnlColor = (log.pnl || 0) >= 0 ? 'text-green' : 'text-red';
-                                const pnlFormatted = (log.pnl || 0) >= 0 ? '+' + (log.pnl||0).toFixed(2) : (log.pnl||0).toFixed(2);
-                                
-                                let statusHtml = '';
-                                if (isExecuted) {
-                                    statusHtml = '<i class=\"fa-solid fa-circle-check text-green\" title=\"Ejecutado\"></i> ' + (log.motivo || 'Ejecutado');
-                                } else {
-                                    statusHtml = '<i class=\"fa-solid fa-circle-xmark text-red\" title=\"Rechazado\"></i> ' + (log.motivo || 'No Ejecutado');
-                                }
-                                
-                                tr.innerHTML = `
-                                    <td style=\"color:var(--text-muted);\">${log.ticket || 'EVAL'}</td>
-                                    <td>${log.fecha || log.timestamp}</td>
-                                    <td><span style=\"background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:6px;\">${(log.activo || 'UNK').substring(0,3)}</span>${log.activo || 'UNK'}</td>
-                                    <td><span class=\"${actionColor}\" style=\"padding:2px 6px;\">${log.accion || 'EVAL'}</span></td>
-                                    <td>${log.precio_ejecucion || 'N/A'}</td>
-                                    <td>${log.tp || 'N/A'}</td>
-                                    <td class=\"${pnlColor} font-weight-bold\">${pnlFormatted}</td>
-                                    <td style=\"font-size: 11px;\">${statusHtml}</td>
-                                `;
-                                tbody.appendChild(tr);
-                            });
-                        }
+                    if (d.data && Array.isArray(d.data)) {
+                        window.globalAuditLogs = d.data; // Store globally for filtering
+                    } else if (d.recent_logs) {
+                        window.globalAuditLogs = d.recent_logs;
                     }
+                    if(typeof renderHistoryTable === 'function') renderHistoryTable();
                 }
             } catch (error) {
                 console.error("Error cargando dashboard:", error);
@@ -919,6 +899,99 @@
 
         fetchDashboardData();
         setInterval(fetchDashboardData, 30000);
+
+        
+        // HISTORY TAB & FILTER LOGIC
+        let currentHistoryTab = 'executed';
+        
+        function switchHistoryTab(tab) {
+            currentHistoryTab = tab;
+            document.getElementById('tab-executed').classList.remove('active');
+            document.getElementById('tab-eval').classList.remove('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+            renderHistoryTable();
+        }
+
+        const dateFilterEl = document.getElementById('history-date-filter');
+        if (dateFilterEl) {
+            // Set today's date by default
+            const todayStr = new Date().toISOString().split('T')[0];
+            dateFilterEl.value = todayStr;
+            dateFilterEl.addEventListener('change', renderHistoryTable);
+        }
+
+        function renderHistoryTable() {
+            if (!window.globalAuditLogs) return;
+            
+            const dateFilter = document.getElementById('history-date-filter') ? document.getElementById('history-date-filter').value : '';
+            let logs = window.globalAuditLogs;
+            
+            // Filter by Date if selected
+            if (dateFilter) {
+                logs = logs.filter(l => {
+                    const dStr = l.fecha || l.timestamp;
+                    return dStr && dStr.startsWith(dateFilter);
+                });
+            }
+            
+            // Calculate dynamic KPIs based on executed trades
+            const executedLogsForKpis = logs.filter(l => l.ejecutada_mt5 !== false);
+            const totalTrades = executedLogsForKpis.length;
+            const pnlTotal = executedLogsForKpis.reduce((acc, l) => acc + (parseFloat(l.pnl) || 0), 0);
+            const avgWin = totalTrades > 0 ? (pnlTotal / totalTrades) : 0;
+            
+            const kpiCards = document.querySelectorAll('.history-kpi-row .hk-val');
+            if(kpiCards.length >= 3) {
+                kpiCards[0].innerText = formatMoney(pnlTotal);
+                kpiCards[0].className = 'hk-val ' + (pnlTotal >= 0 ? 'green' : 'text-red');
+                kpiCards[1].innerText = totalTrades;
+                kpiCards[2].innerText = formatMoney(avgWin);
+            }
+            
+            // Filter by Tab
+            if (currentHistoryTab === 'executed') {
+                logs = logs.filter(l => l.ejecutada_mt5 !== false);
+            } else {
+                logs = logs.filter(l => l.ejecutada_mt5 === false);
+            }
+            
+            // Render Table
+            const tbody = document.getElementById('history-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--text-muted);">No hay registros para este filtro</td></tr>';
+                return;
+            }
+            
+            logs.slice(0, 50).forEach(log => {
+                const tr = document.createElement('tr');
+                const isExecuted = log.ejecutada_mt5 !== false;
+                const actionColor = log.accion === 'BUY' ? 'btn-green' : 'btn-red';
+                const pnlColor = (log.pnl || 0) >= 0 ? 'text-green' : 'text-red';
+                const pnlFormatted = (log.pnl || 0) >= 0 ? '+' + (log.pnl||0).toFixed(2) : (log.pnl||0).toFixed(2);
+                
+                let statusHtml = '';
+                if (isExecuted) {
+                    statusHtml = '<i class="fa-solid fa-circle-check text-green" title="Ejecutado"></i> ' + (log.motivo || 'Ejecutado');
+                } else {
+                    statusHtml = '<i class="fa-solid fa-circle-xmark text-red" title="Rechazado"></i> ' + (log.motivo || 'No Ejecutado');
+                }
+                
+                tr.innerHTML = `
+                    <td style="color:var(--text-muted);">${log.ticket || 'EVAL'}</td>
+                    <td>${log.fecha || log.timestamp}</td>
+                    <td><span style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:6px;">${(log.activo || 'UNK').substring(0,3)}</span>${log.activo || 'UNK'}</td>
+                    <td><span class="${actionColor}" style="padding:2px 6px;">${log.accion || 'EVAL'}</span></td>
+                    <td>${log.precio_ejecucion || 'N/A'}</td>
+                    <td>${log.tp || 'N/A'}</td>
+                    <td class="${pnlColor} font-weight-bold">${pnlFormatted}</td>
+                    <td style="font-size: 11px;">${statusHtml}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
 
         // TV CHART LOGIC
         let tvChart = null;
