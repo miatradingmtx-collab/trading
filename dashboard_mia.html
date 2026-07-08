@@ -1028,12 +1028,15 @@
                 const accion = (log.accion || '').toUpperCase();
                 const isClosure = accion === 'CIERRE_TOTAL' || accion === 'CIERRE_PARCIAL';
                 const isEval = !accion || (log.ticket || '').toString().startsWith('EVAL');
+                const pnl = parseFloat(log.pnl) || 0;
                 
-                 // Badge color: green for BUY/COMPRA, red for SELL/VENTA, orange for partial closures, red/dark-red for total closures
+                 // Badge color: green for BUY/COMPRA/GAIN, red for SELL/VENTA/LOSS, orange for partial closures, green/red for total closures based on profit
                  let actionColor = 'btn-green';
                  if (accion === 'VENTA' || accion === 'SELL') actionColor = 'btn-red';
                  if (accion === 'CIERRE_PARCIAL') actionColor = 'btn-orange'; // Naranja para denotar parcial activo
-                 if (accion === 'CIERRE_TOTAL') actionColor = 'btn-red';
+                 if (accion === 'CIERRE_TOTAL') {
+                     actionColor = pnl >= 0 ? 'btn-green' : 'btn-red';
+                 }
                  if (isEval) actionColor = '';
                  
                  // Badge label
@@ -1044,35 +1047,34 @@
                      accionLabel = '🔒 CIERRE TOTAL';
                  }
                 
-                const pnl = parseFloat(log.pnl) || 0;
-                const pnlColor = pnl >= 0 ? 'text-green' : 'text-red';
-                const pnlFormatted = pnl >= 0 ? '+' + pnl.toFixed(2) : pnl.toFixed(2);
-                const isExecuted = accion === 'COMPRA' || accion === 'VENTA' || isClosure;
-                
-                let statusHtml = '';
-                if (isExecuted) {
-                    statusHtml = '<i class="fa-solid fa-circle-check text-green" title="Ejecutado"></i> ' + (log.motivo || 'Ejecutado en MT5');
-                } else if (isEval) {
-                    const evalScore = log.score || log.score_porcentaje || 0;
-                    statusHtml = '<i class="fa-solid fa-brain" style="color:#a78bfa" title="EVAL"></i> SCORE: ' + evalScore + '% | ' + (log.motivo || 'En evaluación');
-                } else {
-                    statusHtml = '<i class="fa-solid fa-circle-xmark text-red" title="Rechazado"></i> ' + (log.motivo || 'No Ejecutado');
-                }
-                
-                const entrada = log.precio_ejecucion || log.precio || '—';
-                const salida = log.precio_cierre || log.take_profit || log.tp || '—';
-                
-                tr.innerHTML = `
-                    <td style="color:var(--text-muted); font-family:monospace">#${log.ticket || 'EVAL'}</td>
-                    <td>${log.fecha || (log.timestamp || '').substring(0,19)}</td>
-                    <td><span style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:6px;">${(log.activo || 'UNK').substring(0,6)}</span>${log.activo || 'UNK'}</td>
-                    <td><span class="${actionColor}" style="padding:2px 6px; font-size:11px;">${accionLabel}</span></td>
-                    <td>${entrada}</td>
-                    <td>${salida}</td>
-                    <td class="${pnlColor} font-weight-bold">${pnlFormatted}</td>
-                    <td style="font-size: 11px;">${statusHtml}</td>
-                `;
-                tbody.appendChild(tr);
+                 const pnlColor = pnl > 0 ? 'text-green' : (pnl < 0 ? 'text-red' : 'text-muted');
+                 const pnlFormatted = pnl > 0 ? '+' + pnl.toFixed(2) : pnl.toFixed(2);
+                 const isExecuted = accion === 'COMPRA' || accion === 'VENTA' || isClosure;
+                 
+                 let statusHtml = '';
+                 if (isExecuted) {
+                     statusHtml = '<i class="fa-solid fa-circle-check text-green" title="Ejecutado"></i> ' + (log.motivo || 'Ejecutado en MT5');
+                 } else if (isEval) {
+                     const evalScore = log.score || log.score_porcentaje || 0;
+                     statusHtml = '<i class="fa-solid fa-brain" style="color:#a78bfa" title="EVAL"></i> SCORE: ' + evalScore + '% | ' + (log.motivo || 'En evaluación');
+                 } else {
+                     statusHtml = '<i class="fa-solid fa-circle-xmark text-red" title="Rechazado"></i> ' + (log.motivo || 'No Ejecutado');
+                 }
+                 
+                 const entrada = log.precio_ejecucion || log.precio || '—';
+                 const salida = log.precio_cierre || log.take_profit || log.tp || '—';
+                 
+                 tr.innerHTML = `
+                     <td style="color:var(--text-muted); font-family:monospace">#${log.ticket || 'EVAL'}</td>
+                     <td>${log.fecha || (log.timestamp || '').substring(0,19)}</td>
+                     <td><span style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:6px;">${(log.activo || 'UNK').substring(0,6)}</span>${log.activo || 'UNK'}</td>
+                     <td><span class="${actionColor}" style="padding:2px 6px; font-size:11px;">${accionLabel}</span></td>
+                     <td>${entrada}</td>
+                     <td>${salida}</td>
+                     <td class="${pnlColor} font-weight-bold">${pnlFormatted}</td>
+                     <td style="font-size: 11px;">${statusHtml}</td>
+                 `;
+                 tbody.appendChild(tr);
             });
         }
 

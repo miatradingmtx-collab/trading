@@ -636,37 +636,109 @@ async def gestionar_posiciones_activas(connection, balance: float):
                 except Exception as e:
                     print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial para ticket {ticket}: {e}")
                     
-        # B. Gestión de Break-Even dinámico relativo a Liquidez Institucional (Opcional, retenemos la lógica de seguridad por si regresa al SL original antes del TP)
-        distancia_tp1 = abs(tp - entry_price) * 0.4
-        rango_tolerancia = distancia_tp1 * 0.15
-        
-        esta_en_zona_entrada = False
-        if tp > 0.0:
-            if es_buy:
-                esta_en_zona_entrada = (current_price <= entry_price + rango_tolerancia) and (sl < entry_price)
-            else:
-                esta_en_zona_entrada = (current_price >= entry_price - rango_tolerancia) and (sl > entry_price or sl == 0.0)
-            
-        if esta_en_zona_entrada:
-            # Consultar base de datos en la nube para volumen institucional (Firestore)
-            matrix = await obtener_matriz_activo(activo)
-            liq_institucional = False
-            if matrix:
-                confirmaciones_inst = matrix.get("confirmaciones_institucionales", {})
-                liq_institucional = confirmaciones_inst.get("dark_pools_compra_masiva", False) or \
-                                    confirmaciones_inst.get("heatmap_ordenes_limite", False)
-                                    
-            if liq_institucional:
-                print(f"| GESTOR BE | {activo} regresando a entrada. Soporte institucional DETECTADO. Manteniendo SL original.")
-            else:
-                print(f"| GESTOR BE | {activo} regresando a entrada sin soporte institucional. Colocando Break-Even.")
-                try:
-                    # Modificar SL a Break-Even
-                    await connection.modify_position(ticket, stop_loss=entry_price, take_profit=tp)
-                    print(f"| GESTOR BE SUCCESS | Ticket {ticket} modificado a Break-Even (SL={entry_price}, TP={tp}).")
-                    POSICIONES_ACTIVAS[ticket]["sl"] = entry_price
-                except Exception as e:
-                    print(f"| GESTOR BE ERROR | No se pudo modificar ticket {ticket} a BE: {e}")
+         # B. Gestión de SL en ganancias para Runners (Trades que ya tomaron parcial del 50% y están en BE)
+         # Si el precio regresa a la zona de entrada pero las condiciones institucionales de H1 siguen siendo favorables,
+         # movemos el SL a zona de ganancia asegurada en vez de salir en BE plano.
+         if POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
+             distancia_tp1 = abs(tp - entry_price) * 0.4
+             rango_tolerancia = distancia_tp1 * 0.25  # Zona amplia de re-test
+             
+             es_jpy = pos.get('symbol', '').endswith("JPY")
+             es_xau = "XAU" in pos.get('symbol', '')
+             buffer_ganancia = 0.0003 if not es_jpy and not es_xau else 0.03
+             
+             # Verificar si el SL ya está en ganancias
+             sl_en_ganancia = (es_buy and sl > entry_price + buffer_ganancia) or (not es_buy and sl < entry_price - buffer_ganancia)
+             
+             if not sl_en_ganancia:
+                 esta_retornando = False
+                 if es_buy:
+                     esta_retornando = (current_price <= entry_price + rango_tolerancia) and (current_price > entry_price)
+                 else:
+                     esta_retornando = (current_price >= entry_price - rango_tolerancia) and (current_price < entry_price)
+                 
+                 if esta_retornando:
+                     # Obtener velas 1H para validar Acción del Precio, RSI y EMAs
+                     df_1h = await obtener_velas_cloud(account, pos.get('symbol'), '1h', 100)
+                     if df_1h is not None and not df_1h.empty:
+                         try:
+                             # Calcular RSI 14
+                             rsi_series = calcular_rsi(df_1h)
+                             rsi_1h = rsi_series.iloc[-1]
+                             
+                             # Calcular EMAs (50 y 200)
+                             ema_50 = df_1h['close'].ewm(span=50, adjust=False).mean().iloc[-1]
+                             ema_200 = df_1h['close'].ewm(span=200, adjust=False).mean().iloc[-1]
+                             
+                             # Evaluar confluencias
+                             soporte_activo = False
+                             resistencia_activa = False
+                             sr_levels = detectar_soportes_resistencias(df_1h)
+                             
+                             # Condición de compra: Estructura alcista, RSI saludable y soporte
+                             criterio_buy_valido = False
+                             if es_buy:
+                                 # Soporte o EMA actuando como soporte dinámico
+                                 cerca_ema = abs(current_price - ema_50) / current_price < 0.001 or abs(current_price - ema_200) / current_price < 0.001
+                                 soporte_cercano = any(abs(current_price - s) / current_price < 0.0015 for s in sr_levels.get('soportes', []))
+                                 # RSI no sobrecomprado (espacio para subir) y mayor a 40
+                                 rsi_valido = 40 < rsi_1h < 68
+                                 criterio_buy_valido = rsi_valido and (cerca_ema or soporte_cercano or current_price > ema_50)
+                             
+                             # Condición de venta: Estructura bajista, RSI en zona de ventas y resistencia
+                             criterio_sell_valido = False
+                             if not es_buy:
+                                 cerca_ema = abs(current_price - ema_50) / current_price < 0.001 or abs(current_price - ema_200) / current_price < 0.001
+                                 resistencia_cercana = any(abs(current_price - r) / current_price < 0.0015 for r in sr_levels.get('resistencias', []))
+                                 rsi_valido = 32 < rsi_1h < 60
+                                 criterio_sell_valido = rsi_valido and (cerca_ema or resistencia_cercana or current_price < ema_50)
+                                 
+                             if criterio_buy_valido or criterio_sell_valido:
+                                 # Mover SL a ganancias (asegurar buffer de ganancia adicional en vez de BE simple)
+                                 nuevo_sl = entry_price + buffer_ganancia if es_buy else entry_price - buffer_ganancia
+                                 print(f"| GESTOR TRAILING SL | Confluencias H1 válidas (RSI: {rsi_1h:.1f}). Protegiendo runner en ganancias para {ticket}.")
+                                 try:
+                                     await connection.modify_position(ticket, stop_loss=nuevo_sl, take_profit=tp)
+                                     print(f"| GESTOR TRAILING SL SUCCESS | Ticket {ticket} SL movido a zona de ganancias: SL={nuevo_sl}")
+                                     POSICIONES_ACTIVAS[ticket]["sl"] = nuevo_sl
+                                 except Exception as e:
+                                     print(f"| GESTOR TRAILING SL ERROR | No se pudo mover SL a ganancias para ticket {ticket}: {e}")
+                         except Exception as eval_err:
+                             print(f"| GESTOR TRAILING SL | Error evaluando indicadores: {eval_err}")
+                             
+         # C. Gestión de Break-Even dinámico relativo a Liquidez Institucional (Para órdenes que aún no toman parciales)
+         if not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
+             distancia_tp1 = abs(tp - entry_price) * 0.4
+             rango_tolerancia = distancia_tp1 * 0.15
+             
+             esta_en_zona_entrada = False
+             if tp > 0.0:
+                 if es_buy:
+                     esta_en_zona_entrada = (current_price <= entry_price + rango_tolerancia) and (sl < entry_price)
+                 else:
+                     esta_en_zona_entrada = (current_price >= entry_price - rango_tolerancia) and (sl > entry_price or sl == 0.0)
+                 
+             if esta_en_zona_entrada:
+                 # Consultar base de datos en la nube para volumen institucional (Firestore)
+                 matrix = await obtener_matriz_activo(activo)
+                 liq_institucional = False
+                 if matrix:
+                     confirmaciones_inst = matrix.get("confirmaciones_institucionales", {})
+                     liq_institucional = confirmaciones_inst.get("dark_pools_compra_masiva", False) or \
+                                         confirmaciones_inst.get("heatmap_ordenes_limite", False)
+                                         
+                 if liq_institucional:
+                     print(f"| GESTOR BE | {activo} regresando a entrada. Soporte institucional DETECTADO. Manteniendo SL original.")
+                 else:
+                     print(f"| GESTOR BE | {activo} regresando a entrada sin soporte institucional. Colocando Break-Even.")
+                     try:
+                         # Modificar SL a Break-Even
+                         await connection.modify_position(ticket, stop_loss=entry_price, take_profit=tp)
+                         print(f"| GESTOR BE SUCCESS | Ticket {ticket} modificado a Break-Even (SL={entry_price}, TP={tp}).")
+                         POSICIONES_ACTIVAS[ticket]["sl"] = entry_price
+                     except Exception as e:
+                         print(f"| GESTOR BE ERROR | No se pudo modificar ticket {ticket} a BE: {e}")
+
 
     # 2. DETECTAR POSICIONES CERRADAS TOTALMENTE
     tickets_cerrados = []
