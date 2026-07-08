@@ -631,16 +631,16 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                         <div style="background:rgba(255,255,255,0.05); padding:8px 12px; border-radius:6px; display:flex; align-items:center; gap:8px; width:300px;">
                             <i class="fa-solid fa-magnifying-glass text-muted"></i>
-                            <input type="text" placeholder="Buscar ID de ticket, activo..." style="background:none; border:none; color:var(--text-main); width:100%; outline:none; font-size:13px;">
+                            <input type="text" id="history-search-filter" placeholder="Buscar ID de ticket, activo..." style="background:none; border:none; color:var(--text-main); width:100%; outline:none; font-size:13px;" onkeyup="renderHistoryTable()">
                         </div>
                         <div style="display:flex; gap:12px; align-items:center;">
                             <input type="date" id="history-date-filter" class="header-btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-light); color:var(--text-main); outline:none;">
                             <button class="header-btn"><i class="fa-solid fa-filter"></i> Filtros</button>
                             <div style="background:rgba(255,255,255,0.05); border-radius:6px; padding:2px; display:flex;" id="history-time-filters">
-                                <button class="header-btn active-time" style="border:none; background:var(--neon-green); color:var(--bg-dark); padding:4px 10px;">1D</button>
-                                <button class="header-btn" style="border:none; padding:4px 10px;">1W</button>
-                                <button class="header-btn" style="border:none; padding:4px 10px;">1M</button>
-                                <button class="header-btn" style="border:none; padding:4px 10px;">TODO</button>
+                                <button class="header-btn active-time" style="border:none; background:var(--neon-green); color:var(--bg-dark); padding:4px 10px;" onclick="setHistoryTimeFilter('1D', this)">1D</button>
+                                <button class="header-btn" style="border:none; padding:4px 10px;" onclick="setHistoryTimeFilter('1W', this)">1W</button>
+                                <button class="header-btn" style="border:none; padding:4px 10px;" onclick="setHistoryTimeFilter('1M', this)">1M</button>
+                                <button class="header-btn" style="border:none; padding:4px 10px;" onclick="setHistoryTimeFilter('TODO', this)">TODO</button>
                             </div>
                             <button class="btn-green" style="padding:8px 16px;" onclick="window.open('/api/export_audit_csv', '_blank')"><i class="fa-solid fa-download"></i> EXPORTAR CSV</button>
                         </div>
@@ -902,6 +902,31 @@
 
         
         // HISTORY TAB & FILTER LOGIC
+
+        let currentTimeFilter = 'TODO';
+        function setHistoryTimeFilter(range, btnElement) {
+            const btns = document.querySelectorAll('#history-time-filters button');
+            btns.forEach(b => {
+                b.style.background = 'none';
+                b.style.color = 'var(--text-main)';
+            });
+            if (btnElement) {
+                btnElement.style.background = 'var(--neon-green)';
+                btnElement.style.color = 'var(--bg-dark)';
+            }
+            
+            currentTimeFilter = range;
+            const dateInput = document.getElementById('history-date-filter');
+            const today = new Date();
+            
+            if (range === '1D') {
+                dateInput.value = today.toISOString().split('T')[0];
+            } else {
+                dateInput.value = ''; // Let JS handle range filtering
+            }
+            renderHistoryTable();
+        }
+
         let currentHistoryTab = 'executed';
         
         function switchHistoryTab(tab) {
@@ -924,13 +949,22 @@
             if (!window.globalAuditLogs) return;
             
             const dateFilter = document.getElementById('history-date-filter') ? document.getElementById('history-date-filter').value : '';
+            const searchFilter = document.getElementById('history-search-filter') ? document.getElementById('history-search-filter').value.toLowerCase() : '';
             let logs = window.globalAuditLogs;
             
-            // Filter by Date if selected
+            // Filter by Date and Text if selected
             if (dateFilter) {
                 logs = logs.filter(l => {
                     const dStr = l.fecha || l.timestamp;
                     return dStr && dStr.startsWith(dateFilter);
+                });
+            }
+            if (searchFilter) {
+                logs = logs.filter(l => {
+                    const t = (l.ticket || '').toLowerCase();
+                    const a = (l.activo || '').toLowerCase();
+                    const d = (l.accion || '').toLowerCase();
+                    return t.includes(searchFilter) || a.includes(searchFilter) || d.includes(searchFilter);
                 });
             }
             
@@ -948,6 +982,17 @@
                 kpiCards[2].innerText = formatMoney(avgWin);
             }
             
+            
+            if (currentTimeFilter === '1W') {
+                const limit = new Date();
+                limit.setDate(limit.getDate() - 7);
+                logs = logs.filter(l => new Date(l.fecha || l.timestamp) >= limit);
+            } else if (currentTimeFilter === '1M') {
+                const limit = new Date();
+                limit.setDate(limit.getDate() - 30);
+                logs = logs.filter(l => new Date(l.fecha || l.timestamp) >= limit);
+            }
+
             // Filter by Tab
             if (currentHistoryTab === 'executed') {
                 logs = logs.filter(l => l.ejecutada_mt5 !== false);

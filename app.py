@@ -2827,6 +2827,7 @@ def api_dashboard_data():
         DASHBOARD_CACHE_TIME = time.time()
         print("| CACHE | Datos del dashboard actualizados y guardados en memoria")
 
+        data["recent_logs"] = GLOBAL_AUDIT_LOGS
         return {"status": "success", "data": data}
 
     except Exception as e:
