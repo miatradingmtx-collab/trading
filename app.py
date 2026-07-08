@@ -2178,7 +2178,10 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
             "sl": ejecucion.stop_loss,
             "fecha": fecha,
             "timestamp": datetime.now().isoformat(),
-            "detalle_setup": detalle_str
+            "detalle_setup": detalle_str,
+            "confirmaciones_tecnicas": data.get("confirmaciones_tecnicas", {}),
+            "confirmaciones_fundamentales": data.get("confirmaciones_fundamentales", {}),
+            "confirmaciones_institucionales": data.get("confirmaciones_institucionales", {})
         }, merge=True)
             
         print(f"| AUDITORÍA | Trade registrado en TXT y Firebase (mia_audit_logs) para {ejecucion.activo}")
