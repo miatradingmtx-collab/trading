@@ -628,9 +628,17 @@ async def gestionar_posiciones_activas(connection, balance: float):
                         print(f"| GESTOR RIESGO WARNING | No se pudo mover SL a BE: {sl_e}")
 
                     # PnL estimado de esta parcial
-                    pnl_parcial = (current_price - entry_price) * lote_a_cerrar * 100
+                    distancia_parcial = (current_price - entry_price)
                     if not es_buy:
-                        pnl_parcial = -pnl_parcial
+                        distancia_parcial = -distancia_parcial
+                        
+                    sym = pos.get('symbol', '').upper()
+                    if "JPY" in sym:
+                        pnl_parcial = distancia_parcial * lote_a_cerrar * 100000 / current_price
+                    elif "XAU" in sym or "GOLD" in sym:
+                        pnl_parcial = distancia_parcial * lote_a_cerrar * 100
+                    else:
+                        pnl_parcial = distancia_parcial * lote_a_cerrar * 100000
                     
                     await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado 50% al alcanzar mitad del TP")
                 except Exception as e:
@@ -750,16 +758,43 @@ async def gestionar_posiciones_activas(connection, balance: float):
         info = POSICIONES_ACTIVAS[ticket]
         print(f"| SEGUIMIENTO | Posición cerrada detectada. Ticket: {ticket}")
         
-        # En la nube estimamos PnL final desde los precios o intentamos leer información de la cuenta
+        # Intentamos obtener la ganancia real del deal desde el historial del broker vía MetaAPI
+        pnl_final = 0.0
+        precio_cierre = info["price_open"]
         try:
-            price = await connection.get_symbol_price(info["symbol"])
-            precio_cierre = price.get('bid' if info["type"] == 'POSITION_TYPE_BUY' else 'ask', info["price_open"])
+            # Traer deals de las últimas 24 horas para encontrar el deal de cierre de este ticket
+            desde = datetime.datetime.now() - datetime.timedelta(days=1)
+            deals = await connection.get_deals_by_ticket(ticket)
+            if deals:
+                # Filtrar el deal de salida o acumular PnL de los deals asociados al ticket
+                pnl_final = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in deals)
+                # Tomar el precio de ejecución del último deal
+                precio_cierre = float(deals[-1].get('price', info["price_open"]))
+                print(f"| GESTOR COBROS | PnL real obtenido del Broker para Ticket {ticket}: ${pnl_final:.2f} (Precio salida: {precio_cierre})")
+            else:
+                raise ValueError("No deals found")
         except Exception:
-            precio_cierre = info["price_open"]
-            
-        pnl_final = (precio_cierre - info["price_open"]) * info["volume"] * 100
-        if info["type"] == 'POSITION_TYPE_SELL':
-            pnl_final = -pnl_final
+            # Fallback a estimación manual exacta
+            try:
+                price = await connection.get_symbol_price(info["symbol"])
+                precio_cierre = price.get('bid' if info["type"] == 'POSITION_TYPE_BUY' else 'ask', info["price_open"])
+            except Exception:
+                precio_cierre = info["price_open"]
+                
+            distancia = (precio_cierre - info["price_open"])
+            if info["type"] == 'POSITION_TYPE_SELL' or info["type"] == '1':
+                distancia = -distancia
+                
+            # Forex convencional = 100,000 unidades por lote, JPY = 100,000 unidades (pero cotización en centenas /100), Oro = 100 oz.
+            sym = info["symbol"].upper()
+            if "JPY" in sym:
+                pnl_final = distancia * info["volume"] * 100000 / precio_cierre  # Ajuste de divisa JPY a USD aprox
+            elif "XAU" in sym or "GOLD" in sym:
+                pnl_final = distancia * info["volume"] * 100 # $100 por dólar de movimiento por lote
+            else:
+                pnl_final = distancia * info["volume"] * 100000  # $10 por pip en Forex estándar
+                
+            print(f"| GESTOR COBROS WARNING | Usando PnL estimado para Ticket {ticket}: ${pnl_final:.2f}")
             
         await reportar_evento_trade(info["symbol"], ticket, info["type"], "CIERRE_TOTAL", precio_cierre, info["sl"], info["tp"], pnl=pnl_final, comentario="Cerrado totalmente")
         del POSICIONES_ACTIVAS[ticket]
@@ -768,7 +803,15 @@ async def gestionar_posiciones_activas(connection, balance: float):
     for t in fb_open:
         if str(t) not in POSICIONES_ACTIVAS and str(t) not in tickets_actuales:
             print(f"| GESTOR RIESGO | Sincronizando cierre faltante para ticket {t}")
-            await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=0.0, comentario="Sincronizado por desaparición en MT5")
+            # Intentamos recuperar el PnL del deal histórico antes de poner 0.0
+            pnl_sinc = 0.0
+            try:
+                deals = await connection.get_deals_by_ticket(t)
+                if deals:
+                    pnl_sinc = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in deals)
+            except:
+                pass
+            await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=pnl_sinc, comentario="Sincronizado por desaparición en MT5")
 
 # ------------------------------------------------------------------------------
 # 6. GESTOR DE OPERACIONES (Apertura de Órdenes)

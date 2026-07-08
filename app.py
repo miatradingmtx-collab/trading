@@ -1958,8 +1958,14 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             sl = precio_ej - pips if tipo_orden == "COMPRA" else precio_ej + pips
             tp = precio_ej + (pips * 2.0) if tipo_orden == "COMPRA" else precio_ej - (pips * 2.0)
             lote = 0.5
+        elif activo_normalizado in ["AUDUSD", "NZDCAD"]:
+            # AUDUSD y NZDCAD requieren SL más holgado por spreads cruzados
+            pips = 0.0035
+            sl = precio_ej - pips if tipo_orden == "COMPRA" else precio_ej + pips
+            tp = precio_ej + (pips * 2.0) if tipo_orden == "COMPRA" else precio_ej - (pips * 2.0)
+            lote = 0.4
         elif activo_normalizado == "GBPJPY":
-            pips = 0.30
+            pips = 0.35 # Subimos a 35 pips para darle holgura y evitar barridas rápidas
             sl = precio_ej - pips if tipo_orden == "COMPRA" else precio_ej + pips
             tp = precio_ej + (pips * 2.0) if tipo_orden == "COMPRA" else precio_ej - (pips * 2.0)
             lote = 0.3
