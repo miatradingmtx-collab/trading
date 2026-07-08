@@ -1687,7 +1687,10 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
             "motivo": motivo,
             "fecha": fecha_str,
             "timestamp": iso_time,
-            "detalle_setup": detalle_str
+            "detalle_setup": detalle_str,
+            "confirmaciones_tecnicas": data.get("confirmaciones_tecnicas", {}),
+            "confirmaciones_fundamentales": data.get("confirmaciones_fundamentales", {}),
+            "confirmaciones_institucionales": data.get("confirmaciones_institucionales", {})
         })
         
         return {
@@ -2905,23 +2908,32 @@ def export_audit_csv():
         output = StringIO()
         writer = csv.writer(output)
         # Escribir la cabecera
-        writer.writerow(["Ticket", "Timestamp", "Fecha", "Activo", "Accion", "Estrategia", "Score (%)", "Precio Ejecucion", "PNL", "Ejecutada MT5", "Detalle Setup"])
+        writer.writerow(["Ticket", "Timestamp", "Fecha", "Activo", "Accion", "Estrategia", "Score (%)", "Precio Ejecucion", "PNL", "Ejecutada MT5", "Motivo", "Conf. Tecnicas", "Conf. Fundamentales", "Conf. Institucionales", "Detalle Setup"])
         
         if GLOBAL_AUDIT_LOGS:
             for l in GLOBAL_AUDIT_LOGS:
+                import json
+                tecnicas = json.dumps(l.get("confirmaciones_tecnicas", {}))
+                fundamentales = json.dumps(l.get("confirmaciones_fundamentales", {}))
+                institucionales = json.dumps(l.get("confirmaciones_institucionales", {}))
+                
                 writer.writerow([
                     l.get("ticket", ""),
                     l.get("timestamp", ""),
-                l.get("fecha", ""),
-                l.get("activo", ""),
-                l.get("accion", ""),
-                l.get("estrategia", ""),
-                l.get("score", l.get("score_confluencias", 0)),
-                l.get("precio_ejecucion", 0.0),
-                l.get("pnl", 0.0),
-                "SÍ" if l.get("ejecutada_mt5", True) else "NO",
-                l.get("detalle_setup", "")
-            ])
+                    l.get("fecha", ""),
+                    l.get("activo", ""),
+                    l.get("accion", ""),
+                    l.get("estrategia", ""),
+                    l.get("score", l.get("score_confluencias", 0)),
+                    l.get("precio_ejecucion", 0.0),
+                    l.get("pnl", 0.0),
+                    "SÍ" if l.get("ejecutada_mt5", True) else "NO",
+                    l.get("motivo", "Ejecutado" if l.get("ejecutada_mt5", True) else "Desconocido"),
+                    tecnicas,
+                    fundamentales,
+                    institucionales,
+                    l.get("detalle_setup", "")
+                ])
             
         output.seek(0)
         return StreamingResponse(
