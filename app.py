@@ -550,29 +550,29 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
         
         # Guardar en mia_audit_logs con el Ticket como ID (Para el Dashboard y KB)
         if alert.ticket:
-             # PNL Accumulator: Si ya existe un registro previo de este ticket en Firestore (ej: CIERRE_PARCIAL),
-             # recuperamos el PNL acumulado y lo sumamos para mostrar la ganancia real acumulada total.
-             pnl_acumulado_previo = 0.0
-             try:
-                 existente_doc = db.collection("mia_audit_logs").document(str(alert.ticket)).get()
-                 if existente_doc.exists:
-                     exist_data = existente_doc.to_dict()
-                     # Recuperar datos en caso de reporte tardío o incompleto
-                     if alert.activo == "UNKNOWN":
-                         alert.activo = exist_data.get("activo", "UNKNOWN")
-                     if alert.precio == 0.0:
-                         alert.precio = exist_data.get("precio_ejecucion", exist_data.get("precio", 0.0))
-                     
-                     # Almacenar PNL previo (de parciales anteriores)
-                     pnl_acumulado_previo = float(exist_data.get("pnl", 0.0))
-             except Exception as e:
-                 print(f"| FIREBASE | Error recuperando doc previo para {alert.ticket}: {e}")
+            # PNL Accumulator: Si ya existe un registro previo de este ticket en Firestore (ej: CIERRE_PARCIAL),
+            # recuperamos el PNL acumulado y lo sumamos para mostrar la ganancia real acumulada total.
+            pnl_acumulado_previo = 0.0
+            try:
+                existente_doc = db.collection("mia_audit_logs").document(str(alert.ticket)).get()
+                if existente_doc.exists:
+                    exist_data = existente_doc.to_dict()
+                    # Recuperar datos en caso de reporte tardío o incompleto
+                    if alert.activo == "UNKNOWN":
+                        alert.activo = exist_data.get("activo", "UNKNOWN")
+                    if alert.precio == 0.0:
+                        alert.precio = exist_data.get("precio_ejecucion", exist_data.get("precio", 0.0))
+                    
+                    # Almacenar PNL previo (de parciales anteriores)
+                    pnl_acumulado_previo = float(exist_data.get("pnl", 0.0))
+            except Exception as e:
+                print(f"| FIREBASE | Error recuperando doc previo para {alert.ticket}: {e}")
 
-             # Sumar el PNL actual al acumulado previo si es un cierre
-             if alert.accion in ["CIERRE_TOTAL", "CIERRE_PARCIAL"]:
-                 alert.pnl = (alert.pnl if alert.pnl else 0.0) + pnl_acumulado_previo
-             elif alert.pnl == 0.0 and pnl_acumulado_previo != 0.0:
-                 alert.pnl = pnl_acumulado_previo
+            # Sumar el PNL actual al acumulado previo si es un cierre
+            if alert.accion in ["CIERRE_TOTAL", "CIERRE_PARCIAL"]:
+                alert.pnl = (alert.pnl if alert.pnl else 0.0) + pnl_acumulado_previo
+            elif alert.pnl == 0.0 and pnl_acumulado_previo != 0.0:
+                alert.pnl = pnl_acumulado_previo
 
             now_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-6)))
             utc_hour = datetime.datetime.utcnow().hour
