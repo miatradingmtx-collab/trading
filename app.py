@@ -1230,6 +1230,21 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     Usa BackgroundTasks para procesar la API de Notion y Grok en segundo plano,
     permitiendo que TradingView reciba una respuesta instantánea (baja latencia).
     """
+    # RECUPERACIÓN DE DATOS ANTES DE PROCESAR:
+    # Si viene como UNKNOWN desde mt5_executor_cloud, recuperamos de Firestore inmediatamente
+    if alert.activo == "UNKNOWN" and alert.ticket:
+        try:
+            doc = db.collection("mia_audit_logs").document(str(alert.ticket)).get()
+            if doc.exists:
+                exist_data = doc.to_dict()
+                alert.activo = exist_data.get("activo", "UNKNOWN")
+                if alert.pnl == 0.0:
+                    alert.pnl = exist_data.get("pnl", 0.0)
+                if alert.precio == 0.0:
+                    alert.precio = exist_data.get("precio_ejecucion", exist_data.get("precio", 0.0))
+        except Exception as e:
+            pass
+
     print(f"\n========================================================")
     print(f"ALERTA RECIBIDA DE TRADINGVIEW: {alert.accion} en {alert.activo}")
     print(f"Precio Alerta: {alert.precio} | Estrategia: {alert.estrategia}")
@@ -1839,10 +1854,21 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         precio_ej = req.precio
         tipo_orden = req.accion.upper()
         
-        # Configuración por defecto
-        sl = precio_ej - 200 if tipo_orden == "COMPRA" else precio_ej + 200
-        tp = precio_ej + 400 if tipo_orden == "COMPRA" else precio_ej - 400
-        lote = 0.1
+        # Configuración por defecto dinámica (para Forex u otros si no están en la lista)
+        if precio_ej < 5.0: # Pares Forex estándar (AUDUSD, NZDCAD, EURUSD...)
+            pips_def = 0.0020
+            sl = precio_ej - pips_def if tipo_orden == "COMPRA" else precio_ej + pips_def
+            tp = precio_ej + (pips_def * 2.0) if tipo_orden == "COMPRA" else precio_ej - (pips_def * 2.0)
+            lote = 0.1
+        elif precio_ej < 300.0: # Pares JPY
+            pips_def = 0.30
+            sl = precio_ej - pips_def if tipo_orden == "COMPRA" else precio_ej + pips_def
+            tp = precio_ej + (pips_def * 2.0) if tipo_orden == "COMPRA" else precio_ej - (pips_def * 2.0)
+            lote = 0.1
+        else: # Cripto, Índices o Oro
+            sl = precio_ej - 200.0 if tipo_orden == "COMPRA" else precio_ej + 200.0
+            tp = precio_ej + 400.0 if tipo_orden == "COMPRA" else precio_ej - 400.0
+            lote = 0.1
         
         # Ajustes institucionales por tipo de activo
         if activo_normalizado in ["EURUSD", "GBPUSD"]:
