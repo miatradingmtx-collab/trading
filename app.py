@@ -45,8 +45,9 @@ DASHBOARD_CACHE_TIME = 0.0
 import time
 
 def invalidar_cache_dashboard():
-    global DASHBOARD_CACHE_TIME
+    global DASHBOARD_CACHE_TIME, ULTIMO_FETCH_FIREBASE
     DASHBOARD_CACHE_TIME = 0.0
+    ULTIMO_FETCH_FIREBASE = None
 
 try:
     # 1. Intentar cargar desde un archivo local serviceAccountKey.json

@@ -941,9 +941,19 @@
 
         const dateFilterEl = document.getElementById('history-date-filter');
         if (dateFilterEl) {
-            // Leave date filter empty by default to prevent timezone mismatch hiding recent logs
-            dateFilterEl.value = '';
-            dateFilterEl.addEventListener('change', renderHistoryTable);
+            // Set date filter to today by default to match the default '1D' button active state
+            const todayStr = new Date().toISOString().split('T')[0];
+            dateFilterEl.value = todayStr;
+            currentTimeFilter = '1D';
+            dateFilterEl.addEventListener('change', () => {
+                currentTimeFilter = 'CUSTOM';
+                const btns = document.querySelectorAll('#history-time-filters button');
+                btns.forEach(b => {
+                    b.style.background = 'none';
+                    b.style.color = 'var(--text-main)';
+                });
+                renderHistoryTable();
+            });
         }
 
         function renderHistoryTable() {
