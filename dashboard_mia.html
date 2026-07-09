@@ -982,7 +982,10 @@
             if (dateFilter && (currentTimeFilter === '1D' || currentTimeFilter === 'CUSTOM')) {
                 logs = logs.filter(l => {
                     const dStr = l.fecha || l.timestamp;
-                    return dStr && dStr.startsWith(dateFilter);
+                    if (!dStr) return false;
+                    // Extraer los primeros 10 caracteres (YYYY-MM-DD) para comparar fechas sin importar la hora
+                    const recordDateOnly = dStr.substring(0, 10);
+                    return recordDateOnly === dateFilter;
                 });
             }
             if (searchFilter) {
