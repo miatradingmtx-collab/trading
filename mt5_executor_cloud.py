@@ -764,7 +764,13 @@ async def gestionar_posiciones_activas(connection, balance: float):
         try:
             # Traer deals de las últimas 24 horas para encontrar el deal de cierre de este ticket
             desde = datetime.datetime.now() - datetime.timedelta(days=1)
-            deals = await connection.get_deals_by_ticket(ticket)
+            deals_resp = await connection.get_deals_by_ticket(str(ticket))
+            deals = []
+            if isinstance(deals_resp, dict):
+                deals = deals_resp.get('deals', [])
+            elif isinstance(deals_resp, list):
+                deals = deals_resp
+                
             if deals:
                 # Filtrar el deal de salida o acumular PnL de los deals asociados al ticket
                 pnl_final = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in deals)
@@ -799,14 +805,19 @@ async def gestionar_posiciones_activas(connection, balance: float):
         await reportar_evento_trade(info["symbol"], ticket, info["type"], "CIERRE_TOTAL", precio_cierre, info["sl"], info["tp"], pnl=pnl_final, comentario="Cerrado totalmente")
         del POSICIONES_ACTIVAS[ticket]
 
-    # Sincronizar cierres perdidos (manuales o de sesiones anteriores) usando fb_open pre-recuperado
     for t in fb_open:
         if str(t) not in POSICIONES_ACTIVAS and str(t) not in tickets_actuales:
             print(f"| GESTOR RIESGO | Sincronizando cierre faltante para ticket {t}")
             # Intentamos recuperar el PnL del deal histórico antes de poner 0.0
             pnl_sinc = 0.0
             try:
-                deals = await connection.get_deals_by_ticket(t)
+                deals_resp = await connection.get_deals_by_ticket(str(t))
+                deals = []
+                if isinstance(deals_resp, dict):
+                    deals = deals_resp.get('deals', [])
+                elif isinstance(deals_resp, list):
+                    deals = deals_resp
+                    
                 if deals:
                     pnl_sinc = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in deals)
             except:
