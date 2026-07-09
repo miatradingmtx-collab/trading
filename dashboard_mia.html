@@ -637,14 +637,9 @@
                         </div>
                         <div style="display:flex; gap:12px; align-items:center;">
                             <input type="date" id="history-date-filter" class="header-btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-light); color:var(--text-main); outline:none;">
-                            <button class="header-btn"><i class="fa-solid fa-filter"></i> Filtros</button>
-                            <div style="background:rgba(255,255,255,0.05); border-radius:6px; padding:2px; display:flex;" id="history-time-filters">
-                                <button class="header-btn active-time" style="border:none; background:var(--neon-green); color:var(--bg-dark); padding:4px 10px;" onclick="setHistoryTimeFilter('1D', this)">1D</button>
-                                <button class="header-btn" style="border:none; padding:4px 10px;" onclick="setHistoryTimeFilter('1W', this)">1W</button>
-                                <button class="header-btn" style="border:none; padding:4px 10px;" onclick="setHistoryTimeFilter('1M', this)">1M</button>
-                                <button class="header-btn" style="border:none; padding:4px 10px;" onclick="setHistoryTimeFilter('TODO', this)">TODO</button>
-                            </div>
-                            <button class="btn-green" style="padding:8px 16px;" onclick="window.open('/api/export_audit_csv', '_blank')"><i class="fa-solid fa-download"></i> EXPORTAR CSV</button>
+                            <button class="header-btn" onclick="document.getElementById('history-date-filter').value=''; renderHistoryTable();"><i class="fa-solid fa-filter-slash"></i> Limpiar Filtro</button>
+                        </div>
+                        <button class="btn-green" style="padding:8px 16px;" onclick="window.open('/api/export_audit_csv', '_blank')"><i class="fa-solid fa-download"></i> EXPORTAR CSV</button>
                         </div>
                     </div>
 
@@ -905,32 +900,7 @@
         
         // HISTORY TAB & FILTER LOGIC
 
-        let currentTimeFilter = '1D';
-        function setHistoryTimeFilter(range, btnElement) {
-            const btns = document.querySelectorAll('#history-time-filters button');
-            btns.forEach(b => {
-                b.style.background = 'none';
-                b.style.color = 'var(--text-main)';
-            });
-            if (btnElement) {
-                btnElement.style.background = 'var(--neon-green)';
-                btnElement.style.color = 'var(--bg-dark)';
-            }
-            
-            currentTimeFilter = range;
-            const dateInput = document.getElementById('history-date-filter');
-            const today = new Date();
-            
-            if (range === '1D') {
-                const year = today.getFullYear();
-                const month = String(today.getMonth() + 1).padStart(2, '0');
-                const day = String(today.getDate()).padStart(2, '0');
-                dateInput.value = `${year}-${month}-${day}`;
-            } else {
-                dateInput.value = ''; // Let JS handle range filtering
-            }
-            renderHistoryTable();
-        }
+
 
         let currentHistoryTab = 'executed';
         
@@ -952,16 +922,7 @@
             const todayStr = `${year}-${month}-${day}`;
             
             dateFilterEl.value = todayStr;
-            currentTimeFilter = '1D';
-            dateFilterEl.addEventListener('change', () => {
-                currentTimeFilter = 'CUSTOM';
-                const btns = document.querySelectorAll('#history-time-filters button');
-                btns.forEach(b => {
-                    b.style.background = 'none';
-                    b.style.color = 'var(--text-main)';
-                });
-                renderHistoryTable();
-            });
+            dateFilterEl.addEventListener('change', renderHistoryTable);
         }
 
         function renderHistoryTable() {
@@ -978,12 +939,11 @@
                 return dateB - dateA;
             });
             
-            // Filter by Date and Text if selected
-            if (dateFilter && (currentTimeFilter === '1D' || currentTimeFilter === 'CUSTOM')) {
+            // Filter by Date if selected
+            if (dateFilter) {
                 logs = logs.filter(l => {
                     const dStr = l.fecha || l.timestamp;
                     if (!dStr) return false;
-                    // Extraer los primeros 10 caracteres (YYYY-MM-DD) para comparar fechas sin importar la hora
                     const recordDateOnly = dStr.substring(0, 10);
                     return recordDateOnly === dateFilter;
                 });
@@ -1009,17 +969,6 @@
                 kpiCards[0].className = 'hk-val ' + (pnlTotal >= 0 ? 'green' : 'text-red');
                 kpiCards[1].innerText = totalTrades;
                 kpiCards[2].innerText = formatMoney(avgWin);
-            }
-            
-            
-            if (currentTimeFilter === '1W') {
-                const limit = new Date();
-                limit.setDate(limit.getDate() - 7);
-                logs = logs.filter(l => new Date(l.fecha || l.timestamp) >= limit);
-            } else if (currentTimeFilter === '1M') {
-                const limit = new Date();
-                limit.setDate(limit.getDate() - 30);
-                logs = logs.filter(l => new Date(l.fecha || l.timestamp) >= limit);
             }
 
             // Filter by Tab
