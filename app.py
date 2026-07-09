@@ -2576,11 +2576,11 @@ def asegurar_cache_firebase():
     from datetime import datetime
     ahora = datetime.now()
     
-    # Refrescar caché de Firebase cada 10 segundos para ver datos frescos en vivo sin retraso
+    # Refrescar caché de Firebase cada 5 minutos para evitar agotar la cuota de lectura (Quota Exceeded / Resource Exhausted)
     necesita_refresh = False
     if ULTIMO_FETCH_FIREBASE is None or GLOBAL_AUDIT_LOGS is None:
         necesita_refresh = True
-    elif (ahora - ULTIMO_FETCH_FIREBASE).total_seconds() > 10.0:
+    elif (ahora - ULTIMO_FETCH_FIREBASE).total_seconds() > 300.0:
         necesita_refresh = True
         
     if necesita_refresh:
@@ -2637,11 +2637,6 @@ def api_dashboard_data():
     
     if not firebase_inicializado or db is None:
         return {"status": "error", "message": "Firebase no inicializado"}
-
-    # Caché rápida de 30 segundos en RAM para evitar timeouts y optimizar respuestas concurrentes
-    ahora_t = time.time()
-    if DASHBOARD_CACHE_DATA and (ahora_t - DASHBOARD_CACHE_TIME) < 30.0:
-        return {"status": "success", "data": DASHBOARD_CACHE_DATA}
 
     data = {
         "balance_base": 5000.0,
