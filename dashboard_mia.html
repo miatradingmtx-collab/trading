@@ -922,7 +922,10 @@
             const today = new Date();
             
             if (range === '1D') {
-                dateInput.value = today.toISOString().split('T')[0];
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                dateInput.value = `${year}-${month}-${day}`;
             } else {
                 dateInput.value = ''; // Let JS handle range filtering
             }
@@ -941,8 +944,13 @@
 
         const dateFilterEl = document.getElementById('history-date-filter');
         if (dateFilterEl) {
-            // Set date filter to today by default to match the default '1D' button active state
-            const todayStr = new Date().toISOString().split('T')[0];
+            // Set date filter to local today's date by default (correcting for timezone offsets)
+            const localDate = new Date();
+            const year = localDate.getFullYear();
+            const month = String(localDate.getMonth() + 1).padStart(2, '0');
+            const day = String(localDate.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+            
             dateFilterEl.value = todayStr;
             currentTimeFilter = '1D';
             dateFilterEl.addEventListener('change', () => {
