@@ -979,7 +979,7 @@
             });
             
             // Filter by Date and Text if selected
-            if (dateFilter) {
+            if (dateFilter && (currentTimeFilter === '1D' || currentTimeFilter === 'CUSTOM')) {
                 logs = logs.filter(l => {
                     const dStr = l.fecha || l.timestamp;
                     return dStr && dStr.startsWith(dateFilter);
