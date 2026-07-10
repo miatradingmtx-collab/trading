@@ -2638,6 +2638,13 @@ def api_dashboard_data():
     if not firebase_inicializado or db is None:
         return {"status": "error", "message": "Firebase no inicializado"}
 
+    # Caché en RAM de 3 minutos para el bloque completo del dashboard para proteger la cuota de Firebase
+    ahora_t = time.time()
+    if DASHBOARD_CACHE_DATA and (ahora_t - DASHBOARD_CACHE_TIME) < 180.0:
+        # Devolver datos de caché RAM directamente sin lecturas
+        DASHBOARD_CACHE_DATA["recent_logs"] = GLOBAL_AUDIT_LOGS
+        return {"status": "success", "data": DASHBOARD_CACHE_DATA, "cached": True}
+
     data = {
         "balance_base": 5000.0,
         "balance_actual": 5000.0,
