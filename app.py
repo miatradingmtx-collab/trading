@@ -609,6 +609,17 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 pnl_val = alert.pnl if alert.pnl else 0.0
                 motivo_final = f"Cerrado en MT5 | PNL: ${pnl_val:.2f}" if alert.ticket else motivo
                 ejecutada_flag = True  # El cierre confirma que el trade SI existio en MT5
+                
+                # RESETEAR SEMÁFORO A INACTIVO AL CERRAR LA POSICIÓN TOTALMENTE
+                if alert.accion == "CIERRE_TOTAL":
+                    try:
+                        m_doc_ref = db.collection("trading_matrix").document(activo_norm)
+                        m_doc_data = m_doc_ref.get().to_dict() or {}
+                        m_doc_data["estado_ejecucion"] = "INACTIVO"
+                        m_doc_ref.set(m_doc_data, merge=True)
+                        print(f"| SEMÁFORO RESET | {activo_norm} reseteado a INACTIVO por CIERRE_TOTAL de ticket {alert.ticket}.")
+                    except Exception as reset_e:
+                        print(f"| SEMÁFORO RESET ERROR | No se pudo resetear estado para {activo_norm}: {reset_e}")
             else:
                 # Es apertura COMPRA/VENTA
                 motivo_final = "Ejecutada y Activa en Broker" if alert.ticket else motivo
