@@ -1803,6 +1803,7 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         
         import time
         eval_id = f"EVAL_{activo_normalizado}_{int(time.time())}"
+        
         audit_ref = db.collection("mia_audit_logs").document(eval_id)
         audit_ref.set({
             "ticket": eval_id,
@@ -1818,6 +1819,27 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
             "confirmaciones_fundamentales": data.get("confirmaciones_fundamentales", {}),
             "confirmaciones_institucionales": data.get("confirmaciones_institucionales", {})
         })
+
+        # Actualizar la caché de RAM en tiempo real para reflejar de inmediato en el Dashboard
+        global GLOBAL_AUDIT_LOGS
+        if GLOBAL_AUDIT_LOGS is not None:
+            audit_data = {
+                "ticket": eval_id,
+                "activo": activo_normalizado,
+                "estrategia": "Escáner Cloud",
+                "score": score,
+                "ejecutada_mt5": False,
+                "motivo": motivo,
+                "fecha": fecha_str,
+                "timestamp": iso_time,
+                "detalle_setup": detalle_str,
+                "confirmaciones_tecnicas": data.get("confirmaciones_tecnicas", {}),
+                "confirmaciones_fundamentales": data.get("confirmaciones_fundamentales", {}),
+                "confirmaciones_institucionales": data.get("confirmaciones_institucionales", {})
+            }
+            GLOBAL_AUDIT_LOGS.insert(0, audit_data) # Insertar al inicio por ser el más reciente
+            
+        print(f"| FIREBASE SUCCESS | Registro EVAL guardado en Firestore y Caché RAM: {eval_id}")
         
         return {
             "status": "success",
