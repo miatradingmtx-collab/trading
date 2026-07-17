@@ -574,7 +574,8 @@ async def gestionar_posiciones_activas(connection, balance: float):
                 "price_open": pos.get('openPrice', 0.0),
                 "tp": tp_original,
                 "sl": pos.get('stopLoss', 0.0),
-                "parcial_tomado": parcial_ya_tomado
+                "parcial_tomado": parcial_ya_tomado,
+                "price_max_favor": pos.get('openPrice', 0.0) # Guarda el precio máximo en ganancias alcanzado en el ciclo
             }
             print(f"| SEGUIMIENTO | Nueva posición detectada. Ticket: {ticket} | Lote: {pos.get('volume')}")
             await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original)
@@ -716,16 +717,26 @@ async def gestionar_posiciones_activas(connection, balance: float):
                             
         # C. Gestión de Break-Even dinámico relativo a Liquidez Institucional (Para órdenes que aún no toman parciales)
         if not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
+            # Actualizar el precio máximo a favor alcanzado históricamente en la sesión por este ticket
+            price_max_historico = POSICIONES_ACTIVAS[ticket].get("price_max_favor", entry_price)
+            if es_buy:
+                if current_price > price_max_historico:
+                    POSICIONES_ACTIVAS[ticket]["price_max_favor"] = current_price
+                    price_max_historico = current_price
+            else:
+                if current_price < price_max_historico or price_max_historico == 0.0:
+                    POSICIONES_ACTIVAS[ticket]["price_max_favor"] = current_price
+                    price_max_historico = current_price
+                    
             # El trade debe haber estado en ganancia (al menos un 25% del recorrido hacia el TP) 
             # antes de evaluar colocar Break-Even cuando regrese a la zona de entrada.
             # Esto evita que si entra en pérdida de inmediato y luego recupera a la entrada, se cierre prematuramente.
             distancia_total_tp = abs(tp - entry_price)
             recorrido_maximo_favor = 0.0
             if es_buy:
-                # El precio máximo alcanzado hasta ahora debe haber estado por encima de entry_price
-                recorrido_maximo_favor = current_price - entry_price
+                recorrido_maximo_favor = price_max_historico - entry_price
             else:
-                recorrido_maximo_favor = entry_price - current_price
+                recorrido_maximo_favor = entry_price - price_max_historico
                 
             # Solo permitir BE si el trade ha tocado al menos el 25% de la distancia al TP
             ha_estado_en_buena_ganancia = (recorrido_maximo_favor >= (distancia_total_tp * 0.25))
