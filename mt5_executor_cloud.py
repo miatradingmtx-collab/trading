@@ -716,34 +716,56 @@ async def gestionar_posiciones_activas(connection, balance: float):
                             
         # C. Gestión de Break-Even dinámico relativo a Liquidez Institucional (Para órdenes que aún no toman parciales)
         if not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
-            distancia_tp1 = abs(tp - entry_price) * 0.4
+            # El trade debe haber estado en ganancia (al menos un 25% del recorrido hacia el TP) 
+            # antes de evaluar colocar Break-Even cuando regrese a la zona de entrada.
+            # Esto evita que si entra en pérdida de inmediato y luego recupera a la entrada, se cierre prematuramente.
+            distancia_total_tp = abs(tp - entry_price)
+            recorrido_maximo_favor = 0.0
+            if es_buy:
+                # El precio máximo alcanzado hasta ahora debe haber estado por encima de entry_price
+                recorrido_maximo_favor = current_price - entry_price
+            else:
+                recorrido_maximo_favor = entry_price - current_price
+                
+            # Solo permitir BE si el trade ha tocado al menos el 25% de la distancia al TP
+            ha_estado_en_buena_ganancia = (recorrido_maximo_favor >= (distancia_total_tp * 0.25))
+            
+            distancia_tp1 = distancia_total_tp * 0.4
             rango_tolerancia = distancia_tp1 * 0.15
             
             esta_en_zona_entrada = False
-            if tp > 0.0:
+            if tp > 0.0 and ha_estado_en_buena_ganancia:
                 if es_buy:
-                    esta_en_zona_entrada = (current_price <= entry_price + rango_tolerancia) and (sl < entry_price)
+                    esta_en_zona_entrada = (current_price <= entry_price + rango_tolerancia) and (current_price >= entry_price) and (sl < entry_price)
                 else:
-                    esta_en_zona_entrada = (current_price >= entry_price - rango_tolerancia) and (sl > entry_price or sl == 0.0)
+                    esta_en_zona_entrada = (current_price >= entry_price - rango_tolerancia) and (current_price <= entry_price) and (sl > entry_price or sl == 0.0)
                 
             if esta_en_zona_entrada:
                 # Consultar base de datos en la nube para volumen institucional (Firestore)
-                matrix = await obtener_matriz_activo(activo)
+                # Envolvemos en try/except para que si Firebase está en 429 Quota Exceeded, no reviente el script
                 liq_institucional = False
-                if matrix:
-                    confirmaciones_inst = matrix.get("confirmaciones_institucionales", {})
-                    liq_institucional = confirmaciones_inst.get("dark_pools_compra_masiva", False) or \
-                                        confirmaciones_inst.get("heatmap_ordenes_limite", False)
+                try:
+                    matrix = await obtener_matriz_activo(activo)
+                    if matrix:
+                        confirmaciones_inst = matrix.get("confirmaciones_institucionales", {})
+                        liq_institucional = confirmaciones_inst.get("dark_pools_compra_masiva", False) or \
+                                            confirmaciones_inst.get("heatmap_ordenes_limite", False)
+                except Exception as db_err:
+                    print(f"| GESTOR BE | No se pudo comprobar matriz en Firebase por cuota agotada: {db_err}")
+                    # Por seguridad, si falla Firebase, asumimos True para mantener el SL original intacto
+                    liq_institucional = True
                                         
                 if liq_institucional:
-                    print(f"| GESTOR BE | {activo} regresando a entrada. Soporte institucional DETECTADO. Manteniendo SL original.")
+                    print(f"| GESTOR BE | {activo} regresando a entrada. Soporte institucional DETECTADO o Fallback de cuota. Manteniendo SL original.")
                 else:
                     print(f"| GESTOR BE | {activo} regresando a entrada sin soporte institucional. Colocando Break-Even.")
                     try:
-                        # Modificar SL a Break-Even
-                        await connection.modify_position(ticket, stop_loss=entry_price, take_profit=tp)
-                        print(f"| GESTOR BE SUCCESS | Ticket {ticket} modificado a Break-Even (SL={entry_price}, TP={tp}).")
-                        POSICIONES_ACTIVAS[ticket]["sl"] = entry_price
+                        # Modificar SL a Break-Even + pequeño resguardo
+                        buffer_be = 0.0001 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.01
+                        nuevo_sl = entry_price + buffer_be if es_buy else entry_price - buffer_be
+                        await connection.modify_position(ticket, stop_loss=nuevo_sl, take_profit=tp)
+                        print(f"| GESTOR BE SUCCESS | Ticket {ticket} modificado a Break-Even (SL={nuevo_sl}, TP={tp}).")
+                        POSICIONES_ACTIVAS[ticket]["sl"] = nuevo_sl
                     except Exception as e:
                         print(f"| GESTOR BE ERROR | No se pudo modificar ticket {ticket} a BE: {e}")
 

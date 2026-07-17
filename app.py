@@ -42,6 +42,7 @@ db = None
 # Variables globales para caché del Dashboard
 DASHBOARD_CACHE_DATA = None
 DASHBOARD_CACHE_TIME = 0.0
+ULTIMO_BROKER_STATE = None
 import time
 
 def invalidar_cache_dashboard():
@@ -2480,15 +2481,24 @@ def webhook_update_balance(payload: UpdateBalancePayload, authorization: Optiona
         
     try:
         from datetime import datetime
-        db.collection("system_memory").document("broker_state").set({
+        # Actualizamos una caché en RAM global en Railway para evitar tocar Firebase a cada segundo y no invalidar la caché del Dashboard
+        global ULTIMO_BROKER_STATE
+        ULTIMO_BROKER_STATE = {
             "live_balance": payload.balance,
             "equity": payload.equity,
             "floating_pnl": payload.floating_pnl,
             "timestamp": datetime.now().isoformat()
-        }, merge=True)
+        }
         
-        invalidar_cache_dashboard()
-        return {"status": "success", "mensaje": "Balance actualizado"}
+        # Opcional: Escribimos asíncronamente en Firestore sólo de fondo o evitamos el set si la cuota está agotada
+        try:
+            db.collection("system_memory").document("broker_state").set(ULTIMO_BROKER_STATE, merge=True)
+        except Exception as fe:
+            # Si da error 429 Quota Exceeded, lo ignoramos para mantener el bot operativo en memoria
+            pass
+            
+        # IMPORTANTE: Eliminamos invalidar_cache_dashboard() de aquí para que la caché de 3 min del Dashboard proteja las lecturas
+        return {"status": "success", "mensaje": "Balance actualizado en memoria de Railway"}
     except Exception as e:
         print(f"| GESTOR BALANCE ERROR | {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -2704,15 +2714,23 @@ def api_dashboard_data():
         balance_actual = None
         equity_actual = None
         floating_pnl = 0.0
-        try:
-            broker_doc = db.collection("system_memory").document("broker_state").get()
-            if broker_doc.exists:
-                broker_data = broker_doc.to_dict()
-                balance_actual = float(broker_data.get("live_balance", 5000.0))
-                equity_actual = float(broker_data.get("equity", balance_actual))
-                floating_pnl = float(broker_data.get("floating_pnl", 0.0))
-        except: pass
         
+        # Leemos de la variable en memoria de Railway (ULTIMO_BROKER_STATE) en lugar de consultar Firestore
+        global ULTIMO_BROKER_STATE
+        if 'ULTIMO_BROKER_STATE' in globals() and ULTIMO_BROKER_STATE is not None:
+            balance_actual = float(ULTIMO_BROKER_STATE.get("live_balance", 5000.0))
+            equity_actual = float(ULTIMO_BROKER_STATE.get("equity", balance_actual))
+            floating_pnl = float(ULTIMO_BROKER_STATE.get("floating_pnl", 0.0))
+        else:
+            try:
+                broker_doc = db.collection("system_memory").document("broker_state").get()
+                if broker_doc.exists:
+                    broker_data = broker_doc.to_dict()
+                    balance_actual = float(broker_data.get("live_balance", 5000.0))
+                    equity_actual = float(broker_data.get("equity", balance_actual))
+                    floating_pnl = float(broker_data.get("floating_pnl", 0.0))
+            except: pass
+            
         data["floating_pnl"] = floating_pnl
         
         from datetime import datetime
