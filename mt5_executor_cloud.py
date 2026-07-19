@@ -646,74 +646,61 @@ async def gestionar_posiciones_activas(connection, balance: float):
                     print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial para ticket {ticket}: {e}")
                     
         # B. Gestión de SL en ganancias para Runners (Trades que ya tomaron parcial del 50% y están en BE)
-        # Si el precio regresa a la zona de entrada pero las condiciones institucionales de H1 siguen siendo favorables,
-        # movemos el SL a zona de ganancia asegurada en vez de salir en BE plano.
+        # Si el precio superó el 50% del TP y el trade continúa hacia el TP completo, pero detecta un retroceso,
+        # movemos el SL a la posición del 50% (mitad de la distancia al TP original) para asegurar una segunda ganancia
+        # y evitar salir en BE plano si el precio regresa.
         if POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
-            distancia_tp1 = abs(tp - entry_price) * 0.4
-            rango_tolerancia = distancia_tp1 * 0.25  # Zona amplia de re-test
-            
             es_jpy = pos.get('symbol', '').endswith("JPY")
             es_xau = "XAU" in pos.get('symbol', '')
-            buffer_ganancia = 0.0003 if not es_jpy and not es_xau else 0.03
             
-            # Verificar si el SL ya está en ganancias
-            sl_en_ganancia = (es_buy and sl > entry_price + buffer_ganancia) or (not es_buy and sl < entry_price - buffer_ganancia)
+            distancia_total = abs(tp - entry_price)
+            punto_mitad_tp = entry_price + (distancia_total * 0.5) if es_buy else entry_price - (distancia_total * 0.5)
             
-            if not sl_en_ganancia:
-                esta_retornando = False
-                if es_buy:
-                    esta_retornando = (current_price <= entry_price + rango_tolerancia) and (current_price > entry_price)
-                else:
-                    esta_retornando = (current_price >= entry_price - rango_tolerancia) and (current_price < entry_price)
+            # Verificar si el SL ya está ajustado a la mitad del TP o más allá
+            sl_ya_en_mitad = (es_buy and sl >= punto_mitad_tp - 0.0001) or (not es_buy and sl <= punto_mitad_tp + 0.0001)
+            
+            if not sl_ya_en_mitad:
+                # Calculamos qué tan lejos ha llegado el precio a favor del TP
+                distancia_recorrida = abs(current_price - entry_price)
                 
-                if esta_retornando:
-                    # Obtener velas 1H para validar Acción del Precio, RSI y EMAs
+                # Para subir el SL al 50% (punto de TP1), el precio debe haber superado al menos el 60% de la distancia total del TP
+                # y encontrarse en una zona de confluencia técnica (soporte/resistencia local o retroceso menor)
+                ha_superado_umbral = (distancia_recorrida >= (distancia_total * 0.6))
+                
+                if ha_superado_umbral:
+                    # Obtener velas 1H para validar confluencias técnicas (soportes/resistencias, EMAs, RSI)
                     df_1h = await obtener_velas_cloud(account, pos.get('symbol'), '1h', 100)
                     if df_1h is not None and not df_1h.empty:
                         try:
-                            # Calcular RSI 14
+                            # Calcular indicadores técnicos
                             rsi_series = calcular_rsi(df_1h)
                             rsi_1h = rsi_series.iloc[-1]
-                            
-                            # Calcular EMAs (50 y 200)
                             ema_50 = df_1h['close'].ewm(span=50, adjust=False).mean().iloc[-1]
                             ema_200 = df_1h['close'].ewm(span=200, adjust=False).mean().iloc[-1]
-                            
-                            # Evaluar confluencias
-                            soporte_activo = False
-                            resistencia_activa = False
                             sr_levels = detectar_soportes_resistencias(df_1h)
                             
-                            # Condición de compra: Estructura alcista, RSI saludable y soporte
-                            criterio_buy_valido = False
+                            # Evaluamos si hay un retroceso menor o soporte/resistencia local para mover el SL al 50%
+                            criterio_mover_sl = False
                             if es_buy:
-                                # Soporte o EMA actuando como soporte dinámico
-                                cerca_ema = abs(current_price - ema_50) / current_price < 0.001 or abs(current_price - ema_200) / current_price < 0.001
-                                soporte_cercano = any(abs(current_price - s) / current_price < 0.0015 for s in sr_levels.get('soportes', []))
-                                # RSI no sobrecomprado (espacio para subir) y mayor a 40
-                                rsi_valido = 40 < rsi_1h < 68
-                                criterio_buy_valido = rsi_valido and (cerca_ema or soporte_cercano or current_price > ema_50)
-                            
-                            # Condición de venta: Estructura bajista, RSI en zona de ventas y resistencia
-                            criterio_sell_valido = False
-                            if not es_buy:
-                                cerca_ema = abs(current_price - ema_50) / current_price < 0.001 or abs(current_price - ema_200) / current_price < 0.001
-                                resistencia_cercana = any(abs(current_price - r) / current_price < 0.0015 for r in sr_levels.get('resistencias', []))
-                                rsi_valido = 32 < rsi_1h < 60
-                                criterio_sell_valido = rsi_valido and (cerca_ema or resistencia_cercana or current_price < ema_50)
+                                soporte_cercano = any(abs(current_price - s) / current_price < 0.002 for s in sr_levels.get('soportes', []))
+                                cerca_ema = abs(current_price - ema_50) / current_price < 0.002 or abs(current_price - ema_200) / current_price < 0.002
+                                # Si detecta soporte, EMA soporte o un RSI en retroceso moderado
+                                criterio_mover_sl = soporte_cercano or cerca_ema or (rsi_1h < 65)
+                            else:
+                                resistencia_cercana = any(abs(current_price - r) / current_price < 0.002 for r in sr_levels.get('resistencias', []))
+                                cerca_ema = abs(current_price - ema_50) / current_price < 0.002 or abs(current_price - ema_200) / current_price < 0.002
+                                criterio_mover_sl = resistencia_cercana or cerca_ema or (rsi_1h > 35)
                                 
-                            if criterio_buy_valido or criterio_sell_valido:
-                                # Mover SL a ganancias (asegurar buffer de ganancia adicional en vez de BE simple)
-                                nuevo_sl = entry_price + buffer_ganancia if es_buy else entry_price - buffer_ganancia
-                                print(f"| GESTOR TRAILING SL | Confluencias H1 válidas (RSI: {rsi_1h:.1f}). Protegiendo runner en ganancias para {ticket}.")
+                            if criterio_mover_sl:
+                                print(f"| GESTOR TRAILING SL | Setup superó el 60% del TP con confluencias en H1. Moviendo SL al 50% (TP1={punto_mitad_tp}) para proteger ganancias.")
                                 try:
-                                    await connection.modify_position(ticket, stop_loss=nuevo_sl, take_profit=tp)
-                                    print(f"| GESTOR TRAILING SL SUCCESS | Ticket {ticket} SL movido a zona de ganancias: SL={nuevo_sl}")
-                                    POSICIONES_ACTIVAS[ticket]["sl"] = nuevo_sl
+                                    await connection.modify_position(ticket, stop_loss=punto_mitad_tp, take_profit=tp)
+                                    print(f"| GESTOR TRAILING SL SUCCESS | Ticket {ticket} SL bloqueado en el 50% del TP: SL={punto_mitad_tp}")
+                                    POSICIONES_ACTIVAS[ticket]["sl"] = punto_mitad_tp
                                 except Exception as e:
-                                    print(f"| GESTOR TRAILING SL ERROR | No se pudo mover SL a ganancias para ticket {ticket}: {e}")
+                                    print(f"| GESTOR TRAILING SL ERROR | No se pudo mover SL al 50% para ticket {ticket}: {e}")
                         except Exception as eval_err:
-                            print(f"| GESTOR TRAILING SL | Error evaluando indicadores: {eval_err}")
+                            print(f"| GESTOR TRAILING SL | Error evaluando indicadores para trailing: {eval_err}")
                             
         # C. Gestión de Break-Even dinámico relativo a Liquidez Institucional (Para órdenes que aún no toman parciales)
         if not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
