@@ -1825,21 +1825,34 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         import time
         eval_id = f"EVAL_{activo_normalizado}_{int(time.time())}"
         
-        audit_ref = db.collection("mia_audit_logs").document(eval_id)
-        audit_ref.set({
-            "ticket": eval_id,
-            "activo": activo_normalizado,
-            "estrategia": "Escáner Cloud",
-            "score": score,
-            "ejecutada_mt5": False,
-            "motivo": motivo,
-            "fecha": fecha_str,
-            "timestamp": iso_time,
-            "detalle_setup": detalle_str,
-            "confirmaciones_tecnicas": data.get("confirmaciones_tecnicas", {}),
-            "confirmaciones_fundamentales": data.get("confirmaciones_fundamentales", {}),
-            "confirmaciones_institucionales": data.get("confirmaciones_institucionales", {})
-        })
+        # 🛡️ PROTECCIÓN DE CUOTA DE FIREBASE:
+        # Solo escribimos en Firestore si el score es relevante (>= 80%) o si hay una alerta de entrada inminente.
+        # Los updates de score < 80 se procesan y se guardan en la memoria RAM de Railway para alimentar el feed en tiempo real
+        # pero SIN escribir en Firestore para evitar agotar las 50k escrituras diarias por evaluación continua.
+        debe_guardar_en_firestore = (score >= 80.0)
+        
+        if debe_guardar_en_firestore:
+            try:
+                audit_ref = db.collection("mia_audit_logs").document(eval_id)
+                audit_ref.set({
+                    "ticket": eval_id,
+                    "activo": activo_normalizado,
+                    "estrategia": "Escáner Cloud",
+                    "score": score,
+                    "ejecutada_mt5": False,
+                    "motivo": motivo,
+                    "fecha": fecha_str,
+                    "timestamp": iso_time,
+                    "detalle_setup": detalle_str,
+                    "confirmaciones_tecnicas": data.get("confirmaciones_tecnicas", {}),
+                    "confirmaciones_fundamentales": data.get("confirmaciones_fundamentales", {}),
+                    "confirmaciones_institucionales": data.get("confirmaciones_institucionales", {})
+                })
+                print(f"| FIREBASE SUCCESS | Registro EVAL (Score relevante >= 80%) guardado en Firestore: {eval_id}")
+            except Exception as fe_err:
+                print(f"| FIREBASE WARN | Fallo de escritura en Firestore (Ignorado para resiliencia): {fe_err}")
+        else:
+            print(f"| FIREBASE CACHE ONLY | Omitida escritura en Firestore por Score < 80% ({score}%). Guardado solo en RAM.")
 
         # Actualizar la caché de RAM en tiempo real para reflejar de inmediato en el Dashboard
         global GLOBAL_AUDIT_LOGS
@@ -1859,6 +1872,12 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
                 "confirmaciones_institucionales": data.get("confirmaciones_institucionales", {})
             }
             GLOBAL_AUDIT_LOGS.insert(0, audit_data) # Insertar al inicio por ser el más reciente
+            
+            # Limitar la caché en RAM a los últimos 1500 logs para evitar fugas de memoria
+            if len(GLOBAL_AUDIT_LOGS) > 1500:
+                GLOBAL_AUDIT_LOGS = GLOBAL_AUDIT_LOGS[:1500]
+                
+            invalidar_cache_dashboard()
             
         print(f"| FIREBASE SUCCESS | Registro EVAL guardado en Firestore y Caché RAM: {eval_id}")
         
