@@ -252,8 +252,8 @@ async def startup_event():
     if os.getenv("RUN_SCANNER_CLOUD", "false").lower() == "true":
         asyncio.create_task(run_escaner_loop())
         
-    # Inicializar el scheduler de volcado de logs diario a disco
-    asyncio.create_task(scheduler_volcado_logs_diario())
+    # Inicializar el scheduler de volcado de logs semanal a disco (Viernes 11:00 PM)
+    asyncio.create_task(scheduler_volcado_logs_semanal())
 
 
 
@@ -3311,73 +3311,130 @@ def registrar_log_local_periodo(ticket: str, activo: str, accion: str, score: fl
 
 
 # ==============================================================================
-# HILO RECURRENTE: VOLCADO DE LOGS A DISCO (12:50 AM DIARIO)
+# HILO RECURRENTE: VOLCADO DE LOGS A DISCO (VIERNES 11:00 PM SEMANAL)
 # ==============================================================================
-async def scheduler_volcado_logs_diario():
+async def scheduler_volcado_logs_semanal():
     """
-    Bucle asíncrono que corre en segundo plano y se despierta a las 12:50 AM (hora local)
-    para escribir todos los logs acumulados en el caché RAM del día a la PC.
-    Evita por completo hacer lecturas extras a Firebase Firestore.
+    Bucle asíncrono que corre en segundo plano y se ejecuta cada viernes a las 11:00 PM (hora local),
+    cuando el mercado de divisas cierra.
+    Escribe un único archivo consolidado de texto con todos los trades y setups de la semana
+    (desde el lunes a las 00:00 hasta el viernes a las 23:00).
+    Se guarda en la carpeta del mes correspondiente. Como se ubica en OneDrive,
+    al encender tu PC se sincronizará automáticamente de fondo.
     """
     import asyncio
     from datetime import datetime, timedelta
     
-    print("| SCHEDULER LOGS | Inicializando bucle de guardado local diario...")
+    print("| SCHEDULER LOGS | Inicializando bucle de guardado local semanal (Viernes 11:00 PM)...")
     while True:
         try:
             ahora = datetime.now()
-            # Calcular la próxima ocurrencia de las 00:50 (12:50 AM)
-            proximo_volcado = ahora.replace(hour=0, minute=50, second=0, microsecond=0)
-            if ahora >= proximo_volcado:
-                proximo_volcado += timedelta(days=1)
+            
+            # Calcular el siguiente viernes a las 23:00 (11:00 PM)
+            dias_hasta_viernes = (4 - ahora.weekday()) % 7
+            proximo_volcado = ahora.replace(hour=23, minute=0, second=0, microsecond=0)
+            
+            if dias_hasta_viernes > 0:
+                proximo_volcado += timedelta(days=dias_hasta_viernes)
+            elif ahora >= proximo_volcado:
+                # Si ya es viernes después de las 11 PM, programar para el siguiente viernes
+                proximo_volcado += timedelta(days=7)
                 
             segundos_espera = (proximo_volcado - ahora).total_seconds()
-            print(f"| SCHEDULER LOGS | Siguiente volcado programado para: {proximo_volcado} (Espera: {segundos_espera/3600:.2f} horas)")
+            print(f"| SCHEDULER LOGS | Siguiente volcado semanal programado para: {proximo_volcado} (Espera: {segundos_espera/3600:.2f} horas)")
             
-            # Dormir hasta que sea la hora
+            # Dormir hasta que sea viernes a las 11:00 PM
             await asyncio.sleep(segundos_espera)
             
-            # Ejecutar volcado desde la Caché RAM global para no hacer llamadas a la base
-            print("| SCHEDULER LOGS | Iniciando volcado diario a disco local...")
+            print("| SCHEDULER LOGS | Viernes 11:00 PM detectado. Iniciando recopilación semanal de logs...")
             global GLOBAL_AUDIT_LOGS
             
-            # Si el caché de RAM está vacío o Firebase está en error, intentamos asegurar el caché sin romper nada
-            if not GLOBAL_AUDIT_LOGS:
-                try:
-                    asegurar_cache_firebase()
-                except Exception as e:
-                    print(f"| SCHEDULER LOGS ERROR | No se pudo actualizar caché antes de escribir logs: {e}")
+            # Forzar actualización de la caché RAM con Firebase para asegurar que no falte nada de la semana
+            try:
+                asegurar_cache_firebase()
+            except Exception as e:
+                print(f"| SCHEDULER LOGS ERROR | No se pudo actualizar caché al cierre de mercado: {e}")
             
             if GLOBAL_AUDIT_LOGS:
-                hoy_str = datetime.now().strftime("%Y-%m-%d")
+                import os
+                import locale
+                # Configurar locale a español para el nombre del mes
+                try:
+                    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+                except:
+                    try:
+                        locale.setlocale(locale.LC_TIME, 'es_ES')
+                    except:
+                        pass
+                
+                fecha_hoy = datetime.now()
+                mes_nombre = fecha_hoy.strftime("%B").capitalize()
+                
+                # Definir rango de la semana: desde el lunes a las 00:00:00 hasta hoy (viernes 23:00:00)
+                lunes_semana = fecha_hoy - timedelta(days=fecha_hoy.weekday())
+                lunes_semana = lunes_semana.replace(hour=0, minute=0, second=0, microsecond=0)
+                
+                base_dir = r"C:\Users\ecybe\OneDrive\Documentos\Trading\Logs"
+                mes_dir = os.path.join(base_dir, mes_nombre)
+                
+                if not os.path.exists(mes_dir):
+                    os.makedirs(mes_dir)
+                
+                # Archivo semanal indicando el rango de fecha de la semana de trading
+                rango_semana_str = f"Semana_del_{lunes_semana.strftime('%d')}_al_{fecha_hoy.strftime('%d')}"
+                file_path = os.path.join(mes_dir, f"{rango_semana_str}.txt")
+                
                 contador = 0
-                for log in GLOBAL_AUDIT_LOGS:
-                    fecha_log = log.get("fecha", "")
-                    # Tomar sólo los registros del día de hoy
-                    if fecha_log.startswith(hoy_str):
-                        es_ej = log.get("ejecutada_mt5", False)
-                        pnl_val = float(log.get("pnl", 0.0) or log.get("pnl_acumulado", 0.0))
+                lines_to_write = []
+                
+                lines_to_write.append(f"================================================================================\n")
+                lines_to_write.append(f"   REPORTE SEMANAL DE TRADING - DESDE: {lunes_semana.strftime('%Y-%m-%d')} HASTA: {fecha_hoy.strftime('%Y-%m-%d')}\n")
+                lines_to_write.append(f"================================================================================\n\n")
+                
+                # Filtrar logs de la semana (se compara el timestamp o el campo fecha)
+                for log in sorted(GLOBAL_AUDIT_LOGS, key=lambda x: x.get("fecha", "")):
+                    fecha_log_str = log.get("fecha", "")
+                    if not fecha_log_str:
+                        continue
                         
-                        registrar_log_local_periodo(
-                            ticket=log.get("ticket", "N/A"),
-                            activo=log.get("activo", "UNKNOWN"),
-                            accion=log.get("accion", "EVALUACION"),
-                            score=float(log.get("score", 0.0)),
-                            precio=float(log.get("precio_ejecucion", log.get("precio", 0.0))),
-                            sl=float(log.get("stop_loss", log.get("sl", 0.0))),
-                            tp=float(log.get("take_profit", log.get("tp", 0.0))),
-                            pnl=pnl_val,
-                            motivo=log.get("motivo", "N/A"),
-                            es_ejecutado=es_ej
+                    try:
+                        dt_log = datetime.strptime(fecha_log_str, "%Y-%m-%d %H:%M:%S")
+                    except:
+                        try:
+                            dt_log = datetime.strptime(fecha_log_str.split(".")[0], "%Y-%m-%d %H:%M:%S")
+                        except:
+                            continue
+                            
+                    # Si el log está dentro del rango de lunes a viernes de esta semana
+                    if lunes_semana <= dt_log <= fecha_hoy:
+                        es_ej = log.get("ejecutada_mt5", False)
+                        tipo_log = "EJECUCION_VIVO" if es_ej else "EVALUACION_TECNICA"
+                        pnl_val = float(log.get("pnl", 0.0) or log.get("pnl_acumulado", 0.0))
+                        pnl_str = f"{pnl_val:.2f}" if es_ej else "N/A (No Ejecutada)"
+                        
+                        log_line = (
+                            f"[{fecha_log_str}] TIPO: {tipo_log} | TICKET: {log.get('ticket', 'N/A')}\n"
+                            f"ACTIVO: {log.get('activo', 'UNKNOWN')} | ACCION: {log.get('accion', 'EVALUACION')} | SCORE: {log.get('score', 0.0)}%\n"
+                            f"PRECIO DE ENTRADA: {float(log.get('precio_ejecucion', log.get('precio', 0.0))):.5f}\n"
+                            f"STOP LOSS (SL): {float(log.get('stop_loss', log.get('sl', 0.0))):.5f}\n"
+                            f"TAKE PROFIT (TP): {float(log.get('take_profit', log.get('tp', 0.0))):.5f}\n"
+                            f"PNL REALIZADO ($): {pnl_str}\n"
+                            f"ESTADO / MOTIVO: {log.get('motivo', 'N/A')}\n"
+                            f"--------------------------------------------------------------------------------\n"
                         )
+                        lines_to_write.append(log_line)
                         contador += 1
-                print(f"| SCHEDULER LOGS | Volcado exitoso. {contador} registros del día volcados a la carpeta del mes.")
+                
+                with open(file_path, "w", encoding="utf-8") as lf:
+                    lf.writelines(lines_to_write)
+                    
+                print(f"| SCHEDULER LOGS | Volcado semanal exitoso. {contador} registros guardados en {file_path}")
             else:
-                print("| SCHEDULER LOGS | No hay logs en el caché de RAM para volcar el día de hoy.")
+                print("| SCHEDULER LOGS | No hay logs acumulados en la RAM para volcar esta semana.")
                 
         except Exception as err:
-            print(f"| SCHEDULER LOGS ERROR | Error en loop de volcado diario: {err}")
-            # Dormir 5 minutos para evitar bucles rápidos en caso de error
+            print(f"| SCHEDULER LOGS ERROR | Error en loop de volcado semanal: {err}")
             await asyncio.sleep(300)
+
 
 
