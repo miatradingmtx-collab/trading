@@ -734,8 +734,8 @@ def recalcular_score_ponderado(data: dict) -> float:
     if not (ma_alineada or rsi_extremo):
         return 0.0  # Sin dirección clara ni zona de reversión, se rechaza
         
-    if ma_alineada: score += 20
-    if rsi_extremo: score += 20
+    if ma_alineada: score += 15
+    if rsi_extremo: score += 15
     
     # 2. Confirmadores de Zonas Clave (POC y Soportes/Resistencias)
     if tech.get("soporte_resistencia_activo"): 
@@ -744,17 +744,27 @@ def recalcular_score_ponderado(data: dict) -> float:
     if tech.get("poc_price", 0.0) > 0:
         score += 10 # Bonus por tener confirmación clara de Perfil de Volumen
     
-    # 3. Módulos SMC e ICT (Institucional)
+    # 3. Nuevos Indicadores Algorítmicos Clave (Zonas OB y Flujos de Liquidez)
+    # Si la entrada está en una zona de OB institucional (mitigado o no mitigado) -> Bonus de zona
+    if tech.get("order_block_zona", False):
+        score += 25
+        
+    # Si el flujo algorítmico institucional está alineado hacia capturar la liquidez de esta zona -> Bonus
+    if tech.get("alineamiento_liquidez", False):
+        score += 25
+
+    # 4. Módulos SMC e ICT (Institucional)
     smc_codes = tech.get("smc_codes", [])
     
     # Pesos estructurales (Se suman a los indicadores para buscar >= 80%)
-    if 1 in smc_codes: score += 40  # Order Block (OB)
-    if 2 in smc_codes: score += 40  # Fair Value Gap (FVG)
-    if 3 in smc_codes: score += 30  # Breaker Block
-    if 4 in smc_codes: score += 20  # Liquidity Sweep
+    if 1 in smc_codes: score += 30  # Order Block (OB) detectado en estructura
+    if 2 in smc_codes: score += 30  # Fair Value Gap (FVG)
+    if 3 in smc_codes: score += 20  # Breaker Block
+    if 4 in smc_codes: score += 15  # Liquidity Sweep
         
     # Firebase es el único juez de la validación. Permitimos scores > 100% para mostrar fuerza extrema.
     return score
+
 
 def normalizar_activo(activo: str) -> str:
     """Mapea símbolos de trading comunes a los 8 activos clave de Firebase"""
@@ -1228,7 +1238,9 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
             "fvg_detectado": "FVG",
             "breaker_block_detectado": "BRK",
             "sweep_liquidez_detectado": "SWEEP",
-            "soporte_resistencia_activo": "SR"
+            "soporte_resistencia_activo": "SR",
+            "order_block_zona": "OB_ZONE",
+            "alineamiento_liquidez": "LIQ_FLOW"
         }
         patron_key_parts = sorted([ict_fields[f] for f in confirmaciones_activas if f in ict_fields])
         if patron_key_parts:
@@ -3149,7 +3161,7 @@ def export_audit_csv():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/chart_data/{symbol}")
-async def get_chart_data(symbol: str):
+async def get_chart_data(symbol: str, timeframe: str = "1h"):
     try:
         import yfinance as yf
         import pandas as pd
@@ -3167,16 +3179,41 @@ async def get_chart_data(symbol: str):
         
         yf_symbol = mapa.get(symbol.upper(), symbol.upper())
         
-        # Descargar data de 7 días, intervalos de 1 hora
+        # Mapear temporalidades a periodos y tipos de intervalo correctos en yfinance
+        # 1h -> interval "1h" (period 7d)
+        # 2h -> interval "2h" (period 60d)
+        # 3h -> interval "1h" resampled to 3h
+        # 4h -> interval "1h" resampled to 4h
+        # 8h -> interval "1h" resampled to 8h
+        interval_yf = "1h"
+        period_yf = "30d" if timeframe in ["2h", "3h", "4h", "8h"] else "7d"
+        if timeframe == "2h":
+            interval_yf = "2h"
+            period_yf = "60d"
+            
         ticker = yf.Ticker(yf_symbol)
-        df = ticker.history(period="7d", interval="1h")
+        df = ticker.history(period=period_yf, interval=interval_yf)
         
         if df.empty:
             # Reintentar con símbolo spot si es oro o un futuro
             if yf_symbol == "GC=F":
-                df = yf.Ticker("XAUUSD=X").history(period="7d", interval="1h")
+                df = yf.Ticker("XAUUSD=X").history(period=period_yf, interval=interval_yf)
             if df.empty:
                 return {"status": "error", "message": f"No se encontraron datos para {yf_symbol}"}
+                
+        # Si la temporalidad es 3h, 4h u 8h, agrupamos (resample) a partir de velas de 1h
+        if timeframe in ["3h", "4h", "8h"] and not df.empty:
+            rule_map = {"3h": "3h", "4h": "4h", "8h": "8h"}
+            rule = rule_map[timeframe]
+            df_resampled = df.resample(rule).agg({
+                "Open": "first",
+                "High": "max",
+                "Low": "min",
+                "Close": "last",
+                "Volume": "sum"
+            }).dropna()
+            df = df_resampled
+
             
         if not df.empty:
             df['EMA50'] = df['Close'].ewm(span=50, adjust=False).mean()
