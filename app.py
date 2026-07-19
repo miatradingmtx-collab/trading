@@ -633,6 +633,11 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 "accion": alert.accion,
                 "estrategia": alert.estrategia,
                 "pnl": alert.pnl if alert.pnl else 0.0,
+                "precio_ejecucion": alert.precio if alert.precio else 0.0,
+                "stop_loss": alert.stop_loss if alert.stop_loss else 0.0,
+                "take_profit": alert.take_profit if alert.take_profit else 0.0,
+                "sl": alert.stop_loss if alert.stop_loss else 0.0,
+                "tp": alert.take_profit if alert.take_profit else 0.0,
                 "ultima_actualizacion": iso_time,
                 "timestamp": iso_time,
                 "fecha": fecha_str,
@@ -645,6 +650,20 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             # Usamos merge=True para no sobreescribir el precio y score si ya fue guardado por la apertura
             audit_ref.set(audit_data, merge=True)
             print(f"| AUDIT LOG SUCCESS | Ticket {alert.ticket} guardado/actualizado en mia_audit_logs.")
+            
+            # Registrar log en disco local de la PC de forma persistente
+            registrar_log_local_periodo(
+                ticket=str(alert.ticket),
+                activo=alert.activo,
+                accion=alert.accion,
+                score=float(score),
+                precio=float(alert.precio if alert.precio else 0.0),
+                sl=float(alert.stop_loss if alert.stop_loss else 0.0),
+                tp=float(alert.take_profit if alert.take_profit else 0.0),
+                pnl=float(alert.pnl if alert.pnl else 0.0),
+                motivo=motivo_final,
+                es_ejecutado=ejecutada_flag
+            )
             
             # Actualizar Caché Global en RAM
             global GLOBAL_AUDIT_LOGS
@@ -1840,6 +1859,20 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
             }
             GLOBAL_AUDIT_LOGS.insert(0, audit_data) # Insertar al inicio por ser el más reciente
             
+        # Registrar log en disco local de la PC de forma persistente
+        registrar_log_local_periodo(
+            ticket=eval_id,
+            activo=activo_normalizado,
+            accion="EVALUACION",
+            score=score,
+            precio=poc_price if 'poc_price' in locals() else float(data.get("confirmaciones_tecnicas", {}).get("poc_price", 0.0)),
+            sl=0.0,
+            tp=0.0,
+            pnl=0.0,
+            motivo=motivo,
+            es_ejecutado=False
+        )
+
         print(f"| FIREBASE SUCCESS | Registro EVAL guardado en Firestore y Caché RAM: {eval_id}")
         
         return {
@@ -3238,3 +3271,66 @@ async def get_chart_data(symbol: str):
     except Exception as e:
         print(f"| CHART API ERROR | {e}")
         return {"status": "error", "message": str(e)}
+
+# ==============================================================================
+# SISTEMA DE LOGS LOCALES EN FOLDERS POR MES (Trading/Logs/Mes/dia.txt)
+# ==============================================================================
+def registrar_log_local_periodo(ticket: str, activo: str, accion: str, score: float, precio: float, sl: float, tp: float, pnl: float, motivo: str, es_ejecutado: bool):
+    """
+    Guarda un log estructurado en el disco local de la PC en:
+    C:\\Users\\ecybe\\OneDrive\\Documentos\\Trading\\Logs\\[Nombre_Mes]\\[Dia].txt
+    Registra entradas con score >= 80 y < 80 con sus puntos de entrada, SL y TP.
+    """
+    import os
+    import locale
+    from datetime import datetime
+    
+    try:
+        # Configurar locale a español para obtener el nombre del mes correcto (ej. Julio)
+        try:
+            locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+        except:
+            try:
+                locale.setlocale(locale.LC_TIME, 'es_ES')
+            except:
+                pass # Fallback al idioma del sistema si falla
+                
+        ahora = datetime.now()
+        mes_nombre = ahora.strftime("%B").capitalize() # Ej: Julio, Agosto
+        dia_str = ahora.strftime("%d") # Ej: 19
+        fecha_completa = ahora.strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Ruta base solicitada por el usuario
+        base_dir = r"C:\Users\ecybe\OneDrive\Documentos\Trading\Logs"
+        mes_dir = os.path.join(base_dir, mes_nombre)
+        
+        if not os.path.exists(mes_dir):
+            os.makedirs(mes_dir)
+            
+        file_path = os.path.join(mes_dir, f"{dia_str}.txt")
+        
+        tipo_log = "EJECUCION_VIVO" if es_ejecutado else "EVALUACION_TECNICA"
+        pnl_str = f"{pnl:.2f}" if es_ejecutado else "N/A (No Ejecutada)"
+        
+        log_line = (
+            f"================================================================================\n"
+            f"[{fecha_completa}] TIPO: {tipo_log} | TICKET: {ticket}\n"
+            f"--------------------------------------------------------------------------------\n"
+            f"ACTIVO: {activo} | ACCION: {accion} | SCORE: {score}%\n"
+            f"PRECIO DE ENTRADA: {precio:.5f}\n"
+            f"STOP LOSS (SL): {sl:.5f}\n"
+            f"TAKE PROFIT (TP): {tp:.5f}\n"
+            f"PNL REALIZADO ($): {pnl_str}\n"
+            f"ESTADO / MOTIVO DE CIERRE: {motivo}\n"
+            f"================================================================================\n\n"
+        )
+        
+        with open(file_path, "a", encoding="utf-8") as lf:
+            lf.write(log_line)
+            
+        print(f"| LOG LOCAL | Registro guardado en {file_path}")
+        return True
+    except Exception as le:
+        print(f"| LOG LOCAL ERROR | No se pudo escribir log local: {le}")
+        return False
+
