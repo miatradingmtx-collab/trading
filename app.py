@@ -251,6 +251,9 @@ async def startup_event():
     # Lanzar el escáner asíncrono de MetaAPI en segundo plano si está activado en el entorno
     if os.getenv("RUN_SCANNER_CLOUD", "false").lower() == "true":
         asyncio.create_task(run_escaner_loop())
+        
+    # Inicializar el scheduler de volcado de logs diario a disco
+    asyncio.create_task(scheduler_volcado_logs_diario())
 
 
 
@@ -650,20 +653,6 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             # Usamos merge=True para no sobreescribir el precio y score si ya fue guardado por la apertura
             audit_ref.set(audit_data, merge=True)
             print(f"| AUDIT LOG SUCCESS | Ticket {alert.ticket} guardado/actualizado en mia_audit_logs.")
-            
-            # Registrar log en disco local de la PC de forma persistente
-            registrar_log_local_periodo(
-                ticket=str(alert.ticket),
-                activo=alert.activo,
-                accion=alert.accion,
-                score=float(score),
-                precio=float(alert.precio if alert.precio else 0.0),
-                sl=float(alert.stop_loss if alert.stop_loss else 0.0),
-                tp=float(alert.take_profit if alert.take_profit else 0.0),
-                pnl=float(alert.pnl if alert.pnl else 0.0),
-                motivo=motivo_final,
-                es_ejecutado=ejecutada_flag
-            )
             
             # Actualizar Caché Global en RAM
             global GLOBAL_AUDIT_LOGS
@@ -1859,20 +1848,6 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
             }
             GLOBAL_AUDIT_LOGS.insert(0, audit_data) # Insertar al inicio por ser el más reciente
             
-        # Registrar log en disco local de la PC de forma persistente
-        registrar_log_local_periodo(
-            ticket=eval_id,
-            activo=activo_normalizado,
-            accion="EVALUACION",
-            score=score,
-            precio=poc_price if 'poc_price' in locals() else float(data.get("confirmaciones_tecnicas", {}).get("poc_price", 0.0)),
-            sl=0.0,
-            tp=0.0,
-            pnl=0.0,
-            motivo=motivo,
-            es_ejecutado=False
-        )
-
         print(f"| FIREBASE SUCCESS | Registro EVAL guardado en Firestore y Caché RAM: {eval_id}")
         
         return {
@@ -3333,4 +3308,76 @@ def registrar_log_local_periodo(ticket: str, activo: str, accion: str, score: fl
     except Exception as le:
         print(f"| LOG LOCAL ERROR | No se pudo escribir log local: {le}")
         return False
+
+
+# ==============================================================================
+# HILO RECURRENTE: VOLCADO DE LOGS A DISCO (12:50 AM DIARIO)
+# ==============================================================================
+async def scheduler_volcado_logs_diario():
+    """
+    Bucle asíncrono que corre en segundo plano y se despierta a las 12:50 AM (hora local)
+    para escribir todos los logs acumulados en el caché RAM del día a la PC.
+    Evita por completo hacer lecturas extras a Firebase Firestore.
+    """
+    import asyncio
+    from datetime import datetime, timedelta
+    
+    print("| SCHEDULER LOGS | Inicializando bucle de guardado local diario...")
+    while True:
+        try:
+            ahora = datetime.now()
+            # Calcular la próxima ocurrencia de las 00:50 (12:50 AM)
+            proximo_volcado = ahora.replace(hour=0, minute=50, second=0, microsecond=0)
+            if ahora >= proximo_volcado:
+                proximo_volcado += timedelta(days=1)
+                
+            segundos_espera = (proximo_volcado - ahora).total_seconds()
+            print(f"| SCHEDULER LOGS | Siguiente volcado programado para: {proximo_volcado} (Espera: {segundos_espera/3600:.2f} horas)")
+            
+            # Dormir hasta que sea la hora
+            await asyncio.sleep(segundos_espera)
+            
+            # Ejecutar volcado desde la Caché RAM global para no hacer llamadas a la base
+            print("| SCHEDULER LOGS | Iniciando volcado diario a disco local...")
+            global GLOBAL_AUDIT_LOGS
+            
+            # Si el caché de RAM está vacío o Firebase está en error, intentamos asegurar el caché sin romper nada
+            if not GLOBAL_AUDIT_LOGS:
+                try:
+                    asegurar_cache_firebase()
+                except Exception as e:
+                    print(f"| SCHEDULER LOGS ERROR | No se pudo actualizar caché antes de escribir logs: {e}")
+            
+            if GLOBAL_AUDIT_LOGS:
+                hoy_str = datetime.now().strftime("%Y-%m-%d")
+                contador = 0
+                for log in GLOBAL_AUDIT_LOGS:
+                    fecha_log = log.get("fecha", "")
+                    # Tomar sólo los registros del día de hoy
+                    if fecha_log.startswith(hoy_str):
+                        es_ej = log.get("ejecutada_mt5", False)
+                        pnl_val = float(log.get("pnl", 0.0) or log.get("pnl_acumulado", 0.0))
+                        
+                        registrar_log_local_periodo(
+                            ticket=log.get("ticket", "N/A"),
+                            activo=log.get("activo", "UNKNOWN"),
+                            accion=log.get("accion", "EVALUACION"),
+                            score=float(log.get("score", 0.0)),
+                            precio=float(log.get("precio_ejecucion", log.get("precio", 0.0))),
+                            sl=float(log.get("stop_loss", log.get("sl", 0.0))),
+                            tp=float(log.get("take_profit", log.get("tp", 0.0))),
+                            pnl=pnl_val,
+                            motivo=log.get("motivo", "N/A"),
+                            es_ejecutado=es_ej
+                        )
+                        contador += 1
+                print(f"| SCHEDULER LOGS | Volcado exitoso. {contador} registros del día volcados a la carpeta del mes.")
+            else:
+                print("| SCHEDULER LOGS | No hay logs en el caché de RAM para volcar el día de hoy.")
+                
+        except Exception as err:
+            print(f"| SCHEDULER LOGS ERROR | Error en loop de volcado diario: {err}")
+            # Dormir 5 minutos para evitar bucles rápidos en caso de error
+            await asyncio.sleep(300)
+
 
