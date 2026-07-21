@@ -305,6 +305,11 @@ class CollectiveMemoryRequest(BaseModel):
 # ------------------------------------------------------------------------------
 def enviar_a_notion(alert: TradeAlert):
     """Llamada a la API REST de Notion (JSON) para insertar el registro"""
+    # 🛡️ BYPASS NOTION: Si el token es el placeholder por defecto o está vacío, omitimos silenciosamente
+    # para no llenar los logs de Railway con errores 401.
+    if not NOTION_TOKEN or NOTION_TOKEN in ["secret_TU_TOKEN_DE_NOTION", "TU_TOKEN_DE_NOTION", "coloca_aqui"]:
+        return True
+        
     url = "https://api.notion.com/v1/pages"
     headers = {
         "Authorization": f"Bearer {NOTION_TOKEN}",
@@ -373,7 +378,8 @@ def actualizar_excel_local(alert: TradeAlert):
         archivo = None
         rutas_posibles = [
             "Bitacora de entradas 2025.xlsx",
-            "c:/Users/ecybe/OneDrive/Documentos/Trading/Bitacora de entradas 2025.xlsx"
+            "c:/Users/ecybe/OneDrive/Documentos/Trading/Bitacora de entradas 2025.xlsx",
+            r"C:\Users\ecybe\OneDrive\Documentos\Trading\Bitacora de entradas 2025.xlsx"
         ]
         
         for ruta in rutas_posibles:
@@ -680,8 +686,9 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8914319073:AAHmF9BTxqgGG2X
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 def notificar_telegram(mensaje: str):
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("| TELEGRAM | Faltan credenciales, omitiendo mensaje.")
+    # 🛡️ BYPASS TELEGRAM: Si no está configurado de forma explícita, omitimos de manera silenciosa
+    # para mantener los logs de Railway limpios.
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID or TELEGRAM_CHAT_ID == "" or "TU_CHAT_ID" in TELEGRAM_CHAT_ID:
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
