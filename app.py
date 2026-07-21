@@ -2658,46 +2658,56 @@ def asegurar_cache_firebase():
     from datetime import datetime
     ahora = datetime.now()
     
-    # Refrescar caché de Firebase cada 5 minutos para evitar agotar la cuota de lectura (Quota Exceeded / Resource Exhausted)
+    # 🛡️ PROTECCIÓN CRÍTICA DE CUOTA: 
+    # Incrementamos el refresco a 30 minutos (1800 segundos) para evitar agotar las 50k peticiones Spark de Firestore
+    # cuando el usuario accede desde el móvil o la PC.
     necesita_refresh = False
     if ULTIMO_FETCH_FIREBASE is None or GLOBAL_AUDIT_LOGS is None:
         necesita_refresh = True
-    elif (ahora - ULTIMO_FETCH_FIREBASE).total_seconds() > 300.0:
+    elif (ahora - ULTIMO_FETCH_FIREBASE).total_seconds() > 1800.0:
         necesita_refresh = True
         
     if necesita_refresh:
         try:
-            # system_logs
+            print("| FIREBASE CACHE | Recargando caché física desde Firestore...")
+            # 1. system_logs
             sys_logs = db.collection("mia_system_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream()
             GLOBAL_SYSTEM_LOGS = [sl.to_dict() for sl in sys_logs]
             
-            # mia_audit_logs (Limitamos a 1500 para evitar desbordar la memoria RAM de Railway o causar Timeout)
-            logs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(1500).stream()
+            # 2. mia_audit_logs (Limitamos a 800 para menor consumo y más velocidad)
+            logs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(800).stream()
             GLOBAL_AUDIT_LOGS = [l.to_dict() for l in logs]
             
-            # trading_matrix
+            # 3. trading_matrix
             matrices = db.collection("trading_matrix").stream()
             GLOBAL_MATRICES = {m.id: m.to_dict().get("score_porcentaje", 0) for m in matrices}
             
-            # mia_kb / patrones
+            # 4. mia_kb / patrones
             patrones = db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream()
             GLOBAL_PATRONES = [p.to_dict() for p in patrones]
             
-            # mia_collective
+            # 5. mia_collective
             try:
                 mem_doc = db.collection("system_memory").document("mia_collective").get()
                 GLOBAL_MIA_COLLECTIVE = mem_doc.to_dict() if mem_doc.exists else {}
             except:
                 GLOBAL_MIA_COLLECTIVE = {}
                 
-            # indicadores_impacto
+            # 6. indicadores_impacto
             indicadores = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream()
             GLOBAL_INDICADORES = [{"nombre": ind.id, **ind.to_dict()} for ind in indicadores]
             
             ULTIMO_FETCH_FIREBASE = ahora
+            print("| FIREBASE CACHE | Caché de base de datos recargada con éxito.")
         except Exception as fe:
-            print(f"| FIREBASE CACHE ERROR | Error recargando caché: {fe}")
+            print(f"| FIREBASE CACHE WARNING | Error recargando caché (Posible exceso de cuota 429). Manteniendo datos en RAM: {fe}")
+            # Resiliencia: Si da 429 Quota Exceeded, no reiniciamos a None para evitar caídas
             if GLOBAL_AUDIT_LOGS is None: GLOBAL_AUDIT_LOGS = []
+            if GLOBAL_SYSTEM_LOGS is None: GLOBAL_SYSTEM_LOGS = []
+            if GLOBAL_PATRONES is None: GLOBAL_PATRONES = []
+            if GLOBAL_MATRICES is None: GLOBAL_MATRICES = {}
+            if GLOBAL_INDICADORES is None: GLOBAL_INDICADORES = []
+            if GLOBAL_MIA_COLLECTIVE is None: GLOBAL_MIA_COLLECTIVE = {}
             if GLOBAL_SYSTEM_LOGS is None: GLOBAL_SYSTEM_LOGS = []
             if GLOBAL_PATRONES is None: GLOBAL_PATRONES = []
             if GLOBAL_MATRICES is None: GLOBAL_MATRICES = {}
