@@ -507,7 +507,7 @@ async def obtener_matriz_activo(activo: str) -> Optional[Dict]:
 # ------------------------------------------------------------------------------
 # 5. GESTIÓN DE POSICIONES ACTIVAS (MetaAPI)
 # ------------------------------------------------------------------------------
-async def gestionar_posiciones_activas(connection, balance: float):
+async def gestionar_posiciones_activas(account, connection, balance: float):
     global POSICIONES_ACTIVAS
     
     # 0. Obtener tickets abiertos en Firebase para validación cruzada y autocuración
@@ -983,7 +983,7 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             print(f"| GESTOR BALANCE | Error al enviar webhook_update_balance: {e}")
         
         try:
-            await gestionar_posiciones_activas(connection, balance)
+            await gestionar_posiciones_activas(account, connection, balance)
         except Exception as e:
             print(f"| GESTOR POSICIONES ERROR | Falló gestión de posiciones en la nube: {e}")
         
@@ -1126,7 +1126,7 @@ async def run_escaner_loop():
                     pass
                     
             try:
-                await gestionar_posiciones_activas(connection, balance)
+                await gestionar_posiciones_activas(account, connection, balance)
             except Exception as e:
                 print(f"| GESTOR POSICIONES ERROR | {e}")
             
