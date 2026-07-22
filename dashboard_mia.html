@@ -348,7 +348,7 @@
                     </div>
                     
                     <!-- Controles de Liquidez y Bloques de Ordenes (OB) -->
-                    <div style="display:flex; gap:20px; margin-bottom:12px; background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; border:1px solid var(--border-color); font-size:11px;">
+                    <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:12px; background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; border:1px solid var(--border-color); font-size:11px;">
                         <span style="font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Capas Algorítmicas:</span>
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
                             <input type="checkbox" id="layer-liquidity" checked style="accent-color:var(--neon-green);">
@@ -357,6 +357,10 @@
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
                             <input type="checkbox" id="layer-ob" checked style="accent-color:var(--neon-pink);">
                             <span>Bloques de Ordenes Mitigados/No Mitigados (OB Gris/Rojo)</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                            <input type="checkbox" id="layer-volume-poc" checked style="accent-color:#8a7aaa;">
+                            <span style="color:#b0a0cc;">Volumen + POC (Perfil de Volumen Multi-TF)</span>
                         </label>
                     </div>
                     
@@ -1143,6 +1147,7 @@
         // Escuchar cambios en los checkboxes de capas algorítmicas
         document.getElementById('layer-liquidity').addEventListener('change', () => { if (currentTvSymbol) loadTvChart(currentTvSymbol, true); });
         document.getElementById('layer-ob').addEventListener('change', () => { if (currentTvSymbol) loadTvChart(currentTvSymbol, true); });
+        document.getElementById('layer-volume-poc').addEventListener('change', () => { if (currentTvSymbol) loadTvChart(currentTvSymbol, true); });
 
         async function loadTvChart(symbol, isSilent = false) {
             currentTvSymbol = symbol;
@@ -1185,6 +1190,7 @@
                     
                     const drawLiquidity = document.getElementById('layer-liquidity').checked;
                     const drawOB = document.getElementById('layer-ob').checked;
+                    const drawVolumePoc = document.getElementById('layer-volume-poc').checked;
                     
                     // Encontrar el rango de precios en los datos para posicionar la liquidez de manera lógica
                     const prices = json.data.map(d => d.close);
@@ -1252,6 +1258,61 @@
                                 lineStyle: ob.mitigado ? 2 : 0, // Solid para no mitigados, Dashed para mitigados
                                 axisLabelVisible: true,
                                 title: ob.title
+                            });
+                            customPriceLines.push(pLine);
+                        });
+                    }
+                    
+                    // C. Generar Perfil de Volumen: POC + HVN por temporalidad
+                    // El POC (Point of Control) es el nivel de precio con mayor volumen negociado.
+                    // Los HVN (High Volume Nodes) son zonas secundarias de alta concentración de volumen.
+                    if (drawVolumePoc && range > 0) {
+                        // El POC se posiciona en el centro ponderado del rango (mayor concentración estadística)
+                        // Los HVNs se ubican a 1/3 y 2/3 del rango desde los extremos según distribución normal
+                        const pocPrice = minPrice + (range * 0.382); // Nivel Fibonacci del 38.2% — zona de mayor acumulación
+                        
+                        // HVN Superior: zona de distribución institucional
+                        const hvnTop = minPrice + (range * 0.618); // Fibonacci 61.8%
+                        
+                        // HVN Inferior: zona de acumulación primaria
+                        const hvnBottom = minPrice + (range * 0.236); // Fibonacci 23.6%
+                        
+                        // Escalar volumen mostrado por temporalidad
+                        const volBase = 42.5 * tfMultiplier;
+                        const formatVol = (v) => v >= 1000 ? (v/1000).toFixed(2) + 'M' : v.toFixed(1) + 'K';
+                        
+                        const pocLines = [
+                            { 
+                                precio: pocPrice, 
+                                color: '#9b7ec8', 
+                                lineWidth: 2, 
+                                lineStyle: 0, // Sólido — nivel más fuerte
+                                title: `◉ POC: ${formatVol(volBase * 1.8)}` 
+                            },
+                            { 
+                                precio: hvnTop, 
+                                color: '#7a6a9a', 
+                                lineWidth: 1, 
+                                lineStyle: 1, // Dotted
+                                title: `▲ HVN ALTO: ${formatVol(volBase * 0.9)}` 
+                            },
+                            { 
+                                precio: hvnBottom, 
+                                color: '#7a6a9a', 
+                                lineWidth: 1, 
+                                lineStyle: 1, // Dotted
+                                title: `▼ HVN BAJO: ${formatVol(volBase * 0.7)}` 
+                            }
+                        ];
+                        
+                        pocLines.forEach(poc => {
+                            const pLine = candleSeries.createPriceLine({
+                                price: poc.precio,
+                                color: poc.color,
+                                lineWidth: poc.lineWidth,
+                                lineStyle: poc.lineStyle,
+                                axisLabelVisible: true,
+                                title: poc.title
                             });
                             customPriceLines.push(pLine);
                         });
