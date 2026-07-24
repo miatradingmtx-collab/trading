@@ -507,18 +507,26 @@ async def obtener_matriz_activo(activo: str) -> Optional[Dict]:
 # ------------------------------------------------------------------------------
 # 5. GESTIÓN DE POSICIONES ACTIVAS (MetaAPI)
 # ------------------------------------------------------------------------------
+ULTIMA_SINC_FB = 0
+FB_OPEN_CACHE = []
+
 async def gestionar_posiciones_activas(account, connection, balance: float):
-    global POSICIONES_ACTIVAS
+    global POSICIONES_ACTIVAS, ULTIMA_SINC_FB, FB_OPEN_CACHE
     
     # 0. Obtener tickets abiertos en Firebase para validación cruzada y autocuración
-    fb_open = []
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            r = await client.get(f"{FASTAPI_URL}/api/open_trades")
-            if r.status_code == 200:
-                fb_open = [str(t) for t in r.json().get("open_tickets", [])]
-    except Exception as api_err:
-        print(f"| GESTOR RIESGO WARN | No se pudo sincronizar tickets de Firebase: {api_err}")
+    from time import time
+    ahora = time()
+    if ahora - ULTIMA_SINC_FB >= 900:  # Consultar la nube solo cada 15 min (900s)
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                r = await client.get(f"{FASTAPI_URL}/api/open_trades")
+                if r.status_code == 200:
+                    FB_OPEN_CACHE = [str(t) for t in r.json().get("open_tickets", [])]
+            ULTIMA_SINC_FB = ahora
+        except Exception as api_err:
+            print(f"| GESTOR RIESGO WARN | No se pudo sincronizar tickets de Firebase: {api_err}")
+            
+    fb_open = FB_OPEN_CACHE
 
     try:
         positions = await connection.get_positions()
@@ -941,6 +949,24 @@ def obtener_nombre_killzone() -> Optional[str]:
         return "ASIA"
     return None
 
+def es_ventana_operativa() -> bool:
+    """Devuelve True si estamos en una Killzone O 2 horas antes de que empiece."""
+    LONDRES_INICIO_VENTANA = 0.0  # 2 horas antes de las 2.0
+    LONDRES_FIN = 5.0
+    NY_INICIO_VENTANA = 5.0      # 2 horas antes de las 7.0
+    NY_FIN = 10.0
+    ASIA_INICIO_VENTANA = 16.0   # 2 horas antes de las 18.0
+    ASIA_FIN = 22.0
+    
+    gmt_minus_6 = datetime.timezone(datetime.timedelta(hours=-6))
+    ahora = datetime.datetime.now(gmt_minus_6)
+    hora_decimal = ahora.hour + ahora.minute / 60.0
+    
+    if LONDRES_INICIO_VENTANA <= hora_decimal < LONDRES_FIN: return True
+    if NY_INICIO_VENTANA <= hora_decimal < NY_FIN: return True
+    if ASIA_INICIO_VENTANA <= hora_decimal < ASIA_FIN: return True
+    return False
+
 # ------------------------------------------------------------------------------
 # 7.1 VERIFICACIÓN DE MERCADO ABIERTO
 # ------------------------------------------------------------------------------
@@ -1072,10 +1098,9 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         gatillo_autorizado = webhook_response and webhook_response.get("gatillo_entrada") is True
         
         if gatillo_autorizado:
-            if not killzone_activa:
-                print(f"| GATILLO CLOUD OMITIDO | Setup detectado en {activo} pero está fuera de Killzone.")
-                continue
-                
+            # 🛡️ HIPÓTESIS DEL USUARIO: Entrar antes de la apertura si el Score >= 80% 
+            # previene entrar a destiempo y ser barrido por la volatilidad inicial.
+            
             accion = "COMPRA" if (precio_actual > ema_50) else "VENTA"
             
             # Solicitar autorización al cerebro (Mia)
@@ -1115,8 +1140,11 @@ async def run_escaner_loop():
             from time import time
             ahora = time()
             
-            # Ejecutar SIEMPRE el Gestor de Posiciones y Balance (Cada 30s)
+            # Obtener balance SIEMPRE (el Gestor de Riesgo lo necesita cada 30s)
             balance, equity = await obtener_balance(connection)
+            
+            # 🛡️ MONITOREO 24/7 ACTIVADO: Se quitó el bloqueo de es_ventana_operativa 
+            # ya que el Firebase Cache Bug fue resuelto y la API está a salvo.
             if FASTAPI_URL and balance > 0:
                 try:
                     import httpx
@@ -1125,15 +1153,15 @@ async def run_escaner_loop():
                 except Exception as e:
                     pass
                     
-            try:
-                await gestionar_posiciones_activas(account, connection, balance)
-            except Exception as e:
-                print(f"| GESTOR POSICIONES ERROR | {e}")
-            
             # Ejecutar Escáner de Mercado cada 15 Minutos (900s)
             if ahora - ultima_ejecucion_escaner >= 900:
                 await ejecutar_escaner_cloud(account, connection, skip_risk=True)
                 ultima_ejecucion_escaner = ahora
+
+            try:
+                await gestionar_posiciones_activas(account, connection, balance)
+            except Exception as e:
+                print(f"| GESTOR POSICIONES ERROR | {e}")
                 
         except Exception as e:
             print(f"| RUNNER CLOUD ERROR | Ocurrió un fallo en el escáner: {e}")

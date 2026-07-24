@@ -2675,6 +2675,9 @@ def asegurar_cache_firebase():
         necesita_refresh = True
         
     if necesita_refresh:
+        # 🛡️ FIX: Actualizar la hora INCLUSO ANTES de intentar, para evitar retry loop si da 429 Quota Exceeded
+        ULTIMO_FETCH_FIREBASE = ahora
+        
         try:
             print("| FIREBASE CACHE | Recargando caché física desde Firestore...")
             # 1. system_logs
@@ -2704,7 +2707,6 @@ def asegurar_cache_firebase():
             indicadores = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream()
             GLOBAL_INDICADORES = [{"nombre": ind.id, **ind.to_dict()} for ind in indicadores]
             
-            ULTIMO_FETCH_FIREBASE = ahora
             print("| FIREBASE CACHE | Caché de base de datos recargada con éxito.")
         except Exception as fe:
             print(f"| FIREBASE CACHE WARNING | Error recargando caché (Posible exceso de cuota 429). Manteniendo datos en RAM: {fe}")
