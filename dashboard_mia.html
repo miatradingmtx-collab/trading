@@ -278,6 +278,7 @@
                 </div>
                 <button class="header-btn primary">Resumen de Cuenta</button>
                 <a href="/api/export_audit_csv" target="_blank" class="header-btn">Descargar CSV</a>
+                <button class="header-btn" style="border-color:var(--neon-blue); color:var(--neon-blue)" onclick="showMLWeights()">Cerebro ML (IA)</button>
                 <div class="header-icons">
                     <i class="fa-regular fa-bell"></i>
                     <i class="fa-solid fa-gear"></i>
@@ -890,6 +891,7 @@
 
                     if (d.kpis) {
                         const kpis = d.kpis;
+                        window.currentKpis = kpis;
                         $el('kpi-winrate').innerText = kpis.win_rate ? kpis.win_rate + '%' : '0%';
                         
                         const tpCount = kpis.total_tp || 0;
@@ -1331,6 +1333,41 @@
             setInterval(() => { if (currentTvSymbol) loadTvChart(currentTvSymbol, true); }, 60000);
         }, 500);
 
+        function showMLWeights() {
+            if (!window.currentKpis || !window.currentKpis.dynamic_weights) {
+                Swal.fire({
+                    title: 'Memoria Institucional',
+                    text: 'Aún no hay pesos dinámicos calculados. Espera al próximo ciclo de Machine Learning.',
+                    icon: 'info',
+                    background: '#1a1d24',
+                    color: '#e2e8f0'
+                });
+                return;
+            }
+            
+            const dw = window.currentKpis.dynamic_weights;
+            let htmlList = '<ul style="text-align: left; background: #0f1115; padding: 15px; border-radius: 8px; font-family: monospace; list-style: none;">';
+            
+            // Convert to array and sort by weight
+            const sortedWeights = Object.entries(dw).sort((a, b) => b[1] - a[1]);
+            
+            sortedWeights.forEach(([indicator, weight]) => {
+                htmlList += `<li style="margin-bottom: 5px; border-bottom: 1px solid #1a1d24; padding-bottom: 5px;">
+                                <span style="color: var(--neon-blue); font-weight: bold;">${indicator.toUpperCase()}</span>: 
+                                <span style="color: var(--neon-yellow);">${weight.toFixed(4)}x</span>
+                             </li>`;
+            });
+            htmlList += '</ul>';
+
+            Swal.fire({
+                title: '<i class="fa-solid fa-brain" style="color:var(--neon-blue)"></i> Cerebro ML (Pesos Dinámicos)',
+                html: htmlList,
+                background: '#1a1d24',
+                color: '#e2e8f0',
+                confirmButtonColor: '#3a86ff',
+                width: '600px'
+            });
+        }
     </script>
 </body>
 </html>

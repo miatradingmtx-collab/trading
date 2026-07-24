@@ -3018,7 +3018,8 @@ def api_dashboard_data():
             "total_sl": total_sl,
             "total_be": total_be,
             "total_manual_parcial": total_manual_parcial,
-            "total_manual_directo": total_manual_directo
+            "total_manual_directo": total_manual_directo,
+            "dynamic_weights": m.get("dynamic_weights", {})
         }
         
         # 2. trading_matrix (Scores en vivo)
