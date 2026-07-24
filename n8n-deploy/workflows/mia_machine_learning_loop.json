@@ -1,0 +1,68 @@
+{
+  "name": "Mia_Machine_Learning_Loop",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 16 * * 5"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "id": "ml-trigger",
+      "name": "Viernes 16:00 (Cierre de Mercado)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://trading-production-927a.up.railway.app/api/entrenar_pesos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "tu-token-seguro-de-acceso"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "id": "ml-request",
+      "name": "Entrenar Red Neuronal (Mia)"
+    }
+  ],
+  "connections": {
+    "Viernes 16:00 (Cierre de Mercado)": {
+      "main": [
+        [
+          {
+            "node": "Entrenar Red Neuronal (Mia)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateId": "mia_ml_01"
+  }
+}
