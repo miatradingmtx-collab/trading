@@ -3607,6 +3607,19 @@ async def entrenar_pesos_dinamicos():
             GLOBAL_MIA_COLLECTIVE = {}
         GLOBAL_MIA_COLLECTIVE["dynamic_weights"] = nuevos_pesos
         
+        # 4.5 Guardar la "Regla de 3" en mia_kb (Firebase)
+        top_3 = sorted(nuevos_pesos.items(), key=lambda item: item[1], reverse=True)[:3]
+        regla_de_3_data = {
+            "ultima_actualizacion": datetime.datetime.now().isoformat(),
+            "top_1": {"indicador": top_3[0][0], "peso": top_3[0][1], "win_rate_asociado": int((frecuencias.get(top_3[0][0], 0) / total) * 100)},
+            "top_2": {"indicador": top_3[1][0], "peso": top_3[1][1], "win_rate_asociado": int((frecuencias.get(top_3[1][0], 0) / total) * 100)},
+            "top_3": {"indicador": top_3[2][0], "peso": top_3[2][1], "win_rate_asociado": int((frecuencias.get(top_3[2][0], 0) / total) * 100)}
+        }
+        try:
+            db.collection("mia_kb").document("regla_de_3").set(regla_de_3_data)
+        except Exception as fb_err:
+            print(f"| MACHINE LEARNING | Error guardando Regla de 3 en Firebase mia_kb: {fb_err}")
+        
         # 5. Escribir top 3 en la Base de Conocimiento (Obsidian) para la "Regla de 3"
         top_3 = sorted(nuevos_pesos.items(), key=lambda item: item[1], reverse=True)[:3]
         obsidian_path = r"D:\obsidiana\Proyectos\Mia_Trading\Mejores_Estrategias_Regla_De_3.md"
