@@ -731,8 +731,25 @@ def notificar_botpress_mia(activo: str, data: dict):
         registrar_error_sistema("Botpress", str(e))
 
 def recalcular_score_ponderado(data: dict) -> float:
+    global GLOBAL_MIA_COLLECTIVE
     score = 0.0
     tech = data.get("confirmaciones_tecnicas", {})
+    
+    # Cargar pesos dinámicos de Machine Learning (o usar default si no hay entrenamiento)
+    pesos = {}
+    if GLOBAL_MIA_COLLECTIVE and "dynamic_weights" in GLOBAL_MIA_COLLECTIVE:
+        pesos = GLOBAL_MIA_COLLECTIVE["dynamic_weights"]
+        
+    w_ma = pesos.get("ma_alineada", 15)
+    w_rsi = pesos.get("rsi_extremo", 15)
+    w_soporte = pesos.get("soporte_resistencia_activo", 10)
+    w_poc = pesos.get("poc_price", 10)
+    w_ob_zona = pesos.get("order_block_zona", 25)
+    w_liq_align = pesos.get("alineamiento_liquidez", 25)
+    w_ob = pesos.get("smc_1", 30)
+    w_fvg = pesos.get("smc_2", 30)
+    w_breaker = pesos.get("smc_3", 20)
+    w_sweep = pesos.get("smc_4", 15)
     
     # 1. Indicadores Macro (Filtros de Tendencia y Agotamiento)
     ma_alineada = tech.get("medias_moviles_alineadas", False)
@@ -741,33 +758,31 @@ def recalcular_score_ponderado(data: dict) -> float:
     if not (ma_alineada or rsi_extremo):
         return 0.0  # Sin dirección clara ni zona de reversión, se rechaza
         
-    if ma_alineada: score += 15
-    if rsi_extremo: score += 15
+    if ma_alineada: score += w_ma
+    if rsi_extremo: score += w_rsi
     
     # 2. Confirmadores de Zonas Clave (POC y Soportes/Resistencias)
     if tech.get("soporte_resistencia_activo"): 
-        score += 10 # (En mt5_executor_cloud, el POC ya se cuenta como soporte/resistencia)
+        score += w_soporte
         
     if tech.get("poc_price", 0.0) > 0:
-        score += 10 # Bonus por tener confirmación clara de Perfil de Volumen
+        score += w_poc
     
     # 3. Nuevos Indicadores Algorítmicos Clave (Zonas OB y Flujos de Liquidez)
-    # Si la entrada está en una zona de OB institucional (mitigado o no mitigado) -> Bonus de zona
     if tech.get("order_block_zona", False):
-        score += 25
+        score += w_ob_zona
         
-    # Si el flujo algorítmico institucional está alineado hacia capturar la liquidez de esta zona -> Bonus
     if tech.get("alineamiento_liquidez", False):
-        score += 25
+        score += w_liq_align
 
     # 4. Módulos SMC e ICT (Institucional)
     smc_codes = tech.get("smc_codes", [])
     
     # Pesos estructurales (Se suman a los indicadores para buscar >= 80%)
-    if 1 in smc_codes: score += 30  # Order Block (OB) detectado en estructura
-    if 2 in smc_codes: score += 30  # Fair Value Gap (FVG)
-    if 3 in smc_codes: score += 20  # Breaker Block
-    if 4 in smc_codes: score += 15  # Liquidity Sweep
+    if 1 in smc_codes: score += w_ob
+    if 2 in smc_codes: score += w_fvg
+    if 3 in smc_codes: score += w_breaker
+    if 4 in smc_codes: score += w_sweep
         
     # Firebase es el único juez de la validación. Permitimos scores > 100% para mostrar fuerza extrema.
     return score
@@ -3511,5 +3526,101 @@ async def scheduler_volcado_logs_semanal():
             print(f"| SCHEDULER LOGS ERROR | Error en loop de volcado semanal: {err}")
             await asyncio.sleep(300)
 
+# ------------------------------------------------------------------------------
+# MACHINE LEARNING FEEDBACK LOOP (Pesos Dinámicos)
+# ------------------------------------------------------------------------------
+@app.post("/api/entrenar_pesos")
+async def entrenar_pesos_endpoint(authorization: Optional[str] = Header(None)):
+    verificar_token(authorization)
+    try:
+        await entrenar_pesos_dinamicos()
+        return {"status": "success", "message": "Pesos dinámicos entrenados y actualizados en Firebase y Obsidian."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+async def entrenar_pesos_dinamicos():
+    global db, GLOBAL_MIA_COLLECTIVE
+    if not firebase_inicializado or db is None:
+        return
+        
+    print("| MACHINE LEARNING | Iniciando entrenamiento de pesos basado en trades ganadores...")
+    try:
+        # 1. Traer todos los logs de auditoría (últimos 500 para no matar cuota)
+        logs_ref = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(500)
+        logs = logs_ref.get()
+        
+        ganadores = []
+        for doc in logs:
+            data = doc.to_dict()
+            if data.get("pnl", 0.0) > 0 or data.get("accion") == "CERRAR_TP":
+                ganadores.append(data)
+                
+        if len(ganadores) < 5:
+            print("| MACHINE LEARNING | Muy pocos trades ganadores para entrenar. Saltando.")
+            return
+            
+        print(f"| MACHINE LEARNING | Analizando {len(ganadores)} trades exitosos...")
+        
+        # 2. Contar la frecuencia de cada confirmación técnica en los ganadores
+        frecuencias = {
+            "ma_alineada": 0, "rsi_extremo": 0, "soporte_resistencia_activo": 0, "poc_price": 0,
+            "order_block_zona": 0, "alineamiento_liquidez": 0,
+            "smc_1": 0, "smc_2": 0, "smc_3": 0, "smc_4": 0
+        }
+        
+        for g in ganadores:
+            tech = g.get("confirmaciones_tecnicas", {})
+            if tech.get("medias_moviles_alineadas"): frecuencias["ma_alineada"] += 1
+            if tech.get("rsi_sobrecompra_sobreventa") or tech.get("rsi_extremo"): frecuencias["rsi_extremo"] += 1
+            if tech.get("soporte_resistencia_activo"): frecuencias["soporte_resistencia_activo"] += 1
+            if tech.get("poc_price", 0.0) > 0: frecuencias["poc_price"] += 1
+            if tech.get("order_block_zona"): frecuencias["order_block_zona"] += 1
+            if tech.get("alineamiento_liquidez"): frecuencias["alineamiento_liquidez"] += 1
+            
+            smc = tech.get("smc_codes", [])
+            if 1 in smc: frecuencias["smc_1"] += 1
+            if 2 in smc: frecuencias["smc_2"] += 1
+            if 3 in smc: frecuencias["smc_3"] += 1
+            if 4 in smc: frecuencias["smc_4"] += 1
+            
+        # 3. Calcular nuevos pesos (Base Points + Bonus por win rate)
+        total = len(ganadores)
+        nuevos_pesos = {
+            "ma_alineada": 10 + int((frecuencias["ma_alineada"] / total) * 15),
+            "rsi_extremo": 10 + int((frecuencias["rsi_extremo"] / total) * 15),
+            "soporte_resistencia_activo": 5 + int((frecuencias["soporte_resistencia_activo"] / total) * 15),
+            "poc_price": 5 + int((frecuencias["poc_price"] / total) * 15),
+            "order_block_zona": 15 + int((frecuencias["order_block_zona"] / total) * 25),
+            "alineamiento_liquidez": 15 + int((frecuencias["alineamiento_liquidez"] / total) * 25),
+            "smc_1": 20 + int((frecuencias["smc_1"] / total) * 20),
+            "smc_2": 20 + int((frecuencias["smc_2"] / total) * 20),
+            "smc_3": 10 + int((frecuencias["smc_3"] / total) * 20),
+            "smc_4": 10 + int((frecuencias["smc_4"] / total) * 15)
+        }
+        
+        # 4. Guardar en Firebase (system_memory)
+        mem_ref = db.collection("system_memory").document("mia_collective")
+        mem_ref.set({"dynamic_weights": nuevos_pesos}, merge=True)
+        
+        if GLOBAL_MIA_COLLECTIVE is None:
+            GLOBAL_MIA_COLLECTIVE = {}
+        GLOBAL_MIA_COLLECTIVE["dynamic_weights"] = nuevos_pesos
+        
+        # 5. Escribir top 3 en la Base de Conocimiento (Obsidian) para la "Regla de 3"
+        top_3 = sorted(nuevos_pesos.items(), key=lambda item: item[1], reverse=True)[:3]
+        obsidian_path = r"D:\obsidiana\Proyectos\Mia_Trading\Mejores_Estrategias_Regla_De_3.md"
+        
+        import os
+        os.makedirs(os.path.dirname(obsidian_path), exist_ok=True)
+        try:
+            with open(obsidian_path, "w", encoding="utf-8") as f:
+                f.write(f"# Regla de 3 (Generado Automáticamente por ML)\n\nÚltima actualización: {datetime.datetime.now().isoformat()}\n\nLas 3 confirmaciones técnicas con mayor peso predictivo basadas en trades ganadores reales:\n\n")
+                for i, (indicador, peso) in enumerate(top_3):
+                    f.write(f"{i+1}. **{indicador.replace('_', ' ').title()}**: Peso {peso}/100 pts (Win Rate: {int((frecuencias[indicador] / total) * 100)}%)\n")
+        except Exception as oe:
+            print(f"| MACHINE LEARNING | No se pudo escribir en Obsidian: {oe}")
+            
+        print(f"| MACHINE LEARNING | Entrenamiento finalizado. Pesos y Obsidian guardados.")
+    except Exception as e:
+        print(f"| MACHINE LEARNING | Error en el entrenamiento: {e}")
 

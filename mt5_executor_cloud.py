@@ -312,6 +312,70 @@ def detectar_soportes_resistencias(df: pd.DataFrame) -> Dict[str, List[float]]:
     return {"soportes": soportes[-5:], "resistencias": resistencias[-5:]}
 
 # ------------------------------------------------------------------------------
+# 2.5 MEMORIA INSTITUCIONAL (LuxAlgo Logic: OBs No Mitigados y Liquidez)
+# ------------------------------------------------------------------------------
+MEMORIA_OBS_NO_MITIGADOS = {}
+MEMORIA_LIQUIDEZ = {}
+
+def actualizar_memoria_obs_liquidez(activo: str, dfs: dict, precio_actual: float) -> dict:
+    global MEMORIA_OBS_NO_MITIGADOS, MEMORIA_LIQUIDEZ
+    
+    if activo not in MEMORIA_OBS_NO_MITIGADOS:
+        MEMORIA_OBS_NO_MITIGADOS[activo] = []
+        MEMORIA_LIQUIDEZ[activo] = {"highs": [], "lows": []}
+        
+    resultado = {"order_block_zona": False, "alineamiento_liquidez": False}
+    margen = precio_actual * 0.0015 # Tolerancia
+    
+    for tf, df in dfs.items():
+        if df is None or df.empty or len(df) < 5: continue
+        i = len(df) - 1
+        
+        # 1. Guardar Liquidez (Swing Highs / Lows)
+        if i >= 4:
+            if df['low'].iloc[i-2] < df['low'].iloc[i-1] and df['low'].iloc[i-2] < df['low'].iloc[i-3] and df['low'].iloc[i-2] < df['low'].iloc[i] and df['low'].iloc[i-2] < df['low'].iloc[i-4]:
+                MEMORIA_LIQUIDEZ[activo]["lows"].append(float(df['low'].iloc[i-2]))
+            if df['high'].iloc[i-2] > df['high'].iloc[i-1] and df['high'].iloc[i-2] > df['high'].iloc[i-3] and df['high'].iloc[i-2] > df['high'].iloc[i] and df['high'].iloc[i-2] > df['high'].iloc[i-4]:
+                MEMORIA_LIQUIDEZ[activo]["highs"].append(float(df['high'].iloc[i-2]))
+
+        # 2. Guardar Order Blocks Nuevos
+        if df['close'].iloc[i-1] < df['open'].iloc[i-1] and df['close'].iloc[i] > df['high'].iloc[i-1]:
+            MEMORIA_OBS_NO_MITIGADOS[activo].append({"tf": tf, "high": df['high'].iloc[i-1], "low": df['low'].iloc[i-1], "tipo": "ALCISTA"})
+        if df['close'].iloc[i-1] > df['open'].iloc[i-1] and df['close'].iloc[i] < df['low'].iloc[i-1]:
+            MEMORIA_OBS_NO_MITIGADOS[activo].append({"tf": tf, "high": df['high'].iloc[i-1], "low": df['low'].iloc[i-1], "tipo": "BAJISTA"})
+
+    # Limpiar y Mitigar
+    MEMORIA_OBS_NO_MITIGADOS[activo] = MEMORIA_OBS_NO_MITIGADOS[activo][-20:]
+    MEMORIA_LIQUIDEZ[activo]["highs"] = MEMORIA_LIQUIDEZ[activo]["highs"][-20:]
+    MEMORIA_LIQUIDEZ[activo]["lows"] = MEMORIA_LIQUIDEZ[activo]["lows"][-20:]
+
+    obs_sobrevivientes = []
+    for ob in MEMORIA_OBS_NO_MITIGADOS[activo]:
+        if ob["tipo"] == "ALCISTA" and precio_actual < (ob["low"] - margen): continue
+        if ob["tipo"] == "BAJISTA" and precio_actual > (ob["high"] + margen): continue
+        if ob["low"] <= precio_actual <= ob["high"]: resultado["order_block_zona"] = True
+        obs_sobrevivientes.append(ob)
+        
+    MEMORIA_OBS_NO_MITIGADOS[activo] = obs_sobrevivientes
+    
+    liquidez_barrida = 0
+    highs_sobrevivientes = []
+    for h in MEMORIA_LIQUIDEZ[activo]["highs"]:
+        if precio_actual > h: liquidez_barrida += 1
+        else: highs_sobrevivientes.append(h)
+        
+    lows_sobrevivientes = []
+    for l in MEMORIA_LIQUIDEZ[activo]["lows"]:
+        if precio_actual < l: liquidez_barrida += 1
+        else: lows_sobrevivientes.append(l)
+        
+    MEMORIA_LIQUIDEZ[activo]["highs"] = highs_sobrevivientes
+    MEMORIA_LIQUIDEZ[activo]["lows"] = lows_sobrevivientes
+    if liquidez_barrida >= 3: resultado["alineamiento_liquidez"] = True
+        
+    return resultado
+
+# ------------------------------------------------------------------------------
 # 3. DETECCIÓN DE PATRONES SMC / ICT
 # ------------------------------------------------------------------------------
 def analizar_smc_ict(df: pd.DataFrame) -> Dict[str, bool]:
@@ -1051,6 +1115,7 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         # 1. Indicadores Macro (Basados en 4H para mayor fiabilidad y MTF para RSI)
         df_2h = await obtener_velas_cloud(account, simbolo, '2h', 100)
         df_3h = await obtener_velas_cloud(account, simbolo, '3h', 100)
+        df_8h = await obtener_velas_cloud(account, simbolo, '8h', 100)
         
         rsi_1h = calcular_rsi(df_1h).iloc[-1] if df_1h is not None and not df_1h.empty else 50
         rsi_2h = calcular_rsi(df_2h).iloc[-1] if df_2h is not None and not df_2h.empty else 50
@@ -1084,11 +1149,17 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         conf_1h = analizar_smc_ict(df_1h)
         conf_4h = analizar_smc_ict(df_4h)
         
+        # 2.5 Memoria Institucional LuxAlgo (OBs No Mitigados y Heatmap)
+        dfs_mtf = {"1h": df_1h, "2h": df_2h, "3h": df_3h, "4h": df_4h, "8h": df_8h}
+        memoria_inst = actualizar_memoria_obs_liquidez(activo, dfs_mtf, precio_actual)
+        
         confirmaciones = {
             "order_block_detectado": conf_1h["order_block_detectado"] or conf_4h["order_block_detectado"],
             "fvg_detectado": conf_1h["fvg_detectado"] or conf_4h["fvg_detectado"],
             "breaker_block_detectado": conf_1h["breaker_block_detectado"] or conf_4h["breaker_block_detectado"],
-            "sweep_liquidez_detectado": conf_1h["sweep_liquidez_detectado"] or conf_4h["sweep_liquidez_detectado"]
+            "sweep_liquidez_detectado": conf_1h["sweep_liquidez_detectado"] or conf_4h["sweep_liquidez_detectado"],
+            "order_block_zona": memoria_inst["order_block_zona"],
+            "alineamiento_liquidez": memoria_inst["alineamiento_liquidez"]
         }
         
         # 1. Sincronizar confirmaciones con la matriz en Firestore (vía webhook)
