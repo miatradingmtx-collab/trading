@@ -707,12 +707,8 @@ def notificar_telegram(mensaje: str):
         registrar_error_sistema("Telegram", str(e))
 
 def notificar_botpress_mia(activo: str, data: dict):
-    # Enviar también a Telegram
-    mensaje_tg = f"🤖 *MIA TRADING AI*\n\nNuevos datos para *{activo}*:\nEjecutando lógica en la nube."
-    if "accion" in data:
-        mensaje_tg = f"🤖 *MIA TRADING AI*\n\n🔥 *{data['accion']}* en *{activo}*\nPrecio: {data.get('precio', 'N/A')}"
-    notificar_telegram(mensaje_tg)
-
+    # Se eliminó el spam de telegram "Ejecutando lógica en la nube" aquí.
+    # Ahora solo se notifica a Telegram cuando hay una ejecución real de Trade.
     if not BOTPRESS_WEBHOOK_URL:
         print("| BOTPRESS | Webhook no configurado, omitiendo notificación a Mia.")
         return
@@ -1445,7 +1441,28 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     if alert.pnl != 0.0 or "CIERRE" in alert.accion.upper():
         background_tasks.add_task(actualizar_aprendizaje_mia, alert.activo, alert.pnl, alert.ticket)
         
-    # 5. Notificar a Mia (Botpress) de que hubo un movimiento (Apertura o Cierre)
+    # 5. Notificar a Mia (Botpress) y Telegram de que hubo un movimiento (Apertura o Cierre)
+    
+    # --- NUEVA LÓGICA DE TELEGRAM DETALLADA ---
+    icono = "🟢" if "COMPRA" in alert.accion else "🔴" if "VENTA" in alert.accion else "🔵"
+    if "CIERRE" in alert.accion:
+        icono = "💰" if alert.pnl > 0 else "🛑"
+        
+    msg_tg = f"🤖 *MIA TRADING AI* {icono}\n\n"
+    msg_tg += f"*{alert.accion}* | *{alert.activo}*\n"
+    msg_tg += f"💰 Precio: {alert.precio}\n"
+    
+    if "CIERRE" not in alert.accion:
+        msg_tg += f"🛡️ SL: {alert.stop_loss if alert.stop_loss else 'N/A'}\n"
+        msg_tg += f"🎯 TP: {alert.take_profit if alert.take_profit else 'N/A'}\n"
+    else:
+        msg_tg += f"💵 PNL: ${round(alert.pnl, 2)}\n"
+        
+    msg_tg += f"\n📊 Estrategia: {alert.estrategia}"
+    
+    # Disparar Telegram asíncrono
+    background_tasks.add_task(notificar_telegram, msg_tg)
+    
     if BOTPRESS_WEBHOOK_URL:
         payload_mia = {
             "evento": "trade_ejecutado",
