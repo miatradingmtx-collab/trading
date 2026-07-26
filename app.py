@@ -2674,7 +2674,14 @@ async def render_dashboard():
     try:
         with open("dashboard_mia.html", "r", encoding="utf-8") as f:
             html_content = f.read()
-        return HTMLResponse(content=html_content)
+        return HTMLResponse(
+            content=html_content,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo cargar el dashboard: {e}")
 GLOBAL_AUDIT_LOGS = None
