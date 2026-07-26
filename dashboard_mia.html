@@ -1334,7 +1334,7 @@
         }, 500);
 
         function showMLWeights() {
-            if (!window.currentKpis || !window.currentKpis.dynamic_weights) {
+            if (!window.currentKpis || !window.currentKpis.dynamic_weights || Object.keys(window.currentKpis.dynamic_weights).length === 0) {
                 Swal.fire({
                     title: 'Memoria Institucional',
                     text: 'Aún no hay pesos dinámicos calculados. Espera al próximo ciclo de Machine Learning.',
@@ -1354,7 +1354,7 @@
             sortedWeights.forEach(([indicator, weight]) => {
                 htmlList += `<li style="margin-bottom: 5px; border-bottom: 1px solid #1a1d24; padding-bottom: 5px;">
                                 <span style="color: var(--neon-blue); font-weight: bold;">${indicator.toUpperCase()}</span>: 
-                                <span style="color: var(--neon-yellow);">${weight.toFixed(4)}x</span>
+                                <span style="color: var(--neon-yellow);">${Number(weight).toFixed(4)}x</span>
                              </li>`;
             });
             htmlList += '</ul>';

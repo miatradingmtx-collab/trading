@@ -2066,9 +2066,11 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             tp = precio_ej + (pips * 2.0) if tipo_orden == "COMPRA" else precio_ej - (pips * 2.0)
             lote = 0.3
         elif activo_normalizado == "XAUUSD":
-            sl = precio_ej - 5.0 if tipo_orden == "COMPRA" else precio_ej + 5.0
-            tp = precio_ej + 12.0 if tipo_orden == "COMPRA" else precio_ej - 12.0
-            lote = 0.1
+            # El Oro (XAUUSD) es muy volátil. Ampliamos el SL a $20 (200 pips) y TP a $40 (400 pips)
+            # Esto hará que el gestor de riesgo reduzca automáticamente el lotaje a 1/4 del anterior.
+            sl = precio_ej - 20.0 if tipo_orden == "COMPRA" else precio_ej + 20.0
+            tp = precio_ej + 40.0 if tipo_orden == "COMPRA" else precio_ej - 40.0
+            lote = 0.05
         elif activo_normalizado == "BTC":
             sl = precio_ej - 500.0 if tipo_orden == "COMPRA" else precio_ej + 500.0
             tp = precio_ej + 1500.0 if tipo_orden == "COMPRA" else precio_ej - 1500.0
