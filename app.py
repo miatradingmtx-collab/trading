@@ -579,9 +579,13 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             except Exception as e:
                 print(f"| FIREBASE | Error recuperando doc previo para {alert.ticket}: {e}")
 
-            # Sumar el PNL actual al acumulado previo si es un cierre
-            if alert.accion in ["CIERRE_TOTAL", "CIERRE_PARCIAL"]:
+            # El PNL actual ya es el final en CIERRE_TOTAL (calculado por mt5_executor_cloud)
+            # Solo acumulamos en CIERRE_PARCIAL
+            if alert.accion == "CIERRE_PARCIAL":
                 alert.pnl = (alert.pnl if alert.pnl else 0.0) + pnl_acumulado_previo
+            elif alert.accion == "CIERRE_TOTAL":
+                # Si es cierre total, el pnl que envía mt5_executor_cloud ya es la suma total de todos los deals.
+                alert.pnl = alert.pnl if alert.pnl else 0.0
             elif alert.pnl == 0.0 and pnl_acumulado_previo != 0.0:
                 alert.pnl = pnl_acumulado_previo
 

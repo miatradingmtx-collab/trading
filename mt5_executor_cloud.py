@@ -49,8 +49,8 @@ OBJETIVO_MENSUAL_PCT = 10.0
 RIESGO_RESIDUAL_MAX_PCT = 25.0  # Porcentaje máximo del colchón residual a arriesgar por trade
 
 # Diccionario global para trackear posiciones y detectar aperturas, parciales y cierres en bucle
-# ticket -> {"volume": float, "symbol": str, "type": int, "price_open": float, "tp": float, "sl": float, "parcial_tomado": bool}
 POSICIONES_ACTIVAS = {}
+TICKETS_SINCRONIZADOS = set()
 
 ACTIVOS = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD"]
 
@@ -898,7 +898,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
         del POSICIONES_ACTIVAS[ticket]
 
     for t in fb_open:
-        if str(t) not in POSICIONES_ACTIVAS and str(t) not in tickets_actuales:
+        if str(t) not in POSICIONES_ACTIVAS and str(t) not in tickets_actuales and str(t) not in TICKETS_SINCRONIZADOS:
             print(f"| GESTOR RIESGO | Sincronizando cierre faltante para ticket {t}")
             # Intentamos recuperar el PnL del deal histórico antes de poner 0.0
             pnl_sinc = 0.0
@@ -915,7 +915,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             except:
                 pass
             await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=pnl_sinc, comentario="Sincronizado por desaparición en MT5")
-
+            TICKETS_SINCRONIZADOS.add(str(t))
 # ------------------------------------------------------------------------------
 # 6. GESTOR DE OPERACIONES (Apertura de Órdenes)
 # ------------------------------------------------------------------------------
