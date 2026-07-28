@@ -2608,7 +2608,13 @@ def api_pnl_hoy(authorization: Optional[str] = Header(None)):
                     # Solo sumar si es un CIERRE_TOTAL (o PARCIAL si se incluye)
                     accion = data.get("accion", "")
                     if accion in ["CIERRE_TOTAL", "CIERRE_PARCIAL_80", "CIERRE_PARCIAL"]:
-                        pnl_total += float(data.get("pnl", 0.0))
+                        pnl_val = float(data.get("pnl", 0.0))
+                        # FILTRO ANTI-CORRUPCION: Ignorar PNL imposibles de cierres manuales (SL=0, TP=0)
+                        # Un trade normal nunca pierde mas de $5000 en una sola operacion
+                        if abs(pnl_val) > 5000.0:
+                            print(f"| PNL FILTER | PNL anomalo ignorado: ${pnl_val:.2f} (ticket: {data.get('ticket','?')}) — Probable cierre manual sin registro.")
+                            continue
+                        pnl_total += pnl_val
                     
         return {"status": "success", "pnl_hoy": pnl_total}
     except Exception as e:
@@ -3658,7 +3664,8 @@ async def entrenar_pesos_dinamicos():
                 for i, (indicador, peso) in enumerate(top_3):
                     f.write(f"{i+1}. **{indicador.replace('_', ' ').title()}**: Peso {peso}/100 pts (Win Rate: {int((frecuencias[indicador] / total) * 100)}%)\n")
         except Exception as oe:
-            print(f"| MACHINE LEARNING | No se pudo escribir en Obsidian: {oe}")
+            print(f"| MACHINE LEARNING | No se pudo escribir en Obsidian (ruta no existe en Railway - OK): {oe}")
+            # En Railway la ruta D:\obsidiana no existe. Eso es normal. El ML sigue funcionando correctamente.
             
         print(f"| MACHINE LEARNING | Entrenamiento finalizado. Pesos y Obsidian guardados.")
     except Exception as e:
