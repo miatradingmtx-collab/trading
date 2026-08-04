@@ -646,7 +646,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 "price_open": pos.get('openPrice', 0.0),
                 "tp": tp_original,
                 "sl": pos.get('stopLoss', 0.0),
-                "parcial_tomado": parcial_ya_tomado,
+                "nivel_parcial": 1 if parcial_ya_tomado else 0,
                 "price_max_favor": pos.get('openPrice', 0.0) # Guarda el precio máximo en ganancias alcanzado en el ciclo
             }
             print(f"| SEGUIMIENTO | Nueva posición detectada. Ticket: {ticket} | Lote: {pos.get('volume')}")
@@ -666,108 +666,116 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             
         es_buy = str(pos.get('type')) in ['POSITION_TYPE_BUY', '0']
         
-        # A. Tomar Parciales al 50% de la distancia al Take Profit
-        alcanzo_mitad_tp = False
-        if tp > 0.0 and entry_price > 0.0:
+        # A. Tomar Parciales Escalonados (TP1: 25%, TP2: 50%)
+        import math
+        nivel_parcial = POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0)
+        
+        if tp > 0.0 and entry_price > 0.0 and volume > 0.01:
             distancia_total = abs(tp - entry_price)
             distancia_recorrida = abs(current_price - entry_price)
-            # Aseguramos que vamos en direccion a favor
             en_ganancia = (es_buy and current_price > entry_price) or (not es_buy and current_price < entry_price)
-            if en_ganancia and distancia_total > 0 and distancia_recorrida >= (distancia_total * 0.5):
-                alcanzo_mitad_tp = True
-        
-        if alcanzo_mitad_tp and volume >= 0.02 and not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
-            lote_a_cerrar = round(volume * 0.5, 2)
-            # Asegurar que siempre quede al menos 0.01 para el runner
-            if volume - lote_a_cerrar < 0.01:
-                lote_a_cerrar = round(volume - 0.01, 2)
+            
+            porcentaje_recorrido = distancia_recorrida / distancia_total if distancia_total > 0 else 0
+            
+            toca_parcial = 0
+            if en_ganancia:
+                if porcentaje_recorrido >= 0.50 and nivel_parcial < 2:
+                    toca_parcial = 2
+                elif porcentaje_recorrido >= 0.25 and nivel_parcial < 1:
+                    toca_parcial = 1
+                    
+            if toca_parcial > 0:
+                # Cerrar porción del volumen garantizando truncado decimal
+                lote_a_cerrar = math.floor((volume * 0.5) * 100) / 100.0
                 
-            if lote_a_cerrar >= 0.01:
-                print(f"| GESTOR PARCIALES | 50% del TP alcanzado. Cerrando {lote_a_cerrar} lotes de {ticket}...")
-                try:
-                    close_result = await connection.close_position_partially(ticket, lote_a_cerrar)
-                    POSICIONES_ACTIVAS[ticket]["parcial_tomado"] = True
-                    POSICIONES_ACTIVAS[ticket]["volume"] = volume - lote_a_cerrar
+                # Asegurar que siempre quede al menos 0.01
+                if volume - lote_a_cerrar < 0.01:
+                    lote_a_cerrar = math.floor((volume - 0.01) * 100) / 100.0
                     
-                    await asyncio.sleep(1)
-                    # Mover Stop Loss a Break Even + pequeño buffer
-                    buffer_be = 0.0001 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.01
-                    nuevo_sl = entry_price + buffer_be if es_buy else entry_price - buffer_be
+                if lote_a_cerrar >= 0.01:
+                    desc_tp = "25%" if toca_parcial == 1 else "50%"
+                    print(f"| GESTOR PARCIALES | {desc_tp} del TP alcanzado. Cerrando {lote_a_cerrar} lotes de {ticket} (Nivel {toca_parcial})...")
                     try:
-                        tp_original = POSICIONES_ACTIVAS[ticket]["tp"]
-                        await connection.modify_position(ticket, stop_loss=nuevo_sl, take_profit=tp_original)
-                        print(f"| GESTOR RIESGO | SL movido a Break Even para {ticket} (TP mantenido: {tp_original})")
-                    except Exception as sl_e:
-                        print(f"| GESTOR RIESGO WARNING | No se pudo mover SL a BE: {sl_e}")
-
-                    # PnL estimado de esta parcial
-                    distancia_parcial = (current_price - entry_price)
-                    if not es_buy:
-                        distancia_parcial = -distancia_parcial
+                        close_result = await connection.close_position_partially(ticket, lote_a_cerrar)
+                        POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
+                        POSICIONES_ACTIVAS[ticket]["volume"] = volume - lote_a_cerrar
                         
-                    sym = pos.get('symbol', '').upper()
-                    if "JPY" in sym:
-                        pnl_parcial = distancia_parcial * lote_a_cerrar * 100000 / current_price
-                    elif "XAU" in sym or "GOLD" in sym:
-                        pnl_parcial = distancia_parcial * lote_a_cerrar * 100
-                    else:
-                        pnl_parcial = distancia_parcial * lote_a_cerrar * 100000
+                        await asyncio.sleep(1)
+                        
+                        # Mover Stop Loss
+                        buffer_be = 0.0001 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.01
+                        
+                        if toca_parcial == 1:
+                            nuevo_sl = entry_price + buffer_be if es_buy else entry_price - buffer_be
+                            desc_sl = "Break Even"
+                        else:
+                            # TP2: Movemos el SL a TP1 (25% del recorrido)
+                            distancia_tp1 = distancia_total * 0.25
+                            nuevo_sl = (entry_price + distancia_tp1) if es_buy else (entry_price - distancia_tp1)
+                            desc_sl = "Nivel TP1 (25%)"
+                            
+                        try:
+                            tp_original = POSICIONES_ACTIVAS[ticket]["tp"]
+                            await connection.modify_position(ticket, stop_loss=nuevo_sl, take_profit=tp_original)
+                            print(f"| GESTOR RIESGO | SL movido a {desc_sl} para {ticket} (TP mantenido: {tp_original})")
+                            POSICIONES_ACTIVAS[ticket]["sl"] = nuevo_sl
+                        except Exception as sl_e:
+                            print(f"| GESTOR RIESGO WARNING | No se pudo mover SL a {desc_sl}: {sl_e}")
+
+                        # PnL estimado de esta parcial
+                        distancia_parcial = (current_price - entry_price) if es_buy else (entry_price - current_price)
+                        sym = pos.get('symbol', '').upper()
+                        if "JPY" in sym:
+                            pnl_parcial = distancia_parcial * lote_a_cerrar * 100000 / current_price
+                        elif "XAU" in sym or "GOLD" in sym:
+                            pnl_parcial = distancia_parcial * lote_a_cerrar * 100
+                        else:
+                            pnl_parcial = distancia_parcial * lote_a_cerrar * 100000
+                        
+                        await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP")
+                    except Exception as e:
+                        print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial nivel {toca_parcial} para ticket {ticket}: {e}")
                     
-                    await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado 50% al alcanzar mitad del TP")
-                except Exception as e:
-                    print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial para ticket {ticket}: {e}")
-                    
-        # B. Gestión de SL en ganancias para Runners (Trades que ya tomaron parcial del 50% y están en BE)
-        # Si el precio superó el 50% del TP y el trade continúa hacia el TP completo, pero detecta un retroceso,
-        # movemos el SL a la posición del 50% (mitad de la distancia al TP original) para asegurar una segunda ganancia
-        # y evitar salir en BE plano si el precio regresa.
-        if POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
+        # B. Gestión de SL en ganancias para Runners (Trades que ya tomaron TP2 al 50%)
+        if POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0) >= 2:
             es_jpy = pos.get('symbol', '').endswith("JPY")
             es_xau = "XAU" in pos.get('symbol', '')
             
             distancia_total = abs(tp - entry_price)
             punto_mitad_tp = entry_price + (distancia_total * 0.5) if es_buy else entry_price - (distancia_total * 0.5)
             
-            # Verificar si el SL ya está ajustado a la mitad del TP o más allá
             sl_ya_en_mitad = (es_buy and sl >= punto_mitad_tp - 0.0001) or (not es_buy and sl <= punto_mitad_tp + 0.0001)
             
             if not sl_ya_en_mitad:
-                # Calculamos qué tan lejos ha llegado el precio a favor del TP
                 distancia_recorrida = abs(current_price - entry_price)
                 
-                # Para subir el SL al 50% (punto de TP1), el precio debe haber superado al menos el 60% de la distancia total del TP
-                # y encontrarse en una zona de confluencia técnica (soporte/resistencia local o retroceso menor)
-                ha_superado_umbral = (distancia_recorrida >= (distancia_total * 0.6))
+                # Para subir el SL al 50%, el precio debe haber superado al menos el 75%
+                ha_superado_umbral = (distancia_recorrida >= (distancia_total * 0.75))
                 
                 if ha_superado_umbral:
-                    # Obtener velas 1H para validar confluencias técnicas (soportes/resistencias, EMAs, RSI)
+                    # Validar confluencias técnicas (soportes/resistencias, EMAs) en H1
                     df_1h = await obtener_velas_cloud(account, pos.get('symbol'), '1h', 100)
                     if df_1h is not None and not df_1h.empty:
                         try:
-                            # Calcular indicadores técnicos
                             rsi_series = calcular_rsi(df_1h)
                             rsi_1h = rsi_series.iloc[-1]
                             ema_50 = df_1h['close'].ewm(span=50, adjust=False).mean().iloc[-1]
-                            ema_200 = df_1h['close'].ewm(span=200, adjust=False).mean().iloc[-1]
                             sr_levels = detectar_soportes_resistencias(df_1h)
                             
-                            # Evaluamos si hay un retroceso menor o soporte/resistencia local para mover el SL al 50%
                             criterio_mover_sl = False
                             if es_buy:
                                 soporte_cercano = any(abs(current_price - s) / current_price < 0.002 for s in sr_levels.get('soportes', []))
-                                cerca_ema = abs(current_price - ema_50) / current_price < 0.002 or abs(current_price - ema_200) / current_price < 0.002
-                                # Si detecta soporte, EMA soporte o un RSI en retroceso moderado
+                                cerca_ema = abs(current_price - ema_50) / current_price < 0.002
                                 criterio_mover_sl = soporte_cercano or cerca_ema or (rsi_1h < 65)
                             else:
                                 resistencia_cercana = any(abs(current_price - r) / current_price < 0.002 for r in sr_levels.get('resistencias', []))
-                                cerca_ema = abs(current_price - ema_50) / current_price < 0.002 or abs(current_price - ema_200) / current_price < 0.002
+                                cerca_ema = abs(current_price - ema_50) / current_price < 0.002
                                 criterio_mover_sl = resistencia_cercana or cerca_ema or (rsi_1h > 35)
                                 
                             if criterio_mover_sl:
-                                print(f"| GESTOR TRAILING SL | Setup superó el 60% del TP con confluencias en H1. Moviendo SL al 50% (TP1={punto_mitad_tp}) para proteger ganancias.")
+                                print(f"| GESTOR TRAILING SL | Setup superó el 75% del TP. Moviendo SL al 50% (TP2={punto_mitad_tp}) para proteger ganancias del Runner.")
                                 try:
                                     await connection.modify_position(ticket, stop_loss=punto_mitad_tp, take_profit=tp)
-                                    print(f"| GESTOR TRAILING SL SUCCESS | Ticket {ticket} SL bloqueado en el 50% del TP: SL={punto_mitad_tp}")
                                     POSICIONES_ACTIVAS[ticket]["sl"] = punto_mitad_tp
                                 except Exception as e:
                                     print(f"| GESTOR TRAILING SL ERROR | No se pudo mover SL al 50% para ticket {ticket}: {e}")
@@ -775,7 +783,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                             print(f"| GESTOR TRAILING SL | Error evaluando indicadores para trailing: {eval_err}")
                             
         # C. Gestión de Break-Even dinámico relativo a Liquidez Institucional (Para órdenes que aún no toman parciales)
-        if not POSICIONES_ACTIVAS[ticket]["parcial_tomado"]:
+        if POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0) == 0:
             # Actualizar el precio máximo a favor alcanzado históricamente en la sesión por este ticket
             price_max_historico = POSICIONES_ACTIVAS[ticket].get("price_max_favor", entry_price)
             if es_buy:
@@ -1169,6 +1177,12 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         gatillo_autorizado = webhook_response and webhook_response.get("gatillo_entrada") is True
         
         if gatillo_autorizado:
+            # 🛡️ FILTRO ANTI-STOP HUNT PARA EL ORO (XAUUSD)
+            if "XAU" in activo:
+                if not confirmaciones.get("sweep_liquidez_detectado", False):
+                    print(f"| FILTRO XAUUSD | Gatillo Score >= 80 aprobado para {activo}, pero se deniega la entrada por falta de Sweep (Barrido de Liquidez). Esperando manipulación...")
+                    continue
+                    
             # 🛡️ HIPÓTESIS DEL USUARIO: Entrar antes de la apertura si el Score >= 80% 
             # previene entrar a destiempo y ser barrido por la volatilidad inicial.
             
