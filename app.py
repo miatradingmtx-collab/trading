@@ -1725,6 +1725,9 @@ def get_matrix_activos(authorization: Optional[str] = Header(None)):
         registrar_error_sistema("Cloud API (Get Matrix)", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
+MATRIX_CACHE = {}
+MATRIX_CACHE_TIME = {}
+
 @app.get("/get_asset_matrix")
 def get_asset_matrix(activo: str, authorization: Optional[str] = Header(None)):
     """
@@ -1733,19 +1736,30 @@ def get_asset_matrix(activo: str, authorization: Optional[str] = Header(None)):
     """
     verificar_token(authorization)
     
-    global firebase_inicializado, db
+    global firebase_inicializado, db, MATRIX_CACHE, MATRIX_CACHE_TIME
     if not firebase_inicializado or db is None:
         raise HTTPException(status_code=503, detail="Firebase no inicializado")
         
     try:
+        import time
         activo_normalizado = normalizar_activo(activo)
+        
+        # 🛡️ PROTECCIÓN ANTI-SATURACIÓN (Cache de 5 minutos)
+        # Como mt5_executor_cloud lo consulta cada 30 seg, esto salva 115 peticiones por hora por trade
+        if activo_normalizado in MATRIX_CACHE:
+            if time.time() - MATRIX_CACHE_TIME.get(activo_normalizado, 0) < 300:
+                return MATRIX_CACHE[activo_normalizado]
+                
         doc_ref = db.collection("trading_matrix").document(activo_normalizado)
         doc = doc_ref.get()
         
         if not doc.exists:
             raise HTTPException(status_code=404, detail=f"Activo {activo_normalizado} no encontrado")
             
-        return doc.to_dict()
+        datos = doc.to_dict()
+        MATRIX_CACHE[activo_normalizado] = datos
+        MATRIX_CACHE_TIME[activo_normalizado] = time.time()
+        return datos
     except HTTPException:
         raise
     except Exception as e:
