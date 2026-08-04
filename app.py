@@ -746,10 +746,6 @@ def recalcular_score_ponderado(data: dict) -> float:
         
     w_ma = pesos.get("ma_alineada", 15)
     w_rsi = pesos.get("rsi_extremo", 15)
-    w_soporte = pesos.get("soporte_resistencia_activo", 10)
-    w_poc = pesos.get("poc_price", 10)
-    w_ob_zona = pesos.get("order_block_zona", 25)
-    w_liq_align = pesos.get("alineamiento_liquidez", 25)
     w_ob = pesos.get("smc_1", 30)
     w_fvg = pesos.get("smc_2", 30)
     w_breaker = pesos.get("smc_3", 20)
@@ -772,12 +768,13 @@ def recalcular_score_ponderado(data: dict) -> float:
     if tech.get("poc_price", 0.0) > 0:
         score += w_poc
     
-    # 3. Nuevos Indicadores Algorítmicos Clave (Zonas OB y Flujos de Liquidez)
-    if tech.get("order_block_zona", False):
-        score += w_ob_zona
-        
-    if tech.get("alineamiento_liquidez", False):
-        score += w_liq_align
+    # 3. Nuevos Indicadores Algorítmicos Clave (Zonas OB y Flujos de Liquidez por TF)
+    for tf in ["1h", "2h", "3h", "4h", "8h"]:
+        if tech.get(f"order_block_zona_{tf}", False):
+            score += pesos.get(f"order_block_zona_{tf}", 25)
+            
+        if tech.get(f"alineamiento_liquidez_{tf}", False):
+            score += pesos.get(f"alineamiento_liquidez_{tf}", 25)
 
     # 4. Módulos SMC e ICT (Institucional)
     smc_codes = tech.get("smc_codes", [])
@@ -3661,9 +3658,11 @@ async def entrenar_pesos_dinamicos():
         # 2. Contar la frecuencia de cada confirmación técnica en los ganadores
         frecuencias = {
             "ma_alineada": 0, "rsi_extremo": 0, "soporte_resistencia_activo": 0, "poc_price": 0,
-            "order_block_zona": 0, "alineamiento_liquidez": 0,
             "smc_1": 0, "smc_2": 0, "smc_3": 0, "smc_4": 0
         }
+        for tf in ["1h", "2h", "3h", "4h", "8h"]:
+            frecuencias[f"order_block_zona_{tf}"] = 0
+            frecuencias[f"alineamiento_liquidez_{tf}"] = 0
         
         for g in ganadores:
             tech = g.get("confirmaciones_tecnicas", {})
@@ -3671,8 +3670,10 @@ async def entrenar_pesos_dinamicos():
             if tech.get("rsi_sobrecompra_sobreventa") or tech.get("rsi_extremo"): frecuencias["rsi_extremo"] += 1
             if tech.get("soporte_resistencia_activo"): frecuencias["soporte_resistencia_activo"] += 1
             if tech.get("poc_price", 0.0) > 0: frecuencias["poc_price"] += 1
-            if tech.get("order_block_zona"): frecuencias["order_block_zona"] += 1
-            if tech.get("alineamiento_liquidez"): frecuencias["alineamiento_liquidez"] += 1
+            
+            for tf in ["1h", "2h", "3h", "4h", "8h"]:
+                if tech.get(f"order_block_zona_{tf}"): frecuencias[f"order_block_zona_{tf}"] += 1
+                if tech.get(f"alineamiento_liquidez_{tf}"): frecuencias[f"alineamiento_liquidez_{tf}"] += 1
             
             smc = tech.get("smc_codes", [])
             if 1 in smc: frecuencias["smc_1"] += 1
@@ -3687,13 +3688,14 @@ async def entrenar_pesos_dinamicos():
             "rsi_extremo": 10 + int((frecuencias["rsi_extremo"] / total) * 15),
             "soporte_resistencia_activo": 5 + int((frecuencias["soporte_resistencia_activo"] / total) * 15),
             "poc_price": 5 + int((frecuencias["poc_price"] / total) * 15),
-            "order_block_zona": 15 + int((frecuencias["order_block_zona"] / total) * 25),
-            "alineamiento_liquidez": 15 + int((frecuencias["alineamiento_liquidez"] / total) * 25),
             "smc_1": 20 + int((frecuencias["smc_1"] / total) * 20),
             "smc_2": 20 + int((frecuencias["smc_2"] / total) * 20),
             "smc_3": 10 + int((frecuencias["smc_3"] / total) * 20),
             "smc_4": 10 + int((frecuencias["smc_4"] / total) * 15)
         }
+        for tf in ["1h", "2h", "3h", "4h", "8h"]:
+            nuevos_pesos[f"order_block_zona_{tf}"] = 25 + int((frecuencias[f"order_block_zona_{tf}"] / total) * 15)
+            nuevos_pesos[f"alineamiento_liquidez_{tf}"] = 25 + int((frecuencias[f"alineamiento_liquidez_{tf}"] / total) * 15)
         
         # 4. Guardar en Firebase (system_memory)
         mem_ref = db.collection("system_memory").document("mia_collective")
