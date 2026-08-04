@@ -585,9 +585,10 @@ async def obtener_matriz_activo(activo: str) -> Optional[Dict]:
 # ------------------------------------------------------------------------------
 ULTIMA_SINC_FB = 0
 FB_OPEN_CACHE = []
+ES_PRIMERA_EJECUCION = True
 
 async def gestionar_posiciones_activas(account, connection, balance: float):
-    global POSICIONES_ACTIVAS, ULTIMA_SINC_FB, FB_OPEN_CACHE
+    global POSICIONES_ACTIVAS, ULTIMA_SINC_FB, FB_OPEN_CACHE, ES_PRIMERA_EJECUCION
     
     # 0. Obtener tickets abiertos en Firebase para validación cruzada y autocuración
     from time import time
@@ -662,7 +663,10 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 "price_max_favor": pos.get('openPrice', 0.0) # Guarda el precio máximo en ganancias alcanzado en el ciclo
             }
             print(f"| SEGUIMIENTO | Nueva posición detectada. Ticket: {ticket} | Lote: {pos.get('volume')}")
-            await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original)
+            if not ES_PRIMERA_EJECUCION:
+                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original)
+            else:
+                print(f"| REANUDACIÓN | Adoptando posición existente (Ticket: {ticket}). Omitiendo alerta duplicada a Telegram.")
             
         activo = next((act for act in ACTIVOS if MAPEO_BROKER.get(act) == pos.get('symbol')), None)
         if not activo:
@@ -968,6 +972,8 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 pass
             await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=pnl_sinc, comentario="Sincronizado por desaparición en MT5")
             TICKETS_SINCRONIZADOS.add(str(t))
+
+    ES_PRIMERA_EJECUCION = False
 # ------------------------------------------------------------------------------
 # 6. GESTOR DE OPERACIONES (Apertura de Órdenes)
 # ------------------------------------------------------------------------------
