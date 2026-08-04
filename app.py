@@ -254,6 +254,10 @@ async def startup_event():
         
     # Inicializar el scheduler de volcado de logs semanal a disco (Viernes 11:00 PM)
     asyncio.create_task(scheduler_volcado_logs_semanal())
+    
+    # Inicializar el scheduler interno de Machine Learning (Viernes 16:00)
+    # Reemplaza la dependencia del flujo Mia_Machine_Learning_Loop de N8N
+    asyncio.create_task(scheduler_ml_semanal())
 
 
 
@@ -3566,8 +3570,50 @@ async def scheduler_volcado_logs_semanal():
 # ------------------------------------------------------------------------------
 # MACHINE LEARNING FEEDBACK LOOP (Pesos Dinámicos)
 # ------------------------------------------------------------------------------
+async def scheduler_ml_semanal():
+    """
+    Scheduler interno que reemplaza al flujo Mia_Machine_Learning_Loop de N8N.
+    Se ejecuta automáticamente cada viernes a las 16:00 (hora local MX, UTC-6).
+    Elimina la dependencia externa de N8N para el entrenamiento de pesos.
+    """
+    import asyncio
+    from datetime import datetime, timedelta
+    
+    print("| ML SCHEDULER | Inicializando scheduler interno de Machine Learning (Viernes 16:00)...")
+    while True:
+        try:
+            ahora = datetime.now()
+            
+            # Calcular el siguiente viernes a las 16:00
+            dias_hasta_viernes = (4 - ahora.weekday()) % 7
+            proximo_entrenamiento = ahora.replace(hour=16, minute=0, second=0, microsecond=0)
+            
+            if dias_hasta_viernes > 0:
+                proximo_entrenamiento += timedelta(days=dias_hasta_viernes)
+            elif ahora >= proximo_entrenamiento:
+                # Si ya es viernes después de las 16:00, programar para el siguiente viernes
+                proximo_entrenamiento += timedelta(days=7)
+                
+            segundos_espera = (proximo_entrenamiento - ahora).total_seconds()
+            print(f"| ML SCHEDULER | Próximo entrenamiento programado para: {proximo_entrenamiento.strftime('%Y-%m-%d %H:%M')} (en {int(segundos_espera/3600)}h {int((segundos_espera%3600)/60)}m)")
+            
+            await asyncio.sleep(segundos_espera)
+            
+            # ¡Es hora de entrenar!
+            print("| ML SCHEDULER | ⏰ Disparando entrenamiento semanal de pesos dinámicos...")
+            await entrenar_pesos_dinamicos()
+            print("| ML SCHEDULER | ✔ Entrenamiento semanal completado exitosamente.")
+            
+            # Esperar 1 hora antes de recalcular para evitar doble ejecución
+            await asyncio.sleep(3600)
+            
+        except Exception as err:
+            print(f"| ML SCHEDULER ERROR | Error en scheduler de ML: {err}")
+            await asyncio.sleep(300)
+
 @app.post("/api/entrenar_pesos")
 async def entrenar_pesos_endpoint(authorization: Optional[str] = Header(None)):
+    """Endpoint manual/on-demand para disparar el entrenamiento. El scheduler interno ya lo ejecuta automáticamente los viernes."""
     verificar_token(authorization)
     try:
         await entrenar_pesos_dinamicos()
