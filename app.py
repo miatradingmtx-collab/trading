@@ -1386,7 +1386,11 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     
     # AUTO-VIP: Si el activo no está en la matriz, lo registramos automáticamente con el esquema completo
     if alert.activo and alert.activo != "UNKNOWN":
-        auto_inicializar_activo(alert.activo)
+        try:
+            auto_inicializar_activo(alert.activo)
+        except Exception as e:
+            print(f"| FIREBASE QUOTA WARN | No se pudo verificar activo en matriz (probablemente 429): {e}")
+            # Continuamos en RAM
     
     # 0. Lógica de Horarios (Forex cerrado en fin de semana, Crypto 24/7)
     es_cripto_activo = alert.es_crypto or alert.activo.startswith("BTC") or alert.activo.startswith("ETH") or "USD" not in alert.activo and alert.activo != "XAUUSD"
@@ -1449,24 +1453,38 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     # 5. Notificar a Mia (Botpress) y Telegram de que hubo un movimiento (Apertura o Cierre)
     
     # --- NUEVA LÓGICA DE TELEGRAM DETALLADA ---
-    icono = "🟢" if "COMPRA" in alert.accion else "🔴" if "VENTA" in alert.accion else "🔵"
-    if "CIERRE" in alert.accion:
-        icono = "💰" if alert.pnl > 0 else "🛑"
+    # Solo notificar a Telegram si proviene de MT5 (tiene un ticket válido asignado)
+    if alert.ticket and int(alert.ticket) > 0:
+        icono = "🟢" if "COMPRA" in alert.accion else "🔴" if "VENTA" in alert.accion else "🔵"
+        if "CIERRE" in alert.accion:
+            icono = "💰" if alert.pnl > 0 else "🛑"
+            if "PARCIAL" in alert.estrategia.upper():
+                icono = "💸"
+            
+        msg_tg = f"🤖 *MIA TRADING AI* {icono}\n\n"
+        msg_tg += f"*{alert.accion}* | *{alert.activo}*\n"
+        msg_tg += f"💰 Precio: {alert.precio}\n"
         
-    msg_tg = f"🤖 *MIA TRADING AI* {icono}\n\n"
-    msg_tg += f"*{alert.accion}* | *{alert.activo}*\n"
-    msg_tg += f"💰 Precio: {alert.precio}\n"
-    
-    if "CIERRE" not in alert.accion:
-        msg_tg += f"🛡️ SL: {alert.stop_loss if alert.stop_loss else 'N/A'}\n"
-        msg_tg += f"🎯 TP: {alert.take_profit if alert.take_profit else 'N/A'}\n"
-    else:
-        msg_tg += f"💵 PNL: ${round(alert.pnl, 2)}\n"
+        if "CIERRE" not in alert.accion and "PARCIAL" not in alert.accion:
+            msg_tg += f"🛡️ SL: {alert.stop_loss if alert.stop_loss else 'N/A'}\n"
+            if alert.take_profit and alert.take_profit > 0 and alert.precio > 0:
+                distancia = abs(alert.take_profit - alert.precio)
+                es_buy = "COMPRA" in alert.accion.upper()
+                tp1 = round(alert.precio + (distancia * 0.25) if es_buy else alert.precio - (distancia * 0.25), 5)
+                tp2 = round(alert.precio + (distancia * 0.50) if es_buy else alert.precio - (distancia * 0.50), 5)
+                
+                msg_tg += f"🎯 TP1 (25%): {tp1}\n"
+                msg_tg += f"🎯 TP2 (50%): {tp2}\n"
+                msg_tg += f"🏁 Full TP: {alert.take_profit}\n"
+            else:
+                msg_tg += f"🎯 TP: N/A\n"
+        else:
+            msg_tg += f"💵 PNL: ${round(alert.pnl, 2)}\n"
+            
+        msg_tg += f"\n📊 Estrategia: {alert.estrategia}"
         
-    msg_tg += f"\n📊 Estrategia: {alert.estrategia}"
-    
-    # Disparar Telegram asíncrono
-    background_tasks.add_task(notificar_telegram, msg_tg)
+        # Disparar Telegram asíncrono
+        background_tasks.add_task(notificar_telegram, msg_tg)
     
     if BOTPRESS_WEBHOOK_URL:
         payload_mia = {
@@ -1798,9 +1816,10 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
     de MetaTrader 5 y actualiza la matriz en Firebase.
     """
     verificar_token(authorization)
-    invalidar_cache_dashboard()
+    # IMPORTANTE: Eliminamos invalidar_cache_dashboard() de aquí para que el polling 
+    # de MT5 (16 activos x cada 15 min) no sature las 50k peticiones Firestore de límite gratis
     
-    global firebase_inicializado, db
+    global firebase_inicializado, db, GLOBAL_MATRICES
     if not firebase_inicializado or db is None:
         raise HTTPException(status_code=503, detail="Firebase no inicializado")
         
@@ -1846,8 +1865,14 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         data["ultimo_update"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
         
         doc_ref.set(data)
+        
+        # Actualizar la caché RAM directamente para no invalidar el Dashboard entero
+        if isinstance(GLOBAL_MATRICES, dict):
+            GLOBAL_MATRICES[activo_normalizado] = data["score_porcentaje"]
+            
         print(f"| FIREBASE SUCCESS | Confirmaciones técnicas de {activo_normalizado} actualizadas. Score: {data['score_porcentaje']}%")
         
+
         # --- GENERAR LOG DE EVALUACIÓN PARA EL LIVE FEED ---
         now_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-6)))
         fecha_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")

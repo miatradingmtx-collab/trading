@@ -26,3 +26,15 @@ Mia (Botpress) se encuentra actualmente en **Modo Aprendiz** (recaudando datos d
 Por tanto, Mia NO toma decisiones finales de trading ni ejecuta órdenes de forma autónoma basándose solo en su IA.
 - **Firebase es el Juez:** Las ejecuciones en MetaAPI hacia MT5 están bloqueadas/gobernadas por condiciones estadísticas, reglas matemáticas en el código (Lotaje 1%, Drawdown 3%) y el umbral de `score >= 80` validado en la nube.
 - **Objetivo de la Base de Conocimiento (KB):** La meta de recopilar y auditar cada trade en Obsidiania/Firebase es enseñarle a Mia cuáles son los "mejores trades" bajo la "Regla de 3" (mínimo 3 confirmaciones institucionales) para que en el futuro logre plena autonomía.
+
+## Regla de Integración N8N y Machine Learning (CI/CD Automático)
+Todo el ecosistema de Mia (API de Python, base de datos Postgres y flujos de automatización en N8N) se encuentra alojado y orquestado en **Railway**. Esto garantiza una operación CI/CD 100% en la nube que NO depende de que el equipo local del usuario esté encendido. El nodo de N8N 'Mia_Machine_Learning_Loop' se ejecuta en los servidores de Railway todos los viernes a las 16:00, contactando al endpoint `/api/entrenar_pesos` mediante el `BRIDGE_ACCESS_TOKEN`. Agentes futuros no deben intentar ejecutar estas rutinas localmente.
+
+## Regla de Protección Quota 429 y Caché en RAM (Firebase Bypass)
+Si la conexión a Firebase Cloud Firestore agota su límite gratuito de 50,000 lecturas/escrituras diarias, la aplicación (app.py) continuará funcionando mediante el uso de excepciones (	ry...except) que capturarán el error y permitirán el flujo en RAM. Cualquier agente que programe operaciones de webhooks deberá evitar llamadas bloqueantes o crashings del servidor ante fallos de conexión (bypass silencioso para no sobrecargar los logs en Railway).
+
+## Regla Anti-Spam de Telegram y TPs Explícitos
+Telegram solo debe alertar (ya sea de apertura o cierre) sobre trades **ejecutados**, esto es cuando traen un Ticket válido. Nunca enviar señales crudas que no hayan pasado por el filtro de Mia. Adicionalmente, toda Apertura debe especificar la estructura escalonada de Take Profit:
+- TP1 (25%)
+- TP2 (50%)
+- Full TP

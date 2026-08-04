@@ -697,14 +697,29 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     toca_parcial = 1
                     
             if toca_parcial > 0:
-                # Cerrar porción del volumen garantizando truncado decimal
-                lote_a_cerrar = math.floor((volume * 0.5) * 100) / 100.0
+                # Extraer Volume Step real del Broker
+                volume_step = 0.01
+                symbol = pos.get('symbol')
+                try:
+                    spec = await connection.get_symbol_specification(symbol)
+                    if spec and getattr(spec, 'volumeStep', None):
+                        volume_step = float(spec.volumeStep)
+                    elif spec and isinstance(spec, dict) and 'volumeStep' in spec:
+                        volume_step = float(spec['volumeStep'])
+                except Exception as e:
+                    print(f"| GESTOR PARCIALES WARN | No se pudo obtener volumeStep para {symbol}, usando 0.01 por defecto: {e}")
+
+                # Cerrar porción del volumen garantizando el múltiplo del volumeStep
+                mitad_volumen = volume * 0.5
+                lote_a_cerrar = math.floor(mitad_volumen / volume_step) * volume_step
+                lote_a_cerrar = round(lote_a_cerrar, 4) # Evitar float artifacts
                 
-                # Asegurar que siempre quede al menos 0.01
-                if volume - lote_a_cerrar < 0.01:
-                    lote_a_cerrar = math.floor((volume - 0.01) * 100) / 100.0
+                # Asegurar que siempre quede al menos el volume_step mínimo
+                if volume - lote_a_cerrar < volume_step:
+                    lote_a_cerrar = math.floor((volume - volume_step) / volume_step) * volume_step
+                    lote_a_cerrar = round(lote_a_cerrar, 4)
                     
-                if lote_a_cerrar >= 0.01:
+                if lote_a_cerrar >= volume_step:
                     desc_tp = "25%" if toca_parcial == 1 else "50%"
                     print(f"| GESTOR PARCIALES | {desc_tp} del TP alcanzado. Cerrando {lote_a_cerrar} lotes de {ticket} (Nivel {toca_parcial})...")
                     try:
@@ -747,6 +762,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                         await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP")
                     except Exception as e:
                         print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial nivel {toca_parcial} para ticket {ticket}: {e}")
+                        POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
                     
         # B. Gestión de SL en ganancias para Runners (Trades que ya tomaron TP2 al 50%)
         if POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0) >= 2:
