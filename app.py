@@ -43,6 +43,7 @@ db = None
 DASHBOARD_CACHE_DATA = None
 DASHBOARD_CACHE_TIME = 0.0
 ULTIMO_BROKER_STATE = None
+GLOBAL_MATRICES_CACHE_FULL = {}
 import time
 
 def invalidar_cache_dashboard():
@@ -1819,19 +1820,27 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
     # IMPORTANTE: Eliminamos invalidar_cache_dashboard() de aquí para que el polling 
     # de MT5 (16 activos x cada 15 min) no sature las 50k peticiones Firestore de límite gratis
     
-    global firebase_inicializado, db, GLOBAL_MATRICES
+    global firebase_inicializado, db, GLOBAL_MATRICES, GLOBAL_MATRICES_CACHE_FULL
     if not firebase_inicializado or db is None:
         raise HTTPException(status_code=503, detail="Firebase no inicializado")
         
     try:
         activo_normalizado = normalizar_activo(update.activo)
         doc_ref = db.collection("trading_matrix").document(activo_normalizado)
-        doc = doc_ref.get()
         
-        if not doc.exists:
-            raise HTTPException(status_code=404, detail=f"El activo {activo_normalizado} no existe en la matriz")
+        # 🛡️ CACHÉ INTELIGENTE (Bypass de Lectura Firestore)
+        data = None
+        if activo_normalizado in GLOBAL_MATRICES_CACHE_FULL:
+            data = GLOBAL_MATRICES_CACHE_FULL[activo_normalizado]
+        else:
+            doc = doc_ref.get()
+            if not doc.exists:
+                raise HTTPException(status_code=404, detail=f"El activo {activo_normalizado} no existe en la matriz")
+            data = doc.to_dict()
             
-        data = doc.to_dict()
+        # Clonar para comparación posterior
+        import copy
+        old_data = copy.deepcopy(data)
         
         if "confirmaciones_tecnicas" not in data:
             data["confirmaciones_tecnicas"] = {}
@@ -1864,13 +1873,29 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
             
         data["ultimo_update"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
         
-        doc_ref.set(data)
+        # 🛡️ BYPASS DE ESCRITURA: Solo actualizar si algo realmente cambió
+        data_changed = False
         
+        # Comparar las confirmaciones técnicas relevantes y el score
+        for k in update.confirmaciones_tecnicas.keys():
+            if data["confirmaciones_tecnicas"].get(k) != old_data.get("confirmaciones_tecnicas", {}).get(k):
+                data_changed = True
+                break
+                
+        if old_data.get("score_porcentaje") != data["score_porcentaje"]:
+            data_changed = True
+            
+        if data_changed:
+            doc_ref.set(data)
+            print(f"| FIREBASE SUCCESS | Confirmaciones técnicas de {activo_normalizado} actualizadas. Score: {data['score_porcentaje']}%")
+        else:
+            print(f"| FIREBASE CACHE | Sin cambios técnicos para {activo_normalizado}. Omitiendo escritura (Score: {data['score_porcentaje']}%).")
+            
         # Actualizar la caché RAM directamente para no invalidar el Dashboard entero
         if isinstance(GLOBAL_MATRICES, dict):
             GLOBAL_MATRICES[activo_normalizado] = data["score_porcentaje"]
             
-        print(f"| FIREBASE SUCCESS | Confirmaciones técnicas de {activo_normalizado} actualizadas. Score: {data['score_porcentaje']}%")
+        GLOBAL_MATRICES_CACHE_FULL[activo_normalizado] = data
         
 
         # --- GENERAR LOG DE EVALUACIÓN PARA EL LIVE FEED ---

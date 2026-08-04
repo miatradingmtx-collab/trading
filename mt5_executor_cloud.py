@@ -52,7 +52,7 @@ RIESGO_RESIDUAL_MAX_PCT = 25.0  # Porcentaje máximo del colchón residual a arr
 POSICIONES_ACTIVAS = {}
 TICKETS_SINCRONIZADOS = set()
 
-ACTIVOS = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD"]
+ACTIVOS = ["EURUSD", "GBPUSD", "XAUUSD", "GBPJPY", "US30", "US500", "AUDUSD", "NZDCAD"]
 
 # Mapeo de nombres de activos locales a símbolos del Broker
 MAPEO_BROKER = {
