@@ -1466,23 +1466,30 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
         msg_tg += f"*{alert.accion}* | *{alert.activo}*\n"
         msg_tg += f"💰 Precio: {alert.precio}\n"
         
-        if "CIERRE" not in alert.accion and "PARCIAL" not in alert.accion:
-            msg_tg += f"🛡️ SL: {alert.stop_loss if alert.stop_loss else 'N/A'}\n"
-            if alert.take_profit and alert.take_profit > 0 and alert.precio > 0:
-                distancia = abs(alert.take_profit - alert.precio)
-                es_buy = "COMPRA" in alert.accion.upper()
-                tp1 = round(alert.precio + (distancia * 0.25) if es_buy else alert.precio - (distancia * 0.25), 5)
-                tp2 = round(alert.precio + (distancia * 0.50) if es_buy else alert.precio - (distancia * 0.50), 5)
-                
-                msg_tg += f"🎯 TP1 (25%): {tp1}\n"
-                msg_tg += f"🎯 TP2 (50%): {tp2}\n"
-                msg_tg += f"🏁 Full TP: {alert.take_profit}\n"
-            else:
-                msg_tg += f"🎯 TP: N/A\n"
+        msg_tg += f"🛡️ SL: {alert.stop_loss if alert.stop_loss else 'N/A'}\n"
+        if alert.take_profit and alert.take_profit > 0 and alert.precio > 0:
+            distancia = abs(alert.take_profit - alert.precio)
+            es_buy = "COMPRA" in alert.accion.upper()
+            tp1 = round(alert.precio + (distancia * 0.25) if es_buy else alert.precio - (distancia * 0.25), 5)
+            tp2 = round(alert.precio + (distancia * 0.50) if es_buy else alert.precio - (distancia * 0.50), 5)
+            
+            msg_tg += f"🎯 TP1 (25%): {tp1}\n"
+            msg_tg += f"🎯 TP2 (50%): {tp2}\n"
+            msg_tg += f"🏁 Full TP: {alert.take_profit}\n"
         else:
-            msg_tg += f"💵 PNL: ${round(alert.pnl, 2)}\n"
+            msg_tg += f"🎯 TP: N/A\n"
+
+        if "CIERRE" in alert.accion or "PARCIAL" in alert.accion:
+            msg_tg += f"\n💵 PNL: ${round(alert.pnl, 2)}\n"
             if alert.accion == "CIERRE_PARCIAL":
                 msg_tg += f"⏳ *Parcial Tomado*: El trade sigue activo buscando el siguiente TP.\n"
+            elif alert.accion == "CIERRE_TOTAL":
+                if alert.pnl > 0.0:
+                    msg_tg += f"✅ *Cierre con Ganancias* (TP o Trailing Stop)\n"
+                elif alert.pnl < 0.0:
+                    msg_tg += f"❌ *Cierre con Pérdida* (Hit SL)\n"
+                else:
+                    msg_tg += f"🛡️ *Cierre en Break Even* (BE) o PnL no disponible\n"
             
         msg_tg += f"\n📊 Estrategia: {alert.estrategia}"
         
