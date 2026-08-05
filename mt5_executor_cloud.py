@@ -509,7 +509,7 @@ async def solicitar_autorizacion_trade(activo: str, accion: str, precio: float) 
         print(f"| CLOUD EXCEPTION | Error al solicitar autorización de trade: {e}")
     return None
 
-async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, evento: str, precio: float, sl: float, tp: float, pnl: float = 0.0, comentario: str = ""):
+async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, evento: str, precio: float, sl: float, tp: float, pnl: float = 0.0, comentario: str = "", estrategia_original: str = "MANUAL"):
     url = f"{FASTAPI_URL}/webhook"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
@@ -519,13 +519,16 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
     is_buy = (tipo_posicion == "POSITION_TYPE_BUY" or tipo_posicion == "0")
     if evento == "APERTURA":
         accion = "COMPRA" if is_buy else "VENTA"
-        estrategia = f"APERTURA (Ticket {ticket})"
+        estrategia = f"{estrategia_original} | APERTURA (Ticket {ticket})"
     elif evento == "CIERRE_PARCIAL":
         accion = "CIERRE_PARCIAL"
-        estrategia = f"PARCIAL (Ticket {ticket}) - {comentario}"
+        estrategia = f"{estrategia_original} | PARCIAL (Ticket {ticket}) - {comentario}"
+    elif evento == "REANUDACIÓN":
+        accion = "REANUDACIÓN"
+        estrategia = f"{estrategia_original} | REANUDACIÓN (Ticket {ticket})"
     else:
         accion = "CIERRE_TOTAL"
-        estrategia = f"CIERRE (Ticket {ticket}) - {comentario}"
+        estrategia = f"{estrategia_original} | CIERRE (Ticket {ticket}) - {comentario}"
         
     activo_original = simbolo
     for act, symb in MAPEO_BROKER.items():
@@ -634,25 +637,26 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
         if ticket not in POSICIONES_ACTIVAS:
             tp_original = pos.get('takeProfit', 0.0)
             parcial_ya_tomado = False
+            estrategia_original = "MANUAL"
             
-            # Autocuración: Si no tiene TP, intentar recuperarlo de Firebase
-            if tp_original == 0.0:
-                try:
-                    async with httpx.AsyncClient() as client:
-                        r = await client.get(f"{FASTAPI_URL}/api/get_trade_tp/{ticket}", timeout=5)
-                        if r.status_code == 200:
-                            res_data = r.json()
-                            if res_data.get("status") == "success":
-                                if res_data.get("tp", 0.0) > 0.0:
-                                    tp_original = res_data["tp"]
-                                    print(f"| AUTOCURACIÓN | Ticket {ticket} sin TP detectado. Restaurando TP original: {tp_original}")
-                                    try:
-                                        await connection.modify_position(ticket, stop_loss=pos.get('stopLoss', 0.0), take_profit=tp_original)
-                                    except Exception as modify_err:
-                                        print(f"| AUTOCURACIÓN ERROR | No se pudo inyectar TP en MT5: {modify_err}")
-                                parcial_ya_tomado = res_data.get("parcial_tomado", False)
-                except Exception as auto_e:
-                    print(f"| AUTOCURACIÓN WARN | Fallo al buscar TP en Firebase: {auto_e}")
+            # Autocuración: Intentar recuperar estrategia y TP de Firebase
+            try:
+                async with httpx.AsyncClient() as client:
+                    r = await client.get(f"{FASTAPI_URL}/api/get_trade_tp/{ticket}", timeout=5)
+                    if r.status_code == 200:
+                        res_data = r.json()
+                        if res_data.get("status") == "success":
+                            estrategia_original = res_data.get("estrategia", "MANUAL")
+                            if tp_original == 0.0 and res_data.get("tp", 0.0) > 0.0:
+                                tp_original = res_data["tp"]
+                                print(f"| AUTOCURACIÓN | Ticket {ticket} sin TP detectado. Restaurando TP original: {tp_original}")
+                                try:
+                                    await connection.modify_position(ticket, stop_loss=pos.get('stopLoss', 0.0), take_profit=tp_original)
+                                except Exception as modify_err:
+                                    print(f"| AUTOCURACIÓN ERROR | No se pudo inyectar TP en MT5: {modify_err}")
+                            parcial_ya_tomado = res_data.get("parcial_tomado", False)
+            except Exception as auto_e:
+                print(f"| AUTOCURACIÓN WARN | Fallo al buscar TP/Estrategia en Firebase: {auto_e}")
             
             POSICIONES_ACTIVAS[ticket] = {
                 "volume": pos.get('volume', 0.0),
@@ -662,14 +666,15 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 "tp": tp_original,
                 "sl": pos.get('stopLoss', 0.0),
                 "nivel_parcial": 1 if parcial_ya_tomado else 0,
-                "price_max_favor": pos.get('openPrice', 0.0) # Guarda el precio máximo en ganancias alcanzado en el ciclo
+                "price_max_favor": pos.get('openPrice', 0.0), # Guarda el precio máximo en ganancias alcanzado en el ciclo
+                "estrategia": estrategia_original
             }
-            print(f"| SEGUIMIENTO | Nueva posición detectada. Ticket: {ticket} | Lote: {pos.get('volume')}")
+            print(f"| SEGUIMIENTO | Nueva posición detectada. Ticket: {ticket} | Lote: {pos.get('volume')} | Estrategia: {estrategia_original}")
             if not ES_PRIMERA_EJECUCION:
-                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original)
+                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original)
             else:
                 print(f"| REANUDACIÓN | Adoptando posición existente (Ticket: {ticket}). Enviando notificación de Reanudación.")
-                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "REANUDACIÓN", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original)
+                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "REANUDACIÓN", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original)
             
         activo = next((act for act in ACTIVOS if MAPEO_BROKER.get(act) == pos.get('symbol')), None)
         if not activo:
@@ -782,7 +787,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                         else:
                             pnl_parcial = distancia_parcial * lote_a_cerrar * 100000
                         
-                        await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP")
+                        await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP", estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"))
                     except Exception as e:
                         print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial nivel {toca_parcial} para ticket {ticket}: {e}")
                         POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
@@ -953,7 +958,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 
             print(f"| GESTOR COBROS WARNING | Usando PnL estimado para Ticket {ticket}: ${pnl_final:.2f}")
             
-        await reportar_evento_trade(info["symbol"], ticket, info["type"], "CIERRE_TOTAL", precio_cierre, info["sl"], info["tp"], pnl=pnl_final, comentario="Cerrado totalmente")
+        await reportar_evento_trade(info['symbol'], ticket, info['type'], "CIERRE_TOTAL", info['price_open'], 0.0, 0.0, pnl=pnl_final, comentario="Cerrado en MT5", estrategia_original=info.get("estrategia", "MANUAL"))
         del POSICIONES_ACTIVAS[ticket]
 
     for t in fb_open:
@@ -973,7 +978,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     pnl_sinc = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in deals)
             except:
                 pass
-            await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=pnl_sinc, comentario="Sincronizado por desaparición en MT5")
+            await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=pnl_sinc, comentario="Sincronizado por desaparición en MT5", estrategia_original="MANUAL")
             TICKETS_SINCRONIZADOS.add(str(t))
 
     ES_PRIMERA_EJECUCION = False

@@ -1485,11 +1485,12 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                 msg_tg += f"⏳ *Parcial Tomado*: El trade sigue activo buscando el siguiente TP.\n"
             elif alert.accion == "CIERRE_TOTAL":
                 if alert.pnl > 0.0:
-                    msg_tg += f"✅ *Cierre con Ganancias* (TP o Trailing Stop)\n"
+                    msg_tg += f"✅ *Cierre con Ganancias* (Full TP o Trailing Stop)\n"
                 elif alert.pnl < 0.0:
                     msg_tg += f"❌ *Cierre con Pérdida* (Hit SL)\n"
                 else:
-                    msg_tg += f"🛡️ *Cierre en Break Even* (BE) o PnL no disponible\n"
+                    msg_tg += f"🛡️ *Cierre en Break Even* (BE)\n"
+                msg_tg += f"🛑 *Atención*: El trade ya se cerró completamente y ya no está abierto en MetaTrader 5.\n"
             
         msg_tg += f"\n📊 Estrategia: {alert.estrategia}"
         
@@ -3244,15 +3245,21 @@ def get_trade_tp(ticket: str):
     try:
         doc = db.collection("mia_audit_logs").document(str(ticket)).get()
         tp = 0.0
+        estrategia = "MANUAL"
         if doc.exists:
             data = doc.to_dict()
             tp = data.get("take_profit", data.get("tp", 0.0))
+            estrategia = data.get("estrategia", "MANUAL")
             
-        if not tp:
+        if not tp or estrategia == "MANUAL":
             # Buscar en trading_alerts si no está en mia_audit_logs
             alerts = db.collection("trading_alerts").where("ticket", "==", int(ticket)).limit(1).stream()
             for a in alerts:
-                tp = a.to_dict().get("take_profit", 0.0)
+                data = a.to_dict()
+                if not tp:
+                    tp = data.get("take_profit", data.get("tp", 0.0))
+                if estrategia == "MANUAL":
+                    estrategia = data.get("estrategia", "MANUAL")
                 
         # Buscar si ya se tomó un parcial (si existe un documento que empiece por PARCIAL_{ticket} o un log con accion CIERRE_PARCIAL)
         parcial_tomado = False
@@ -3268,10 +3275,10 @@ def get_trade_tp(ticket: str):
             if p_doc.exists:
                 parcial_tomado = True
                 
-        return {"status": "success", "tp": float(tp), "parcial_tomado": parcial_tomado}
+        return {"status": "success", "tp": float(tp), "parcial_tomado": parcial_tomado, "estrategia": estrategia}
     except Exception as e:
         print(f"| API ERROR | Fallo al buscar TP para ticket {ticket}: {e}")
-    return {"status": "error", "tp": 0.0, "parcial_tomado": False}
+    return {"status": "error", "tp": 0.0, "parcial_tomado": False, "estrategia": "MANUAL"}
 
 @app.get("/api/export_audit_csv")
 def export_audit_csv():
