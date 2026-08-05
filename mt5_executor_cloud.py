@@ -668,7 +668,8 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             if not ES_PRIMERA_EJECUCION:
                 await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original)
             else:
-                print(f"| REANUDACIÓN | Adoptando posición existente (Ticket: {ticket}). Omitiendo alerta duplicada a Telegram.")
+                print(f"| REANUDACIÓN | Adoptando posición existente (Ticket: {ticket}). Enviando notificación de Reanudación.")
+                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "REANUDACIÓN", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original)
             
         activo = next((act for act in ACTIVOS if MAPEO_BROKER.get(act) == pos.get('symbol')), None)
         if not activo:
