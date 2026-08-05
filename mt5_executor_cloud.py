@@ -730,13 +730,11 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 except Exception as e:
                     print(f"| GESTOR PARCIALES WARN | No se pudo obtener spec para {symbol}, usando 0.01 por defecto: {e}")
 
-                # Cerrar porción del volumen basada en el volumen inicial
-                # TP1 (toca_parcial=1) -> 25% del volumen inicial
-                # TP2 (toca_parcial=2) -> 50% del volumen inicial
+                # TP1 (toca_parcial=1) -> 25% del volumen actual restante
+                # TP2 (toca_parcial=2) -> 50% del volumen actual restante
                 porcentaje_a_cerrar = 0.25 if toca_parcial == 1 else 0.50
-                initial_volume = POSICIONES_ACTIVAS[ticket].get("initial_volume", volume)
                 
-                volumen_raw = initial_volume * porcentaje_a_cerrar
+                volumen_raw = volume * porcentaje_a_cerrar
                 lote_a_cerrar = math.floor(volumen_raw / volume_step) * volume_step
                 lote_a_cerrar = round(lote_a_cerrar, 4) # Evitar float artifacts
                 

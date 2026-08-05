@@ -3276,8 +3276,11 @@ def get_trade_tp(ticket: str):
             estrategia = data.get("estrategia", "MANUAL")
             
         if not tp or estrategia == "MANUAL":
-            # Buscar en trading_alerts si no está en mia_audit_logs
-            alerts = db.collection("trading_alerts").where("ticket", "==", int(ticket)).limit(1).stream()
+            # Buscar en trading_alerts si no está en mia_audit_logs (buscar como string y como int por si acaso)
+            alerts_str = list(db.collection("trading_alerts").where("ticket", "==", str(ticket)).limit(1).stream())
+            alerts_int = list(db.collection("trading_alerts").where("ticket", "==", int(ticket)).limit(1).stream()) if str(ticket).isdigit() else []
+            
+            alerts = alerts_str if len(alerts_str) > 0 else alerts_int
             for a in alerts:
                 data = a.to_dict()
                 if not tp:
