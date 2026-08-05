@@ -795,20 +795,28 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                         nuevo_sl = (entry_price + distancia_tp1) if es_buy else (entry_price - distancia_tp1)
                         desc_sl = "Nivel TP1 (25%)"
                         
-                    try:
-                        tp_original = POSICIONES_ACTIVAS[ticket]["tp"]
-                        await connection.modify_position(ticket, stop_loss=nuevo_sl, take_profit=tp_original)
-                        print(f"| GESTOR RIESGO | SL movido a {desc_sl} para {ticket} (TP mantenido: {tp_original})")
-                        POSICIONES_ACTIVAS[ticket]["sl"] = nuevo_sl
+                    # Verificar si el SL ya está en la posición deseada (ej. por el Trailing Stop del 15%)
+                    sl_actual = POSICIONES_ACTIVAS[ticket].get("sl", 0.0)
+                    if abs(sl_actual - nuevo_sl) < 0.00001:
+                        print(f"| GESTOR RIESGO | SL ya estaba en {desc_sl} para {ticket}. Omitiendo modify_position.")
                         POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
-                    except Exception as sl_e:
-                        print(f"| GESTOR RIESGO WARNING | No se pudo mover SL a {desc_sl}: {sl_e}")
-                        if lote_a_cerrar > 0:
-                            # Si se cobró dinero pero falló el SL, igual marcamos el nivel para no volver a cobrar
+                    else:
+                        try:
+                            tp_original = POSICIONES_ACTIVAS[ticket]["tp"]
+                            await connection.modify_position(ticket, stop_loss=nuevo_sl, take_profit=tp_original)
+                            print(f"| GESTOR RIESGO | SL movido a {desc_sl} para {ticket} (TP mantenido: {tp_original})")
+                            POSICIONES_ACTIVAS[ticket]["sl"] = nuevo_sl
                             POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
-                        else:
-                            # Si no se cobró nada y falló el SL, que vuelva a intentar todo luego
-                            continue
+                        except Exception as sl_e:
+                            print(f"| GESTOR RIESGO WARNING | No se pudo mover SL a {desc_sl}: {sl_e}")
+                            if "NO_CHANGES" in str(sl_e) or "No changes" in str(sl_e):
+                                POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
+                            elif lote_a_cerrar > 0:
+                                # Si se cobró dinero pero falló el SL, igual marcamos el nivel para no volver a cobrar
+                                POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
+                            else:
+                                # Si no se cobró nada y falló el SL por otra razón, que vuelva a intentar todo luego
+                                continue
                             
                     # --- 3. NOTIFICAR EN TELEGRAM ---
                     try:
