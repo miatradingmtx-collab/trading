@@ -1481,6 +1481,8 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                 msg_tg += f"🎯 TP: N/A\n"
         else:
             msg_tg += f"💵 PNL: ${round(alert.pnl, 2)}\n"
+            if alert.accion == "CIERRE_PARCIAL":
+                msg_tg += f"⏳ *Parcial Tomado*: El trade sigue activo buscando el siguiente TP.\n"
             
         msg_tg += f"\n📊 Estrategia: {alert.estrategia}"
         
