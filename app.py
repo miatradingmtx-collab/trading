@@ -1491,7 +1491,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
         msg_tg += f"🛡️ SL: {alert.stop_loss if alert.stop_loss else 'N/A'}\n"
         if alert.take_profit and alert.take_profit > 0 and alert.precio > 0:
             distancia = abs(alert.take_profit - alert.precio)
-            es_buy = "COMPRA" in alert.accion.upper()
+            es_buy = alert.take_profit > alert.precio
             tp1 = round(alert.precio + (distancia * 0.25) if es_buy else alert.precio - (distancia * 0.25), 5)
             tp2 = round(alert.precio + (distancia * 0.50) if es_buy else alert.precio - (distancia * 0.50), 5)
             
