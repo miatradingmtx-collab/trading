@@ -735,54 +735,36 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 porcentaje_a_cerrar = 0.25 if toca_parcial == 1 else 0.50
                 
                 volumen_raw = volume * porcentaje_a_cerrar
-                lote_a_cerrar = math.floor(volumen_raw / volume_step) * volume_step
-                lote_a_cerrar = round(lote_a_cerrar, 4) # Evitar float artifacts
+                lote_a_cerrar = round(math.floor(volumen_raw / volume_step) * volume_step, 4)
                 
-                # Validar contra minVolume
+                # --- AJUSTE INTELIGENTE DE VOLUMEN ---
                 if lote_a_cerrar < min_volume:
-                    print(f"| GESTOR PARCIALES | Lote a cerrar ({lote_a_cerrar}) es menor que el minVolume ({min_volume}). No se tomará parcial.")
-                    # Opcionalmente se podría mover el SL a BE en vez de tomar parcial.
-                    # Lo marcaremos como tomado para no saturar los logs
-                    POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
-                    continue
+                    # Si el cálculo da menos del mínimo, intentamos forzar al menos el mínimo
+                    if volume - min_volume >= min_volume:
+                        lote_a_cerrar = min_volume
+                    else:
+                        lote_a_cerrar = 0.0 # Imposible partir
+                        
+                # Asegurar que al broker no le quede un residuo menor a min_volume
+                if lote_a_cerrar > 0 and (volume - lote_a_cerrar < min_volume):
+                    lote_a_cerrar = round(math.floor((volume - min_volume) / volume_step) * volume_step, 4)
                     
-                # Asegurar que siempre quede al menos el minVolume o volume_step
-                if volume - lote_a_cerrar < min_volume:
-                    lote_a_cerrar = math.floor((volume - min_volume) / volume_step) * volume_step
-                    lote_a_cerrar = round(lote_a_cerrar, 4)
-
+                if lote_a_cerrar < min_volume:
+                    lote_a_cerrar = 0.0
+                    
+                desc_tp = "25%" if toca_parcial == 1 else "50%"
+                pnl_parcial = 0.0
                 
+                # --- 1. INTENTAR COBRAR PARCIAL ---
+                cobro_exitoso = False
                 if lote_a_cerrar > 0:
-                    desc_tp = "25%" if toca_parcial == 1 else "50%"
-                    print(f"| GESTOR PARCIALES | {desc_tp} del TP alcanzado. Cerrando {lote_a_cerrar} lotes de {ticket} (Nivel {toca_parcial})...")
+                    print(f"| GESTOR PARCIALES | {desc_tp} alcanzado. Intentando cerrar {lote_a_cerrar} lotes de {ticket}...")
                     try:
                         close_result = await connection.close_position_partially(ticket, lote_a_cerrar)
-                        POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
                         POSICIONES_ACTIVAS[ticket]["volume"] = volume - lote_a_cerrar
+                        cobro_exitoso = True
                         
-                        await asyncio.sleep(1)
-                        
-                        # Mover Stop Loss
-                        buffer_be = 0.0001 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.01
-                        
-                        if toca_parcial == 1:
-                            nuevo_sl = entry_price + buffer_be if es_buy else entry_price - buffer_be
-                            desc_sl = "Break Even"
-                        else:
-                            # TP2: Movemos el SL a TP1 (25% del recorrido)
-                            distancia_tp1 = distancia_total * 0.25
-                            nuevo_sl = (entry_price + distancia_tp1) if es_buy else (entry_price - distancia_tp1)
-                            desc_sl = "Nivel TP1 (25%)"
-                            
-                        try:
-                            tp_original = POSICIONES_ACTIVAS[ticket]["tp"]
-                            await connection.modify_position(ticket, stop_loss=nuevo_sl, take_profit=tp_original)
-                            print(f"| GESTOR RIESGO | SL movido a {desc_sl} para {ticket} (TP mantenido: {tp_original})")
-                            POSICIONES_ACTIVAS[ticket]["sl"] = nuevo_sl
-                        except Exception as sl_e:
-                            print(f"| GESTOR RIESGO WARNING | No se pudo mover SL a {desc_sl}: {sl_e}")
-
-                        # PnL estimado de esta parcial
+                        # PnL estimado
                         distancia_parcial = (current_price - entry_price) if es_buy else (entry_price - current_price)
                         sym = pos.get('symbol', '').upper()
                         if "JPY" in sym:
@@ -791,11 +773,49 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                             pnl_parcial = distancia_parcial * lote_a_cerrar * 100
                         else:
                             pnl_parcial = distancia_parcial * lote_a_cerrar * 100000
-                        
-                        await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP", estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""))
+                            
+                        await asyncio.sleep(1) # Breve pausa antes de modificar SL
                     except Exception as e:
-                        print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial nivel {toca_parcial} para ticket {ticket}: {e}")
+                        print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial para {ticket}: {e}")
                         # No actualizamos nivel_parcial para que intente de nuevo en el siguiente ciclo
+                        continue
+                else:
+                    print(f"| GESTOR PARCIALES INFO | Volumen muy pequeño para partir ({volume}). Se asegurará con SL.")
+                    cobro_exitoso = True # Lo damos por exitoso para que avance a mover el SL
+                    
+                # --- 2. MOVER STOP LOSS SIEMPRE ---
+                if cobro_exitoso:
+                    buffer_be = 0.0001 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.01
+                    
+                    if toca_parcial == 1:
+                        nuevo_sl = entry_price + buffer_be if es_buy else entry_price - buffer_be
+                        desc_sl = "Break Even"
+                    else:
+                        distancia_tp1 = distancia_total * 0.25
+                        nuevo_sl = (entry_price + distancia_tp1) if es_buy else (entry_price - distancia_tp1)
+                        desc_sl = "Nivel TP1 (25%)"
+                        
+                    try:
+                        tp_original = POSICIONES_ACTIVAS[ticket]["tp"]
+                        await connection.modify_position(ticket, stop_loss=nuevo_sl, take_profit=tp_original)
+                        print(f"| GESTOR RIESGO | SL movido a {desc_sl} para {ticket} (TP mantenido: {tp_original})")
+                        POSICIONES_ACTIVAS[ticket]["sl"] = nuevo_sl
+                        POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
+                    except Exception as sl_e:
+                        print(f"| GESTOR RIESGO WARNING | No se pudo mover SL a {desc_sl}: {sl_e}")
+                        if lote_a_cerrar > 0:
+                            # Si se cobró dinero pero falló el SL, igual marcamos el nivel para no volver a cobrar
+                            POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
+                        else:
+                            # Si no se cobró nada y falló el SL, que vuelva a intentar todo luego
+                            continue
+                            
+                    # --- 3. NOTIFICAR EN TELEGRAM ---
+                    try:
+                        comentario_tg = f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP" if lote_a_cerrar > 0 else f"Protegido en {desc_sl} (lote intocable)"
+                        await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=comentario_tg, estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""))
+                    except Exception as t_e:
+                        print(f"| TELEGRAM WARN | No se envió notificación parcial: {t_e}")                    
                     
         # B. Gestión de SL en ganancias para Runners (Trades que ya tomaron TP2 al 50%)
         if POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0) >= 2:
