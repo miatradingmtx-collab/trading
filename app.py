@@ -290,6 +290,7 @@ class TradeAlert(BaseModel):
     pnl: Optional[float] = 0.0 # Beneficio/pérdida (para registrar cierres)
     ticket: Optional[str] = "" # Número de ticket/operación de MT5 (ahora como string por si MetaApi usa IDs)
     comentario: Optional[str] = "" # Comentario adicional (ej: 25% del TP)
+    open_time: Optional[str] = "" # Fecha de apertura ISO del trade en MT5
     lotaje: Optional[float] = 0.01        # Volumen/Lotes de la operación
     temporalidad: Optional[str] = "1H"    # Temporalidad Swing (1H, 2H, 4H, 8H)
     es_crypto: Optional[bool] = False     # Indicador 24/7
@@ -1473,8 +1474,18 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
         else:
             sesion_str = "Tokio"
 
+        open_time_str = ""
+        if alert.open_time:
+            try:
+                from dateutil import parser
+                dt = parser.parse(alert.open_time)
+                dt_mx = dt.astimezone(gmt_minus_6)
+                open_time_str = f" | 🕒 Apertura: {dt_mx.strftime('%I:%M %p').lower()}"
+            except:
+                pass
+
         msg_tg = f"🤖 *MIA TRADING AI* {icono}\n\n"
-        msg_tg += f"*{alert.accion}* | *{alert.activo}* | 🌍 Sesión {sesion_str}\n"
+        msg_tg += f"*{alert.accion}* | *{alert.activo}* | 🌍 Sesión {sesion_str}{open_time_str}\n"
         msg_tg += f"💰 Precio: {alert.precio}\n"
         
         msg_tg += f"🛡️ SL: {alert.stop_loss if alert.stop_loss else 'N/A'}\n"

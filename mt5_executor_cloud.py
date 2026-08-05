@@ -509,7 +509,7 @@ async def solicitar_autorizacion_trade(activo: str, accion: str, precio: float) 
         print(f"| CLOUD EXCEPTION | Error al solicitar autorización de trade: {e}")
     return None
 
-async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, evento: str, precio: float, sl: float, tp: float, pnl: float = 0.0, comentario: str = "", estrategia_original: str = "MANUAL"):
+async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, evento: str, precio: float, sl: float, tp: float, pnl: float = 0.0, comentario: str = "", estrategia_original: str = "MANUAL", open_time: str = ""):
     url = f"{FASTAPI_URL}/webhook"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
@@ -543,7 +543,8 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
         "estrategia": estrategia,
         "pnl": float(pnl),
         "ticket": str(ticket),
-        "comentario": comentario
+        "comentario": comentario,
+        "open_time": open_time
     }
     
     try:
@@ -659,6 +660,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             
             POSICIONES_ACTIVAS[ticket] = {
                 "volume": pos.get('volume', 0.0),
+                "initial_volume": pos.get('volume', 0.0),
                 "symbol": pos.get('symbol', ''),
                 "type": pos.get('type', ''),
                 "price_open": pos.get('openPrice', 0.0),
@@ -666,14 +668,15 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 "sl": pos.get('stopLoss', 0.0),
                 "nivel_parcial": 1 if parcial_ya_tomado else 0,
                 "price_max_favor": pos.get('openPrice', 0.0), # Guarda el precio máximo en ganancias alcanzado en el ciclo
-                "estrategia": estrategia_original
+                "estrategia": estrategia_original,
+                "open_time": pos.get('time', '')
             }
             print(f"| SEGUIMIENTO | Nueva posición detectada. Ticket: {ticket} | Lote: {pos.get('volume')} | Estrategia: {estrategia_original}")
             if not ES_PRIMERA_EJECUCION:
-                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original)
+                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=pos.get('time', ''))
             else:
                 print(f"| REANUDACIÓN | Adoptando posición existente (Ticket: {ticket}). Enviando notificación de Reanudación.")
-                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "REANUDACIÓN", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original)
+                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "REANUDACIÓN", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=pos.get('time', ''))
             
         activo = next((act for act in ACTIVOS if MAPEO_BROKER.get(act) == pos.get('symbol')), None)
         if not activo:
@@ -727,9 +730,14 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 except Exception as e:
                     print(f"| GESTOR PARCIALES WARN | No se pudo obtener spec para {symbol}, usando 0.01 por defecto: {e}")
 
-                # Cerrar porción del volumen garantizando el múltiplo del volumeStep
-                mitad_volumen = volume * 0.5
-                lote_a_cerrar = math.floor(mitad_volumen / volume_step) * volume_step
+                # Cerrar porción del volumen basada en el volumen inicial
+                # TP1 (toca_parcial=1) -> 25% del volumen inicial
+                # TP2 (toca_parcial=2) -> 50% del volumen inicial
+                porcentaje_a_cerrar = 0.25 if toca_parcial == 1 else 0.50
+                initial_volume = POSICIONES_ACTIVAS[ticket].get("initial_volume", volume)
+                
+                volumen_raw = initial_volume * porcentaje_a_cerrar
+                lote_a_cerrar = math.floor(volumen_raw / volume_step) * volume_step
                 lote_a_cerrar = round(lote_a_cerrar, 4) # Evitar float artifacts
                 
                 # Validar contra minVolume
@@ -786,7 +794,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                         else:
                             pnl_parcial = distancia_parcial * lote_a_cerrar * 100000
                         
-                        await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP", estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"))
+                        await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP", estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""))
                     except Exception as e:
                         print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial nivel {toca_parcial} para ticket {ticket}: {e}")
                         POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
@@ -957,7 +965,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 
             print(f"| GESTOR COBROS WARNING | Usando PnL estimado para Ticket {ticket}: ${pnl_final:.2f}")
             
-        await reportar_evento_trade(info['symbol'], ticket, info['type'], "CIERRE_TOTAL", info['price_open'], 0.0, 0.0, pnl=pnl_final, comentario="Cerrado en MT5", estrategia_original=info.get("estrategia", "MANUAL"))
+        await reportar_evento_trade(info['symbol'], ticket, info['type'], "CIERRE_TOTAL", info['price_open'], 0.0, 0.0, pnl=pnl_final, comentario="Cerrado en MT5", estrategia_original=info.get("estrategia", "MANUAL"), open_time=info.get("open_time", ""))
         del POSICIONES_ACTIVAS[ticket]
 
     for t in fb_open:
