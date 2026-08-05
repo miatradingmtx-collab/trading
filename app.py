@@ -1480,7 +1480,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                 from dateutil import parser
                 dt = parser.parse(alert.open_time)
                 dt_mx = dt.astimezone(gmt_minus_6)
-                open_time_str = f" | 🕒 Apertura: {dt_mx.strftime('%I:%M %p').lower()}"
+                open_time_str = f" | {dt_mx.strftime('%I:%M %p').lower()}"
             except:
                 pass
 

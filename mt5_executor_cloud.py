@@ -795,7 +795,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                         await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP", estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""))
                     except Exception as e:
                         print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial nivel {toca_parcial} para ticket {ticket}: {e}")
-                        POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
+                        # No actualizamos nivel_parcial para que intente de nuevo en el siguiente ciclo
                     
         # B. Gestión de SL en ganancias para Runners (Trades que ya tomaron TP2 al 50%)
         if POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0) >= 2:
