@@ -623,7 +623,9 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
         
         # Validar si es una operación de Mia (por Magic Number, Client ID o si está activa en Firebase)
         is_mia = (magic == 20260616) or (isinstance(client_id, str) and client_id.startswith('L_')) or (ticket in fb_open)
-        if not is_mia:
+        es_activo_oficial = any(MAPEO_BROKER.get(act) == pos.get('symbol') for act in ACTIVOS)
+        
+        if not is_mia and not es_activo_oficial:
             continue
 
         tickets_actuales.add(ticket)
