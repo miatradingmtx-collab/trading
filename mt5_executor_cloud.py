@@ -933,6 +933,23 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                         await connection.modify_position(ticket, stop_loss=nuevo_sl, take_profit=tp)
                         print(f"| GESTOR BE SUCCESS | Ticket {ticket} modificado a Break-Even (SL={nuevo_sl}, TP={tp}).")
                         POSICIONES_ACTIVAS[ticket]["sl"] = nuevo_sl
+                        
+                        # Notificar en Telegram el movimiento a BE silencioso de Salvamento
+                        try:
+                            distancia_actual = (current_price - entry_price) if es_buy else (entry_price - current_price)
+                            sym = pos.get('symbol', '').upper()
+                            if "JPY" in sym:
+                                pnl_flotante = distancia_actual * volume * 100000 / current_price
+                            elif "XAU" in sym or "GOLD" in sym:
+                                pnl_flotante = distancia_actual * volume * 100
+                            else:
+                                pnl_flotante = distancia_actual * volume * 100000
+                                
+                            comentario_emergencia = "Protegido en Break Even (Salvamento por Retroceso)"
+                            await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, nuevo_sl, tp, pnl=pnl_flotante, comentario=comentario_emergencia, estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""))
+                        except Exception as t_e:
+                            print(f"| TELEGRAM WARN | No se envió notificación de BE Salvamento: {t_e}")
+                            
                     except Exception as e:
                         print(f"| GESTOR BE ERROR | No se pudo modificar ticket {ticket} a BE: {e}")
 
