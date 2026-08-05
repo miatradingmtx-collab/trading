@@ -289,6 +289,7 @@ class TradeAlert(BaseModel):
     estrategia: str            # Ej: "RSI_Divergence", "MACD_Cross"
     pnl: Optional[float] = 0.0 # Beneficio/pérdida (para registrar cierres)
     ticket: Optional[str] = "" # Número de ticket/operación de MT5 (ahora como string por si MetaApi usa IDs)
+    comentario: Optional[str] = "" # Comentario adicional (ej: 25% del TP)
     lotaje: Optional[float] = 0.01        # Volumen/Lotes de la operación
     temporalidad: Optional[str] = "1H"    # Temporalidad Swing (1H, 2H, 4H, 8H)
     es_crypto: Optional[bool] = False     # Indicador 24/7
@@ -1482,15 +1483,17 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
         if "CIERRE" in alert.accion or "PARCIAL" in alert.accion:
             msg_tg += f"\n💵 PNL: ${round(alert.pnl, 2)}\n"
             if alert.accion == "CIERRE_PARCIAL":
-                msg_tg += f"⏳ *Parcial Tomado*: El trade sigue activo buscando el siguiente TP.\n"
+                msg_tg += f"⏳ *Parcial Tomado ({alert.comentario})*: Ganancia asegurada de +${round(alert.pnl, 2)}. El trade sigue activo buscando el siguiente TP.\n"
             elif alert.accion == "CIERRE_TOTAL":
                 if alert.pnl > 0.0:
-                    msg_tg += f"✅ *Cierre con Ganancias* (Full TP o Trailing Stop)\n"
+                    msg_tg += f"✅ *Cierre con Ganancias*\n"
+                    msg_tg += f"🛑 *Atención*: El trade se cerró completamente en MT5 asegurando una ganancia final de +${round(alert.pnl, 2)} (Hit Full TP o Trailing Stop).\n"
                 elif alert.pnl < 0.0:
-                    msg_tg += f"❌ *Cierre con Pérdida* (Hit SL)\n"
+                    msg_tg += f"❌ *Cierre con Pérdida*\n"
+                    msg_tg += f"🛑 *Atención*: El trade se cerró completamente en MT5 con una pérdida de -${abs(round(alert.pnl, 2))} (Hit SL).\n"
                 else:
                     msg_tg += f"🛡️ *Cierre en Break Even* (BE)\n"
-                msg_tg += f"🛑 *Atención*: El trade ya se cerró completamente y ya no está abierto en MetaTrader 5.\n"
+                    msg_tg += f"🛑 *Atención*: El trade se cerró completamente en MT5 sin pérdidas ni ganancias (BE).\n"
             
         msg_tg += f"\n📊 Estrategia: {alert.estrategia}"
         

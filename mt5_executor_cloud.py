@@ -519,16 +519,14 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
     is_buy = (tipo_posicion == "POSITION_TYPE_BUY" or tipo_posicion == "0")
     if evento == "APERTURA":
         accion = "COMPRA" if is_buy else "VENTA"
-        estrategia = f"{estrategia_original} | APERTURA (Ticket {ticket})"
     elif evento == "CIERRE_PARCIAL":
         accion = "CIERRE_PARCIAL"
-        estrategia = f"{estrategia_original} | PARCIAL (Ticket {ticket}) - {comentario}"
     elif evento == "REANUDACIÓN":
         accion = "REANUDACIÓN"
-        estrategia = f"{estrategia_original} | REANUDACIÓN (Ticket {ticket})"
     else:
         accion = "CIERRE_TOTAL"
-        estrategia = f"{estrategia_original} | CIERRE (Ticket {ticket}) - {comentario}"
+        
+    estrategia = estrategia_original
         
     activo_original = simbolo
     for act, symb in MAPEO_BROKER.items():
@@ -544,7 +542,8 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
         "take_profit": float(tp) if tp else 0.0,
         "estrategia": estrategia,
         "pnl": float(pnl),
-        "ticket": str(ticket)
+        "ticket": str(ticket),
+        "comentario": comentario
     }
     
     try:
