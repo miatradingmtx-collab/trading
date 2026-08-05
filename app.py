@@ -1463,8 +1463,18 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
             if "PARCIAL" in alert.estrategia.upper():
                 icono = "💸"
             
+        gmt_minus_6 = datetime.timezone(datetime.timedelta(hours=-6))
+        ahora = datetime.datetime.now(gmt_minus_6)
+        hora_decimal = ahora.hour + ahora.minute / 60.0
+        if 1.0 <= hora_decimal < 7.0:
+            sesion_str = "Londres"
+        elif 7.0 <= hora_decimal < 16.0:
+            sesion_str = "NY"
+        else:
+            sesion_str = "Tokio"
+
         msg_tg = f"🤖 *MIA TRADING AI* {icono}\n\n"
-        msg_tg += f"*{alert.accion}* | *{alert.activo}*\n"
+        msg_tg += f"*{alert.accion}* | *{alert.activo}* | 🌍 Sesión {sesion_str}\n"
         msg_tg += f"💰 Precio: {alert.precio}\n"
         
         msg_tg += f"🛡️ SL: {alert.stop_loss if alert.stop_loss else 'N/A'}\n"
