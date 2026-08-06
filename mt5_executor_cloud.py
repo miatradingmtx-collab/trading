@@ -669,14 +669,14 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 "nivel_parcial": 1 if parcial_ya_tomado else 0,
                 "price_max_favor": pos.get('openPrice', 0.0), # Guarda el precio máximo en ganancias alcanzado en el ciclo
                 "estrategia": estrategia_original,
-                "open_time": pos.get('time', '')
+                "open_time": str(pos.get('time', ''))
             }
             print(f"| SEGUIMIENTO | Nueva posición detectada. Ticket: {ticket} | Lote: {pos.get('volume')} | Estrategia: {estrategia_original}")
             if not ES_PRIMERA_EJECUCION:
-                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=pos.get('time', ''))
+                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=str(pos.get('time', '')))
             else:
                 print(f"| REANUDACIÓN | Adoptando posición existente (Ticket: {ticket}). Enviando notificación de Reanudación.")
-                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "REANUDACIÓN", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=pos.get('time', ''))
+                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "REANUDACIÓN", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=str(pos.get('time', '')))
             
         activo = next((act for act in ACTIVOS if MAPEO_BROKER.get(act) == pos.get('symbol')), None)
         if not activo:
@@ -1361,7 +1361,7 @@ async def run_escaner_loop():
             print(f"| RUNNER CLOUD ERROR | Ocurrió un fallo en el escáner: {e}")
             await reportar_error_nube("Escáner Core", str(e))
             
-        await asyncio.sleep(30) # Loop base cada 30 segundos
+        await asyncio.sleep(30) # Loop base restaurado a 30 segundos (Protegido por Caché RAM)
 
 async def abrir_posicion_test(simbolo: str, lote: float) -> str:
     """Función de prueba para abrir una posición directamente en MetaAPI."""

@@ -3267,13 +3267,29 @@ def get_trade_tp(ticket: str):
     if not firebase_inicializado or db is None:
         return {"status": "error", "message": "Firebase no inicializado"}
     try:
-        doc = db.collection("mia_audit_logs").document(str(ticket)).get()
         tp = 0.0
         estrategia = "MANUAL"
-        if doc.exists:
-            data = doc.to_dict()
-            tp = data.get("take_profit", data.get("tp", 0.0))
-            estrategia = data.get("estrategia", "MANUAL")
+        encontrado = False
+        
+        if GLOBAL_AUDIT_LOGS:
+            for l in GLOBAL_AUDIT_LOGS:
+                if str(l.get("ticket")) == str(ticket):
+                    if l.get("tp") and float(l.get("tp", 0)) > 0:
+                        tp = float(l.get("tp"))
+                    if l.get("estrategia") and l.get("estrategia") != "MANUAL":
+                        estrategia = l.get("estrategia")
+                    
+                    if l.get("accion") in ["COMPRA", "VENTA", "EJECUTADO"]:
+                        encontrado = True
+                        if tp > 0 and estrategia != "MANUAL":
+                            break
+                            
+        if not encontrado or tp == 0.0 or estrategia == "MANUAL":
+            doc = db.collection("mia_audit_logs").document(str(ticket)).get()
+            if doc.exists:
+                data = doc.to_dict()
+                tp = data.get("take_profit", data.get("tp", 0.0))
+                estrategia = data.get("estrategia", "MANUAL")
             
         if not tp or estrategia == "MANUAL":
             # Buscar en trading_alerts si no está en mia_audit_logs (buscar como string y como int por si acaso)
