@@ -797,7 +797,7 @@ def normalizar_activo(activo: str) -> str:
     act = activo.upper().strip()
     if act in ["NASDAQ100", "NASDAQ", "NQ", "QQQ", "US100"]:
         return "NASDAQ100"
-    if act in ["SP500", "SPY", "ES", "S&P500"]:
+    if act in ["SP500", "SPY", "ES", "S&P500", "US500"]:
         return "SP500"
     if act in ["US30", "DJI", "YM", "DOW"]:
         return "US30"
