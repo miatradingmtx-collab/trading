@@ -522,6 +522,19 @@ def registrar_error_sistema(componente: str, mensaje: str):
     """
     Registra errores críticos del sistema (Railway, Firebase, MetaAPI) en la colección mia_system_logs
     """
+    
+    # 🛡️ REPORTE CRÍTICO A TELEGRAM DESDE LA RAM
+    # Si hay un error 429 (Cuota) o 500, notificar a Telegram INMEDIATAMENTE sin usar Firebase
+    msg_lower = str(mensaje).lower()
+    es_error_critico = "429" in msg_lower or "quota" in msg_lower or "500" in msg_lower or "timeout" in msg_lower
+    
+    if es_error_critico and componente != "Telegram":
+        msg_tg = f"🚨 *MIA SYSTEM CRITICAL ERROR* 🚨\n\n*Componente:* {componente}\n*Error:* `{mensaje}`\n\n_Bypass: Reportado desde la RAM para proteger la cuota._"
+        try:
+            notificar_telegram(msg_tg)
+        except:
+            pass
+
     global firebase_inicializado, db
     if not firebase_inicializado or db is None:
         return

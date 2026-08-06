@@ -466,7 +466,9 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
                 print(f"| CLOUD | Confirmaciones para {activo} actualizadas con éxito.")
                 return response.json()
             else:
-                print(f"| CLOUD ERROR | No se pudo actualizar matriz en la nube: {response.text}")
+                error_msg = f"HTTP {response.status_code}: {response.text}"
+                print(f"| CLOUD ERROR | No se pudo actualizar matriz en la nube: {error_msg}")
+                await reportar_error_nube("Sincronización Webhook (429/500)", error_msg)
     except Exception as e:
         print(f"| CLOUD EXCEPTION | Error al conectar con FastAPI en sincronizar: {e}")
         await reportar_error_nube("Sincronización FastAPI", str(e))
