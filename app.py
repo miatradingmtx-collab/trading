@@ -766,6 +766,8 @@ def recalcular_score_ponderado(data: dict) -> float:
     w_fvg = pesos.get("smc_2", 30)
     w_breaker = pesos.get("smc_3", 20)
     w_sweep = pesos.get("smc_4", 15)
+    w_soporte = pesos.get("soporte", 10)
+    w_poc = pesos.get("poc", 15)
     
     # 1. Indicadores Macro (Filtros de Tendencia y Agotamiento)
     ma_alineada = tech.get("medias_moviles_alineadas", False)
