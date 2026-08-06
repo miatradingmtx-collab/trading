@@ -2507,7 +2507,7 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         
         # Generar Log .txt
         import os
-        from datetime import datetime
+        from datetime import datetime, timezone
         log_dir = "logs"
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
@@ -2522,7 +2522,7 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         activas = [k.replace("_", " ").upper() for k, v in data.get("confirmaciones_tecnicas", {}).items() if isinstance(v, bool) and v]
         confirmaciones_str = " + ".join(activas) if activas else "Setup Base"
         
-        utc_hour = datetime.now(timezone.utc).hour if hasattr(datetime, "timezone") else datetime.now().hour
+        utc_hour = datetime.now(timezone.utc).hour
         sesion = "NY"
         if 0 <= utc_hour < 7: sesion = "ASIA"
         elif 7 <= utc_hour < 12: sesion = "LONDRES"
