@@ -760,21 +760,34 @@ def recalcular_score_ponderado(data: dict) -> float:
     if GLOBAL_MIA_COLLECTIVE and "dynamic_weights" in GLOBAL_MIA_COLLECTIVE:
         pesos = GLOBAL_MIA_COLLECTIVE["dynamic_weights"]
         
-    w_ma = pesos.get("ma_alineada", 15)
-    w_rsi = pesos.get("rsi_extremo", 15)
-    w_ob = pesos.get("smc_1", 30)
+    w_ma = pesos.get("ma_alineada", 20)
+    w_rsi = pesos.get("rsi_extremo", 10)
+    w_ob = pesos.get("smc_1", 20)
     w_fvg = pesos.get("smc_2", 30)
     w_breaker = pesos.get("smc_3", 20)
-    w_sweep = pesos.get("smc_4", 15)
-    w_soporte = pesos.get("soporte", 10)
+    w_sweep = pesos.get("smc_4", 45) # Vectorización Masiva para forzar Stop Hunts
+    w_soporte = pesos.get("soporte", 15)
     w_poc = pesos.get("poc", 15)
     
+    # DETECCIÓN DE ESCENARIOS
+    tiene_lux = any(tech.get(f"order_block_zona_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
+    tiene_tendencia = tech.get("medias_moviles_alineadas", False)
+    tiene_fvg = tech.get("fvg_detectado", False)
+    tiene_retail = tech.get("soporte_resistencia_activo", False) or tech.get("order_block_detectado", False)
+    
+    # Escenario 6 (Bifurcación): PURO Lux OB sin confirmaciones extra para testeo de efectividad pura
+    es_escenario_6 = tiene_lux and not tiene_fvg and not tiene_retail
+    
+    if es_escenario_6:
+        # Pase directo a 85% para validar el indicador puro en el ML
+        return 85.0
+    
     # 1. Indicadores Macro (Filtros de Tendencia y Agotamiento)
-    ma_alineada = tech.get("medias_moviles_alineadas", False)
+    ma_alineada = tiene_tendencia
     rsi_extremo = tech.get("rsi_sobrecompra_sobreventa", False) or tech.get("rsi_extremo", False)
     
     if not (ma_alineada or rsi_extremo):
-        return 0.0  # Sin dirección clara ni zona de reversión, se rechaza
+        return 0.0  # Sin dirección clara ni zona de reversión, se rechaza (Excepto Escenario 6 que ya salió arriba)
         
     if ma_alineada: score += w_ma
     if rsi_extremo: score += w_rsi

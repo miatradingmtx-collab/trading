@@ -1220,9 +1220,7 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             
         simbolo = MAPEO_BROKER.get(activo)
         
-        if simbolo in simbolos_abiertos:
-            print(f"| PROTECCIÓN DOBLE TRADE | Ya existe una posición abierta para {activo} ({simbolo}). Omitiendo escáner para evitar sobreexposición.")
-            continue
+        ya_abierto = simbolo in simbolos_abiertos
             
         # Análisis Multi-Temporal (MTF): 1H y 4H
         df_1h = await obtener_velas_cloud(account, simbolo, '1h', 100)
@@ -1288,17 +1286,21 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         # 2. Validar si el backend (Firebase) autorizó el gatillo (Score >= 80%)
         gatillo_autorizado = webhook_response and webhook_response.get("gatillo_entrada") is True
         
+        tiene_lux = any(confirmaciones.get(f"order_block_zona_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
+        tiene_fvg = confirmaciones.get("fvg_detectado", False)
+        tiene_retail = confirmaciones.get("order_block_detectado", False) or bool(soporte_activo)
+        es_escenario_6 = tiene_lux and not tiene_fvg and not tiene_retail
+
+        if ya_abierto and not es_escenario_6:
+            print(f"| PROTECCIÓN DOBLE TRADE | Ya existe una posición abierta para {activo}. Omitiendo escáner.")
+            continue
+        elif ya_abierto and es_escenario_6:
+            print(f"| EXCEPCIÓN ESCENARIO 6 | Posición ya abierta para {activo}, pero se detecta OB Institucional puro. Permitiendo doble trade para test estadístico.")
+
         if gatillo_autorizado:
-            # 🛡️ FILTRO SELECTIVO ANTI-STOP HUNT (Soportes Clásicos y OBs Simples)
-            tiene_ob_simple = confirmaciones.get("order_block_detectado", False)
-            tiene_sr_clasico = bool(soporte_activo)
+            # 🛡️ El filtro Anti-Stop Hunt (Sweep) ahora está vectorizado matemáticamente en app.py (Score = 45).
+            # Ya no requerimos un if manual aquí. El backend solo aprobará (Score >= 80) si las matemáticas lo avalan.
             
-            # Los OBs institucionales/Lux (order_block_zona_Xh) NO exigen sweep por ser zonas de alto volumen
-            if tiene_ob_simple or tiene_sr_clasico:
-                if not confirmaciones.get("sweep_liquidez_detectado", False):
-                    print(f"| FILTRO ANTI-TRAMPA | Se detectó OB simple o S/R en {activo}, pero falta Sweep. Esperando Stop Hunt antes de entrar.")
-                    continue
-                    
             # 🛡️ HIPÓTESIS DEL USUARIO: Entrar antes de la apertura si el Score >= 80% 
             # previene entrar a destiempo y ser barrido por la volatilidad inicial.
             
