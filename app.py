@@ -1801,7 +1801,7 @@ def get_matrix_activos(authorization: Optional[str] = Header(None)):
     except Exception as e:
         print(f"| CLOUD ERROR | Error en get_matrix_activos: {e}")
         registrar_error_sistema("Cloud API (Get Matrix)", str(e))
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 MATRIX_CACHE = {}
 MATRIX_CACHE_TIME = {}
@@ -1843,7 +1843,7 @@ def get_asset_matrix(activo: str, authorization: Optional[str] = Header(None)):
     except Exception as e:
         print(f"| CLOUD ERROR | Error al obtener matriz de activo {activo}: {e}")
         registrar_error_sistema("Cloud API (Get Asset)", str(e))
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 class TechnicalUpdate(BaseModel):
     activo: str
@@ -2062,7 +2062,7 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
     except Exception as e:
         print(f"| CLOUD ERROR | Error en webhook_technical_update: {e}")
         registrar_error_sistema("Webhook Scanner Cloud", str(e))
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 @app.post("/webhook_mt5_setup")
 def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, authorization: Optional[str] = Header(None)):
@@ -2258,7 +2258,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         }
     except Exception as e:
         print(f"| CLOUD ERROR | Error en webhook_mt5_setup: {e}")
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 @app.get("/mia_trading_feed.xml")
 def get_mia_trading_feed(authorization: Optional[str] = Header(None)):
@@ -2317,7 +2317,7 @@ def get_mia_trading_feed(authorization: Optional[str] = Header(None)):
         return Response(content=xml_content, media_type="application/xml")
     except Exception as e:
         print(f"| FEED XML ERROR | {e}")
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 @app.post("/update_collective_memory")
 def update_collective_memory(req: CollectiveMemoryRequest, authorization: Optional[str] = Header(None)):
@@ -2341,7 +2341,7 @@ def update_collective_memory(req: CollectiveMemoryRequest, authorization: Option
         return {"status": "success", "message": "Memoria colectiva actualizada con éxito"}
     except Exception as e:
         print(f"| FIREBASE ERROR | Error al actualizar memoria colectiva: {e}")
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 
 @app.post("/webhook_fundamental_update")
@@ -2402,7 +2402,7 @@ def webhook_fundamental_update(update: FundamentalUpdate, authorization: Optiona
         raise
     except Exception as e:
         print(f"| CLOUD ERROR | Error en webhook_fundamental_update: {e}")
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 @app.get("/test_rss_llm_polling")
 def test_rss_llm_polling(authorization: Optional[str] = Header(None)):
@@ -2484,7 +2484,7 @@ def test_rss_llm_polling(authorization: Optional[str] = Header(None)):
         }
     except Exception as e:
         print(f"| TEST RSS LLM ERROR | {e}")
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 class MetaApiExecution(BaseModel):
     activo: str
@@ -2569,7 +2569,7 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         return {"status": "success", "mensaje": "Trade ejecutado y auditado en TXT y Firebase"}
     except Exception as e:
         print(f"| AUDITORÍA ERROR | {e}")
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 @app.post("/webhook_marcar_rechazado")
 def webhook_marcar_rechazado(payload: dict, authorization: Optional[str] = Header(None)):
@@ -2624,7 +2624,7 @@ def webhook_marcar_rechazado(payload: dict, authorization: Optional[str] = Heade
         return {"status": "success", "mensaje": "Motivo de rechazo actualizado"}
     except Exception as e:
         print(f"| AUDITORÍA ERROR | Error al actualizar rechazo: {e}")
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 @app.post("/webhook_marcar_parcial")
 def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[str] = Header(None)):
@@ -2672,7 +2672,7 @@ def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[
         return {"status": "success", "mensaje": "Cierre Parcial auditado en Firebase"}
     except Exception as e:
         print(f"| AUDITORÍA ERROR | {e}")
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 class UpdateBalancePayload(BaseModel):
     balance: float
@@ -2712,7 +2712,7 @@ def webhook_update_balance(payload: UpdateBalancePayload, authorization: Optiona
         return {"status": "success", "mensaje": "Balance actualizado en memoria de Railway"}
     except Exception as e:
         print(f"| GESTOR BALANCE ERROR | {e}")
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 @app.get("/api/pnl_hoy")
 def api_pnl_hoy(authorization: Optional[str] = Header(None)):
@@ -2801,7 +2801,7 @@ def resumen_trades_hoy(authorization: Optional[str] = Header(None)):
         
     except Exception as e:
         print(f"| RESUMEN ERROR | Error al generar resumen de trades: {e}")
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 # ------------------------------------------------------------------------------
 # DASHBOARD INSTITUCIONAL
@@ -3395,7 +3395,7 @@ def export_audit_csv():
         )
     except Exception as e:
         print(f"| API EXPORT CSV ERROR | {e}")
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 @app.get("/api/chart_data/{symbol}")
 async def get_chart_data(symbol: str, timeframe: str = "1h"):
@@ -3762,7 +3762,7 @@ async def entrenar_pesos_endpoint(authorization: Optional[str] = Header(None)):
         await entrenar_pesos_dinamicos()
         return {"status": "success", "message": "Pesos dinámicos entrenados y actualizados en Firebase y Obsidian."}
     except Exception as e:
-        raise HTTPException(status_code=429 if \'429\' in str(e) or \'quota\' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 async def entrenar_pesos_dinamicos():
     global db, GLOBAL_MIA_COLLECTIVE
