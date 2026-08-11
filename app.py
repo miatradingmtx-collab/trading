@@ -1650,8 +1650,8 @@ def recibir_alerta_get(
         background_tasks.add_task(avisar_mia_get)
         
     # <-- AÑADIDO: Notificar también a Telegram -->
-    mensaje_tg = f"🤖 *MIA TRADING AI*\n\n🔥 *{alert.accion}* en *{alert.activo}*\nPrecio: {alert.precio}"
-    notificar_telegram(mensaje_tg)
+    # mensaje_tg = f"🤖 *MIA TRADING AI*\n\n🔥 *{alert.accion}* en *{alert.activo}*\nPrecio: {alert.precio}"
+    # notificar_telegram(mensaje_tg)
     
     return {
         "resultado": "recibido_via_get",
