@@ -1169,8 +1169,8 @@ def es_mercado_abierto(activo: str) -> bool:
     if dia == 5: return False
     if dia == 6 and hora < 15: return False
     
-    # Receso diario (Forex/Metales): Lunes a Jueves de 15:00 a 16:00
-    if dia < 4 and hora == 15: return False
+    # NOTA: Por instrucción directa, se remueve el receso diario de 15:00 a 16:00.
+    # El escáner continuará operando de lunes a jueves sin interrupción en esa hora.
     
     return True
 
