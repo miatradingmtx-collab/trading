@@ -524,9 +524,9 @@ def registrar_error_sistema(componente: str, mensaje: str):
     """
     
     # 🛡️ REPORTE CRÍTICO A TELEGRAM DESDE LA RAM
-    # Si hay un error 429 (Cuota) o 500, notificar a Telegram INMEDIATAMENTE sin usar Firebase
+    # Notificar a Telegram INMEDIATAMENTE sin usar Firebase, pero ignorar los 429/Quota por spam
     msg_lower = str(mensaje).lower()
-    es_error_critico = "429" in msg_lower or "quota" in msg_lower or "500" in msg_lower or "timeout" in msg_lower
+    es_error_critico = "500" in msg_lower or "timeout" in msg_lower
     
     if es_error_critico and componente != "Telegram":
         msg_tg = f"🚨 *MIA SYSTEM CRITICAL ERROR* 🚨\n\n*Componente:* {componente}\n*Error:* `{mensaje}`\n\n_Bypass: Reportado desde la RAM para proteger la cuota._"
@@ -1484,8 +1484,8 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     # 5. Notificar a Mia (Botpress) y Telegram de que hubo un movimiento (Apertura o Cierre)
     
     # --- NUEVA LÓGICA DE TELEGRAM DETALLADA ---
-    # Solo notificar a Telegram si proviene de MT5 (tiene un ticket válido asignado)
-    if alert.ticket and int(alert.ticket) > 0:
+    # Solo notificar a Telegram si proviene de MT5, no es REANUDACIÓN, y no es un activo UNKNOWN
+    if alert.ticket and str(alert.ticket).isdigit() and int(alert.ticket) > 0 and alert.accion not in ["REANUDACIÓN"] and alert.activo != "UNKNOWN":
         icono = "🟢" if "COMPRA" in alert.accion else "🔴" if "VENTA" in alert.accion else "🔵"
         if "CIERRE" in alert.accion:
             icono = "💰" if alert.pnl > 0 else "🛑"
