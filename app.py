@@ -3777,6 +3777,7 @@ async def entrenar_pesos_endpoint(authorization: Optional[str] = Header(None)):
         await entrenar_pesos_dinamicos()
         return {"status": "success", "message": "Pesos dinámicos entrenados y actualizados en Firebase y Obsidian."}
     except Exception as e:
+        # Bypass 429 para evitar crashes masivos
         raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 async def entrenar_pesos_dinamicos():
