@@ -1364,7 +1364,7 @@ async def run_escaner_loop():
             print(f"| RUNNER CLOUD ERROR | Ocurrió un fallo en el escáner: {e}")
             await reportar_error_nube("Escáner Core", str(e))
             
-        await asyncio.sleep(30) # Loop base restaurado a 30 segundos (Protegido por Caché RAM)
+        await asyncio.sleep(60) # Loop base optimizado a 60 segundos para evitar 429
 
 async def abrir_posicion_test(simbolo: str, lote: float) -> str:
     """Función de prueba para abrir una posición directamente en MetaAPI."""

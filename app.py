@@ -2930,9 +2930,10 @@ def api_dashboard_data():
     }
 
     try:
-        asegurar_cache_firebase()
+        # BYPASS TOTAL: No llamamos a asegurar_cache_firebase() desde el dashboard
+        # asegurar_cache_firebase()
 
-        data["system_logs"] = GLOBAL_SYSTEM_LOGS
+        data["system_logs"] = GLOBAL_SYSTEM_LOGS or []
         
         balance_actual = None
         equity_actual = None
@@ -2945,14 +2946,8 @@ def api_dashboard_data():
             equity_actual = float(ULTIMO_BROKER_STATE.get("equity", balance_actual))
             floating_pnl = float(ULTIMO_BROKER_STATE.get("floating_pnl", 0.0))
         else:
-            try:
-                broker_doc = db.collection("system_memory").document("broker_state").get()
-                if broker_doc.exists:
-                    broker_data = broker_doc.to_dict()
-                    balance_actual = float(broker_data.get("live_balance", 5000.0))
-                    equity_actual = float(broker_data.get("equity", balance_actual))
-                    floating_pnl = float(broker_data.get("floating_pnl", 0.0))
-            except: pass
+            # BYPASS TOTAL: No consultamos a Firestore si no hay broker state local
+            pass
             
         data["floating_pnl"] = floating_pnl
         
