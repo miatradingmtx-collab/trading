@@ -517,23 +517,36 @@ def actualizar_excel_local(alert: TradeAlert):
         registrar_error_sistema("Excel Local", str(e))
         return False
 
+THROTTLED_ERRORS = {}
+
 def registrar_error_sistema(componente: str, mensaje: str):
     invalidar_cache_dashboard()
     """
     Registra errores críticos del sistema (Railway, Firebase, MetaAPI) en la colección mia_system_logs
     """
     
-    # 🛡️ REPORTE CRÍTICO A TELEGRAM DESDE LA RAM
-    # Notificar a Telegram INMEDIATAMENTE sin usar Firebase, pero ignorar los 429/Quota por spam
+    # 🛡️ REPORTE CRÍTICO A TELEGRAM DESDE LA RAM (CON ANTI-SPAM)
+    # Notificar a Telegram INMEDIATAMENTE sin usar Firebase, pero evitando loops
+    global THROTTLED_ERRORS
+    import time
+    
     msg_lower = str(mensaje).lower()
-    es_error_critico = "500" in msg_lower or "timeout" in msg_lower
+    es_error_critico = "429" in msg_lower or "quota" in msg_lower or "500" in msg_lower or "timeout" in msg_lower
     
     if es_error_critico and componente != "Telegram":
-        msg_tg = f"🚨 *MIA SYSTEM CRITICAL ERROR* 🚨\n\n*Componente:* {componente}\n*Error:* `{mensaje}`\n\n_Bypass: Reportado desde la RAM para proteger la cuota._"
-        try:
-            notificar_telegram(msg_tg)
-        except:
-            pass
+        ahora = time.time()
+        # Clave única para el tipo de error
+        error_key = "429_QUOTA" if ("429" in msg_lower or "quota" in msg_lower) else "500_CRITICAL"
+        
+        # Throttling: Solo notificar una vez cada 2 horas (7200 segundos) por tipo de error
+        ultimo_aviso = THROTTLED_ERRORS.get(error_key, 0)
+        if (ahora - ultimo_aviso) > 7200:
+            msg_tg = f"🚨 *MIA SYSTEM CRITICAL ERROR* 🚨\n\n*Componente:* {componente}\n*Error:* `{mensaje}`\n\n_Bypass: Reportado desde la RAM para proteger la cuota. Silenciando este error por 2 horas._"
+            try:
+                notificar_telegram(msg_tg)
+                THROTTLED_ERRORS[error_key] = ahora
+            except:
+                pass
 
     global firebase_inicializado, db
     if not firebase_inicializado or db is None:
