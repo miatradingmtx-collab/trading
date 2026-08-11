@@ -1515,6 +1515,8 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
         msg_tg = f"🤖 *MIA TRADING AI* {icono}\n\n"
         msg_tg += f"*{alert.accion}* | *{alert.activo}* | 🌍 Sesión {sesion_str}{open_time_str}\n"
         msg_tg += f"💰 Precio: {alert.precio}\n"
+        if alert.lotaje and float(alert.lotaje) > 0.0:
+            msg_tg += f"📦 Lote: {alert.lotaje}\n"
         
         msg_tg += f"🛡️ SL: {alert.stop_loss if alert.stop_loss else 'N/A'}\n"
         if alert.take_profit and alert.take_profit > 0 and alert.precio > 0:

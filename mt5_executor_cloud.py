@@ -512,7 +512,7 @@ async def solicitar_autorizacion_trade(activo: str, accion: str, precio: float) 
         print(f"| CLOUD EXCEPTION | Error al solicitar autorización de trade: {e}")
     return None
 
-async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, evento: str, precio: float, sl: float, tp: float, pnl: float = 0.0, comentario: str = "", estrategia_original: str = "MANUAL", open_time: str = ""):
+async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, evento: str, precio: float, sl: float, tp: float, pnl: float = 0.0, comentario: str = "", estrategia_original: str = "MANUAL", open_time: str = "", lotaje: float = 0.0):
     url = f"{FASTAPI_URL}/webhook"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
@@ -547,7 +547,8 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
         "pnl": float(pnl),
         "ticket": str(ticket),
         "comentario": comentario,
-        "open_time": open_time
+        "open_time": open_time,
+        "lotaje": float(lotaje)
     }
     
     try:
@@ -676,10 +677,11 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             }
             print(f"| SEGUIMIENTO | Nueva posición detectada. Ticket: {ticket} | Lote: {pos.get('volume')} | Estrategia: {estrategia_original}")
             if not ES_PRIMERA_EJECUCION:
-                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=str(pos.get('time', '')))
+                tp_original = tp_original if tp_original > 0 else (pos.get('openPrice', 0.0) + 0.00100)
+                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=str(pos.get('time', '')), lotaje=pos.get('volume', 0.0))
             else:
                 print(f"| REANUDACIÓN | Adoptando posición existente (Ticket: {ticket}). Enviando notificación de Reanudación.")
-                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "REANUDACIÓN", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=str(pos.get('time', '')))
+                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "REANUDACIÓN", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=str(pos.get('time', '')), lotaje=pos.get('volume', 0.0))
             
         activo = next((act for act in ACTIVOS if MAPEO_BROKER.get(act) == pos.get('symbol')), None)
         if not activo:
@@ -824,7 +826,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     # --- 3. NOTIFICAR EN TELEGRAM ---
                     try:
                         comentario_tg = f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP" if lote_a_cerrar > 0 else f"Protegido en {desc_sl} (lote intocable)"
-                        await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=comentario_tg, estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""))
+                        await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=comentario_tg, estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""), lotaje=pos.get('volume', 0.0))
                     except Exception as t_e:
                         print(f"| TELEGRAM WARN | No se envió notificación parcial: {t_e}")                    
                     
@@ -949,7 +951,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                                 pnl_flotante = distancia_actual * volume * 100000
                                 
                             comentario_emergencia = "Protegido en Break Even (Salvamento por Retroceso)"
-                            await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, nuevo_sl, tp, pnl=pnl_flotante, comentario=comentario_emergencia, estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""))
+                            await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, nuevo_sl, tp, pnl=pnl_flotante, comentario=comentario_emergencia, estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""), lotaje=pos.get('volume', 0.0))
                         except Exception as t_e:
                             print(f"| TELEGRAM WARN | No se envió notificación de BE Salvamento: {t_e}")
                             
@@ -1011,7 +1013,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 
             print(f"| GESTOR COBROS WARNING | Usando PnL estimado para Ticket {ticket}: ${pnl_final:.2f}")
             
-        await reportar_evento_trade(info['symbol'], ticket, info['type'], "CIERRE_TOTAL", info['price_open'], 0.0, 0.0, pnl=pnl_final, comentario="Cerrado en MT5", estrategia_original=info.get("estrategia", "MANUAL"), open_time=info.get("open_time", ""))
+        await reportar_evento_trade(info['symbol'], ticket, info['type'], "CIERRE_TOTAL", info['price_open'], 0.0, 0.0, pnl=pnl_final, comentario="Cerrado en MT5", estrategia_original=info.get("estrategia", "MANUAL"), open_time=info.get("open_time", ""), lotaje=info.get('volume', 0.0))
         del POSICIONES_ACTIVAS[ticket]
 
     for t in fb_open:
@@ -1031,7 +1033,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     pnl_sinc = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in deals)
             except:
                 pass
-            await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=pnl_sinc, comentario="Sincronizado por desaparición en MT5", estrategia_original="MANUAL")
+            await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=pnl_sinc, comentario="Sincronizado por desaparición en MT5", estrategia_original="MANUAL", lotaje=0.0)
             TICKETS_SINCRONIZADOS.add(str(t))
 
     ES_PRIMERA_EJECUCION = False
