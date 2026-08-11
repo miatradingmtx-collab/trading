@@ -1289,10 +1289,14 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         gatillo_autorizado = webhook_response and webhook_response.get("gatillo_entrada") is True
         
         if gatillo_autorizado:
-            # 🛡️ FILTRO ANTI-STOP HUNT PARA EL ORO (XAUUSD)
-            if "XAU" in activo:
+            # 🛡️ FILTRO SELECTIVO ANTI-STOP HUNT (Soportes Clásicos y OBs Simples)
+            tiene_ob_simple = confirmaciones.get("order_block_detectado", False)
+            tiene_sr_clasico = bool(soporte_activo)
+            
+            # Los OBs institucionales/Lux (order_block_zona_Xh) NO exigen sweep por ser zonas de alto volumen
+            if tiene_ob_simple or tiene_sr_clasico:
                 if not confirmaciones.get("sweep_liquidez_detectado", False):
-                    print(f"| FILTRO XAUUSD | Gatillo Score >= 80 aprobado para {activo}, pero se deniega la entrada por falta de Sweep (Barrido de Liquidez). Esperando manipulación...")
+                    print(f"| FILTRO ANTI-TRAMPA | Se detectó OB simple o S/R en {activo}, pero falta Sweep. Esperando Stop Hunt antes de entrar.")
                     continue
                     
             # 🛡️ HIPÓTESIS DEL USUARIO: Entrar antes de la apertura si el Score >= 80% 
