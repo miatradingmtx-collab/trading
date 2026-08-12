@@ -108,6 +108,10 @@ async def conectar_metaapi():
         else:
             print(f"✅ Cuenta encontrada en MetaAPI. ID: {account.id}")
 
+        # Recargar la cuenta para asegurar que tenemos el estado más reciente
+        await account.reload()
+        print(f"Estado de la cuenta: {account.state}")
+
         # Desplegar la cuenta si está desconectada
         if account.state != 'DEPLOYED':
             print("🚀 Desplegando cuenta de trading demo en MetaAPI...")
