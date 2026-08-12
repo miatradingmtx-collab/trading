@@ -2920,6 +2920,7 @@ def asegurar_cache_firebase():
                         "smc_4_sweep": 45, "smc_2_fvg": 30, "order_block_zona_4h": 25, 
                         "ma_alineada": 20, "smc_1_ob": 20, "smc_3_liq": 20, 
                         "smc_5_fvg_bajista": 15, "smc_6_fvg_alcista": 15,
+                        "lux_ob_puro": 12, "lux_ob_validado": 18,
                         "soporte_resistencia_activo": 15, "poc_price": 15, "rsi_extremo": 10
                     }
                 }
@@ -3818,7 +3819,8 @@ async def entrenar_pesos_dinamicos():
         frecuencias = {
             "ma_alineada": 0, "rsi_extremo": 0, "soporte_resistencia_activo": 0, "poc_price": 0,
             "smc_1_ob": 0, "smc_2_fvg": 0, "smc_3_liq": 0, "smc_4_sweep": 0,
-            "smc_5_fvg_bajista": 0, "smc_6_fvg_alcista": 0
+            "smc_5_fvg_bajista": 0, "smc_6_fvg_alcista": 0,
+            "lux_ob_puro": 0, "lux_ob_validado": 0
         }
         for tf in ["1h", "2h", "3h", "4h", "8h"]:
             frecuencias[f"order_block_zona_{tf}"] = 0
@@ -3843,6 +3845,16 @@ async def entrenar_pesos_dinamicos():
             if 5 in smc: frecuencias["smc_5_fvg_bajista"] += 1
             if 6 in smc: frecuencias["smc_6_fvg_alcista"] += 1
             
+            tiene_lux = any(tech.get(f"order_block_zona_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
+            tiene_fvg = tech.get("fvg_detectado", False)
+            tiene_retail = tech.get("soporte_resistencia_activo", False) or tech.get("order_block_detectado", False)
+            
+            if tiene_lux:
+                if not tiene_fvg and not tiene_retail:
+                    frecuencias["lux_ob_puro"] += 1
+                else:
+                    frecuencias["lux_ob_validado"] += 1
+            
         # 3. Calcular nuevos pesos (Base Points + Bonus por win rate)
         total = len(ganadores)
         nuevos_pesos = {
@@ -3855,7 +3867,9 @@ async def entrenar_pesos_dinamicos():
             "smc_3_liq": 10 + int((frecuencias["smc_3_liq"] / total) * 20),
             "smc_4_sweep": 10 + int((frecuencias["smc_4_sweep"] / total) * 15),
             "smc_5_fvg_bajista": 10 + int((frecuencias["smc_5_fvg_bajista"] / total) * 15),
-            "smc_6_fvg_alcista": 10 + int((frecuencias["smc_6_fvg_alcista"] / total) * 15)
+            "smc_6_fvg_alcista": 10 + int((frecuencias["smc_6_fvg_alcista"] / total) * 15),
+            "lux_ob_puro": 10 + int((frecuencias["lux_ob_puro"] / total) * 15),
+            "lux_ob_validado": 15 + int((frecuencias["lux_ob_validado"] / total) * 20)
         }
         for tf in ["1h", "2h", "3h", "4h", "8h"]:
             nuevos_pesos[f"order_block_zona_{tf}"] = 25 + int((frecuencias[f"order_block_zona_{tf}"] / total) * 15)
