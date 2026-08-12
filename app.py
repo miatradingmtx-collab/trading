@@ -2917,8 +2917,9 @@ def asegurar_cache_firebase():
             if not GLOBAL_MIA_COLLECTIVE:
                 GLOBAL_MIA_COLLECTIVE = {
                     "dynamic_weights": {
-                        "smc_4": 45, "smc_2": 30, "order_block_zona_4h": 25, 
-                        "ma_alineada": 20, "smc_1": 20, "smc_3": 20, 
+                        "smc_4_sweep": 45, "smc_2_fvg": 30, "order_block_zona_4h": 25, 
+                        "ma_alineada": 20, "smc_1_ob": 20, "smc_3_liq": 20, 
+                        "smc_5_fvg_bajista": 15, "smc_6_fvg_alcista": 15,
                         "soporte_resistencia_activo": 15, "poc_price": 15, "rsi_extremo": 10
                     }
                 }
@@ -3816,7 +3817,8 @@ async def entrenar_pesos_dinamicos():
         # 2. Contar la frecuencia de cada confirmación técnica en los ganadores
         frecuencias = {
             "ma_alineada": 0, "rsi_extremo": 0, "soporte_resistencia_activo": 0, "poc_price": 0,
-            "smc_1": 0, "smc_2": 0, "smc_3": 0, "smc_4": 0
+            "smc_1_ob": 0, "smc_2_fvg": 0, "smc_3_liq": 0, "smc_4_sweep": 0,
+            "smc_5_fvg_bajista": 0, "smc_6_fvg_alcista": 0
         }
         for tf in ["1h", "2h", "3h", "4h", "8h"]:
             frecuencias[f"order_block_zona_{tf}"] = 0
@@ -3834,10 +3836,12 @@ async def entrenar_pesos_dinamicos():
                 if tech.get(f"alineamiento_liquidez_{tf}"): frecuencias[f"alineamiento_liquidez_{tf}"] += 1
             
             smc = tech.get("smc_codes", [])
-            if 1 in smc: frecuencias["smc_1"] += 1
-            if 2 in smc: frecuencias["smc_2"] += 1
-            if 3 in smc: frecuencias["smc_3"] += 1
-            if 4 in smc: frecuencias["smc_4"] += 1
+            if 1 in smc: frecuencias["smc_1_ob"] += 1
+            if 2 in smc: frecuencias["smc_2_fvg"] += 1
+            if 3 in smc: frecuencias["smc_3_liq"] += 1
+            if 4 in smc: frecuencias["smc_4_sweep"] += 1
+            if 5 in smc: frecuencias["smc_5_fvg_bajista"] += 1
+            if 6 in smc: frecuencias["smc_6_fvg_alcista"] += 1
             
         # 3. Calcular nuevos pesos (Base Points + Bonus por win rate)
         total = len(ganadores)
@@ -3846,10 +3850,12 @@ async def entrenar_pesos_dinamicos():
             "rsi_extremo": 10 + int((frecuencias["rsi_extremo"] / total) * 15),
             "soporte_resistencia_activo": 5 + int((frecuencias["soporte_resistencia_activo"] / total) * 15),
             "poc_price": 5 + int((frecuencias["poc_price"] / total) * 15),
-            "smc_1": 20 + int((frecuencias["smc_1"] / total) * 20),
-            "smc_2": 20 + int((frecuencias["smc_2"] / total) * 20),
-            "smc_3": 10 + int((frecuencias["smc_3"] / total) * 20),
-            "smc_4": 10 + int((frecuencias["smc_4"] / total) * 15)
+            "smc_1_ob": 20 + int((frecuencias["smc_1_ob"] / total) * 20),
+            "smc_2_fvg": 20 + int((frecuencias["smc_2_fvg"] / total) * 20),
+            "smc_3_liq": 10 + int((frecuencias["smc_3_liq"] / total) * 20),
+            "smc_4_sweep": 10 + int((frecuencias["smc_4_sweep"] / total) * 15),
+            "smc_5_fvg_bajista": 10 + int((frecuencias["smc_5_fvg_bajista"] / total) * 15),
+            "smc_6_fvg_alcista": 10 + int((frecuencias["smc_6_fvg_alcista"] / total) * 15)
         }
         for tf in ["1h", "2h", "3h", "4h", "8h"]:
             nuevos_pesos[f"order_block_zona_{tf}"] = 25 + int((frecuencias[f"order_block_zona_{tf}"] / total) * 15)
