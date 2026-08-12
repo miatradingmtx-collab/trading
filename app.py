@@ -1810,8 +1810,8 @@ def get_matrix_activos(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=503, detail="Firebase no inicializado")
         
     try:
-        docs = db.collection("trading_matrix").stream()
-        activos = [doc.id for doc in docs]
+        # 🛡️ PROTECCIÓN ANTI-SATURACIÓN: Lectura directa desde caché RAM
+        activos = list(GLOBAL_MATRICES_CACHE_FULL.keys())
         return {"status": "success", "activos": activos}
     except Exception as e:
         print(f"| CLOUD ERROR | Error en get_matrix_activos: {e}")
@@ -1837,12 +1837,11 @@ def get_asset_matrix(activo: str, authorization: Optional[str] = Header(None)):
         import time
         activo_normalizado = normalizar_activo(activo)
         
-        # 🛡️ PROTECCIÓN ANTI-SATURACIÓN (Cache de 5 minutos)
-        # Como mt5_executor_cloud lo consulta cada 30 seg, esto salva 115 peticiones por hora por trade
-        if activo_normalizado in MATRIX_CACHE:
-            if time.time() - MATRIX_CACHE_TIME.get(activo_normalizado, 0) < 300:
-                return MATRIX_CACHE[activo_normalizado]
-                
+        # 🛡️ PROTECCIÓN ANTI-SATURACIÓN: Lectura total desde memoria (0 costo Firebase)
+        if activo_normalizado in GLOBAL_MATRICES_CACHE_FULL:
+            return GLOBAL_MATRICES_CACHE_FULL[activo_normalizado]
+            
+        # Fallback de emergencia si no está en caché (Raro, solo si se añadió recientemente)
         doc_ref = db.collection("trading_matrix").document(activo_normalizado)
         doc = doc_ref.get()
         
@@ -1850,8 +1849,7 @@ def get_asset_matrix(activo: str, authorization: Optional[str] = Header(None)):
             raise HTTPException(status_code=404, detail=f"Activo {activo_normalizado} no encontrado")
             
         datos = doc.to_dict()
-        MATRIX_CACHE[activo_normalizado] = datos
-        MATRIX_CACHE_TIME[activo_normalizado] = time.time()
+        GLOBAL_MATRICES_CACHE_FULL[activo_normalizado] = datos
         return datos
     except HTTPException:
         raise
@@ -1923,11 +1921,17 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
             data["confirmaciones_tecnicas"] = {}
             
         # Actualizar confirmaciones técnicas
+        cambios_detectados = False
         for k, v in update.confirmaciones_tecnicas.items():
-            if k == "smc_codes":
-                data["confirmaciones_tecnicas"][k] = v
-            else:
-                data["confirmaciones_tecnicas"][k] = bool(v)
+            valor_actual = data["confirmaciones_tecnicas"].get(k)
+            valor_nuevo = v if k == "smc_codes" else bool(v)
+            if valor_actual != valor_nuevo:
+                data["confirmaciones_tecnicas"][k] = valor_nuevo
+                cambios_detectados = True
+                
+        # 🛡️ ESPEJO DINÁMICO: Si NO hay cambios, cancelamos la escritura a Firebase!
+        if not cambios_detectados and "confirmaciones_tecnicas" in old_data:
+            return {"status": "success", "mensaje": "Datos idénticos. Escritura omitida por optimización.", "score": data.get("score_porcentaje")}
                 
         # Limpiar booleanos legacy si existen en la base de datos
         legacy_keys = ["order_block_detectado", "fvg_detectado", "breaker_block_detectado", "sweep_liquidez_detectado"]
@@ -2288,12 +2292,11 @@ def get_mia_trading_feed(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=503, detail="Firebase no inicializado")
         
     try:
-        docs = db.collection("trading_matrix").stream()
+        # 🛡️ PROTECCIÓN ANTI-SATURACIÓN: Lectura total desde memoria
+        global GLOBAL_MATRICES_CACHE_FULL
         
         xml_items = []
-        for doc in docs:
-            activo_id = doc.id
-            data = doc.to_dict()
+        for activo_id, data in GLOBAL_MATRICES_CACHE_FULL.items():
             apoyo = data.get("aprendizaje_mia", {})
             
             raw_sent = apoyo.get('sentimiento_acumulado', 'NEUTRAL').upper()
@@ -2883,7 +2886,15 @@ def asegurar_cache_firebase():
             
             # 3. trading_matrix
             matrices = db.collection("trading_matrix").stream()
-            GLOBAL_MATRICES = {m.id: m.to_dict().get("score_porcentaje", 0) for m in matrices}
+            global GLOBAL_MATRICES_CACHE_FULL
+            GLOBAL_MATRICES_CACHE_FULL.clear()
+            
+            _temp_matrices = {}
+            for m in matrices:
+                m_dict = m.to_dict()
+                GLOBAL_MATRICES_CACHE_FULL[m.id] = m_dict
+                _temp_matrices[m.id] = m_dict.get("score_porcentaje", 0)
+            GLOBAL_MATRICES = _temp_matrices
             
             # 4. mia_kb / patrones
             patrones = db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream()
