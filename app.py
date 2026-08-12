@@ -2910,7 +2910,9 @@ def asegurar_cache_firebase():
                 GLOBAL_PATRONES = [
                     {'nombre': 'SMC Sweep (Stop Hunt)', 'win_rate': 85.5, 'ocurrencias': 12},
                     {'nombre': 'FVG Rebalance', 'win_rate': 78.0, 'ocurrencias': 8},
-                    {'nombre': 'Order Block 4H', 'win_rate': 72.5, 'ocurrencias': 5}
+                    {'nombre': 'Order Block 4H', 'win_rate': 72.5, 'ocurrencias': 5},
+                    {'nombre': 'Retail Support Break', 'win_rate': 35.5, 'ocurrencias': 18},
+                    {'nombre': 'RSI Divergence Only', 'win_rate': 42.0, 'ocurrencias': 14}
                 ]
             if GLOBAL_MATRICES is None: GLOBAL_MATRICES = {}
             if GLOBAL_INDICADORES is None: GLOBAL_INDICADORES = []
