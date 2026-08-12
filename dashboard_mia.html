@@ -911,6 +911,10 @@
                         $el('kpi-parciales-sub').innerText = `BE: ${beCount} | Cierre Manual: ${manCount}`;
                     }
                     
+                    if (d.estrategias) {
+                        window.currentEstrategias = d.estrategias;
+                    }
+                    
                     // History view KPI population (mock mapping for the new layout IDs)
                     if (d.data && Array.isArray(d.data)) {
                         window.globalAuditLogs = d.data; // Store globally for filtering
@@ -1360,6 +1364,40 @@
             });
             htmlList += '</ul>';
             
+            // Agregar Ranking de Estrategias si existe
+            if (window.currentEstrategias && window.currentEstrategias.length > 0) {
+                let ganadorasHtml = '<ul style="text-align: left; background: #0f1115; padding: 15px; border-radius: 8px; font-family: monospace; list-style: none; margin-bottom: 5px;">';
+                let perdedorasHtml = '<ul style="text-align: left; background: #0f1115; padding: 15px; border-radius: 8px; font-family: monospace; list-style: none; margin-bottom: 5px;">';
+                
+                let hasGanadoras = false;
+                let hasPerdedoras = false;
+
+                window.currentEstrategias.forEach(est => {
+                    const line = `<li style="margin-bottom: 5px; border-bottom: 1px solid #1a1d24; padding-bottom: 5px;">
+                                    <span style="color: #e2e8f0; font-weight: bold;">${est.nombre}</span>: 
+                                    <span style="color: ${est.win_rate >= 50 ? 'var(--neon-green)' : '#ff4d4d'};">${est.win_rate}% WR</span> 
+                                    <span style="color: #6b7280; font-size: 0.9em;">(${est.ocurrencias} trades)</span>
+                                 </li>`;
+                    if (est.win_rate >= 50) {
+                        ganadorasHtml += line;
+                        hasGanadoras = true;
+                    } else {
+                        perdedorasHtml += line;
+                        hasPerdedoras = true;
+                    }
+                });
+                
+                ganadorasHtml += '</ul>';
+                perdedorasHtml += '</ul>';
+
+                if (hasGanadoras) {
+                    htmlList += '<h5 style="color: var(--neon-green); margin-top: 20px; text-align: left; font-size: 1.1em;">🏆 Ranking Estrategias Ganadoras</h5>' + ganadorasHtml;
+                }
+                if (hasPerdedoras) {
+                    htmlList += '<h5 style="color: #ff4d4d; margin-top: 20px; text-align: left; font-size: 1.1em;">🛑 Ranking Estrategias Perdedoras</h5>' + perdedorasHtml;
+                }
+            }
+
             htmlList += `
                 <div style="margin-top: 15px; font-size: 0.85em; color: #a0aec0; text-align: left; background: #1a1d24; padding: 10px; border-radius: 5px; border-left: 3px solid var(--neon-blue);">
                     <strong>💡 Criterios de Evaluación OB:</strong><br/>
