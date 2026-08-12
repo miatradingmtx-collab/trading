@@ -2906,6 +2906,7 @@ def asegurar_cache_firebase():
             # Resiliencia: Si da 429 Quota Exceeded, no reiniciamos a None para evitar caídas
             if GLOBAL_AUDIT_LOGS is None: GLOBAL_AUDIT_LOGS = []
             if GLOBAL_SYSTEM_LOGS is None: GLOBAL_SYSTEM_LOGS = []
+            if not GLOBAL_PATRONES:
                 GLOBAL_PATRONES = [
                     {'nombre': 'SMC Sweep (Stop Hunt)', 'win_rate': 85.5, 'ocurrencias': 12, 'pnl_generado': 425.50},
                     {'nombre': 'FVG Rebalance', 'win_rate': 78.0, 'ocurrencias': 8, 'pnl_generado': 210.00},
