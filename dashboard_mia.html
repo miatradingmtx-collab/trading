@@ -1359,6 +1359,15 @@
                              </li>`;
             });
             htmlList += '</ul>';
+            
+            htmlList += `
+                <div style="margin-top: 15px; font-size: 0.85em; color: #a0aec0; text-align: left; background: #1a1d24; padding: 10px; border-radius: 5px; border-left: 3px solid var(--neon-blue);">
+                    <strong>💡 Criterios de Evaluación OB:</strong><br/>
+                    <span style="color: var(--neon-blue)">• SMC_1_OB:</span> Order Block interno detectado por el motor SMC.<br/>
+                    <span style="color: var(--neon-blue)">• LUX_OB_PURO:</span> OB Institucional (LuxAlgo) ejecutado en crudo, sin confluencias extra.<br/>
+                    <span style="color: var(--neon-blue)">• LUX_OB_VALIDADO:</span> OB Institucional (LuxAlgo) respaldado por absorción Retail o FVG.
+                </div>
+            `;
 
             Swal.fire({
                 title: '<i class="fa-solid fa-brain" style="color:var(--neon-blue)"></i> Cerebro ML (Pesos Dinámicos)',
