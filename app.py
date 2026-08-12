@@ -2880,8 +2880,8 @@ def asegurar_cache_firebase():
             sys_logs = db.collection("mia_system_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream()
             GLOBAL_SYSTEM_LOGS = [sl.to_dict() for sl in sys_logs]
             
-            # 2. mia_audit_logs (Limitamos a 800 para menor consumo y más velocidad)
-            logs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(800).stream()
+            # 2. mia_audit_logs (Limitamos a 150 para evitar consumo masivo de lecturas)
+            logs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(150).stream()
             GLOBAL_AUDIT_LOGS = [l.to_dict() for l in logs]
             
             # 3. trading_matrix
