@@ -1356,9 +1356,9 @@
             let pesosHtml = '<ul style="text-align: left; background: #0f1115; padding: 15px; border-radius: 8px; font-family: monospace; list-style: none; margin: 0; height: 100%; overflow-y: auto; max-height: 400px;">';
             const sortedWeights = Object.entries(dw).sort((a, b) => b[1] - a[1]);
             sortedWeights.forEach(([indicator, weight]) => {
-                pesosHtml += `<li style="margin-bottom: 5px; border-bottom: 1px solid #1a1d24; padding-bottom: 5px;">
-                                <span style="color: var(--neon-blue); font-weight: bold;">${indicator.toUpperCase()}</span>: 
-                                <span style="color: var(--neon-yellow); float: right;">${Number(weight).toFixed(4)}x</span>
+                pesosHtml += `<li style="margin-bottom: 5px; border-bottom: 1px solid #1a1d24; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                                <span style="color: var(--neon-blue); font-weight: bold; font-size: 11px; word-break: break-word;">${indicator.toUpperCase()}</span> 
+                                <span style="color: var(--neon-yellow); font-size: 12px; white-space: nowrap;">${Number(weight).toFixed(4)}x</span>
                              </li>`;
             });
             pesosHtml += '</ul>';
@@ -1372,10 +1372,12 @@
 
             if (window.currentEstrategias && window.currentEstrategias.length > 0) {
                 window.currentEstrategias.forEach(est => {
-                    const line = `<li style="margin-bottom: 5px; border-bottom: 1px solid #1a1d24; padding-bottom: 5px; line-height: 1.2;">
-                                    <div style="color: #e2e8f0; font-weight: bold; font-size: 11px; margin-bottom: 3px;">${est.nombre}</div>
-                                    <span style="color: ${est.win_rate >= 50 ? 'var(--neon-green)' : '#ff4d4d'};">${est.win_rate}% WR</span> 
-                                    <span style="color: #6b7280; font-size: 0.9em; float: right;">(${est.ocurrencias} trades)</span>
+                    const line = `<li style="margin-bottom: 5px; border-bottom: 1px solid #1a1d24; padding-bottom: 5px; display: flex; flex-direction: column; gap: 4px;">
+                                    <div style="color: #e2e8f0; font-weight: bold; font-size: 11px;">${est.nombre}</div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="color: ${est.win_rate >= 50 ? 'var(--neon-green)' : '#ff4d4d'}; font-size: 12px;">${est.win_rate}% WR</span> 
+                                        <span style="color: #6b7280; font-size: 0.9em;">(${est.ocurrencias} trades)</span>
+                                    </div>
                                  </li>`;
                     if (est.win_rate >= 50) {
                         ganadorasHtml += line;
@@ -1388,24 +1390,24 @@
             }
             
             if (!hasGanadoras) ganadorasHtml += '<li style="color:#6b7280; font-size: 11px;">Esperando recolección de datos...</li>';
-            if (!hasPerdedoras) perdedorasHtml += '<li style="color:#6b7280; font-size: 11px;">Cero estrategias perdedoras detectadas esta semana.</li>';
+            if (!hasPerdedoras) perdedorasHtml += '<li style="color:#6b7280; font-size: 11px;">Cero estrategias perdedoras detectadas.</li>';
 
             ganadorasHtml += '</ul>';
             perdedorasHtml += '</ul>';
 
             // Layout Horizontal (Grid)
             let layoutHtml = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; align-items: start; margin-top: 15px;">
+                <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 15px; align-items: start; margin-top: 15px;">
                     <div>
-                        <h5 style="color: #a0aec0; margin-bottom: 10px; font-size: 13px; text-align: left;">⚖️ Pesos Estadísticos</h5>
+                        <h5 style="color: #a0aec0; margin-bottom: 10px; font-size: 13px; text-align: left;"><i class="fa-solid fa-scale-balanced"></i> Pesos Estadísticos</h5>
                         ${pesosHtml}
                     </div>
                     <div>
-                        <h5 style="color: var(--neon-green); margin-bottom: 10px; font-size: 13px; text-align: left;">🏆 Top Ganadoras</h5>
+                        <h5 style="color: var(--neon-green); margin-bottom: 10px; font-size: 13px; text-align: left;"><i class="fa-solid fa-trophy"></i> Top Ganadoras</h5>
                         ${ganadorasHtml}
                     </div>
                     <div>
-                        <h5 style="color: #ff4d4d; margin-bottom: 10px; font-size: 13px; text-align: left;">🛑 Top Perdedoras</h5>
+                        <h5 style="color: #ff4d4d; margin-bottom: 10px; font-size: 13px; text-align: left;"><i class="fa-solid fa-circle-stop"></i> Top Perdedoras</h5>
                         ${perdedorasHtml}
                     </div>
                 </div>
