@@ -1372,8 +1372,16 @@
 
             if (window.currentEstrategias && window.currentEstrategias.length > 0) {
                 window.currentEstrategias.forEach(est => {
+                    const formatName = est.nombre.toUpperCase().replace(/ /g, '_');
+                    const pnl = est.pnl_generado || 0;
+                    const pnlFormatted = (pnl > 0 ? '+' : '') + '$' + Math.abs(pnl).toFixed(2);
+                    const pnlColor = pnl > 0 ? 'var(--neon-green)' : '#ff4d4d';
+
                     const line = `<li style="margin-bottom: 5px; border-bottom: 1px solid #1a1d24; padding-bottom: 5px; display: flex; flex-direction: column; gap: 4px;">
-                                    <div style="color: #e2e8f0; font-weight: bold; font-size: 11px;">${est.nombre}</div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div style="color: var(--neon-blue); font-weight: bold; font-size: 11px; word-break: break-word;">${formatName}</div>
+                                        <div style="color: ${pnlColor}; font-size: 10px; font-weight: bold;">${pnlFormatted}</div>
+                                    </div>
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
                                         <span style="color: ${est.win_rate >= 50 ? 'var(--neon-green)' : '#ff4d4d'}; font-size: 12px;">${est.win_rate}% WR</span> 
                                         <span style="color: #6b7280; font-size: 0.9em;">(${est.ocurrencias} trades)</span>

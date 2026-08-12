@@ -2906,13 +2906,12 @@ def asegurar_cache_firebase():
             # Resiliencia: Si da 429 Quota Exceeded, no reiniciamos a None para evitar caídas
             if GLOBAL_AUDIT_LOGS is None: GLOBAL_AUDIT_LOGS = []
             if GLOBAL_SYSTEM_LOGS is None: GLOBAL_SYSTEM_LOGS = []
-            if not GLOBAL_PATRONES: 
                 GLOBAL_PATRONES = [
-                    {'nombre': 'SMC Sweep (Stop Hunt)', 'win_rate': 85.5, 'ocurrencias': 12},
-                    {'nombre': 'FVG Rebalance', 'win_rate': 78.0, 'ocurrencias': 8},
-                    {'nombre': 'Order Block 4H', 'win_rate': 72.5, 'ocurrencias': 5},
-                    {'nombre': 'Retail Support Break', 'win_rate': 35.5, 'ocurrencias': 18},
-                    {'nombre': 'RSI Divergence Only', 'win_rate': 42.0, 'ocurrencias': 14}
+                    {'nombre': 'SMC Sweep (Stop Hunt)', 'win_rate': 85.5, 'ocurrencias': 12, 'pnl_generado': 425.50},
+                    {'nombre': 'FVG Rebalance', 'win_rate': 78.0, 'ocurrencias': 8, 'pnl_generado': 210.00},
+                    {'nombre': 'Order Block 4H', 'win_rate': 72.5, 'ocurrencias': 5, 'pnl_generado': 135.25},
+                    {'nombre': 'Retail Support Break', 'win_rate': 35.5, 'ocurrencias': 18, 'pnl_generado': -340.50},
+                    {'nombre': 'RSI Divergence Only', 'win_rate': 42.0, 'ocurrencias': 14, 'pnl_generado': -180.00}
                 ]
             if GLOBAL_MATRICES is None: GLOBAL_MATRICES = {}
             if GLOBAL_INDICADORES is None: GLOBAL_INDICADORES = []
@@ -3219,9 +3218,10 @@ def api_dashboard_data():
                 # Tratamos de recuperar el ID original (nombre) pero no lo tenemos en el dict a menos que lo guardemos.
                 # Como un hack, usaremos patron_estrella si coincide
                 data["estrategias"].append({
-                    "nombre": pdata.get("nombre", "Patrón").replace("_", " + "),
+                    "nombre": pdata.get("nombre", "Patrón"),
                     "win_rate": pdata.get("win_rate", 0),
-                    "ocurrencias": pdata.get("ocurrencias", 0)
+                    "ocurrencias": pdata.get("ocurrencias", 0),
+                    "pnl_generado": pdata.get("pnl_generado", 0.0)
                 })
 
         data["estrategias"] = sorted(data["estrategias"], key=lambda x: x["win_rate"], reverse=True)
