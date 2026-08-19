@@ -706,7 +706,6 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             print(f"| AUDIT LOG SUCCESS | Ticket {alert.ticket} guardado/actualizado en mia_audit_logs.")
             
             # Actualizar Caché Global en RAM
-            global GLOBAL_AUDIT_LOGS
             if GLOBAL_AUDIT_LOGS is not None:
                 encontrado = False
                 for i, log in enumerate(GLOBAL_AUDIT_LOGS):
