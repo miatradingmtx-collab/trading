@@ -587,10 +587,10 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             "timestamp": datetime.datetime.now()
         }
         
-        # Guardar en la colección 'trading_alerts'
+        # Guardar en la colección 'trading_alerts' (Deshabilitado por redundancia)
         # El método add genera un ID de documento aleatorio automáticamente
-        doc_ref = db.collection("trading_alerts").add(data)
-        print(f"| FIREBASE SUCCESS | Alerta guardada en Firestore. ID del documento: {doc_ref[1].id}")
+        # doc_ref = db.collection("trading_alerts").add(data)
+        # print(f"| FIREBASE SUCCESS | Alerta guardada en Firestore. ID del documento: {doc_ref[1].id}")
         
         # Guardar en mia_audit_logs con el Ticket como ID (Para el Dashboard y KB)
         if alert.ticket:
@@ -598,9 +598,16 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             # recuperamos el PNL acumulado y lo sumamos para mostrar la ganancia real acumulada total.
             pnl_acumulado_previo = 0.0
             try:
-                existente_doc = db.collection("mia_audit_logs").document(str(alert.ticket)).get()
-                if existente_doc.exists:
-                    exist_data = existente_doc.to_dict()
+                # OPTIMIZACIÓN: Leer de RAM Cache en lugar de Firebase (.get()) para ahorrar cuota
+                global GLOBAL_AUDIT_LOGS
+                exist_data = None
+                if GLOBAL_AUDIT_LOGS:
+                    for l in GLOBAL_AUDIT_LOGS:
+                        if str(l.get("ticket")) == str(alert.ticket):
+                            exist_data = l
+                            break
+                            
+                if exist_data:
                     # Recuperar datos en caso de reporte tardío o incompleto
                     if alert.activo == "UNKNOWN":
                         alert.activo = exist_data.get("activo", "UNKNOWN")
@@ -636,9 +643,10 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             score = 0
             poc_price = 0.0
             try:
-                m_doc = db.collection("trading_matrix").document(activo_norm).get()
-                if m_doc.exists:
-                    m_data = m_doc.to_dict()
+                # OPTIMIZACIÓN: Leer de RAM Cache en lugar de Firebase (.get())
+                global GLOBAL_MATRICES_CACHE_FULL
+                if activo_norm in GLOBAL_MATRICES_CACHE_FULL:
+                    m_data = GLOBAL_MATRICES_CACHE_FULL[activo_norm]
                     score = m_data.get("score_porcentaje", 0)
                     poc_price = m_data.get("confirmaciones_tecnicas", {}).get("poc_price", 0.0)
             except: pass
@@ -1409,13 +1417,33 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     permitiendo que TradingView reciba una respuesta instantánea (baja latencia).
     """
     # RECUPERACIÓN DE DATOS ANTES DE PROCESAR:
-    # Si viene como UNKNOWN desde mt5_executor_cloud, recuperamos de Firestore inmediatamente
-    if alert.activo == "UNKNOWN" and alert.ticket:
+    # Si viene con información faltante (Cierres huérfanos por desconexión o límite de cuota)
+    if (alert.activo == "UNKNOWN" or alert.estrategia == "MANUAL" or alert.estrategia == "UNKNOWN") and alert.ticket:
         try:
-            doc = db.collection("mia_audit_logs").document(str(alert.ticket)).get()
-            if doc.exists:
-                exist_data = doc.to_dict()
-                alert.activo = exist_data.get("activo", "UNKNOWN")
+            # 1. Intentar recuperación rápida desde RAM Cache (Cero consumo API)
+            global GLOBAL_AUDIT_LOGS
+            exist_data = None
+            if GLOBAL_AUDIT_LOGS:
+                for l in GLOBAL_AUDIT_LOGS:
+                    if str(l.get("ticket")) == str(alert.ticket):
+                        exist_data = l
+                        break
+            
+            # 2. Si no está en RAM (posible reinicio de servidor), hacer UN SÓLO query directo a la Base
+            if not exist_data and firebase_inicializado:
+                try:
+                    doc_fb = db.collection("mia_audit_logs").document(str(alert.ticket)).get()
+                    if doc_fb.exists:
+                        exist_data = doc_fb.to_dict()
+                except: pass
+                
+            # 3. Asignar los valores recuperados
+            if exist_data:
+                if alert.activo == "UNKNOWN":
+                    alert.activo = exist_data.get("activo", "UNKNOWN")
+                if alert.estrategia == "MANUAL" or alert.estrategia == "UNKNOWN":
+                    # Recuperar estrategia original con la que se aperturó el ticket
+                    alert.estrategia = exist_data.get("estrategia", "MANUAL")
                 if alert.pnl == 0.0:
                     alert.pnl = exist_data.get("pnl", 0.0)
                 if alert.precio == 0.0:
@@ -2150,7 +2178,13 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         # (incluyendo FVG y Sweep) y las pondera en el score. Si el score llega al 80%,
         # la estructura es matemáticamente válida según la configuración de Mia.
         # 3. VALIDACIÓN FINAL DE PROBABILIDAD ESTADÍSTICA (Score >= 80%)
-        # El score debe ser mayor o igual al 80% como primera condición
+        # El score debe ser mayor o igual al 80% como primera
+        # OPTIMIZACIÓN: Obtener memoria colectiva de la RAM Cache en lugar de Firestore
+        global GLOBAL_MIA_COLLECTIVE
+        memoria_colectiva = None
+        if GLOBAL_MIA_COLLECTIVE:
+            memoria_colectiva = GLOBAL_MIA_COLLECTIVE
+        
         score = data.get("score_porcentaje", 0.0)
         gatillo = data.get("gatillo_entrada", False)
         score_valido = gatillo or (score >= 80.0)
@@ -2162,17 +2196,9 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
                 "score_porcentaje": score
             }
             
-        # Obtener memoria colectiva de Firestore si existe
-        memoria_colectiva = None
-        if firebase_inicializado and db is not None:
-            try:
-                mem_doc = db.collection("system_memory").document("mia_collective").get()
-                if mem_doc.exists:
-                    memoria_colectiva = mem_doc.to_dict().get("memoria_compartida")
-                    print(f"| APRENDIZAJE MIA | Memoria colectiva cruzada cargada exitosamente.")
-            except Exception as e:
-                print(f"| APRENDIZAJE MIA ERROR | No se pudo leer la memoria colectiva cruzada: {e}")
-
+        # La memoria colectiva ya se cargó de la RAM en la línea 2170
+        if memoria_colectiva:
+            print(f"| APRENDIZAJE MIA | Memoria colectiva cruzada cargada exitosamente desde Caché RAM.")
         # Consultar IAs para el contexto geopolítico y fundamental
         alert = TradeAlert(
             activo=req.activo,
@@ -3348,27 +3374,17 @@ def get_trade_tp(ticket: str):
                         if tp > 0 and estrategia != "MANUAL":
                             break
                             
+        # 2. Si no está en RAM (ej: ticket viejo o caché vacía), consultar Firestore
         if not encontrado or tp == 0.0 or estrategia == "MANUAL":
-            doc = db.collection("mia_audit_logs").document(str(ticket)).get()
-            if doc.exists:
-                data = doc.to_dict()
-                tp = data.get("take_profit", data.get("tp", 0.0))
-                estrategia = data.get("estrategia", "MANUAL")
-            
-        if not tp or estrategia == "MANUAL":
-            # Buscar en trading_alerts si no está en mia_audit_logs (buscar como string y como int por si acaso)
-            alerts_str = list(db.collection("trading_alerts").where("ticket", "==", str(ticket)).limit(1).stream())
-            alerts_int = list(db.collection("trading_alerts").where("ticket", "==", int(ticket)).limit(1).stream()) if str(ticket).isdigit() else []
-            
-            alerts = alerts_str if len(alerts_str) > 0 else alerts_int
-            for a in alerts:
-                data = a.to_dict()
-                if not tp:
-                    tp = data.get("take_profit", data.get("tp", 0.0))
-                if estrategia == "MANUAL":
-                    estrategia = data.get("estrategia", "MANUAL")
-                
-        # Buscar si ya se tomó un parcial (si existe un documento que empiece por PARCIAL_{ticket} o un log con accion CIERRE_PARCIAL)
+            try:
+                doc = db.collection("mia_audit_logs").document(str(ticket)).get()
+                if doc.exists:
+                    data = doc.to_dict()
+                    if tp == 0.0:
+                        tp = float(data.get("take_profit", data.get("tp", 0.0)))
+                    if estrategia == "MANUAL":
+                        estrategia = data.get("estrategia", "MANUAL")
+            except: pass
         parcial_tomado = False
         if GLOBAL_AUDIT_LOGS:
             for l in GLOBAL_AUDIT_LOGS:
@@ -3376,11 +3392,12 @@ def get_trade_tp(ticket: str):
                     parcial_tomado = True
                     break
         
-        # Fallback de búsqueda directa en Firestore si no está en caché
         if not parcial_tomado:
-            p_doc = db.collection("mia_audit_logs").document(f"PARCIAL_{ticket}").get()
-            if p_doc.exists:
-                parcial_tomado = True
+            try:
+                p_doc = db.collection("mia_audit_logs").document(f"PARCIAL_{ticket}").get()
+                if p_doc.exists:
+                    parcial_tomado = True
+            except: pass
                 
         return {"status": "success", "tp": float(tp), "parcial_tomado": parcial_tomado, "estrategia": estrategia}
     except Exception as e:
