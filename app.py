@@ -1417,19 +1417,26 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     """
     # RECUPERACIÓN DE DATOS ANTES DE PROCESAR:
     # Si viene con información faltante (Cierres huérfanos por desconexión o límite de cuota)
-    if (alert.activo == "UNKNOWN" or alert.estrategia == "MANUAL" or alert.estrategia == "UNKNOWN") and alert.ticket:
+    if (alert.activo == "UNKNOWN" or alert.estrategia == "MANUAL" or alert.estrategia == "UNKNOWN"):
         try:
             # 1. Intentar recuperación rápida desde RAM Cache (Cero consumo API)
             global GLOBAL_AUDIT_LOGS
             exist_data = None
             if GLOBAL_AUDIT_LOGS:
-                for l in GLOBAL_AUDIT_LOGS:
-                    if str(l.get("ticket")) == str(alert.ticket):
-                        exist_data = l
-                        break
+                if alert.ticket:
+                    for l in GLOBAL_AUDIT_LOGS:
+                        if str(l.get("ticket")) == str(alert.ticket):
+                            exist_data = l
+                            break
+                else:
+                    # Si TradingView no envía ticket, buscar el último trade de este activo
+                    for l in sorted(GLOBAL_AUDIT_LOGS, key=lambda x: str(x.get("fecha", "")), reverse=True):
+                        if l.get("activo") == alert.activo:
+                            exist_data = l
+                            break
             
             # 2. Si no está en RAM (posible reinicio de servidor), hacer UN SÓLO query directo a la Base
-            if not exist_data and firebase_inicializado:
+            if not exist_data and firebase_inicializado and alert.ticket:
                 try:
                     doc_fb = db.collection("mia_audit_logs").document(str(alert.ticket)).get()
                     if doc_fb.exists:
@@ -1449,6 +1456,21 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                     alert.precio = exist_data.get("precio_ejecucion", exist_data.get("precio", 0.0))
         except Exception as e:
             pass
+
+    # INFERIR ESTRATEGIA SI SIGUE SIENDO MANUAL Y ES APERTURA
+    if alert.estrategia == "MANUAL" or alert.estrategia == "UNKNOWN":
+        if alert.activo != "UNKNOWN" and alert.activo in GLOBAL_MATRICES_CACHE_FULL:
+            matriz = GLOBAL_MATRICES_CACHE_FULL[alert.activo]
+            conf = matriz.get("confirmaciones_tecnicas", {})
+            tiene_lux = any(conf.get(f"order_block_zona_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
+            tiene_fvg = conf.get("fvg_detectado", False)
+            tiene_retail = conf.get("order_block_detectado", False)
+            if tiene_lux: 
+                alert.estrategia = "LUX"
+            elif tiene_fvg: 
+                alert.estrategia = "FVG"
+            elif tiene_retail: 
+                alert.estrategia = "SMC"
 
     print(f"\n========================================================")
     print(f"ALERTA RECIBIDA DE TRADINGVIEW: {alert.accion} en {alert.activo}")
@@ -1574,17 +1596,17 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
         if "CIERRE" in alert.accion or "PARCIAL" in alert.accion:
             msg_tg += f"\n💵 PNL: ${round(alert.pnl, 2)}\n"
             if alert.accion == "CIERRE_PARCIAL":
-                msg_tg += f"⏳ *Parcial Tomado ({alert.comentario})*: Ganancia asegurada de +${round(alert.pnl, 2)}. El trade sigue activo buscando el siguiente TP.\n"
+                msg_tg += f"⏳ *Parcial Tomado ({alert.comentario})*: Ganancia asegurada de +${round(alert.pnl, 2)} al precio de {alert.precio}. El trade sigue activo buscando el siguiente TP.\n"
             elif alert.accion == "CIERRE_TOTAL":
                 if alert.pnl > 0.0:
                     msg_tg += f"✅ *Cierre con Ganancias*\n"
-                    msg_tg += f"🛑 *Atención*: El trade se cerró completamente en MT5 asegurando una ganancia final de +${round(alert.pnl, 2)} (Hit Full TP o Trailing Stop).\n"
+                    msg_tg += f"🛑 *Atención*: El trade se cerró completamente en MT5 asegurando una ganancia final de +${round(alert.pnl, 2)} (Precio de Cierre / Full TP / Trailing Stop: {alert.precio}).\n"
                 elif alert.pnl < 0.0:
                     msg_tg += f"❌ *Cierre con Pérdida*\n"
-                    msg_tg += f"🛑 *Atención*: El trade se cerró completamente en MT5 con una pérdida de -${abs(round(alert.pnl, 2))} (Hit SL).\n"
+                    msg_tg += f"🛑 *Atención*: El trade se cerró completamente en MT5 con una pérdida de -${abs(round(alert.pnl, 2))} (Hit SL al precio: {alert.precio}).\n"
                 else:
                     msg_tg += f"🛡️ *Cierre en Break Even* (BE)\n"
-                    msg_tg += f"🛑 *Atención*: El trade se cerró completamente en MT5 sin pérdidas ni ganancias (BE).\n"
+                    msg_tg += f"🛑 *Atención*: El trade se cerró completamente en MT5 sin pérdidas ni ganancias (Precio de BE: {alert.precio}).\n"
             
         msg_tg += f"\n📊 Estrategia: {alert.estrategia}"
         
