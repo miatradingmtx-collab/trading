@@ -1994,8 +1994,11 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         data["gatillo_entrada"] = score >= 80.0
         
         if data["gatillo_entrada"] and data.get("estado_ejecucion", "INACTIVO") == "INACTIVO":
-            data["estado_ejecucion"] = "PENDIENTE_EJECUCIÓN"
-            print(f"| SEMÁFORO | {activo_normalizado} ha cambiado a PENDIENTE_EJECUCIÓN")
+            if len(data.get("operaciones_activas", [])) < 2:
+                data["estado_ejecucion"] = "PENDIENTE_EJECUCIÓN"
+                print(f"| SEMÁFORO | {activo_normalizado} ha cambiado a PENDIENTE_EJECUCIÓN")
+            else:
+                print(f"| SEMÁFORO | Bloqueado para {activo_normalizado}: Ya tiene 2 operaciones activas.")
         elif not data["gatillo_entrada"] and data.get("estado_ejecucion") != "INACTIVO":
             # Resetear semáforo si se perdió el setup
             data["estado_ejecucion"] = "INACTIVO"
@@ -2184,8 +2187,17 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
                 "live_keys_valid": False
             }
 
-        # 1.5 VALIDACIÓN DE SEMÁFORO DE EJECUCIÓN
+        # 1.5 VALIDACIÓN DE SEMÁFORO Y LÍMITE DE TRADES (Máximo 2 simultáneos por activo)
         estado_actual = data.get("estado_ejecucion", "INACTIVO")
+        operaciones_activas = data.get("operaciones_activas", [])
+        
+        if len(operaciones_activas) >= 2:
+            return {
+                "authorized": False,
+                "reason": f"Límite máximo de 2 trades activos alcanzado para {activo_normalizado}. Se bloquea apertura de nuevos trades.",
+                "estado_ejecucion": estado_actual
+            }
+            
         if estado_actual != "PENDIENTE_EJECUCIÓN":
             return {
                 "authorized": False,
@@ -2448,9 +2460,12 @@ def webhook_fundamental_update(update: FundamentalUpdate, authorization: Optiona
         data["gatillo_entrada"] = score >= 80.0
         
         if data["gatillo_entrada"] and data.get("estado_ejecucion", "INACTIVO") == "INACTIVO":
-            data["estado_ejecucion"] = "PENDIENTE_EJECUCIÓN"
-            print(f"| SEMÁFORO | {activo_normalizado} ha cambiado a PENDIENTE_EJECUCIÓN (Vía Fundamental)")
-            notificar_botpress_mia(activo_normalizado, data)
+            if len(data.get("operaciones_activas", [])) < 2:
+                data["estado_ejecucion"] = "PENDIENTE_EJECUCIÓN"
+                print(f"| SEMÁFORO | {activo_normalizado} ha cambiado a PENDIENTE_EJECUCIÓN (Vía Fundamental)")
+                notificar_botpress_mia(activo_normalizado, data)
+            else:
+                print(f"| SEMÁFORO | Bloqueado para {activo_normalizado}: Ya tiene 2 operaciones activas.")
             
         data["ultimo_update"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
         
