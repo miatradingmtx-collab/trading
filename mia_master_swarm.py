@@ -2,14 +2,13 @@ import os
 from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, Process
 from langchain_google_genai import ChatGoogleGenerativeAI
+from crew_tools import firebase_reader_tool, mia_core_reader_tool, obsidian_writer_tool
 
 load_dotenv()
 
 class MiaSwarmOrchestrator:
     def __init__(self):
         print("Inicializando el Enjambre Multi-Agente de Mia (Fase 2)...")
-        # Cerebro de los Agentes: Gemini Pro (2M Context Window)
-        # Asegúrate de tener GOOGLE_API_KEY en tu entorno o en el archivo .env
         self.llm = ChatGoogleGenerativeAI(
             model="gemini-1.5-pro",
             temperature=0.2,
@@ -23,9 +22,10 @@ class MiaSwarmOrchestrator:
         # 1. El Orquestador Central
         self.master_agent = Agent(
             role='Master Orquestador y Validador de Riesgo',
-            goal='Supervisar análisis y validar ejecuciones',
-            backstory='Eres la mente maestra detrás de Mia Trading.',
+            goal='Supervisar análisis, consultar reglas base en Mia Core y validar ejecuciones',
+            backstory='Eres la mente maestra detrás de Mia Trading. Consultas el documento fundacional (DOCUMENTACION_MIA_CORE.md) antes de tomar decisiones.',
             verbose=True,
+            tools=[mia_core_reader_tool],
             llm=self.llm
         )
 
@@ -33,8 +33,9 @@ class MiaSwarmOrchestrator:
         self.inbox_agent = Agent(
             role='Capturador de Datos (INBOX)',
             goal='Extraer todos los trades de Firebase',
-            backstory='Eres obsesivo con los datos.',
+            backstory='Eres obsesivo con los datos. Tu única fuente de información es la base de datos viva.',
             verbose=True,
+            tools=[firebase_reader_tool],
             llm=self.llm
         )
 
@@ -69,8 +70,9 @@ class MiaSwarmOrchestrator:
         self.vault_agent = Agent(
             role='Escritor de Disco (VAULT)',
             goal='Escribir reportes en .md y actualizar pesos',
-            backstory='Traduces ideas a archivos físicos Markdown.',
+            backstory='Traduces ideas a archivos físicos Markdown en la bóveda.',
             verbose=True,
+            tools=[obsidian_writer_tool],
             llm=self.llm
         )
 
