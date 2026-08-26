@@ -2666,18 +2666,18 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         elif 7 <= utc_hour < 12: sesion = "LONDRES"
         
         estrategia_base = "SMC Setup"
-    str_ejecutada = "SÍ" if ejecucion.ejecutada_mt5 else "NO"
-    
-    tiene_lux = 'order_block_zona_1h' in data.get("confirmaciones_tecnicas", {})
-    tiene_smc = 'order_block_detectado' in data.get("confirmaciones_tecnicas", {}) or 'fvg_detectado' in data.get("confirmaciones_tecnicas", {})
-    estrategia_real = "SMC Setup | Liquidez + OB (SMC Base)"
-    if tiene_lux and not tiene_smc: estrategia_real = "SMC Setup | Liquidez + OB (Lux Algo)"
-    elif tiene_smc and not tiene_lux: estrategia_real = "SMC Setup | Liquidez + OB (Institucional SMC)"
+        str_ejecutada = "SÍ" if ejecucion.ejecutada_mt5 else "NO"
+        
+        tiene_lux = 'order_block_zona_1h' in data.get("confirmaciones_tecnicas", {})
+        tiene_smc = 'order_block_detectado' in data.get("confirmaciones_tecnicas", {}) or 'fvg_detectado' in data.get("confirmaciones_tecnicas", {})
+        estrategia_real = "SMC Setup | Liquidez + OB (SMC Base)"
+        if tiene_lux and not tiene_smc: estrategia_real = "SMC Setup | Liquidez + OB (Lux Algo)"
+        elif tiene_smc and not tiene_lux: estrategia_real = "SMC Setup | Liquidez + OB (Institucional SMC)"
 
-    detalle_str = f"{ejecucion.activo} | {fecha} | {sesion} | {estrategia_real} | {confirmaciones_str} | SCORE: {ejecucion.score}% | EJECUTADA EN MT5: {str_ejecutada} | MOTIVO: {ejecucion.motivo}"
+        detalle_str = f"{ejecucion.activo} | {fecha} | {sesion} | {estrategia_real} | {confirmaciones_str} | SCORE: {ejecucion.score}% | EJECUTADA EN MT5: {str_ejecutada} | MOTIVO: {ejecucion.motivo}"
 
-    audit_ref = db.collection("mia_audit_logs").document(str(ejecucion.ticket))
-    audit_ref.set({
+        audit_ref = db.collection("mia_audit_logs").document(str(ejecucion.ticket))
+        audit_ref.set({
         "ticket": ejecucion.ticket,
         "estrategia": estrategia_real,
             "activo": ejecucion.activo,
