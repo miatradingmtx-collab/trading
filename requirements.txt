@@ -14,3 +14,4 @@ httpx>=0.24.0
 crewai
 langchain
 langchain-openai
+langchain-google-genai
