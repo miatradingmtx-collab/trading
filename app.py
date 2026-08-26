@@ -1316,12 +1316,16 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
             
         # 5. Detectar y Actualizar Patrones ICT/SMC
         ict_fields = {
-            "order_block_detectado": "OB",
+            "order_block_detectado": "SMC_OB",
             "fvg_detectado": "FVG",
             "breaker_block_detectado": "BRK",
             "sweep_liquidez_detectado": "SWEEP",
             "soporte_resistencia_activo": "SR",
-            "order_block_zona": "OB_ZONE",
+            "order_block_zona_1h": "LUX_OB_1H",
+            "order_block_zona_2h": "LUX_OB_2H",
+            "order_block_zona_3h": "LUX_OB_3H",
+            "order_block_zona_4h": "LUX_OB_4H",
+            "order_block_zona_8h": "LUX_OB_8H",
             "alineamiento_liquidez": "LIQ_FLOW"
         }
         patron_key_parts = sorted([ict_fields[f] for f in confirmaciones_activas if f in ict_fields])

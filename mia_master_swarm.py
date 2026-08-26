@@ -1,22 +1,39 @@
 import os
-# from crewai import Agent, Task, Crew, Process
-# from langchain_openai import ChatOpenAI # Se habilitará cuando configuremos las API Keys
+from crewai import Agent, Task, Crew, Process
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 class MiaSwarmOrchestrator:
     def __init__(self):
         print("Inicializando el Enjambre Multi-Agente de Mia (Fase 2)...")
-        # Aquí inicializaremos el LLM maestro (GPT-4o o Claude)
-        # self.llm = ChatOpenAI(model_name="gpt-4o", temperature=0.2)
+        # Cerebro de los Agentes: Gemini Pro (2M Context Window)
+        # Asegúrate de tener GOOGLE_API_KEY en tu entorno o en el archivo .env
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-1.5-pro",
+            temperature=0.2,
+            max_tokens=8192
+        )
 
     def crear_agentes(self):
         """Define las personalidades y roles de los 6 Agentes del Ecosistema"""
-        print("Cargando roles de agentes...")
+        print("Cargando roles de agentes y asignando Gemini Pro...")
         
         # 1. El Orquestador Central
-        # self.master_agent = Agent(...)
+        self.master_agent = Agent(
+            role='Master Orquestador y Validador de Riesgo',
+            goal='Supervisar análisis y validar ejecuciones',
+            backstory='Eres la mente maestra detrás de Mia Trading.',
+            verbose=True,
+            llm=self.llm
+        )
 
         # 2. El Capturador
-        # self.inbox_agent = Agent(...)
+        self.inbox_agent = Agent(
+            role='Capturador de Datos (INBOX)',
+            goal='Extraer todos los trades de Firebase',
+            backstory='Eres obsesivo con los datos.',
+            verbose=True,
+            llm=self.llm
+        )
 
         # 3. El Cronista
         # self.daily_agent = Agent(...)
