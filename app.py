@@ -827,6 +827,14 @@ def recalcular_score_ponderado(data: dict) -> float:
         if tech.get(f"alineamiento_liquidez_{tf}", False):
             score += pesos.get(f"alineamiento_liquidez_{tf}", 25)
 
+    # 3.5 Institucionales Extra
+    inst = data.get("confirmaciones_institucionales", {})
+    if inst.get("heatmap_ordenes_limite", False):
+        score += pesos.get("heatmap_ordenes_limite", 35.0)
+        
+    if inst.get("dark_pools_compra_masiva", False):
+        score += pesos.get("dark_pools_compra_masiva", 30.0)
+
     # 4. Módulos SMC e ICT (Institucional)
     smc_codes = tech.get("smc_codes", [])
     
