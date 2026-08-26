@@ -1473,7 +1473,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                 alert.estrategia = "SMC"
 
     print(f"\n========================================================")
-    print(f"ALERTA RECIBIDA DE TRADINGVIEW: {alert.accion} en {alert.activo}")
+    print(f"ALERTA RECIBIDA EN WEBHOOK (MT5/FIREBASE): {alert.accion} en {alert.activo}")
     print(f"Precio Alerta: {alert.precio} | Estrategia: {alert.estrategia}")
     print(f"========================================================")
     
