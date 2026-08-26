@@ -1445,15 +1445,28 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                 
             # 3. Asignar los valores recuperados
             if exist_data:
+                precio_apertura = exist_data.get("precio_ejecucion", exist_data.get("precio", alert.precio))
+                # Set dynamic variable to use in Telegram later
+                alert.__setattr__('precio_apertura_calculado', precio_apertura)
+                
                 if alert.activo == "UNKNOWN":
                     alert.activo = exist_data.get("activo", "UNKNOWN")
                 if alert.estrategia == "MANUAL" or alert.estrategia == "UNKNOWN":
                     # Recuperar estrategia original con la que se aperturó el ticket
-                    alert.estrategia = exist_data.get("estrategia", "MANUAL")
+                    est = exist_data.get("estrategia", "")
+                    if not est:
+                        # Si no hay estrategia explícita, tratar de armarla desde detalle_setup o técnica
+                        det = exist_data.get("detalle_setup", "")
+                        if "SMC" in det or "Lux" in det:
+                            partes = det.split("|")
+                            est = partes[3].strip() if len(partes) > 3 else "SMC Setup | Liquidez + OB"
+                        else:
+                            est = "SMC Setup | Liquidez + OB"
+                    alert.estrategia = est
                 if alert.pnl == 0.0:
                     alert.pnl = exist_data.get("pnl", 0.0)
                 if alert.precio == 0.0:
-                    alert.precio = exist_data.get("precio_ejecucion", exist_data.get("precio", 0.0))
+                    alert.precio = precio_apertura
         except Exception as e:
             pass
 
@@ -1581,15 +1594,39 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
             msg_tg += f"📦 Lote: {alert.lotaje}\n"
         
         msg_tg += f"🛡️ SL: {alert.stop_loss if alert.stop_loss else 'N/A'}\n"
-        if alert.take_profit and alert.take_profit > 0 and alert.precio > 0:
-            distancia = abs(alert.take_profit - alert.precio)
-            es_buy = alert.take_profit > alert.precio
-            tp1 = round(alert.precio + (distancia * 0.25) if es_buy else alert.precio - (distancia * 0.25), 5)
-            tp2 = round(alert.precio + (distancia * 0.50) if es_buy else alert.precio - (distancia * 0.50), 5)
+        if alert.take_profit and alert.take_profit > 0:
+            p_apertura = getattr(alert, 'precio_apertura_calculado', alert.precio)
+            distancia = abs(alert.take_profit - p_apertura)
+            es_buy = alert.take_profit > p_apertura
+            tp1 = round(p_apertura + (distancia * 0.25) if es_buy else p_apertura - (distancia * 0.25), 5)
+            tp2 = round(p_apertura + (distancia * 0.50) if es_buy else p_apertura - (distancia * 0.50), 5)
             
-            msg_tg += f"🎯 TP1 (25%): {tp1}\n"
-            msg_tg += f"🎯 TP2 (50%): {tp2}\n"
-            msg_tg += f"🏁 Full TP: {alert.take_profit}\n"
+            check_tp1 = ""
+            check_tp2 = ""
+            check_full = ""
+            
+            # Checkmarks logic
+            if "CIERRE_PARCIAL" in alert.accion:
+                if alert.comentario and "25%" in alert.comentario:
+                    check_tp1 = " ✅"
+                elif alert.comentario and "50%" in alert.comentario:
+                    check_tp1 = " ✅"
+                    check_tp2 = " ✅"
+            elif "CIERRE_TOTAL" in alert.accion and alert.pnl > 0:
+                # If we closed with profit, assume at least TP1/2 were hit depending on distance, or Full TP
+                if abs(alert.precio - alert.take_profit) < (distancia * 0.1):
+                    check_tp1 = " ✅"
+                    check_tp2 = " ✅"
+                    check_full = " ✅"
+                elif abs(alert.precio - tp2) < (distancia * 0.2) or (alert.precio > tp2 if es_buy else alert.precio < tp2):
+                    check_tp1 = " ✅"
+                    check_tp2 = " ✅"
+                elif abs(alert.precio - tp1) < (distancia * 0.2) or (alert.precio > tp1 if es_buy else alert.precio < tp1):
+                    check_tp1 = " ✅"
+                    
+            msg_tg += f"🎯 TP1 (25%): {tp1}{check_tp1}\n"
+            msg_tg += f"🎯 TP2 (50%): {tp2}{check_tp2}\n"
+            msg_tg += f"🏁 Full TP: {alert.take_profit}{check_full}\n"
         else:
             msg_tg += f"🎯 TP: N/A\n"
 
