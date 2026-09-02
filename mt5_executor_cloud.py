@@ -542,6 +542,10 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
         accion = "COMPRA" if is_buy else "VENTA"
     elif evento == "CIERRE_PARCIAL":
         accion = "CIERRE_PARCIAL"
+    elif evento == "PROTECCION_BE":
+        accion = "PROTECCION_BE"
+    elif evento == "TRAILING_STOP":
+        accion = "TRAILING_STOP"
     elif evento == "REANUDACIÓN":
         accion = "REANUDACIÓN"
     else:
@@ -889,6 +893,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                                 try:
                                     await connection.modify_position(ticket, stop_loss=punto_mitad_tp, take_profit=tp)
                                     POSICIONES_ACTIVAS[ticket]["sl"] = punto_mitad_tp
+                                    await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "TRAILING_STOP", current_price, punto_mitad_tp, tp, pnl=0.0, comentario="Trailing Stop al 50%", estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""), lotaje=pos.get('volume', 0.0))
                                 except Exception as e:
                                     print(f"| GESTOR TRAILING SL ERROR | No se pudo mover SL al 50% para ticket {ticket}: {e}")
                         except Exception as eval_err:
@@ -969,7 +974,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                                 pnl_flotante = distancia_actual * volume * 100000
                                 
                             comentario_emergencia = "Protegido en Break Even (Salvamento por Retroceso)"
-                            await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, nuevo_sl, tp, pnl=pnl_flotante, comentario=comentario_emergencia, estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""), lotaje=pos.get('volume', 0.0))
+                            await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "PROTECCION_BE", current_price, nuevo_sl, tp, pnl=pnl_flotante, comentario=comentario_emergencia, estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""), lotaje=pos.get('volume', 0.0))
                         except Exception as t_e:
                             print(f"| TELEGRAM WARN | No se envió notificación de BE Salvamento: {t_e}")
                             

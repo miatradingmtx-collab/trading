@@ -1642,10 +1642,15 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
         else:
             msg_tg += f"🎯 TP: N/A\n"
 
-        if "CIERRE" in alert.accion or "PARCIAL" in alert.accion:
-            msg_tg += f"\n💵 PNL: ${round(alert.pnl, 2)}\n"
+        if "CIERRE" in alert.accion or "PARCIAL" in alert.accion or alert.accion in ["PROTECCION_BE", "TRAILING_STOP"]:
+            if alert.accion not in ["PROTECCION_BE", "TRAILING_STOP"]:
+                msg_tg += f"\n💵 PNL: ${round(alert.pnl, 2)}\n"
             if alert.accion == "CIERRE_PARCIAL":
                 msg_tg += f"⏳ *Parcial Tomado ({alert.comentario})*: Ganancia asegurada de +${round(alert.pnl, 2)} al precio de {alert.precio}. El trade sigue activo buscando el siguiente TP.\n"
+            elif alert.accion == "PROTECCION_BE":
+                msg_tg += f"🛡️ *Salvamento por Retroceso*: El SL ha sido movido a Break Even para proteger el capital. El trade sigue activo.\n"
+            elif alert.accion == "TRAILING_STOP":
+                msg_tg += f"📈 *Trailing Stop Activado*: El SL ha avanzado para asegurar ganancias al 50%. El trade sigue activo.\n"
             elif alert.accion == "CIERRE_TOTAL":
                 if alert.pnl > 0.0:
                     msg_tg += f"✅ *Cierre con Ganancias*\n"
@@ -2675,9 +2680,10 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         
         tiene_lux = 'order_block_zona_1h' in data.get("confirmaciones_tecnicas", {})
         tiene_smc = 'order_block_detectado' in data.get("confirmaciones_tecnicas", {}) or 'fvg_detectado' in data.get("confirmaciones_tecnicas", {})
-        estrategia_real = "SMC Setup | Liquidez + OB (SMC Base)"
-        if tiene_lux and not tiene_smc: estrategia_real = "SMC Setup | Liquidez + OB (Lux Algo)"
-        elif tiene_smc and not tiene_lux: estrategia_real = "SMC Setup | Liquidez + OB (Institucional SMC)"
+        estrategia_real = ejecucion.estrategia if hasattr(ejecucion, "estrategia") and ejecucion.estrategia and ejecucion.estrategia != "SMC Setup" else "SMC Setup | Liquidez + OB (SMC Base)"
+        if estrategia_real == "SMC Setup | Liquidez + OB (SMC Base)":
+            if tiene_lux and not tiene_smc: estrategia_real = "SMC Setup | Liquidez + OB (Lux Algo)"
+            elif tiene_smc and not tiene_lux: estrategia_real = "SMC Setup | Liquidez + OB (Institucional SMC)"
 
         detalle_str = f"{ejecucion.activo} | {fecha} | {sesion} | {estrategia_real} | {confirmaciones_str} | SCORE: {ejecucion.score}% | EJECUTADA EN MT5: {str_ejecutada} | MOTIVO: {ejecucion.motivo}"
 
