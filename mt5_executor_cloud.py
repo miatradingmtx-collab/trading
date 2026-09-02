@@ -400,7 +400,9 @@ def analizar_smc_ict(df: pd.DataFrame) -> Dict[str, bool]:
         "order_block_detectado": False,
         "fvg_detectado": False,
         "breaker_block_detectado": False,
-        "sweep_liquidez_detectado": False
+        "sweep_liquidez_detectado": False,
+        "bullish_signal": False,
+        "bearish_signal": False
     }
     
     if len(df) < 5:
@@ -421,6 +423,12 @@ def analizar_smc_ict(df: pd.DataFrame) -> Dict[str, bool]:
         # Barrido Bajista (Toma liquidez de Sell Stops y rechaza al alza)
         if df['low'].iloc[i] < minimo_previo and df['close'].iloc[i] > minimo_previo:
             confirmaciones["sweep_liquidez_detectado"] = True
+            confirmaciones["bullish_signal"] = True
+            
+        # Barrido Alcista (Toma liquidez de Buy Stops y rechaza a la baja)
+        if df['high'].iloc[i] > maximo_previo and df['close'].iloc[i] < maximo_previo:
+            confirmaciones["sweep_liquidez_detectado"] = True
+            confirmaciones["bearish_signal"] = True
             
         # Barrido Alcista (Toma liquidez de Buy Stops y rechaza a la baja)
         if df['high'].iloc[i] > maximo_previo and df['close'].iloc[i] < maximo_previo:
@@ -450,16 +458,22 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
     if confirmaciones["breaker_block_detectado"]: smc_codes.append(3)
     if confirmaciones["sweep_liquidez_detectado"]: smc_codes.append(4)
     
+    tecnicas = {
+        "soporte_resistencia_activo": bool(soporte_activo),
+        "medias_moviles_alineadas": bool(ma_alineada),
+        "rsi_sobrecompra_sobreventa": bool(rsi_val >= 80 or rsi_val <= 20),
+        "smc_codes": smc_codes,
+        "poc_price": poc_price
+    }
+    
+    for tf in ["1h", "2h", "3h", "4h", "8h"]:
+        tecnicas[f"order_block_zona_{tf}"] = confirmaciones.get(f"order_block_zona_{tf}", False)
+        tecnicas[f"alineamiento_liquidez_{tf}"] = confirmaciones.get(f"alineamiento_liquidez_{tf}", False)
+
     payload = {
         "activo": activo,
         "killzone_activa": killzone_activa,
-        "confirmaciones_tecnicas": {
-            "soporte_resistencia_activo": bool(soporte_activo),
-            "medias_moviles_alineadas": bool(ma_alineada),
-            "rsi_sobrecompra_sobreventa": bool(rsi_val >= 80 or rsi_val <= 20),
-            "smc_codes": smc_codes,
-            "poc_price": poc_price
-        }
+        "confirmaciones_tecnicas": tecnicas
     }
 
     
@@ -1095,8 +1109,9 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
                 "precio_ejecucion": precio_ejecucion,
                 "stop_loss": float(sl),
                 "take_profit": float(tp),
-                "ejecutada_mt5": True,
-                "motivo": "Ejecutada por Escáner Cloud"
+                                "ejecutada_mt5": True,
+                "motivo": "Ejecutada por Escaner Cloud",
+                "estrategia": estrategia
             }
             async with httpx.AsyncClient() as client:
                 await client.post(url, headers=headers, json=payload, timeout=5)
@@ -1310,7 +1325,18 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             # 🛡️ HIPÓTESIS DEL USUARIO: Entrar antes de la apertura si el Score >= 80% 
             # previene entrar a destiempo y ser barrido por la volatilidad inicial.
             
-            accion = "COMPRA" if (precio_actual > ema_50) else "VENTA"
+            
+            # SOLUCION DE SESGO: Determinar direccion en base a barridos, FVG o EMA si no hay claro
+            es_alcista = conf_1h.get("bullish_signal", False) or conf_4h.get("bullish_signal", False)
+            es_bajista = conf_1h.get("bearish_signal", False) or conf_4h.get("bearish_signal", False)
+            
+            if es_alcista and not es_bajista:
+                accion = "COMPRA"
+            elif es_bajista and not es_alcista:
+                accion = "VENTA"
+            else:
+                accion = "COMPRA" if (precio_actual > ema_50) else "VENTA"
+
             
             # Solicitar autorización al cerebro (Mia)
             decision = await solicitar_autorizacion_trade(activo, accion, precio_actual)

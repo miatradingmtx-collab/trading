@@ -2624,7 +2624,8 @@ class MetaApiExecution(BaseModel):
     stop_loss: Optional[float] = 0.0
     take_profit: Optional[float] = 0.0
     ejecutada_mt5: bool = True
-    motivo: str = "Cumple parámetros de matriz técnica y de riesgo"
+    motivo: str = "Cumple parǭmetros de matriz tǸcnica y de riesgo"
+    estrategia: str = "SMC Setup" 
 
 @app.post("/webhook_marcar_ejecutado")
 def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optional[str] = Header(None)):
