@@ -4028,7 +4028,7 @@ async def entrenar_pesos_dinamicos():
         
         # 5. Escribir top 3 en la Base de Conocimiento (Obsidian) para la "Regla de 3"
         top_3 = sorted(nuevos_pesos.items(), key=lambda item: item[1], reverse=True)[:3]
-        obsidian_path = r"D:\obsidiana\Proyectos\Mia_Trading\Mejores_Estrategias_Regla_De_3.md"
+        obsidian_path = r"E:\obsidiana\Proyectos\Mia_Trading\Mejores_Estrategias_Regla_De_3.md"
         
         import os
         os.makedirs(os.path.dirname(obsidian_path), exist_ok=True)
