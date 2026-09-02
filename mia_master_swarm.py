@@ -1,79 +1,103 @@
 import os
 from dotenv import load_dotenv
-from crewai import Agent, Task, Crew, Process
-from langchain_google_genai import ChatGoogleGenerativeAI
+from crewai import Agent, Task, Crew, Process, LLM
 from crew_tools import firebase_reader_tool, mia_core_reader_tool, obsidian_writer_tool
+import requests
+
+def emit_ws_event(agent_name, action, data=""):
+    try:
+        requests.post("http://localhost:8000/emit", json={
+            "agent": agent_name,
+            "action": action,
+            "data": data
+        }, timeout=1)
+    except:
+        pass
 
 load_dotenv()
+# LiteLLM (usado por CrewAI) espera GEMINI_API_KEY
+if "GOOGLE_API_KEY" in os.environ and "GEMINI_API_KEY" not in os.environ:
+    os.environ["GEMINI_API_KEY"] = os.environ["GOOGLE_API_KEY"]
 
 class MiaSwarmOrchestrator:
     def __init__(self):
         print("Inicializando el Enjambre Multi-Agente de Mia (Fase 2)...")
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-pro",
-            temperature=0.2,
-            max_tokens=8192
+        self.llm = LLM(
+            model="gemini/gemini-2.5-flash", 
+            api_key=os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
         )
 
     def crear_agentes(self):
         """Define las personalidades y roles de los 6 Agentes del Ecosistema"""
         print("Cargando roles de agentes y asignando Gemini Pro...")
         
-        # 1. El Orquestador Central
-        self.master_agent = Agent(
-            role='Master Orquestador y Validador de Riesgo',
-            goal='Supervisar análisis, consultar reglas base en Mia Core y validar ejecuciones',
-            backstory='Eres la mente maestra detrás de Mia Trading. Consultas el documento fundacional (DOCUMENTACION_MIA_CORE.md) antes de tomar decisiones.',
-            verbose=True,
-            tools=[mia_core_reader_tool],
-            llm=self.llm
-        )
-
-        # 2. El Capturador
+        # 1. Agente Inbox
         self.inbox_agent = Agent(
-            role='Capturador de Datos (INBOX)',
-            goal='Extraer todos los trades de Firebase',
-            backstory='Eres obsesivo con los datos. Tu única fuente de información es la base de datos viva.',
+            role="Data Inbox Router",
+            goal="Consumir datos de Firebase y clasificarlos preliminarmente.",
+            backstory="Eres el guardián de entrada. Todo dato crudo pasa primero por ti.",
             verbose=True,
+            allow_delegation=False,
             tools=[firebase_reader_tool],
-            llm=self.llm
+            llm=self.llm,
+            step_callback=lambda step: emit_ws_event("Inbox", "thinking", "Procesando datos en Firebase...")
         )
 
-        # 3. El Cronista
-        self.daily_agent = Agent(
-            role='Analista Temporal (DAILY)',
-            goal='Identificar Killzones y sesiones ganadoras/perdedoras',
-            backstory='Eres el guardián del tiempo. Sabes exactamente cuándo el mercado es tóxico.',
+        # 2. Agente Daily Bias
+        self.daily_bias_agent = Agent(
+            role="Daily Bias Analizer",
+            goal="Analizar contexto macro y temporalidades altas para definir dirección.",
+            backstory="Ves el panorama general. Defines la tendencia del día (alcista, bajista, consolidación).",
             verbose=True,
-            llm=self.llm
+            allow_delegation=False,
+            llm=self.llm,
+            step_callback=lambda step: emit_ws_event("Daily", "thinking", "Analizando sesgo direccional diario...")
         )
 
-        # 4. El Analista Cuantitativo
+        # 3. Agente Creador de MOC (Map of Context)
         self.moc_agent = Agent(
-            role='Validador Estadístico (MOC)',
-            goal='Testear WinRates y ajustar pesos matemáticos',
-            backstory='Eres un genio matemático que revisa si la Regla de 3 se sigue cumpliendo.',
+            role="MOC Architect",
+            goal="Crear Mapas de Contexto estructurados a partir del análisis.",
+            backstory="Organizas el caos. Creas índices (MOCs) que relacionan ideas y setups.",
             verbose=True,
-            llm=self.llm
+            allow_delegation=False,
+            llm=self.llm,
+            step_callback=lambda step: emit_ws_event("MOC", "thinking", "Creando Mapa de Contexto...")
         )
 
-        # 5. El Taxónomo
+        # 4. Agente de Etiquetas y Enlaces
         self.tags_agent = Agent(
-            role='Indexador de Metadatos (TAGS)',
-            goal='Extraer keywords y estructurar YAML para Obsidian',
-            backstory='Aseguras que todo quede etiquetado perfectamente para Obsidian.',
+            role="Tags & Links Specialist",
+            goal="Extraer entidades clave y generar metadatos y enlaces de Obsidian.",
+            backstory="Eres experto en el ecosistema Zettelkasten. Conectas las notas correctamente.",
             verbose=True,
-            llm=self.llm
+            allow_delegation=False,
+            llm=self.llm,
+            step_callback=lambda step: emit_ws_event("Tags", "thinking", "Generando etiquetas y bi-direccionalidad...")
         )
 
-        # 6. El Guardián Físico
-        self.vault_agent = Agent(
-            role='Escritor de Disco (VAULT)',
-            goal='Escribir reportes en .md y actualizar pesos',
-            backstory='Traduces ideas a archivos físicos Markdown en la bóveda.',
+        # 5. Agente Master (Sintetizador y Juez Final)
+        self.master_agent = Agent(
+            role="Master AI Synthesizer",
+            goal="Validar el trabajo de todos contra las reglas CORE y crear el output final.",
+            backstory="Eres la autoridad final. Aseguras que los MOCs e ideas sigan la DOCUMENTACION_MIA_CORE.md.",
             verbose=True,
+            allow_delegation=False,
+            tools=[mia_core_reader_tool],
+            llm=self.llm,
+            step_callback=lambda step: emit_ws_event("Master", "thinking", "Validando contra MIA CORE...")
+        )
+
+        # 6. Agente Vault Writer (Obsidian)
+        self.vault_agent = Agent(
+            role="Obsidian Vault Manager",
+            goal="Guardar físicamente la información en el disco duro (Vault).",
+            backstory="Eres el escriba final. Tu trabajo es ejecutar la escritura de los archivos markdown.",
+            verbose=True,
+            allow_delegation=False,
             tools=[obsidian_writer_tool],
-            llm=self.llm
+            llm=self.llm,
+            step_callback=lambda step: emit_ws_event("Vault", "writing", "Escribiendo archivo markdown...")
         )
 
     def crear_tareas(self):
@@ -86,33 +110,38 @@ class MiaSwarmOrchestrator:
             agent=self.inbox_agent
         )
 
+        # 2. Tarea de Daily
         self.task_daily = Task(
-            description='Analiza el output de INBOX. Cruza las victorias y derrotas con sus horarios. Identifica si hay alguna "Killzone" o sesión específica donde estemos perdiendo dinero consistentemente.',
-            expected_output='Reporte temporal indicando las mejores y peores horas de operativa del día.',
-            agent=self.daily_agent
+            description='Tomar los trades filtrados por INBOX y separarlos por Killzone, calculando qué sesión (London/NY) es más rentable.',
+            expected_output='Un diccionario JSON con winrates por killzone.',
+            agent=self.daily_bias_agent,
         )
 
+        # 3. Tarea de MOC
         self.task_moc = Task(
-            description='Toma los trades del día y analiza el WinRate de las estrategias (SMC_OB, LUX_OB, Sweep). Valida si la Regla de 3 se sigue cumpliendo. Sugiere ajustes matemáticos.',
-            expected_output='Análisis cuantitativo de las estrategias y sugerencias de pesos para el ML.',
+            description='Conectar los datos del INBOX y del DAILY para aplicar la Regla de 3 de Mia (3 setups ganadores diarios). Verifica si estadísticamente se cumplió o no.',
+            expected_output='Resumen textual del desempeño estadístico del día.',
             agent=self.moc_agent
         )
 
+        # 4. Tarea de TAGS
         self.task_tags = Task(
-            description='Recibe los análisis anteriores. Genera etiquetas YAML (tags) para Obsidian (ej. #win, #loss, #stop-hunt) y crea enlaces bidireccionales entre las estrategias.',
-            expected_output='Texto formateado en Markdown con metadatos YAML listos para Obsidian.',
+            description='Leer el análisis estadístico de MOC y generar el frontmatter YAML exacto para Obsidian (tags, aliases, date).',
+            expected_output='Bloque YAML válido de Obsidian.',
             agent=self.tags_agent
         )
-        
+
+        # 5. Tarea del MASTER
         self.task_master = Task(
-            description='Revisa el reporte final de TAGS y MOC. Actúa como Juez Final. Valida que las conclusiones lógicas no pongan en riesgo la cuenta. Da el veredicto final para publicarlo.',
-            expected_output='Reporte final aprobado y curado, listo para escritura en disco.',
+            description='Revisar el YAML y el Análisis. Leer DOCUMENTACION_MIA_CORE.md obligatoriamente para verificar si el desempeño de hoy rompió alguna regla del drawdown. Redactar el Markdown final.',
+            expected_output='El contenido completo en formato Markdown listo para guardarse.',
             agent=self.master_agent
         )
 
+        # 6. Tarea del VAULT
         self.task_vault = Task(
-            description='Toma el reporte aprobado por el Master y genera las instrucciones de escritura. En producción, aquí se escribirá el archivo .md en el disco local.',
-            expected_output='Confirmación de que el documento Markdown está listo para la Bóveda de Obsidian.',
+            description='Tomar el Markdown final del MASTER y escribirlo en un archivo en C:\\Users\\ecybe\\OneDrive\\Documentos\\Trading\\mia_knowledge_base con la fecha de hoy.',
+            expected_output='Confirmación de que el archivo .md fue escrito con éxito.',
             agent=self.vault_agent
         )
 
@@ -120,7 +149,7 @@ class MiaSwarmOrchestrator:
         """Inicializa el Crew y ejecuta las tareas en cadena"""
         print("Ensamblando el Crew y conectando a Gemini Pro...")
         self.mia_crew = Crew(
-            agents=[self.inbox_agent, self.daily_agent, self.moc_agent, self.tags_agent, self.master_agent, self.vault_agent],
+            agents=[self.inbox_agent, self.daily_bias_agent, self.moc_agent, self.tags_agent, self.master_agent, self.vault_agent],
             tasks=[self.task_inbox, self.task_daily, self.task_moc, self.task_tags, self.task_master, self.task_vault],
             verbose=True,
             process=Process.sequential # Los agentes se pasan la información uno tras otro en orden
@@ -136,4 +165,4 @@ if __name__ == "__main__":
     swarm = MiaSwarmOrchestrator()
     swarm.crear_agentes()
     swarm.crear_tareas()
-    # swarm.ejecutar_swarm() # Descomentar cuando la API Key esté lista
+    swarm.ejecutar_swarm()
