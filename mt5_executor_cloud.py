@@ -1344,7 +1344,10 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
                     break
         
         if num_abiertos == 1:
-            print(f"| ESCALA DE POSICIÓN | 1 Posición abierta ({direccion_abierta}) en {activo}. Evaluando posible re-entrada a favor de tendencia (Máx 2).")
+            if not (tiene_lux and tiene_smc):
+                print(f"| REQUISITO ESCALAMIENTO | 1 Posición abierta en {activo}. Para abrir una 2da operación, se requiere OBLIGATORIAMENTE confirmación dual LUX OB + SMC OB. Omitiendo.")
+                continue
+            print(f"| ESCALA DE POSICIÓN | 1 Posición abierta ({direccion_abierta}) en {activo}. Confirmación dual LUX+SMC detectada. Evaluando 2da entrada a favor de tendencia (Máx 2).")
 
         if gatillo_autorizado:
             # 🛡️ El filtro Anti-Stop Hunt (Sweep) ahora está vectorizado matemáticamente en app.py (Score = 45).
