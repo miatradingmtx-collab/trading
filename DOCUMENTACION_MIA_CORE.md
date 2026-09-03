@@ -130,3 +130,24 @@ El "Stored Procedure" (SP) programado en el Backend (`app.py`, línea 1228) que 
    - Top 3: `order_block_zona_1h`
 
 **Veredicto:** El SP está inyectando exitosamente la inteligencia a `mia_kb`. La Fase 2 del Ecosistema Multi-Agente (Swarm de Gemini Pro) ya tiene **materia prima suficiente** para arrancar en modo lectura, sin tener que esperar a recabar información desde cero.
+
+---
+## REGLAS DE NEGOCIO ESTRICTAS (Actualizado Septiembre 2026)
+
+### 1. Dirección del Trade y Tendencia (EMAs 50/200)
+- La dirección de todas las estrategias (OB, FVG, RSI, Soportes, Resistencias, BB, Momentum, Sweep) debe ir obligatoriamente a favor de la tendencia principal.
+- La tendencia se valida usando el cruce del precio con la **EMA 50 y EMA 200** en temporalidades macro (1H, 2H, 3H, 4H, 8H).
+  - Alcista: Precio > EMA 50 > EMA 200.
+  - Bajista: Precio < EMA 50 < EMA 200.
+
+### 2. Regla RSI 80/20
+- Todos los setups dependientes de RSI deben respetar estrictamente los niveles de **80 (Sobrecompra / Venta)** y **20 (Sobreventa / Compra)** para filtrar el ruido de rango medio.
+
+### 3. Regla de "Máximo 2 Trades" por Activo
+- El sistema tiene bloqueado abrir más de **2 operaciones simultáneas** en un mismo activo (como GBPUSD).
+- **Cobertura (Hedging):** Sólo se permite abrir una operación en contra (Compra y Venta en el mismo activo) bajo una excepción estricta: Se requiere confirmación extrema dual de **LUX OB + SMC OB**. Sin esa doble confirmación de ambos bloques de órdenes institucionales, el hedge se rechaza y se respeta la tendencia EMA.
+
+### 4. Modelo AMD (Accumulation, Manipulation, Distribution)
+- El bot debe validar la barrida de liquidez (Manipulación/Sweep) preferentemente antes de o durante la apertura de sesión (ej. Tokio, Londres, NY). 
+- Solo después de que las ballenas hayan "tomado la liquidez", se validará la confirmación técnica del resto de estrategias (OB, FVG, IFVG) para entrar en el mercado siguiendo la dirección real del trade (Distribución).
+

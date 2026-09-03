@@ -1056,7 +1056,18 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     pnl_sinc = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in deals)
             except:
                 pass
-            await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=pnl_sinc, comentario="Sincronizado por desaparición en MT5", estrategia_original="MANUAL", lotaje=0.0)
+                        
+            # Buscar estrategia real en FB antes de enviar MANUAL
+            est_sinc = "MANUAL"
+            try:
+                import httpx
+                async with httpx.AsyncClient() as client:
+                    rr = await client.get(f"{FASTAPI_URL}/api/get_trade_tp/{t}", timeout=5)
+                    if rr.status_code == 200 and rr.json().get("status") == "success":
+                        est_sinc = rr.json().get("estrategia", "MANUAL")
+            except: pass
+            
+            await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=pnl_sinc, comentario="Sincronizado por desaparición en MT5", estrategia_original=est_sinc, lotaje=0.0)
             TICKETS_SINCRONIZADOS.add(str(t))
 
     ES_PRIMERA_EJECUCION = False
@@ -1246,7 +1257,8 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             
         simbolo = MAPEO_BROKER.get(activo)
         
-        ya_abierto = simbolo in simbolos_abiertos
+        num_abiertos = simbolos_abiertos.count(simbolo)
+        ya_abierto = num_abiertos >= 1
             
         # Análisis Multi-Temporal (MTF): 1H y 4H
         df_1h = await obtener_velas_cloud(account, simbolo, '1h', 100)
@@ -1317,11 +1329,14 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         tiene_retail = confirmaciones.get("order_block_detectado", False) or bool(soporte_activo)
         es_escenario_6 = tiene_lux and not tiene_fvg and not tiene_retail
 
-        if ya_abierto and not es_escenario_6:
-            print(f"| PROTECCIÓN DOBLE TRADE | Ya existe una posición abierta para {activo}. Omitiendo escáner.")
+                if num_abiertos >= 2:
+            print(f"| PROTECCIÓN DOBLE TRADE | Ya existen {num_abiertos} posiciones para {activo}. Máximo 2 permitidas (Regla de 2). Omitiendo.")
             continue
-        elif ya_abierto and es_escenario_6:
-            print(f"| EXCEPCIÓN ESCENARIO 6 | Posición ya abierta para {activo}, pero se detecta OB Institucional puro. Permitiendo doble trade para test estadístico.")
+        elif num_abiertos == 1 and not (tiene_lux and tiene_smc):
+            print(f"| PROTECCIÓN DOBLE TRADE | Ya existe 1 posición para {activo}. Para abrir una segunda (Hedge), se requiere confirmación dual LUX + SMC OB. Omitiendo.")
+            continue
+        elif num_abiertos == 1 and (tiene_lux and tiene_smc):
+            print(f"| EXCEPCIÓN HEDGE | 1 Posición abierta para {activo}. Confirmación extrema LUX + SMC detectada. Permitiendo segundo trade (Hedge Máximo 2).")
 
         if gatillo_autorizado:
             # 🛡️ El filtro Anti-Stop Hunt (Sweep) ahora está vectorizado matemáticamente en app.py (Score = 45).
@@ -1331,16 +1346,24 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             # previene entrar a destiempo y ser barrido por la volatilidad inicial.
             
             
-            # SOLUCION DE SESGO: Determinar direccion en base a barridos, FVG o EMA si no hay claro
+                        # REGLA ESTRICTA DE TENDENCIA (EMA 50/200) + AMD + RSI 80/20
+            # Tendencia macro define la dirección base
+            tendencia_alcista = precio_actual > ema_50 and precio_actual > ema_200
+            tendencia_bajista = precio_actual < ema_50 and precio_actual < ema_200
+            
             es_alcista = conf_1h.get("bullish_signal", False) or conf_4h.get("bullish_signal", False)
             es_bajista = conf_1h.get("bearish_signal", False) or conf_4h.get("bearish_signal", False)
             
-            if es_alcista and not es_bajista:
+            # Solo permitimos operar a favor de la tendencia a menos que sea un Hedge Dual (Lux+SMC)
+            if num_abiertos == 1 and (tiene_lux and tiene_smc):
+                accion = "VENTA" if tendencia_alcista else "COMPRA" # Hedge va contra la tendencia actual
+            elif tendencia_alcista:
                 accion = "COMPRA"
-            elif es_bajista and not es_alcista:
+            elif tendencia_bajista:
                 accion = "VENTA"
             else:
-                accion = "COMPRA" if (precio_actual > ema_50) else "VENTA"
+                # Si está entre las EMAs (rango), seguimos la señal de liquidez
+                accion = "COMPRA" if es_alcista else "VENTA" 
 
             
             # Solicitar autorización al cerebro (Mia)
