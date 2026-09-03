@@ -145,9 +145,19 @@ El "Stored Procedure" (SP) programado en el Backend (`app.py`, línea 1228) que 
 
 ### 3. Regla de "Máximo 2 Trades" por Activo
 - El sistema tiene bloqueado abrir más de **2 operaciones simultáneas** en un mismo activo (como GBPUSD).
-- **Cobertura (Hedging):** Sólo se permite abrir una operación en contra (Compra y Venta en el mismo activo) bajo una excepción estricta: Se requiere confirmación extrema dual de **LUX OB + SMC OB**. Sin esa doble confirmación de ambos bloques de órdenes institucionales, el hedge se rechaza y se respeta la tendencia EMA.
+- **Prohibición Absoluta de Cobertura (Cero Hedging):** El sistema **NUNCA** puede abrir una Venta si ya existe una Compra abierta en el mismo activo (ni viceversa).
+  - Si hay 1 operación abierta y se autoriza una 2da operación por el Score >= 80, esta segunda operación DEBE ser forzosamente en la misma dirección (Escalamiento a favor de la tendencia).
+  - Cualquier señal cruzada en contra de la operación existente será bloqueada automáticamente.
 
 ### 4. Modelo AMD (Accumulation, Manipulation, Distribution)
 - El bot debe validar la barrida de liquidez (Manipulación/Sweep) preferentemente antes de o durante la apertura de sesión (ej. Tokio, Londres, NY). 
 - Solo después de que las ballenas hayan "tomado la liquidez", se validará la confirmación técnica del resto de estrategias (OB, FVG, IFVG) para entrar en el mercado siguiendo la dirección real del trade (Distribución).
 
+
+
+---
+### 🚨 ACTUALIZACIÓN CRÍTICA: PROHIBICIÓN DE HEDGING (Cobertura Cero)
+- Queda **estrictamente prohibido** que el bot mantenga operaciones simultáneas en direcciones opuestas sobre el mismo activo (ej. Venta y Compra en GBPUSD).
+- Si existe 1 operación abierta (ej. Compra), el bot sólo tiene permitido abrir una segunda operación (para llegar al máximo de 2) **si y sólo si es en la misma dirección** (ej. otra Compra) como método de escalamiento.
+- Cualquier señal en contra generada por el escáner será **bloqueada absolutamente** hasta que se cierre la posición actual.
+- La confirmación dual de LUX + SMC no otorga permisos de Hedging. Toda operación cruzada queda cancelada.

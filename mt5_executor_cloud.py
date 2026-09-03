@@ -1329,14 +1329,22 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         tiene_retail = confirmaciones.get("order_block_detectado", False) or bool(soporte_activo)
         es_escenario_6 = tiene_lux and not tiene_fvg and not tiene_retail
 
-                if num_abiertos >= 2:
-            print(f"| PROTECCIÓN DOBLE TRADE | Ya existen {num_abiertos} posiciones para {activo}. Máximo 2 permitidas (Regla de 2). Omitiendo.")
+        # REGLA ESTRICTA DE 2 TRADES Y CERO HEDGING
+        if num_abiertos >= 2:
+            print(f"| REGLA DE 2 TRADES | Ya existen {num_abiertos} posiciones para {activo}. Omitiendo.")
             continue
-        elif num_abiertos == 1 and not (tiene_lux and tiene_smc):
-            print(f"| PROTECCIÓN DOBLE TRADE | Ya existe 1 posición para {activo}. Para abrir una segunda (Hedge), se requiere confirmación dual LUX + SMC OB. Omitiendo.")
-            continue
-        elif num_abiertos == 1 and (tiene_lux and tiene_smc):
-            print(f"| EXCEPCIÓN HEDGE | 1 Posición abierta para {activo}. Confirmación extrema LUX + SMC detectada. Permitiendo segundo trade (Hedge Máximo 2).")
+        
+        # Validar dirección de la posición actual para evitar Hedging
+        direccion_abierta = None
+        if num_abiertos == 1:
+            for p in posiciones_activas:
+                pos = p if isinstance(p, dict) else getattr(p, '__dict__', {})
+                if pos.get('symbol') == simbolo:
+                    direccion_abierta = "COMPRA" if str(pos.get('type')) in ['POSITION_TYPE_BUY', '0'] else "VENTA"
+                    break
+        
+        if num_abiertos == 1:
+            print(f"| ESCALA DE POSICIÓN | 1 Posición abierta ({direccion_abierta}) en {activo}. Evaluando posible re-entrada a favor de tendencia (Máx 2).")
 
         if gatillo_autorizado:
             # 🛡️ El filtro Anti-Stop Hunt (Sweep) ahora está vectorizado matemáticamente en app.py (Score = 45).
@@ -1354,16 +1362,19 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             es_alcista = conf_1h.get("bullish_signal", False) or conf_4h.get("bullish_signal", False)
             es_bajista = conf_1h.get("bearish_signal", False) or conf_4h.get("bearish_signal", False)
             
-            # Solo permitimos operar a favor de la tendencia a menos que sea un Hedge Dual (Lux+SMC)
-            if num_abiertos == 1 and (tiene_lux and tiene_smc):
-                accion = "VENTA" if tendencia_alcista else "COMPRA" # Hedge va contra la tendencia actual
-            elif tendencia_alcista:
+            # REGLA ESTRICTA DE TENDENCIA (CERO HEDGING)
+            if tendencia_alcista:
                 accion = "COMPRA"
             elif tendencia_bajista:
                 accion = "VENTA"
             else:
-                # Si está entre las EMAs (rango), seguimos la señal de liquidez
-                accion = "COMPRA" if es_alcista else "VENTA" 
+                # Si el precio está consolidando entre las EMAs, usamos las señales SMC
+                accion = "COMPRA" if es_alcista else "VENTA"
+                
+            # Bloqueo absoluto de Hedging
+            if num_abiertos == 1 and direccion_abierta and accion != direccion_abierta:
+                print(f"| BLOQUEO ANTI-HEDGING | El sistema quiere abrir {accion} pero ya hay una {direccion_abierta} abierta en {activo}. Cancelando señal cruzada.")
+                continue 
 
             
             # Solicitar autorización al cerebro (Mia)
