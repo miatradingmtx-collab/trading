@@ -146,8 +146,9 @@ El "Stored Procedure" (SP) programado en el Backend (`app.py`, línea 1228) que 
 ### 3. Regla de "Máximo 2 Trades" por Activo
 - El sistema tiene bloqueado abrir más de **2 operaciones simultáneas** en un mismo activo (como GBPUSD).
 - **Prohibición Absoluta de Cobertura (Cero Hedging):** El sistema **NUNCA** puede abrir una Venta si ya existe una Compra abierta en el mismo activo (ni viceversa).
-  - Si hay 1 operación abierta y se autoriza una 2da operación por el Score >= 80, esta segunda operación DEBE ser forzosamente en la misma dirección (Escalamiento a favor de la tendencia).
-  - Cualquier señal cruzada en contra de la operación existente será bloqueada automáticamente.
+  - Si hay 1 operación abierta, esta segunda operación (para llegar al máximo de 2) DEBE ser forzosamente en la misma dirección (Escalamiento a favor de la tendencia).
+  - **Requisito de Escalamiento (Validación Independiente):** Para autorizar este segundo trade a favor de la tendencia, el sistema requiere la detección de un Order Block institucional. **OB SMC y OB LUX son independientes**. El trade se autoriza si se detecta un OB de SMC **O** un OB de LUX (no se requiere que estén ambos al mismo tiempo).
+  - Cualquier señal cruzada en contra de la operación existente será bloqueada absolutamente.
 
 ### 4. Modelo AMD (Accumulation, Manipulation, Distribution)
 - El bot debe validar la barrida de liquidez (Manipulación/Sweep) preferentemente antes de o durante la apertura de sesión (ej. Tokio, Londres, NY). 
@@ -160,4 +161,4 @@ El "Stored Procedure" (SP) programado en el Backend (`app.py`, línea 1228) que 
 - Queda **estrictamente prohibido** que el bot mantenga operaciones simultáneas en direcciones opuestas sobre el mismo activo (ej. Venta y Compra en GBPUSD).
 - Si existe 1 operación abierta (ej. Compra), el bot sólo tiene permitido abrir una segunda operación (para llegar al máximo de 2) **si y sólo si es en la misma dirección** (ej. otra Compra) como método de escalamiento.
 - Cualquier señal en contra generada por el escáner será **bloqueada absolutamente** hasta que se cierre la posición actual.
-- La confirmación dual de LUX + SMC no otorga permisos de Hedging. Toda operación cruzada queda cancelada.
+- La detección de LUX OB o SMC OB (siendo totalmente independientes) sirve para validar segundas entradas a favor de la tendencia, pero NO otorgan permisos de Hedging. Toda operación cruzada queda cancelada.
