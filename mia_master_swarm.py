@@ -4,7 +4,7 @@ import time
 import requests
 import sys
 from dotenv import load_dotenv
-from crewai import Agent, Task, Crew, Process, LLM
+from crewai import Agent, Task, Crew, Process
 from langchain_groq import ChatGroq
 
 from crew_tools import railway_cache_tool, obsidian_writer_tool
