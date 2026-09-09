@@ -3,8 +3,9 @@ import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
 
 // ── Configuración ──────────────────────────────────────────────────────────────
-const RAILWAY_API = 'https://trading-production-927a.up.railway.app/api/dashboard_data';
-const WS_URL      = 'ws://localhost:8000/ws';
+// Proxy local: FastAPI en :8000 hace el fetch a Railway server-side (sin CORS)
+const CACHE_API = 'http://localhost:8000/api/cache';
+const WS_URL    = 'ws://localhost:8000/ws';
 
 // Colores por agente para la terminal
 const AGENT_COLORS = {
@@ -91,7 +92,6 @@ const SwarmGraph = () => {
   const [logs,       setLogs]       = useState([]);
   const [wsStatus,   setWsStatus]   = useState('Conectando al orquestador...');
   const [activeNodes,setActiveNodes]= useState(new Set());
-  const [railwayData,setRailwayData]= useState(null);
   const [graphData]                 = useState(INITIAL_GRAPH);
 
   // ── WebSocket :8000 ───────────────────────────────────────────────────────────
@@ -126,18 +126,17 @@ const SwarmGraph = () => {
     return () => { clearTimeout(retryTimeout); ws && ws.close(); };
   }, []);
 
-  // ── Polling Railway cada 30s ──────────────────────────────────────────────────
+  // ── Polling caché Railway vía proxy local cada 30s ───────────────────────────
   useEffect(() => {
     const pull = () => {
-      fetch(RAILWAY_API)
+      fetch(CACHE_API)
         .then(r => r.json())
         .then(json => {
           if (json.status === 'success') {
-            setRailwayData(json.data);
             const ts  = new Date().toLocaleTimeString('es-MX', { hour12: false });
-            const bal = json.data.balance_actual?.toFixed(2) ?? '?';
-            const eq  = json.data.equity?.toFixed(2)         ?? '?';
-            const fp  = json.data.floating_pnl?.toFixed(2)   ?? '?';
+            const bal = json.data?.balance_actual?.toFixed(2) ?? '?';
+            const eq  = json.data?.equity?.toFixed(2)         ?? '?';
+            const fp  = json.data?.floating_pnl?.toFixed(2)   ?? '?';
             setLogs(prev => [...prev.slice(-40),
               { ts, agent: 'RAILWAY', action: 'SYNC',
                 data: `Balance $${bal} | Equity $${eq} | Float PnL $${fp}` }
@@ -146,7 +145,9 @@ const SwarmGraph = () => {
         })
         .catch(() => {
           const ts = new Date().toLocaleTimeString('es-MX', { hour12: false });
-          setLogs(prev => [...prev.slice(-40), { ts, agent: 'RAILWAY', action: 'ERROR', data: 'No se pudo conectar al endpoint' }]);
+          setLogs(prev => [...prev.slice(-40),
+            { ts, agent: 'RAILWAY', action: 'ERROR', data: 'Proxy local no disponible — reinicia :8000' }
+          ]);
         });
     };
     pull();
@@ -230,13 +231,6 @@ const SwarmGraph = () => {
     return spr;
   }, []);
 
-  // ── KPIs Railway ─────────────────────────────────────────────────────────────
-  const kpis    = railwayData?.kpis ?? {};
-  const balance = railwayData?.balance_actual?.toFixed(2) ?? '—';
-  const equity  = railwayData?.equity?.toFixed(2)         ?? '—';
-  const fpnl    = railwayData?.floating_pnl?.toFixed(2)   ?? '—';
-  const wr      = kpis?.win_rate ?? '—';
-
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', background: '#0a0a0f', overflow: 'hidden' }}>
@@ -251,24 +245,7 @@ const SwarmGraph = () => {
         </p>
       </div>
 
-      {/* KPIs Railway — arriba derecha */}
-      <div style={{
-        position: 'absolute', top: 20, right: 20, zIndex: 10,
-        background: 'rgba(0,0,0,0.8)', border: '1px solid #1a1a2e',
-        borderRadius: '8px', padding: '12px 18px', fontFamily: 'monospace',
-        color: '#0ff', fontSize: '12px', minWidth: '210px',
-        boxShadow: '0 0 14px rgba(0,200,255,0.12)'
-      }}>
-        <div style={{ color: '#444', borderBottom: '1px solid #1a1a2e', paddingBottom: '6px', marginBottom: '8px' }}>
-          📡 RAILWAY — CACHE RAM
-        </div>
-        <div>💰 Balance: <span style={{ color: '#0f0' }}>${balance}</span></div>
-        <div>📊 Equity:  <span style={{ color: '#0f0' }}>${equity}</span></div>
-        <div style={{ color: parseFloat(fpnl) >= 0 ? '#0f0' : '#f44' }}>
-          📈 Float PnL: <span>${fpnl}</span>
-        </div>
-        <div>🎯 Win Rate: <span style={{ color: '#ff0' }}>{wr}%</span></div>
-      </div>
+
 
       {/* Terminal SWARM */}
       <div style={{
