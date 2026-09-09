@@ -3,7 +3,10 @@ import json
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import uvicorn
+import os
 
 RAILWAY_URL = "https://trading-production-927a.up.railway.app/api/dashboard_data"
 
@@ -16,6 +19,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Montar Interfaz de React (Groktopus 3D) ---
+build_dir = os.path.join(os.path.dirname(__file__), "mia_3d_ui", "build")
+if os.path.exists(build_dir):
+    app.mount("/static", StaticFiles(directory=os.path.join(build_dir, "static")), name="static")
+    
+    @app.get("/")
+    async def serve_react_app():
+        return FileResponse(os.path.join(build_dir, "index.html"))
+    
+    # Manejar rutas de React Router o recursos estáticos en la raíz
+    @app.get("/{file_path:path}")
+    async def serve_static_files(file_path: str):
+        full_path = os.path.join(build_dir, file_path)
+        if os.path.exists(full_path) and os.path.isfile(full_path):
+            return FileResponse(full_path)
+        return FileResponse(os.path.join(build_dir, "index.html"))
 
 class ConnectionManager:
     def __init__(self):

@@ -1,0 +1,42 @@
+# Dockerfile.groktopus
+# ----------------------------------------------------
+# Etapa 1: Compilar la Interfaz 3D de React
+FROM node:18 AS build-stage
+WORKDIR /app/mia_3d_ui
+COPY mia_3d_ui/package*.json ./
+RUN npm install
+COPY mia_3d_ui/ ./
+RUN npm run build
+
+# Etapa 2: Entorno Python para el Piso de Trading
+FROM python:3.10-slim
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Dependencias de compilación para C++ / NumPy
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar dependencias Python
+COPY requirements.txt .
+# Agregamos dependencias faltantes para el nuevo enjambre al vuelo
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt scipy litellm langchain-groq groq
+
+# Copiar el código fuente completo
+COPY . .
+
+# Copiar la UI compilada de React desde la Etapa 1
+COPY --from=build-stage /app/mia_3d_ui/build /app/mia_3d_ui/build
+
+# Dar permisos de ejecución al script
+RUN chmod +x start_groktopus.sh
+
+# Exponer el puerto
+EXPOSE 8000
+
+# Encender el piso de trading
+CMD ["./start_groktopus.sh"]

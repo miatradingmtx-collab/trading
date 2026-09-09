@@ -1,184 +1,159 @@
 import os
+import json
 import time
-from dotenv import load_dotenv
-from crewai import Agent, Task, Crew, Process, LLM
-from crew_tools import railway_cache_tool, mia_core_reader_tool, obsidian_writer_tool
 import requests
+import sys
+from dotenv import load_dotenv
+from crewai import Agent, Task, Crew, Process
 
-def emit_ws_event(agent_name, action, data=""):
-    """Emite un evento al WebSocket (dashboard Groktopus) y respeta el límite de Groq."""
+from crew_tools import railway_cache_tool, obsidian_writer_tool
+from math_agent_skills import calc_area_under_curve, markov_transition_matrix
+from stat_agent_skills import calculate_expected_value, generate_execution_score
+
+load_dotenv()
+os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
+
+# Forzar codificación UTF-8 para evitar errores con emojis en Windows CMD (EventBus Error)
+if sys.stdout.encoding != 'utf-8':
+    os.environ["PYTHONIOENCODING"] = "utf-8"
+
+# Emisor de WebSocket para conectar con React 3D (La Terminal de Cristal)
+def emit_ws_event(agent_name, action, data):
     try:
         requests.post("http://localhost:8000/emit", json={
             "agent": agent_name,
             "action": action,
             "data": data
-        }, timeout=1)
-        # Freno de mano: 50s para respetar los 8000 TPM de Groq gratuito
-        time.sleep(50)
+        }, timeout=2)
     except:
         pass
 
-load_dotenv()
-# LiteLLM (usado por CrewAI) necesita GROQ_API_KEY en entorno
-os.environ.setdefault("GROQ_API_KEY", os.environ.get("GROQ_API_KEY", ""))
-
-class MiaSwarmOrchestrator:
-    def __init__(self):
-        print("Inicializando el Enjambre Multi-Agente de Mia (Groktopus)...")
-        # Modelo disponible en cuenta actual de Groq
-        self.llm = LLM(
-            model="groq/openai/gpt-oss-120b",
-            api_key=os.environ.get("GROQ_API_KEY")
-        )
-
-    def crear_agentes(self):
-        """Define las personalidades y roles de los 6 Agentes del Ecosistema"""
-        print("Cargando roles de agentes y asignando Gemini Pro...")
+def create_callback(agent_name):
+    def callback(output):
+        # Frenamos el LLM 15s para no hacer saltar el Error 429 de límite de tokens (8000 TPM)
+        time.sleep(15)
         
-        # 1. Agente Inbox
-        self.inbox_agent = Agent(
-            role="Data Inbox Router",
-            goal="Consumir datos de la caché de Railway y clasificarlos preliminarmente.",
-            backstory="Eres el guardián de entrada. Todo dato crudo pasa primero por ti. NUNCA tocas Firebase directo.",
-            verbose=True,
-            allow_delegation=False,
-            tools=[railway_cache_tool],
-            llm=self.llm,
-            step_callback=lambda step: emit_ws_event("Inbox", "thinking", "Procesando datos en la caché de Railway...")
-        )
+        # CrewAI >= 0.x envia diferentes tipos de objetos al callback (AgentStep, ToolResult, etc.)
+        # Hacemos str(output) para no chocar con atributos deprecados como .raw
+        texto = str(output)
+        emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
+    return callback
 
-        # 2. Agente Daily Bias
-        self.daily_bias_agent = Agent(
-            role="Daily Bias Analizer",
-            goal="Analizar contexto macro y temporalidades altas para definir dirección.",
-            backstory="Ves el panorama general. Defines la tendencia del día (alcista, bajista, consolidación).",
-            verbose=True,
-            allow_delegation=False,
-            llm=self.llm,
-            step_callback=lambda step: emit_ws_event("Daily", "thinking", "Analizando sesgo direccional diario...")
-        )
+# Nuevo formato requerido por litellm en CrewAI >= 0.x
+llm_model = "groq/openai/gpt-oss-120b"
 
-        # 3. Agente Creador de MOC (Map of Context)
-        self.moc_agent = Agent(
-            role="MOC Architect",
-            goal="Crear Mapas de Contexto estructurados a partir del análisis.",
-            backstory="Organizas el caos. Creas índices (MOCs) que relacionan ideas y setups.",
-            verbose=True,
-            allow_delegation=False,
-            llm=self.llm,
-            step_callback=lambda step: emit_ws_event("MOC", "thinking", "Creando Mapa de Contexto...")
-        )
+# ── 1. TIDAL (Liquidez) ──
+tidal = Agent(
+    role='Order Book Scanner (TIDAL)',
+    goal='Extraer datos de liquidez desde la Caché de Railway RAM.',
+    backstory='Lees la liquidez profunda. NUNCA tocas Firebase, solo usas railway_cache_tool.',
+    tools=[railway_cache_tool],
+    llm=llm_model,
+    step_callback=create_callback("TIDAL")
+)
 
-        # 4. Agente de Etiquetas y Enlaces
-        self.tags_agent = Agent(
-            role="Tags & Links Specialist",
-            goal="Extraer entidades clave y generar metadatos y enlaces de Obsidian.",
-            backstory="Eres experto en el ecosistema Zettelkasten. Conectas las notas correctamente.",
-            verbose=True,
-            allow_delegation=False,
-            llm=self.llm,
-            step_callback=lambda step: emit_ws_event("Tags", "thinking", "Generando etiquetas y bi-direccionalidad...")
-        )
+# ── 2. LUMEN (Sentimiento) ──
+lumen = Agent(
+    role='Sentiment Engine (LUMEN)',
+    goal='Leer el contexto macro y sentimiento fundamental.',
+    backstory='Analizas si el miedo institucional es alto basado en los datos de la cache.',
+    tools=[railway_cache_tool],
+    llm=llm_model,
+    step_callback=create_callback("LUMEN")
+)
 
-        # 5. Agente Master (Sintetizador y Juez Final)
-        self.master_agent = Agent(
-            role="Master AI Synthesizer",
-            goal="Validar el trabajo de todos contra las reglas CORE y crear el output final.",
-            backstory="Eres la autoridad final. Aseguras que los MOCs e ideas sigan la DOCUMENTACION_MIA_CORE.md.",
-            verbose=True,
-            allow_delegation=False,
-            tools=[mia_core_reader_tool],
-            llm=self.llm,
-            step_callback=lambda step: emit_ws_event("Master", "thinking", "Validando contra MIA CORE...")
-        )
+# ── 3. NORO (Matemáticas Duras) ──
+noro = Agent(
+    role='Fair Value Math (NORO)',
+    goal='Calcular integrales y matrices de markov.',
+    backstory='Eres un quant matemático. Usas las herramientas de Área Bajo la Curva y Matrices de Markov.',
+    tools=[calc_area_under_curve, markov_transition_matrix],
+    llm=llm_model,
+    step_callback=create_callback("NORO")
+)
 
-        # 6. Agente Vault Writer (Obsidian)
-        self.vault_agent = Agent(
-            role="Obsidian Vault Manager",
-            goal="Guardar físicamente la información en el disco duro (Vault).",
-            backstory="Eres el escriba final. Tu trabajo es ejecutar la escritura de los archivos markdown.",
-            verbose=True,
-            allow_delegation=False,
-            tools=[obsidian_writer_tool],
-            llm=self.llm,
-            step_callback=lambda step: emit_ws_event("Vault", "writing", "Escribiendo archivo markdown...")
-        )
+# ── 4. ZEPHR (Estadística y Esperanza) ──
+zephr = Agent(
+    role='Liquidity Mapper & Stats (ZEPHR)',
+    goal='Calcular la esperanza matemática y el score probabilístico.',
+    backstory='Usas herramientas bayesianas para sacar un score final (Consenso > 0.70).',
+    tools=[calculate_expected_value, generate_execution_score],
+    llm=llm_model,
+    step_callback=create_callback("ZEPHR")
+)
 
-    def crear_tareas(self):
-        """Define las misiones específicas (Tasks) para cada Agente con callbacks de comunicación."""
-        print("Cargando tareas del enjambre...")
+# ── 5. OKAPI (Cobertura) ──
+okapi = Agent(
+    role='Hedge Exposure (OKAPI)',
+    goal='Evaluar el riesgo de exposición beta.',
+    backstory='Decides si la cuenta tiene demasiada exposición direccional.',
+    tools=[],
+    llm=llm_model,
+    step_callback=create_callback("OKAPI")
+)
 
-        # ── Callback: emite el output de cada tarea al siguiente agente via WS ──
-        def on_task_done(agent_name, next_agent, resumen_action):
-            def _cb(output):
-                result_preview = str(output)[:120].replace('\n', ' ')
-                # Emitir: agente terminó → pasa estafeta al siguiente
-                emit_ws_event(agent_name, "output",  f"Tarea completada → {result_preview}...")
-                emit_ws_event(next_agent,  resumen_action, f"Recibiendo datos de {agent_name}...")
-            return _cb
+# ── 6. RUNE (Veto de Riesgo) ──
+rune = Agent(
+    role='Risk Control (RUNE)',
+    goal='Aprobar o rechazar (Veto) el trade basado en el Consenso de ZEPHR.',
+    backstory='Tu único trabajo es decir NO si el score es menor a 0.70. Eres la muralla de riesgo.',
+    tools=[],
+    llm=llm_model,
+    step_callback=create_callback("RUNE")
+)
 
-        self.task_inbox = Task(
-            description='Conéctate a la caché de Railway y extrae todos los trades cerrados de las últimas 24 horas. Formatea la salida en una lista clara de ganadores y perdedores.',
-            expected_output='Resumen en texto crudo de los trades de las últimas 24 horas.',
-            agent=self.inbox_agent,
-            callback=on_task_done("Inbox", "Daily", "analyzing")
-        )
+# ── 7. VESKA (Ejecución) ──
+veska = Agent(
+    role='Execution Specialist (VESKA)',
+    goal='Dar la orden final al mercado.',
+    backstory='Eres el francotirador. Solo ejecutas si RUNE y Master aprueban. Nunca promedias.',
+    tools=[],
+    llm=llm_model,
+    step_callback=create_callback("VESKA")
+)
 
-        self.task_daily = Task(
-            description='Tomar los trades filtrados por INBOX y separarlos por Killzone, calculando qué sesión (London/NY) es más rentable.',
-            expected_output='Un diccionario JSON con winrates por killzone.',
-            agent=self.daily_bias_agent,
-            callback=on_task_done("Daily", "MOC", "mapping")
-        )
+# ── 8. MARIN (Liquidación) ──
+marin = Agent(
+    role='Settlement Desk (MARIN)',
+    goal='Guardar el resultado en la bitácora.',
+    backstory='Una vez ejecutado, cierras el ticket con obsidian_writer_tool.',
+    tools=[obsidian_writer_tool],
+    llm=llm_model,
+    step_callback=create_callback("MARIN")
+)
 
-        self.task_moc = Task(
-            description='Conectar los datos del INBOX y del DAILY para aplicar la Regla de 3 de Mia (3 setups ganadores diarios). Verifica si estadísticamente se cumplió o no.',
-            expected_output='Resumen textual del desempeño estadístico del día.',
-            agent=self.moc_agent,
-            callback=on_task_done("MOC", "Tags", "tagging")
-        )
+# ── TAREAS ──
+tasks = [
+    Task(description='Obtén los KPIs actuales desde railway_cache_tool.', expected_output='Resumen de liquidez.', agent=tidal),
+    Task(description='Revisa si hay volatilidad macro.', expected_output='Sentimiento del mercado.', agent=lumen),
+    Task(description='Usa calc_area_under_curve con "[10,20,30]", "[1,2,3]". Y genera una matriz de markov con \'["Alcista", "Bajista", "Alcista"]\'.', expected_output='Fair Value y Matrices.', agent=noro),
+    Task(description='Usa calculate_expected_value (wr=0.75, avg_win=100, avg_loss=50). Y genera score de ejecucion (prob=0.68, wr=0.75).', expected_output='Score de consenso.', agent=zephr),
+    Task(description='Analiza el score y decide si el riesgo de exposición cruzada es aceptable.', expected_output='Aprobación de cobertura.', agent=okapi),
+    Task(description='Revisa el output estadístico. Si el Score es mayor a 0.70, aprueba el trade.', expected_output='Dictamen de Riesgo (APROBADO/VETADO).', agent=rune),
+    Task(description='Redacta el ticket de ejecución del trade.', expected_output='Detalle de fill de mercado.', agent=veska),
+    Task(description='Escribe el reporte final en Obsidian.', expected_output='Confirmación de registro.', agent=marin)
+]
 
-        self.task_tags = Task(
-            description='Leer el análisis estadístico de MOC y generar el frontmatter YAML exacto para Obsidian (tags, aliases, date).',
-            expected_output='Bloque YAML válido de Obsidian.',
-            agent=self.tags_agent,
-            callback=on_task_done("Tags", "Master", "validating")
-        )
-
-        self.task_master = Task(
-            description='Revisar el YAML y el Análisis. Leer DOCUMENTACION_MIA_CORE.md obligatoriamente para verificar si el desempeño de hoy rompió alguna regla del drawdown. Redactar el Markdown final.',
-            expected_output='El contenido completo en formato Markdown listo para guardarse.',
-            agent=self.master_agent,
-            callback=on_task_done("Master", "Vault", "writing")
-        )
-
-        self.task_vault = Task(
-            description='Tomar el Markdown final del MASTER y escribirlo en un archivo en el knowledge base con la fecha de hoy.',
-            expected_output='Confirmación de que el archivo .md fue escrito con éxito.',
-            agent=self.vault_agent,
-            callback=lambda out: emit_ws_event("Vault", "success", "✅ Archivo .md guardado en Obsidian Knowledge Base")
-        )
-
-    def ejecutar_swarm(self):
-        """Inicializa el Crew y ejecuta las tareas en cadena secuencial."""
-        print("Ensamblando el Crew y conectando a Groq...")
-        emit_ws_event("Master", "thinking", "🐙 GROKTOPUS iniciando enjambre — 6 agentes en línea...")
-        self.mia_crew = Crew(
-            agents=[self.inbox_agent, self.daily_bias_agent, self.moc_agent, self.tags_agent, self.master_agent, self.vault_agent],
-            tasks=[self.task_inbox, self.task_daily, self.task_moc, self.task_tags, self.task_master, self.task_vault],
-            verbose=True,
-            process=Process.sequential
-        )
-
-        emit_ws_event("Inbox", "thinking", "Consultando caché RAM de Railway...")
-        resultado = self.mia_crew.kickoff()
-        emit_ws_event("Master", "success", "🎯 Enjambre completado. Knowledge Base actualizado.")
-        print("=== RESULTADO FINAL DEL ENJAMBRE ===")
-        print(resultado)
-        return resultado
+# ── CREW MASTER ──
+groktopus_crew = Crew(
+    agents=[tidal, lumen, noro, zephr, okapi, rune, veska, marin],
+    tasks=tasks,
+    process=Process.sequential,
+    verbose=True
+)
 
 if __name__ == "__main__":
-    swarm = MiaSwarmOrchestrator()
-    swarm.crear_agentes()
-    swarm.crear_tareas()
-    swarm.ejecutar_swarm()
+    while True:
+        emit_ws_event("Master", "START", "Iniciando Groktopus Floor. Despertando a los 8 agentes...")
+        try:
+            result = groktopus_crew.kickoff()
+            emit_ws_event("Master", "SUCCESS", "Ciclo completado con éxito. Veredicto asimilado.")
+            print("\n[RESULTADO FINAL DEL ENJAMBRE]")
+            print(result)
+        except Exception as e:
+            emit_ws_event("Master", "ERROR", f"Error en el enjambre: {str(e)}")
+            print(f"Error: {e}")
+            
+        emit_ws_event("Master", "SLEEP", "Enjambre en Criosueño. Siguiente análisis en 15 minutos...")
+        print("\n[INFO] Durmiendo por 15 minutos para respetar el Rate Limit de Groq y esperar velas de mercado...")
+        time.sleep(900) # 15 minutos de pausa entre ciclos globales
