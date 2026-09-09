@@ -676,22 +676,26 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                     except Exception as reset_e:
                         print(f"| SEMÁFORO RESET ERROR | No se pudo resetear estado para {activo_norm}: {reset_e}")
             else:
-                # Es apertura COMPRA/VENTA
+                # Es apertura COMPRA/VENTA o updates
                 motivo_final = "Ejecutada y Activa en Broker" if alert.ticket else motivo
                 ejecutada_flag = True if alert.ticket else False
+            
+            # Revisar en memoria RAM si este ticket ya tenía Trailing Stop activado previamente
+            es_cierre_por_ts = False
+            if alert.accion == "CIERRE_TOTAL" and alert.ticket:
+                if GLOBAL_AUDIT_LOGS:
+                    for l in GLOBAL_AUDIT_LOGS:
+                        if str(l.get("ticket")) == str(alert.ticket):
+                            if l.get("trailing_stop") == True:
+                                es_cierre_por_ts = True
+                            break
             
             audit_ref = db.collection("mia_audit_logs").document(str(alert.ticket))
             audit_data = {
                 "ticket": str(alert.ticket),
                 "activo": alert.activo,
-                "accion": alert.accion,
                 "estrategia": alert.estrategia,
                 "pnl": alert.pnl if alert.pnl else 0.0,
-                "precio_ejecucion": alert.precio if alert.precio else 0.0,
-                "stop_loss": alert.stop_loss if alert.stop_loss else 0.0,
-                "take_profit": alert.take_profit if alert.take_profit else 0.0,
-                "sl": alert.stop_loss if alert.stop_loss else 0.0,
-                "tp": alert.take_profit if alert.take_profit else 0.0,
                 "ultima_actualizacion": iso_time,
                 "timestamp": iso_time,
                 "fecha": fecha_str,
@@ -701,6 +705,32 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 "motivo": motivo_final,
                 "detalle_setup": detalle_str
             }
+            
+            # Solo actualizar la acción principal si es apertura o cierre
+            if alert.accion in ["COMPRA", "VENTA", "CIERRE_TOTAL", "CIERRE_PARCIAL"]:
+                audit_data["accion"] = alert.accion
+                audit_data["precio_ejecucion"] = alert.precio if alert.precio else 0.0
+                
+            # Si el cierre total fue a causa de un Trailing Stop, documentamos el PNL explícitamente
+            if es_cierre_por_ts:
+                audit_data["cierre_por_trailing_stop"] = True
+                audit_data["precio_cierre_ts"] = alert.precio
+                audit_data["pnl_cierre_ts"] = alert.pnl if alert.pnl else 0.0
+            
+            # Si es una actualización de protección, agregamos las banderas sin destruir la acción original
+            if alert.accion == "PROTECCION_BE":
+                audit_data["protegido_be"] = True
+            elif alert.accion == "TRAILING_STOP":
+                audit_data["trailing_stop"] = True
+                audit_data["protegido_be"] = True # Matemáticamente si es TS, ya cruzó BE
+                
+            # Siempre actualizar los niveles de TP/SL actuales
+            if alert.stop_loss:
+                audit_data["stop_loss"] = alert.stop_loss
+                audit_data["sl"] = alert.stop_loss
+            if alert.take_profit:
+                audit_data["take_profit"] = alert.take_profit
+                audit_data["tp"] = alert.take_profit
             # Usamos merge=True para no sobreescribir el precio y score si ya fue guardado por la apertura
             audit_ref.set(audit_data, merge=True)
             print(f"| AUDIT LOG SUCCESS | Ticket {alert.ticket} guardado/actualizado en mia_audit_logs.")
@@ -1466,15 +1496,25 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                 if alert.estrategia == "MANUAL" or alert.estrategia == "UNKNOWN":
                     # Recuperar estrategia original con la que se aperturó el ticket
                     est = exist_data.get("estrategia", "")
+                    det = exist_data.get("detalle_setup", "")
+                    
+                    # Guardamos el detalle de setup completo para enviarlo por Telegram
+                    if det:
+                        alert.__setattr__('detalle_setup_string', det)
+                        
                     if not est:
                         # Si no hay estrategia explícita, tratar de armarla desde detalle_setup o técnica
-                        det = exist_data.get("detalle_setup", "")
                         if "SMC" in det or "Lux" in det:
                             partes = det.split("|")
                             est = partes[3].strip() if len(partes) > 3 else "SMC Setup | Liquidez + OB"
                         else:
                             est = "SMC Setup | Liquidez + OB"
                     alert.estrategia = est
+                else:
+                    # Aunque ya traiga estrategia, queremos el detalle para Telegram
+                    det = exist_data.get("detalle_setup", "")
+                    if det:
+                        alert.__setattr__('detalle_setup_string', det)
                 if alert.pnl == 0.0:
                     alert.pnl = exist_data.get("pnl", 0.0)
                 if alert.precio == 0.0:
@@ -1662,7 +1702,18 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                     msg_tg += f"🛡️ *Cierre en Break Even* (BE)\n"
                     msg_tg += f"🛑 *Atención*: El trade se cerró completamente en MT5 sin pérdidas ni ganancias (Precio de BE: {alert.precio}).\n"
             
-        msg_tg += f"\n📊 Estrategia: {alert.estrategia}"
+        det_str = getattr(alert, 'detalle_setup_string', None)
+        if det_str:
+            # Extraer solo la parte de las confirmaciones de la cadena detalle_setup
+            # Formato: ACTIVO | FECHA | SESION | ESTRATEGIA | CONFIRMACIONES | SCORE ...
+            partes = det_str.split('|')
+            if len(partes) > 4:
+                confirms = partes[4].strip()
+                msg_tg += f"\n👉 Estrategia: {alert.estrategia}\n👉 Confirmaciones: {confirms}"
+            else:
+                msg_tg += f"\n👉 Estrategia: {alert.estrategia}\n👉 Detalle: {det_str}"
+        else:
+            msg_tg += f"\n👉 Estrategia: {alert.estrategia}"
         
         # Disparar Telegram asíncrono
         background_tasks.add_task(notificar_telegram, msg_tg)
@@ -2108,10 +2159,23 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
                 motivo = "Setup Detectado (Esperando ejecución)"
                 
         confs = []
+        # Mapping para los vectores matemáticos de la matriz
+        SMC_MAP = {
+            1: "ORDER BLOCK", 2: "FVG", 3: "BREAKER BLOCK", 4: "AMD (SWEEP LIQUIDEZ)", 5: "iFVG",
+            6: "MEDIAS MOVILES", 7: "RSI", 8: "SOPORTE/RESISTENCIA", 9: "POC PRICE",
+            10: "LUX OB 1H", 11: "LUX OB 2H", 12: "LUX OB 3H", 13: "LUX OB 4H", 14: "LUX OB 8H",
+            15: "LUX LIQ 1H", 16: "LUX LIQ 2H", 17: "LUX LIQ 3H", 18: "LUX LIQ 4H", 19: "LUX LIQ 8H"
+        }
         for k, v in update.confirmaciones_tecnicas.items():
-            if k == "smc_codes" and isinstance(v, list) and v:
-                confs.append("SMC")
-            elif isinstance(v, bool) and v:
+            if k == "smc_codes" and isinstance(v, list):
+                for code in sorted(v):
+                    if code in SMC_MAP:
+                        confs.append(SMC_MAP[code])
+            elif isinstance(v, bool) and v and k not in [
+                "medias_moviles_alineadas", "rsi_sobrecompra_sobreventa", "soporte_resistencia_activo", "poc_price",
+                "order_block_zona_1h", "order_block_zona_2h", "order_block_zona_3h", "order_block_zona_4h", "order_block_zona_8h",
+                "alineamiento_liquidez_1h", "alineamiento_liquidez_2h", "alineamiento_liquidez_3h", "alineamiento_liquidez_4h", "alineamiento_liquidez_8h"
+            ]: # Ignoramos los booleanos crudos si ya vienen en el vector smc_codes
                 confs.append(k.replace("_", " ").upper())
                 
         confirmaciones_str = " + ".join(confs) if confs else "Setup Base"
@@ -2667,7 +2731,31 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
             f.write(f"[{fecha}] TICKET: {ejecucion.ticket} | ACTIVO: {ejecucion.activo} | SCORE: {ejecucion.score}% | PRECIO: {ejecucion.precio_ejecucion}\n")
             
         # Enriquecer log con detalles de confirmaciones de la matriz
-        activas = [k.replace("_", " ").upper() for k, v in data.get("confirmaciones_tecnicas", {}).items() if isinstance(v, bool) and v]
+        tech_data = data.get("confirmaciones_tecnicas", {})
+        
+        # Mapping para los vectores matemáticos
+        SMC_MAP = {
+            1: "ORDER BLOCK", 2: "FVG", 3: "BREAKER BLOCK", 4: "AMD (SWEEP LIQUIDEZ)", 5: "iFVG",
+            6: "MEDIAS MOVILES", 7: "RSI", 8: "SOPORTE/RESISTENCIA", 9: "POC PRICE",
+            10: "LUX OB 1H", 11: "LUX OB 2H", 12: "LUX OB 3H", 13: "LUX OB 4H", 14: "LUX OB 8H",
+            15: "LUX LIQ 1H", 16: "LUX LIQ 2H", 17: "LUX LIQ 3H", 18: "LUX LIQ 4H", 19: "LUX LIQ 8H"
+        }
+        
+        activas = []
+        smc = tech_data.get("smc_codes", [])
+        if isinstance(smc, list):
+            for code in sorted(smc):
+                if code in SMC_MAP:
+                    activas.append(SMC_MAP[code])
+                    
+        for k, v in tech_data.items():
+            if isinstance(v, bool) and v and k not in [
+                "medias_moviles_alineadas", "rsi_sobrecompra_sobreventa", "soporte_resistencia_activo", "poc_price",
+                "order_block_zona_1h", "order_block_zona_2h", "order_block_zona_3h", "order_block_zona_4h", "order_block_zona_8h",
+                "alineamiento_liquidez_1h", "alineamiento_liquidez_2h", "alineamiento_liquidez_3h", "alineamiento_liquidez_4h", "alineamiento_liquidez_8h"
+            ]:
+                activas.append(k.replace("_", " ").upper())
+        
         confirmaciones_str = " + ".join(activas) if activas else "Setup Base"
         
         utc_hour = datetime.now(timezone.utc).hour
@@ -2688,19 +2776,32 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         detalle_str = f"{ejecucion.activo} | {fecha} | {sesion} | {estrategia_real} | {confirmaciones_str} | SCORE: {ejecucion.score}% | EJECUTADA EN MT5: {str_ejecutada} | MOTIVO: {ejecucion.motivo}"
 
         audit_ref = db.collection("mia_audit_logs").document(str(ejecucion.ticket))
+        
+        # Calcular TPs parciales si hay TP y Precio
+        tp1_25 = 0.0
+        tp2_50 = 0.0
+        if ejecucion.take_profit and ejecucion.take_profit > 0 and ejecucion.precio_ejecucion > 0:
+            distancia = abs(ejecucion.take_profit - ejecucion.precio_ejecucion)
+            es_buy = ejecucion.take_profit > ejecucion.precio_ejecucion
+            tp1_25 = round(ejecucion.precio_ejecucion + (distancia * 0.25) if es_buy else ejecucion.precio_ejecucion - (distancia * 0.25), 5)
+            tp2_50 = round(ejecucion.precio_ejecucion + (distancia * 0.50) if es_buy else ejecucion.precio_ejecucion - (distancia * 0.50), 5)
+
         audit_ref.set({
-        "ticket": ejecucion.ticket,
-        "estrategia": estrategia_real,
+            "ticket": ejecucion.ticket,
+            "estrategia": estrategia_real,
             "activo": ejecucion.activo,
             "accion": ejecucion.accion,
             "score": ejecucion.score,
             "precio_ejecucion": ejecucion.precio_ejecucion,
             "stop_loss": ejecucion.stop_loss,
             "take_profit": ejecucion.take_profit,
+            "tp1_25": tp1_25,
+            "tp2_50": tp2_50,
             "tp": ejecucion.take_profit,
             "sl": ejecucion.stop_loss,
             "fecha": fecha,
             "timestamp": datetime.now().isoformat(),
+            "sesion_killzone": sesion,
             "detalle_setup": detalle_str,
             "confirmaciones_tecnicas": data.get("confirmaciones_tecnicas", {}),
             "confirmaciones_fundamentales": data.get("confirmaciones_fundamentales", {}),
@@ -2790,16 +2891,21 @@ def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[
         data["parcial_tomado"] = True
         doc_ref.set(data, merge=True)
         
-        # Generar Log en Firebase
         fecha = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        utc_hour = datetime.datetime.now(datetime.timezone.utc).hour
+        sesion = "NY"
+        if 0 <= utc_hour < 7: sesion = "ASIA"
+        elif 7 <= utc_hour < 12: sesion = "LONDRES"
+        
         audit_data = {
-            "tipo": "CIERRE_PARCIAL_80",
+            "accion": "CIERRE_PARCIAL_80",
             "ticket": ejecucion.ticket,
             "activo": ejecucion.activo,
             "score_confluencias": ejecucion.score,
             "precio_ejecucion": ejecucion.precio_ejecucion,
             "fecha": fecha,
-            "timestamp": datetime.datetime.now().isoformat()
+            "timestamp": datetime.datetime.now().isoformat(),
+            "sesion_killzone": sesion
         }
         audit_ref = db.collection("mia_audit_logs").document(f"PARCIAL_{ejecucion.ticket}_{ejecucion.activo}")
         audit_ref.set(audit_data)
@@ -4028,7 +4134,7 @@ async def entrenar_pesos_dinamicos():
         
         # 5. Escribir top 3 en la Base de Conocimiento (Obsidian) para la "Regla de 3"
         top_3 = sorted(nuevos_pesos.items(), key=lambda item: item[1], reverse=True)[:3]
-        obsidian_path = r"E:\obsidiana\Proyectos\Mia_Trading\Mejores_Estrategias_Regla_De_3.md"
+        obsidian_path = r"D:\obsidiana\Proyectos\Mia_Trading\Mejores_Estrategias_Regla_De_3.md"
         
         import os
         os.makedirs(os.path.dirname(obsidian_path), exist_ok=True)

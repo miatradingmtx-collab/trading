@@ -453,16 +453,39 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
     }
     
     smc_codes = []
-    if confirmaciones["order_block_detectado"]: smc_codes.append(1)
-    if confirmaciones["fvg_detectado"]: smc_codes.append(2)
-    if confirmaciones["breaker_block_detectado"]: smc_codes.append(3)
-    if confirmaciones["sweep_liquidez_detectado"]: smc_codes.append(4)
+    # SMC & ICT Base
+    if confirmaciones.get("order_block_detectado"): smc_codes.append(1)
+    if confirmaciones.get("fvg_detectado"): smc_codes.append(2)
+    if confirmaciones.get("breaker_block_detectado"): smc_codes.append(3)
+    if confirmaciones.get("sweep_liquidez_detectado"): smc_codes.append(4) # AMD / Sweep
+    if confirmaciones.get("ifvg_detectado"): smc_codes.append(5) # iFVG
     
+    # Análisis Técnico Clásico
+    if ma_alineada: smc_codes.append(6)
+    if rsi_val >= 80 or rsi_val <= 20: smc_codes.append(7)
+    if soporte_activo: smc_codes.append(8)
+    if poc_price: smc_codes.append(9)
+    
+    # LUX Algo Order Blocks
+    if confirmaciones.get("order_block_zona_1h"): smc_codes.append(10)
+    if confirmaciones.get("order_block_zona_2h"): smc_codes.append(11)
+    if confirmaciones.get("order_block_zona_3h"): smc_codes.append(12)
+    if confirmaciones.get("order_block_zona_4h"): smc_codes.append(13)
+    if confirmaciones.get("order_block_zona_8h"): smc_codes.append(14)
+    
+    # LUX Algo Alineamiento Liquidez
+    if confirmaciones.get("alineamiento_liquidez_1h"): smc_codes.append(15)
+    if confirmaciones.get("alineamiento_liquidez_2h"): smc_codes.append(16)
+    if confirmaciones.get("alineamiento_liquidez_3h"): smc_codes.append(17)
+    if confirmaciones.get("alineamiento_liquidez_4h"): smc_codes.append(18)
+    if confirmaciones.get("alineamiento_liquidez_8h"): smc_codes.append(19)
+
     tecnicas = {
+        "smc_codes": smc_codes,
+        # Mantener booleanos originales temporalmente por retrocompatibilidad con otras funciones
         "soporte_resistencia_activo": bool(soporte_activo),
         "medias_moviles_alineadas": bool(ma_alineada),
         "rsi_sobrecompra_sobreventa": bool(rsi_val >= 80 or rsi_val <= 20),
-        "smc_codes": smc_codes,
         "poc_price": poc_price
     }
     
