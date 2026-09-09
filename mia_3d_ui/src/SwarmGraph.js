@@ -4,8 +4,9 @@ import { Sphere, MeshDistortMaterial, OrbitControls, Stars } from '@react-three/
 import { Activity, Eye, Calculator, Map, ShieldCheck, Briefcase, Shield, Zap, CheckCircle, TerminalSquare } from 'lucide-react';
 import * as THREE from 'three';
 
-const CACHE_API = 'http://localhost:8000/api/cache';
-const WS_URL    = 'ws://localhost:8000/ws';
+// Websocket dinámico que detecta si está en local o en la nube (Railway)
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL = `${protocol}//${window.location.host}/ws`;
 
 // ── 3D Groktopus Core ──────────────────────────────────────────────────────────
 const GroktopusCore = ({ activeAgent }) => {
@@ -122,7 +123,7 @@ const GroktopusDashboard = () => {
 
         {/* Orbit HTML Overlays & SVG Tentacles */}
         <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
-          <div className="relative w-[800px] h-[800px]">
+          <div className="relative w-[800px] h-[800px] scale-[0.4] sm:scale-50 md:scale-75 lg:scale-100 mt-10 md:mt-0">
             
             {/* TENTACULOS DE DATOS (SVG) */}
             <svg className="absolute inset-0 w-full h-full z-0 overflow-visible">
