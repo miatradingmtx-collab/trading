@@ -1,6 +1,6 @@
 import json
 import numpy as np
-from crewai.tools import tool
+from langchain.tools import tool
 
 @tool("Calcular Esperanza Matematica")
 def calculate_expected_value(win_rate: float, avg_win: float, avg_loss: float) -> str:

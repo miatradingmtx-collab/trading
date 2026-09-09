@@ -2,7 +2,7 @@ import os
 import json
 import firebase_admin
 from firebase_admin import credentials, firestore
-from crewai.tools import tool
+from langchain.tools import tool
 
 import requests
 
