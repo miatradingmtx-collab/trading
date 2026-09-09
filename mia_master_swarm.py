@@ -5,6 +5,7 @@ import requests
 import sys
 from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, Process, LLM
+from langchain_groq import ChatGroq
 
 from crew_tools import railway_cache_tool, obsidian_writer_tool
 from math_agent_skills import calc_area_under_curve, markov_transition_matrix
@@ -42,9 +43,10 @@ def create_callback(agent_name):
         emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
     return callback
 
-# Configuración del LLM robusta para evitar errores de LiteLLM en Docker
-my_llm = LLM(
-    model="groq/openai/gpt-oss-120b"
+# Configuración del LLM robusta usando Langchain para evitar errores de LiteLLM en Docker
+my_llm = ChatGroq(
+    model="openai/gpt-oss-120b",
+    api_key=os.environ.get("GROQ_API_KEY", "")
 )
 
 # ── 1. TIDAL (Liquidez) ──
