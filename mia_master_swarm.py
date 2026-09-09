@@ -45,7 +45,7 @@ def create_callback(agent_name):
 
 from langchain_groq import ChatGroq
 
-# Usamos ChatGroq de LangChain para evitar los bugs de parseo de CrewAI
+# CrewAI < 0.50 respeta Langchain, así que ChatGroq funcionará perfectamente.
 my_llm = ChatGroq(
     model_name="openai/gpt-oss-120b",
     groq_api_key=os.environ.get("GROQ_API_KEY")
