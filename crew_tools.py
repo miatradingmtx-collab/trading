@@ -22,9 +22,9 @@ try:
 except Exception:
     pass
 
-@tool("Leer Historico Firebase")
-def firebase_reader_tool() -> str:
-    """Útil para extraer métricas, KPIs y rendimiento por estrategia desde la caché RAM de Railway (NO Firebase directo)."""
+@tool("Leer Railway Cache RAM")
+def railway_cache_tool() -> str:
+    """Útil para extraer métricas, KPIs y rendimiento por estrategia desde la caché RAM de Railway."""
     try:
         headers = {'User-Agent': 'MiaSwarmBot/1.0'}
         response = requests.get(

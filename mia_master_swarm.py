@@ -2,7 +2,7 @@ import os
 import time
 from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, Process, LLM
-from crew_tools import firebase_reader_tool, mia_core_reader_tool, obsidian_writer_tool
+from crew_tools import railway_cache_tool, mia_core_reader_tool, obsidian_writer_tool
 import requests
 
 def emit_ws_event(agent_name, action, data=""):
@@ -13,8 +13,8 @@ def emit_ws_event(agent_name, action, data=""):
             "action": action,
             "data": data
         }, timeout=1)
-        # Freno de mano: openai/gpt-oss-120b ~30K tokens/min — 15s es suficiente
-        time.sleep(15)
+        # Freno de mano: 50s para respetar los 8000 TPM de Groq gratuito
+        time.sleep(50)
     except:
         pass
 
@@ -38,13 +38,13 @@ class MiaSwarmOrchestrator:
         # 1. Agente Inbox
         self.inbox_agent = Agent(
             role="Data Inbox Router",
-            goal="Consumir datos de Firebase y clasificarlos preliminarmente.",
-            backstory="Eres el guardián de entrada. Todo dato crudo pasa primero por ti.",
+            goal="Consumir datos de la caché de Railway y clasificarlos preliminarmente.",
+            backstory="Eres el guardián de entrada. Todo dato crudo pasa primero por ti. NUNCA tocas Firebase directo.",
             verbose=True,
             allow_delegation=False,
-            tools=[firebase_reader_tool],
+            tools=[railway_cache_tool],
             llm=self.llm,
-            step_callback=lambda step: emit_ws_event("Inbox", "thinking", "Procesando datos en Firebase...")
+            step_callback=lambda step: emit_ws_event("Inbox", "thinking", "Procesando datos en la caché de Railway...")
         )
 
         # 2. Agente Daily Bias
