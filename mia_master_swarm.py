@@ -43,10 +43,13 @@ def create_callback(agent_name):
         emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
     return callback
 
-# Configuración del LLM robusta usando Langchain para evitar errores de LiteLLM en Docker
-my_llm = ChatGroq(
-    model="openai/gpt-oss-120b",
-    api_key=os.environ.get("GROQ_API_KEY", "")
+# Engañamos al proveedor nativo de OpenAI en CrewAI para que apunte a Groq (compatibilidad 100%)
+# Esto evita todos los crashes de LiteLLM en Docker
+os.environ["OPENAI_API_KEY"] = os.environ.get("GROQ_API_KEY", "dummy")
+os.environ["OPENAI_API_BASE"] = "https://api.groq.com/openai/v1"
+
+my_llm = LLM(
+    model="openai/gpt-oss-120b"
 )
 
 # ── 1. TIDAL (Liquidez) ──
