@@ -608,12 +608,19 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                             break
                             
                 if exist_data:
-                    # Recuperar datos en caso de reporte tardío o incompleto
+                    # Recuperar datos en caso de reporte tardío o incompleto o broker que borra comentarios
                     if alert.activo == "UNKNOWN":
                         alert.activo = exist_data.get("activo", "UNKNOWN")
                     if alert.precio == 0.0:
                         alert.precio = exist_data.get("precio_ejecucion", exist_data.get("precio", 0.0))
                     
+                    # CRITICO: Los brokers suelen borrar el comentario 'Mia'.
+                    # Si ya teníamos la estrategia completa guardada, la restauramos para no perder la vectorización.
+                    if exist_data.get("estrategia") and "Setup" in exist_data.get("estrategia", ""):
+                        alert.estrategia = exist_data.get("estrategia")
+                    elif exist_data.get("estrategia") and alert.estrategia in ["MANUAL", "UNKNOWN", "SMC", "LUX", "FVG"]:
+                        alert.estrategia = exist_data.get("estrategia")
+                        
                     # Almacenar PNL previo (de parciales anteriores)
                     pnl_acumulado_previo = float(exist_data.get("pnl", 0.0))
             except Exception as e:
@@ -656,6 +663,9 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 motivo = "En validación de riesgo por el Broker..."
                 
             detalle_str = f"{alert.activo} | {fecha_str} | {sesion} | {alert.estrategia} | EVALUANDO SETUP | SCORE: {score}% | POC: {poc_price:.5f} | EJECUTADA EN MT5: NO | MOTIVO: {motivo}"
+            # Si ya existía un detalle guardado de la apertura, lo preservamos
+            if exist_data and exist_data.get("detalle_setup"):
+                detalle_str = exist_data.get("detalle_setup")
             
             # Determinar si es apertura de trade o cierre
             es_cierre = alert.accion in ["CIERRE_TOTAL", "CIERRE_PARCIAL"]
