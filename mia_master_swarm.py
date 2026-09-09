@@ -4,7 +4,7 @@ import time
 import requests
 import sys
 from dotenv import load_dotenv
-from crewai import Agent, Task, Crew, Process
+from crewai import Agent, Task, Crew, Process, LLM
 
 from crew_tools import railway_cache_tool, obsidian_writer_tool
 from math_agent_skills import calc_area_under_curve, markov_transition_matrix
@@ -19,12 +19,15 @@ if sys.stdout.encoding != 'utf-8':
 
 # Emisor de WebSocket para conectar con React 3D (La Terminal de Cristal)
 def emit_ws_event(agent_name, action, data):
+    """Envía un evento al WebSocket server vía HTTP interno"""
     try:
-        requests.post("http://localhost:8000/emit", json={
+        import os
+        port = os.environ.get("PORT", "8000")
+        requests.post(f"http://localhost:{port}/emit", json={
             "agent": agent_name,
             "action": action,
             "data": data
-        }, timeout=2)
+        })
     except:
         pass
 
@@ -39,17 +42,21 @@ def create_callback(agent_name):
         emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
     return callback
 
-# Nuevo formato requerido por litellm en CrewAI >= 0.x
-llm_model = "groq/openai/gpt-oss-120b"
+# Configuración del LLM robusta para evitar errores de LiteLLM en Docker
+my_llm = LLM(
+    model="groq/openai/gpt-oss-120b"
+)
 
 # ── 1. TIDAL (Liquidez) ──
 tidal = Agent(
-    role='Order Book Scanner (TIDAL)',
-    goal='Extraer datos de liquidez desde la Caché de Railway RAM.',
-    backstory='Lees la liquidez profunda. NUNCA tocas Firebase, solo usas railway_cache_tool.',
-    tools=[railway_cache_tool],
-    llm=llm_model,
-    step_callback=create_callback("TIDAL")
+    role="TIDAL - Order Book Scanner",
+    goal="Leer los volúmenes institucionales y reportar bloqueos.",
+    backstory="Analizas los deltas de volumen en milisegundos buscando trampas institucionales.",
+    verbose=True,
+    memory=False,
+    llm=my_llm,
+    step_callback=create_callback("TIDAL"),
+    tools=[railway_cache_tool]
 )
 
 # ── 2. LUMEN (Sentimiento) ──
@@ -58,7 +65,7 @@ lumen = Agent(
     goal='Leer el contexto macro y sentimiento fundamental.',
     backstory='Analizas si el miedo institucional es alto basado en los datos de la cache.',
     tools=[railway_cache_tool],
-    llm=llm_model,
+    llm=my_llm,
     step_callback=create_callback("LUMEN")
 )
 
@@ -68,7 +75,7 @@ noro = Agent(
     goal='Calcular integrales y matrices de markov.',
     backstory='Eres un quant matemático. Usas las herramientas de Área Bajo la Curva y Matrices de Markov.',
     tools=[calc_area_under_curve, markov_transition_matrix],
-    llm=llm_model,
+    llm=my_llm,
     step_callback=create_callback("NORO")
 )
 
@@ -78,7 +85,7 @@ zephr = Agent(
     goal='Calcular la esperanza matemática y el score probabilístico.',
     backstory='Usas herramientas bayesianas para sacar un score final (Consenso > 0.70).',
     tools=[calculate_expected_value, generate_execution_score],
-    llm=llm_model,
+    llm=my_llm,
     step_callback=create_callback("ZEPHR")
 )
 
@@ -88,7 +95,7 @@ okapi = Agent(
     goal='Evaluar el riesgo de exposición beta.',
     backstory='Decides si la cuenta tiene demasiada exposición direccional.',
     tools=[],
-    llm=llm_model,
+    llm=my_llm,
     step_callback=create_callback("OKAPI")
 )
 
@@ -98,7 +105,7 @@ rune = Agent(
     goal='Aprobar o rechazar (Veto) el trade basado en el Consenso de ZEPHR.',
     backstory='Tu único trabajo es decir NO si el score es menor a 0.70. Eres la muralla de riesgo.',
     tools=[],
-    llm=llm_model,
+    llm=my_llm,
     step_callback=create_callback("RUNE")
 )
 
@@ -108,7 +115,7 @@ veska = Agent(
     goal='Dar la orden final al mercado.',
     backstory='Eres el francotirador. Solo ejecutas si RUNE y Master aprueban. Nunca promedias.',
     tools=[],
-    llm=llm_model,
+    llm=my_llm,
     step_callback=create_callback("VESKA")
 )
 
@@ -118,7 +125,7 @@ marin = Agent(
     goal='Guardar el resultado en la bitácora.',
     backstory='Una vez ejecutado, cierras el ticket con obsidian_writer_tool.',
     tools=[obsidian_writer_tool],
-    llm=llm_model,
+    llm=my_llm,
     step_callback=create_callback("MARIN")
 )
 
