@@ -43,11 +43,12 @@ def create_callback(agent_name):
         emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
     return callback
 
-# Usamos el proveedor OpenAI nativo de CrewAI pero lo redirigimos forzosamente a Groq usando base_url
-my_llm = LLM(
-    model="openai/openai/gpt-oss-120b",
-    api_key=os.environ.get("GROQ_API_KEY"),
-    base_url="https://api.groq.com/openai/v1"
+from langchain_groq import ChatGroq
+
+# Usamos ChatGroq de LangChain para evitar los bugs de parseo de CrewAI
+my_llm = ChatGroq(
+    model_name="openai/gpt-oss-120b",
+    groq_api_key=os.environ.get("GROQ_API_KEY")
 )
 
 # ── 1. TIDAL (Liquidez) ──
