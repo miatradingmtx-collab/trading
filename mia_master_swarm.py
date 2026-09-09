@@ -43,13 +43,11 @@ def create_callback(agent_name):
         emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
     return callback
 
-# Engañamos al proveedor nativo de OpenAI en CrewAI para que apunte a Groq (compatibilidad 100%)
-# Esto evita todos los crashes de LiteLLM en Docker
-os.environ["OPENAI_API_KEY"] = os.environ.get("GROQ_API_KEY", "dummy")
-os.environ["OPENAI_API_BASE"] = "https://api.groq.com/openai/v1"
-
+# Usamos el proveedor OpenAI nativo de CrewAI pero lo redirigimos forzosamente a Groq usando base_url
 my_llm = LLM(
-    model="openai/gpt-oss-120b"
+    model="openai/gpt-oss-120b",
+    api_key=os.environ.get("GROQ_API_KEY"),
+    base_url="https://api.groq.com/openai/v1"
 )
 
 # ── 1. TIDAL (Liquidez) ──
