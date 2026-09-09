@@ -1,123 +1,79 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import ForceGraph3D from 'react-force-graph-3d';
-import * as THREE from 'three';
+import React, { useState, useEffect, useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Sphere, MeshDistortMaterial, OrbitControls, Stars } from '@react-three/drei';
+import { Activity, Eye, Calculator, Map, ShieldCheck, Briefcase, Shield, Zap, CheckCircle, TerminalSquare } from 'lucide-react';
 
-// ── Configuración ──────────────────────────────────────────────────────────────
-// Proxy local: FastAPI en :8000 hace el fetch a Railway server-side (sin CORS)
 const CACHE_API = 'http://localhost:8000/api/cache';
 const WS_URL    = 'ws://localhost:8000/ws';
 
-// Colores por agente para la terminal
-const AGENT_COLORS = {
-  Master:  '#e91e63',
-  Inbox:   '#FF5722',
-  Daily:   '#2196F3',
-  MOC:     '#4CAF50',
-  Tags:    '#9C27B0',
-  Vault:   '#FFC107',
-  RAILWAY: '#00bcd4',
-};
-
-// ── Nodos del Swarm ─────────────────────────────────────────────────────────────
-const INITIAL_GRAPH = {
-  nodes: [
-    { id: 'Master', name: 'MIA BOT', group: 1, val: 32, color: '#e91e63' },
-    { id: 'Inbox',  name: 'INBOX',   group: 2, val: 18, color: '#FF5722' },
-    { id: 'Daily',  name: 'DAILY',   group: 2, val: 18, color: '#2196F3' },
-    { id: 'MOC',    name: 'MOC',     group: 2, val: 18, color: '#4CAF50' },
-    { id: 'Tags',   name: 'TAGS',    group: 2, val: 18, color: '#9C27B0' },
-    { id: 'Vault',  name: 'VAULT',   group: 3, val: 18, color: '#FFC107' },
-  ],
-  links: [
-    { source: 'Inbox',  target: 'Master' },
-    { source: 'Daily',  target: 'Master' },
-    { source: 'MOC',    target: 'Master' },
-    { source: 'Tags',   target: 'Master' },
-    { source: 'Master', target: 'Vault'  },
-    { source: 'Vault',  target: 'Master' },
-  ],
-};
-
-// ── Sprite: Pulpo pixel-art (Master) ───────────────────────────────────────────
-function drawOctopus(ctx, color, px, ox, oy) {
-  const rows = [
-    '  xxxxx  ',
-    ' xxxxxxx ',
-    'xxoxxxoxx',
-    'xxxxxxxxx',
-    ' xxxxxxx ',
-    'x x x x x',
-    'x x x x x',
-  ];
-  rows.forEach((row, y) => {
-    for (let x = 0; x < row.length; x++) {
-      if (row[x] === 'x') {
-        ctx.fillStyle = color;
-        ctx.fillRect(ox + x * px, oy + y * px, px, px);
-      } else if (row[x] === 'o') {
-        ctx.fillStyle = '#111';
-        ctx.fillRect(ox + x * px, oy + y * px, px, px);
-      }
+// ── 3D Groktopus Core ──────────────────────────────────────────────────────────
+const GroktopusCore = ({ activeAgent }) => {
+  const meshRef = useRef();
+  
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.x = state.clock.getElapsedTime() * 0.15;
+      meshRef.current.rotation.y = state.clock.getElapsedTime() * 0.25;
+      // Respiración sutil
+      meshRef.current.scale.setScalar(1 + Math.sin(state.clock.getElapsedTime() * 2) * 0.04);
     }
   });
-}
 
-// ── Sprite: Fantasma pixel-art (Agentes) ───────────────────────────────────────
-function drawGhost(ctx, color, px, ox, oy) {
-  const rows = [
-    '  xxxx  ',
-    ' xxxxxx ',
-    'xxoxxoxx',
-    'xxxxxxxx',
-    'xxxxxxxx',
-    'xx xx xx',
-    'x  xx  x',
-  ];
-  rows.forEach((row, y) => {
-    for (let x = 0; x < row.length; x++) {
-      if (row[x] === 'x') {
-        ctx.fillStyle = color;
-        ctx.fillRect(ox + x * px, oy + y * px, px, px);
-      } else if (row[x] === 'o') {
-        ctx.fillStyle = '#111';
-        ctx.fillRect(ox + x * px, oy + y * px, px, px);
-      }
-    }
-  });
-}
+  const isThinking = activeAgent && activeAgent !== 'Master' && activeAgent !== 'VESKA';
+  const isExecuting = activeAgent === 'Master' || activeAgent === 'VESKA';
 
-// ── Componente Principal ────────────────────────────────────────────────────────
-const SwarmGraph = () => {
-  const fgRef = useRef();
-  const [logs,       setLogs]       = useState([]);
-  const [wsStatus,   setWsStatus]   = useState('Conectando al orquestador...');
-  const [activeNodes,setActiveNodes]= useState(new Set());
-  const [graphData]                 = useState(INITIAL_GRAPH);
+  let color = "#e91e63"; // Magenta (Idle)
+  if (isThinking) color = "#00ffa3"; // Cian (Analizando)
+  if (isExecuting) color = "#ffeb3b"; // Dorado (Consenso/Ejecutando)
 
-  // ── WebSocket :8000 ───────────────────────────────────────────────────────────
+  return (
+    <mesh ref={meshRef}>
+      <Sphere args={[1.5, 64, 64]}>
+        <MeshDistortMaterial
+          color={color}
+          attach="material"
+          distort={isThinking ? 0.5 : 0.3}
+          speed={isThinking ? 3 : 1}
+          roughness={0.2}
+          metalness={0.6}
+          emissive={color}
+          emissiveIntensity={0.6}
+        />
+      </Sphere>
+      <pointLight color={color} intensity={15} distance={20} />
+    </mesh>
+  );
+};
+
+// ── Dashboard Principal ────────────────────────────────────────────────────────
+const GroktopusDashboard = () => {
+  const [logs, setLogs] = useState([]);
+  const [wsStatus, setWsStatus] = useState('CONNECTING...');
+  const [activeAgent, setActiveAgent] = useState(null);
+
+  // ── Conexión WebSocket (Misma Caché, Mismo Bot) ─────────────────────────────
   useEffect(() => {
     let ws, retryTimeout;
 
-    const activate = (agent) => {
-      setActiveNodes(prev => {
-        const next = new Set(prev);
-        next.add(agent);
-        setTimeout(() => setActiveNodes(c => { const u = new Set(c); u.delete(agent); return u; }), 3000);
-        return next;
-      });
-    };
-
     const connect = () => {
       ws = new WebSocket(WS_URL);
-      ws.onopen  = () => setWsStatus('✅ Orquestador conectado — Puerto 8000');
-      ws.onerror = () => setWsStatus('⚠️  Sin conexión — orquestador apagado');
-      ws.onclose = () => { setWsStatus('🔄 Reconectando en 5s...'); retryTimeout = setTimeout(connect, 5000); };
+      ws.onopen  = () => setWsStatus('CONNECTED / LIVE FLOOR');
+      ws.onerror = () => setWsStatus('OFFLINE');
+      ws.onclose = () => { setWsStatus('RECONNECTING...'); retryTimeout = setTimeout(connect, 5000); };
+      
       ws.onmessage = (e) => {
         try {
-          const { agent, action, data } = JSON.parse(e.data);
+          const msg = JSON.parse(e.data);
           const ts = new Date().toLocaleTimeString('es-MX', { hour12: false });
-          setLogs(prev => [...prev.slice(-40), { ts, agent, action: action.toUpperCase(), data }]);
-          if (agent) activate(agent);
+          
+          setLogs(prev => [...prev.slice(-25), { ts, ...msg }]);
+          
+          // Mapeamos los nombres del backend a los 8 agentes del lore si es posible
+          // O iluminamos por acción.
+          if (msg.agent) {
+            setActiveAgent(msg.agent);
+            setTimeout(() => setActiveAgent(null), 4000); 
+          }
         } catch (_) {}
       };
     };
@@ -126,174 +82,132 @@ const SwarmGraph = () => {
     return () => { clearTimeout(retryTimeout); ws && ws.close(); };
   }, []);
 
-  // ── Polling caché Railway vía proxy local cada 30s ───────────────────────────
-  useEffect(() => {
-    const pull = () => {
-      fetch(CACHE_API)
-        .then(r => r.json())
-        .then(json => {
-          if (json.status === 'success') {
-            const ts  = new Date().toLocaleTimeString('es-MX', { hour12: false });
-            const bal = json.data?.balance_actual?.toFixed(2) ?? '?';
-            const eq  = json.data?.equity?.toFixed(2)         ?? '?';
-            const fp  = json.data?.floating_pnl?.toFixed(2)   ?? '?';
-            setLogs(prev => [...prev.slice(-40),
-              { ts, agent: 'RAILWAY', action: 'SYNC',
-                data: `Balance $${bal} | Equity $${eq} | Float PnL $${fp}` }
-            ]);
-          }
-        })
-        .catch(() => {
-          const ts = new Date().toLocaleTimeString('es-MX', { hour12: false });
-          setLogs(prev => [...prev.slice(-40),
-            { ts, agent: 'RAILWAY', action: 'ERROR', data: 'Proxy local no disponible — reinicia :8000' }
-          ]);
-        });
-    };
-    pull();
-    const id = setInterval(pull, 30000);
-    return () => clearInterval(id);
-  }, []);
+  // ── Los 8 Agentes del Piso de Trading ───────────────────────────────────────
+  const agents = [
+    { id: 'TIDAL', icon: <Activity size={20}/>, name: 'TIDAL', desc: 'Order Book Scanner', color: 'text-cyan-400', border: 'border-cyan-400/50' },
+    { id: 'LUMEN', icon: <Eye size={20}/>, name: 'LUMEN', desc: 'Sentiment Engine', color: 'text-yellow-400', border: 'border-yellow-400/50' },
+    { id: 'NORO',  icon: <Calculator size={20}/>, name: 'NORO', desc: 'Fair Value / Math', color: 'text-blue-400', border: 'border-blue-400/50' },
+    { id: 'ZEPHR', icon: <Map size={20}/>, name: 'ZEPHR', desc: 'Liquidity Mapper', color: 'text-green-400', border: 'border-green-400/50' },
+    { id: 'VESKA', icon: <Zap size={20}/>, name: 'VESKA', desc: 'Execution Specialist', color: 'text-mia-magenta', border: 'border-mia-magenta/50' },
+    { id: 'OKAPI', icon: <ShieldCheck size={20}/>, name: 'OKAPI', desc: 'Hedge Exposure', color: 'text-orange-400', border: 'border-orange-400/50' },
+    { id: 'MARIN', icon: <Briefcase size={20}/>, name: 'MARIN', desc: 'Settlement Desk', color: 'text-purple-400', border: 'border-purple-400/50' },
+    { id: 'RUNE',  icon: <Shield size={20}/>, name: 'RUNE', desc: 'Risk Control (Veto)', color: 'text-red-500', border: 'border-red-500/50' }
+  ];
 
-  // ── Órbita circular real + ancla Master al centro ────────────────────────────
-  useEffect(() => {
-    if (!fgRef.current) return;
-
-    // Desactivar todas las fuerzas para control total de posición
-    fgRef.current.d3Force('charge', null);
-    fgRef.current.d3Force('link',   null);
-    fgRef.current.d3Force('center', null);
-
-    const RADIUS = 120;
-    const agents = ['Inbox', 'Daily', 'MOC', 'Tags', 'Vault'];
-    const speeds  = [0.008, 0.006, 0.007, 0.009, 0.005];
-    let angles    = agents.map((_, i) => (2 * Math.PI / agents.length) * i);
-
-    // Posición inicial fija
-    const master = graphData.nodes.find(n => n.id === 'Master');
-    if (master) { master.fx = 0; master.fy = 0; master.fz = 0; }
-
-    let camAngle = 0;
-    const dist   = 320;
-    const id = setInterval(() => {
-      if (!fgRef.current) return;
-
-      // Orbitar agentes
-      agents.forEach((agentId, i) => {
-        const node = graphData.nodes.find(n => n.id === agentId);
-        if (node) {
-          angles[i] += speeds[i];
-          node.fx = RADIUS * Math.cos(angles[i]);
-          node.fy = RADIUS * 0.3 * Math.sin(angles[i] * 2);
-          node.fz = RADIUS * Math.sin(angles[i]);
-        }
-      });
-
-      // Cámara rotatoria suave
-      camAngle += 0.003;
-      fgRef.current.cameraPosition({
-        x: dist * Math.sin(camAngle),
-        z: dist * Math.cos(camAngle),
-        y: 80,
-      });
-    }, 16);
-
-    return () => clearInterval(id);
-  }, [graphData.nodes]);
-
-  // ── Sprite canvas → THREE.Sprite ─────────────────────────────────────────────
-  const createSprite = useCallback((node, isActive) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 144; canvas.height = 144;
-    const ctx   = canvas.getContext('2d');
-    const color = isActive ? '#FFFFFF' : node.color;
-    const px = 8, ox = 28, oy = 28;
-
-    if (node.id === 'Master') {
-      drawOctopus(ctx, color, px, ox, oy);
-    } else {
-      drawGhost(ctx, color, px, ox, oy);
-    }
-
-    // Nombre
-    ctx.fillStyle  = isActive ? '#0ff' : '#FFF';
-    ctx.font       = 'bold 11px monospace';
-    ctx.textAlign  = 'center';
-    ctx.shadowColor   = isActive ? '#0ff' : node.color;
-    ctx.shadowBlur    = isActive ? 12 : 0;
-    ctx.fillText(node.name, 72, 126);
-
-    const tex  = new THREE.CanvasTexture(canvas);
-    const mat  = new THREE.SpriteMaterial({ map: tex, transparent: true });
-    const spr  = new THREE.Sprite(mat);
-    const size = isActive ? node.val * 1.6 : node.val;
-    spr.scale.set(size, size, 1);
-    return spr;
-  }, []);
-
-  // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', background: '#0a0a0f', overflow: 'hidden' }}>
-
-      {/* Título */}
-      <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 10, fontFamily: 'monospace', userSelect: 'none' }}>
-        <h2 style={{ margin: 0, color: '#e91e63', letterSpacing: '3px', textShadow: '0 0 12px #e91e63' }}>
-          MIA BOT / OBSIDIAN
-        </h2>
-        <p style={{ margin: '4px 0 0', fontSize: '12px', color: logs.length > 0 ? '#0f0' : '#555' }}>
-          {logs.length > 0 ? '⚡ Enjambre activo' : wsStatus}
-        </p>
+    <div className="w-screen h-screen bg-[#050505] text-slate-300 font-mono overflow-hidden relative flex flex-col">
+      
+      {/* ── HEADER ──────────────────────────────────────────────────────────── */}
+      <div className="absolute top-0 left-0 w-full p-6 z-20 flex justify-between items-start pointer-events-none">
+        <div>
+          <h1 className="text-3xl font-bold tracking-[0.2em] text-mia-magenta drop-shadow-[0_0_10px_rgba(233,30,99,0.8)]">
+            GROKTOPUS
+          </h1>
+          <p className="text-sm tracking-widest text-slate-500 mt-1">AI TRADING FLOOR / MIA BOT</p>
+        </div>
+        <div className="text-right">
+          <div className="flex items-center gap-2 justify-end">
+            <div className={`w-3 h-3 rounded-full animate-pulse ${wsStatus.includes('LIVE') ? 'bg-mia-cyan shadow-[0_0_8px_#00ffa3]' : 'bg-red-500'}`}></div>
+            <span className="text-sm font-bold tracking-widest text-slate-400">{wsStatus}</span>
+          </div>
+          <p className="text-xs text-slate-600 mt-1">CONSENSUS THRESHOLD: 70%</p>
+        </div>
       </div>
 
-
-
-      {/* Terminal SWARM */}
-      <div style={{
-        position: 'absolute', bottom: 20, left: 20, width: '480px', maxHeight: '260px',
-        background: 'rgba(0,0,0,0.9)', border: '1px solid #1a3a1a',
-        zIndex: 10, fontFamily: 'monospace', padding: '14px',
-        overflowY: 'auto', borderRadius: '8px',
-        boxShadow: '0 0 16px rgba(0,255,0,0.1)'
-      }}>
-        <h4 style={{ margin: '0 0 8px', color: '#444', borderBottom: '1px solid #1a3a1a', paddingBottom: '5px', fontSize: '11px' }}>
-          &gt;_ SWARM_TERMINAL — GROKTOPUS
-        </h4>
-        {logs.length === 0 && (
-          <div style={{ color: '#333', fontStyle: 'italic', fontSize: '11px' }}>{wsStatus}</div>
-        )}
-        {logs.map((log, i) => {
-          const color = AGENT_COLORS[log.agent] ?? '#0f0';
-          return (
-            <div key={i} style={{ marginBottom: '4px', fontSize: '11px', lineHeight: '1.4' }}>
-              <span style={{ color: '#555' }}>[{log.ts}] </span>
-              <span style={{ color, fontWeight: 'bold' }}>[{log.agent}]</span>
-              <span style={{ color: '#888' }}> {log.action}: </span>
-              <span style={{ color: log.action === 'ERROR' ? '#f44' : log.action === 'SUCCESS' ? '#0f0' : '#aaa' }}>
-                {log.data}
-              </span>
-            </div>
-          );
-        })}
+      {/* ── 3D SCENE & ORBITING AGENTS ──────────────────────────────────────── */}
+      <div className="absolute inset-0 z-0">
+        <Canvas camera={{ position: [0, 0, 7] }}>
+          <ambientLight intensity={0.1} />
+          <Stars radius={100} depth={50} count={4000} factor={4} saturation={0} fade speed={1.5} />
+          <GroktopusCore activeAgent={activeAgent} />
+          <OrbitControls enableZoom={false} autoRotate autoRotateSpeed={0.8} />
+        </Canvas>
       </div>
 
-      {/* Grafo 3D */}
-      <ForceGraph3D
-        ref={fgRef}
-        graphData={graphData}
-        nodeThreeObject={node => createSprite(node, activeNodes.has(node.id))}
-        nodeThreeObjectExtend={false}
-        linkDirectionalParticles={3}
-        linkDirectionalParticleSpeed={d => activeNodes.has(
-          typeof d.source === 'object' ? d.source.id : d.source
-        ) ? 0.025 : 0.006}
-        linkDirectionalParticleWidth={1.8}
-        linkColor={() => 'rgba(233,30,99,0.25)'}
-        linkWidth={0.5}
-        backgroundColor="#0a0a0f"
-        enableNodeDrag={false}
-      />
+      {/* ── AGENT HTML OVERLAYS ─────────────────────────────────────────────── */}
+      <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
+        <div className="relative w-[800px] h-[800px]">
+          {agents.map((ag, i) => {
+            const angle = (i / agents.length) * Math.PI * 2 - Math.PI / 2;
+            const radius = 42; // Porcentaje de distancia desde el centro
+            const top = `${50 + Math.sin(angle) * radius}%`;
+            const left = `${50 + Math.cos(angle) * radius}%`;
+            
+            // Map incoming backend agent names to these 8 lore agents conceptually if possible
+            // For now, it glows if the ID matches loosely.
+            const isMatch = activeAgent && (
+                ag.id.toLowerCase() === activeAgent.toLowerCase() ||
+                (activeAgent === 'Master' && ag.id === 'RUNE') ||
+                (activeAgent === 'Inbox' && ag.id === 'TIDAL') ||
+                (activeAgent === 'Daily' && ag.id === 'NORO') ||
+                (activeAgent === 'MOC' && ag.id === 'ZEPHR') ||
+                (activeAgent === 'Tags' && ag.id === 'LUMEN') ||
+                (activeAgent === 'Vault' && ag.id === 'MARIN')
+            );
+
+            return (
+              <div 
+                key={ag.id} 
+                className={`absolute -translate-x-1/2 -translate-y-1/2 p-4 rounded-xl border backdrop-blur-md transition-all duration-700
+                  ${isMatch ? `bg-slate-900/90 ${ag.border} scale-125 z-50 shadow-[0_0_20px_rgba(255,255,255,0.1)]` : 'bg-slate-900/40 border-slate-800 scale-100 opacity-60'}
+                `}
+                style={{ top, left }}
+              >
+                <div className={`flex items-center gap-3 mb-2 ${ag.color}`}>
+                  {ag.icon}
+                  <span className="font-bold text-lg tracking-wider">{ag.name}</span>
+                  {isMatch && <CheckCircle size={16} className="ml-2 animate-pulse" />}
+                </div>
+                <div className="text-xs text-slate-400 font-sans tracking-wide uppercase">{ag.desc}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── SWARM TERMINAL ──────────────────────────────────────────────────── */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[80%] max-w-4xl h-[30vh] bg-[#08080c]/80 backdrop-blur-xl border border-slate-800/80 rounded-xl z-30 flex flex-col shadow-2xl">
+        <div className="flex items-center gap-2 p-3 border-b border-slate-800/80 bg-black/40 rounded-t-xl">
+          <TerminalSquare size={16} className="text-slate-500" />
+          <span className="text-xs font-bold text-slate-500 tracking-widest">SWARM_TERMINAL // INTER-AGENT COMMS</span>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth">
+          {logs.length === 0 && (
+            <div className="text-slate-600 text-sm italic">Esperando inicialización del piso de trading...</div>
+          )}
+          {logs.map((log, i) => {
+             // Determinar color de agente dinámicamente o por defecto cian
+             let agentColor = 'text-mia-cyan';
+             if (log.agent === 'Master') agentColor = 'text-mia-magenta';
+             if (log.agent === 'Inbox' || log.agent === 'TIDAL') agentColor = 'text-orange-400';
+             if (log.agent === 'Daily' || log.agent === 'NORO') agentColor = 'text-blue-400';
+             if (log.agent === 'MOC' || log.agent === 'ZEPHR') agentColor = 'text-green-400';
+             if (log.agent === 'Tags' || log.agent === 'LUMEN') agentColor = 'text-yellow-400';
+             if (log.agent === 'Vault' || log.agent === 'MARIN') agentColor = 'text-purple-400';
+
+             return (
+               <div key={i} className="flex flex-col md:flex-row md:items-start gap-2 border-l-2 border-slate-800 pl-3">
+                 <div className="flex gap-2 shrink-0 text-xs mt-[2px]">
+                   <span className="text-slate-600">[{log.ts}]</span>
+                   <span className={`font-bold uppercase tracking-wider ${agentColor}`}>
+                     [{log.agent || 'SYSTEM'}]
+                   </span>
+                 </div>
+                 <div className="text-sm text-slate-300 leading-relaxed font-sans">
+                   <span className="text-slate-500 mr-2 uppercase text-[10px] tracking-widest border border-slate-700 rounded px-1">
+                     {log.action}
+                   </span>
+                   {log.data}
+                 </div>
+               </div>
+             );
+          })}
+        </div>
+      </div>
+
     </div>
   );
 };
 
-export default SwarmGraph;
+export default GroktopusDashboard;
