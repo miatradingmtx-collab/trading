@@ -133,6 +133,6 @@ if __name__ == "__main__":
             emit_ws_event("Master", "ERROR", f"Error en el enjambre: {str(e)}")
             print(f"Error: {e}")
             
-        emit_ws_event("Master", "SLEEP", "Enjambre en Criosueño. Siguiente análisis en 35 segundos...")
-        print("\n[INFO] Durmiendo por 35 segundos para el Punto Dulce (TPM)...")
-        time.sleep(35) # Punto Dulce para no chocar con Groq
+        emit_ws_event("Master", "SLEEP", "Enjambre en Criosueño. Siguiente análisis en 15 minutos (Límite Diario)...")
+        print("\n[INFO] Durmiendo por 15 minutos para no quemar el Límite Diario (TPD) de 500,000 tokens...")
+        time.sleep(900) # 15 minutos de pausa entre ciclos globales
