@@ -34,7 +34,8 @@ def emit_ws_event(agent_name, action, data):
 
 def create_callback(agent_name):
     def callback(output):
-        # time.sleep(15)  # DESACTIVADO, groq/compound tiene límite alto de 70,000 TPM
+        # Frenamos 15s por agente para esparcir los tokens y no chocar con el límite de 30k TPM
+        time.sleep(15)
         texto = str(output)
         emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
     return callback
