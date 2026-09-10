@@ -18,6 +18,7 @@ import random
 import pandas as pd
 import numpy as np
 import httpx
+
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
 load_dotenv()
@@ -1083,7 +1084,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             # Buscar estrategia real en FB antes de enviar MANUAL
             est_sinc = "MANUAL"
             try:
-                import httpx
+
                 async with httpx.AsyncClient() as client:
                     rr = await client.get(f"{FASTAPI_URL}/api/get_trade_tp/{t}", timeout=5)
                     if rr.status_code == 200 and rr.json().get("status") == "success":
@@ -1245,7 +1246,7 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
     if not skip_risk:
         try:
             if FASTAPI_URL and balance > 0:
-                import httpx
+
                 async with httpx.AsyncClient() as client:
                     await client.post(f"{FASTAPI_URL}/webhook_update_balance", json={"balance": balance, "equity": equity, "floating_pnl": equity - balance}, headers={"Authorization": f"Bearer {ACCESS_TOKEN}"})
         except Exception as e:
@@ -1447,7 +1448,7 @@ async def run_escaner_loop():
             # ya que el Firebase Cache Bug fue resuelto y la API está a salvo.
             if FASTAPI_URL and balance > 0:
                 try:
-                    import httpx
+
                     async with httpx.AsyncClient() as client:
                         await client.post(f"{FASTAPI_URL}/webhook_update_balance", json={"balance": balance, "equity": equity, "floating_pnl": equity - balance}, headers={"Authorization": f"Bearer {ACCESS_TOKEN}"})
                 except Exception as e:
