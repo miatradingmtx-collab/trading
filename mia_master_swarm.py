@@ -47,7 +47,7 @@ from langchain_groq import ChatGroq
 
 # CrewAI < 0.50 respeta Langchain, así que ChatGroq funcionará perfectamente.
 my_llm = ChatGroq(
-    model_name="openai/gpt-oss-20b",
+    model_name="groq/compound",
     groq_api_key=os.environ.get("GROQ_API_KEY")
 )
 
