@@ -35,7 +35,7 @@ def emit_ws_event(agent_name, action, data):
 def create_callback(agent_name):
     def callback(output):
         # Frenamos el LLM 15s para no hacer saltar el Error 429 de límite de tokens (8000 TPM)
-        time.sleep(15)
+        # time.sleep(15)  # DESACTIVADO PARA MAXIMA VELOCIDAD
         
         # CrewAI >= 0.x envia diferentes tipos de objetos al callback (AgentStep, ToolResult, etc.)
         # Hacemos str(output) para no chocar con atributos deprecados como .raw
@@ -47,7 +47,7 @@ from langchain_groq import ChatGroq
 
 # CrewAI < 0.50 respeta Langchain, así que ChatGroq funcionará perfectamente.
 my_llm = ChatGroq(
-    model_name="openai/gpt-oss-120b",
+    model_name="llama3-70b-8192",
     groq_api_key=os.environ.get("GROQ_API_KEY")
 )
 
@@ -133,6 +133,6 @@ if __name__ == "__main__":
             emit_ws_event("Master", "ERROR", f"Error en el enjambre: {str(e)}")
             print(f"Error: {e}")
             
-        emit_ws_event("Master", "SLEEP", "Enjambre en Criosueño. Siguiente análisis en 1 minuto...")
-        print("\n[INFO] Durmiendo por 1 minuto para siguiente ciclo...")
-        time.sleep(60) # 1 minuto de pausa entre ciclos globales
+        emit_ws_event("Master", "SLEEP", "Enjambre en Criosueño. Siguiente análisis en 35 segundos...")
+        print("\n[INFO] Durmiendo por 35 segundos para el Punto Dulce (TPM)...")
+        time.sleep(35) # Punto Dulce para no chocar con Groq
