@@ -3535,6 +3535,20 @@ def api_dashboard_data():
         DASHBOARD_CACHE_TIME = time.time()
         print("| CACHE | Datos del dashboard actualizados y guardados en memoria")
 
+        # PUSH TO UPSTASH REDIS
+        try:
+            import requests
+            import json
+            upstash_url = "https://certain-gnat-160816.upstash.io/set/cache_mt5"
+            upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+            session = requests.Session()
+            session.trust_env = False
+            session.post(upstash_url, headers=upstash_headers, data=json.dumps(data), timeout=5)
+            print("| UPSTASH | Caché sincronizada con Redis exitosamente")
+        except Exception as e:
+            print(f"| UPSTASH ERROR | No se pudo subir caché a Redis: {e}")
+
+
         data["recent_logs"] = GLOBAL_AUDIT_LOGS
         return {"status": "success", "data": data}
 
