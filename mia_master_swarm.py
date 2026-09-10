@@ -34,16 +34,20 @@ def emit_ws_event(agent_name, action, data):
 
 def create_callback(agent_name):
     def callback(output):
-        # Frenamos 15s por agente para esparcir los tokens y no chocar con el límite de 30k TPM
-        time.sleep(15)
+        # Frenamos el LLM 15s para no hacer saltar el Error 429 de límite de tokens (8000 TPM)
+        time.sleep(15) 
+        
+        # CrewAI >= 0.x envia diferentes tipos de objetos al callback (AgentStep, ToolResult, etc.)
+        # Hacemos str(output) para no chocar con atributos deprecados como .raw
         texto = str(output)
         emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
     return callback
 
 from langchain_groq import ChatGroq
 
+# CrewAI < 0.50 respeta Langchain, así que ChatGroq funcionará perfectamente.
 my_llm = ChatGroq(
-    model_name="groq/compound",
+    model_name="openai/gpt-oss-20b",
     groq_api_key=os.environ.get("GROQ_API_KEY")
 )
 
@@ -59,15 +63,8 @@ tidal = Agent(
     tools=[railway_cache_tool]
 )
 
-# ── 2. LUMEN (Sentimiento) ──
-lumen = Agent(
-    role='Sentiment Engine (LUMEN)',
-    goal='Leer el contexto macro y sentimiento fundamental.',
-    backstory='Analizas si el miedo institucional es alto basado en los datos de la cache.',
-    tools=[railway_cache_tool],
-    llm=my_llm,
-    step_callback=create_callback("LUMEN")
-)
+# ── 2. LUMEN (Sentimiento) (APAGADO TEMPORALMENTE - Límite de Tokens Groq) ──
+# lumen = Agent(...)
 
 # ── 3. NORO (Matemáticas Duras) ──
 noro = Agent(
@@ -89,61 +86,36 @@ zephr = Agent(
     step_callback=create_callback("ZEPHR")
 )
 
-# ── 5. OKAPI (Cobertura) ──
-okapi = Agent(
-    role='Hedge Exposure (OKAPI)',
-    goal='Evaluar el riesgo de exposición beta.',
-    backstory='Decides si la cuenta tiene demasiada exposición direccional.',
-    tools=[],
-    llm=my_llm,
-    step_callback=create_callback("OKAPI")
-)
+# ── 5. OKAPI (Cobertura) (APAGADO TEMPORALMENTE - Límite de Tokens Groq) ──
+# okapi = Agent(...)
 
 # ── 6. RUNE (Veto de Riesgo) ──
 rune = Agent(
     role='Risk Control (RUNE)',
-    goal='Aprobar o rechazar (Veto) el trade basado en el Consenso de ZEPHR.',
-    backstory='Tu único trabajo es decir NO si el score es menor a 0.70. Eres la muralla de riesgo.',
-    tools=[],
+    goal='Aprobar o rechazar (Veto) el trade basado en el Consenso de ZEPHR y guardarlo en Obsidian.',
+    backstory='Tu único trabajo es decir NO si el score es menor a 0.70. Eres la muralla de riesgo y anotas el reporte final.',
+    tools=[obsidian_writer_tool],
     llm=my_llm,
     step_callback=create_callback("RUNE")
 )
 
-# ── 7. VESKA (Ejecución) ──
-veska = Agent(
-    role='Execution Specialist (VESKA)',
-    goal='Dar la orden final al mercado.',
-    backstory='Eres el francotirador. Solo ejecutas si RUNE y Master aprueban. Nunca promedias.',
-    tools=[],
-    llm=my_llm,
-    step_callback=create_callback("VESKA")
-)
+# ── 7. VESKA (Ejecución) (APAGADO TEMPORALMENTE - Límite de Tokens Groq) ──
+# veska = Agent(...)
 
-# ── 8. MARIN (Liquidación) ──
-marin = Agent(
-    role='Settlement Desk (MARIN)',
-    goal='Guardar el resultado en la bitácora.',
-    backstory='Una vez ejecutado, cierras el ticket con obsidian_writer_tool.',
-    tools=[obsidian_writer_tool],
-    llm=my_llm,
-    step_callback=create_callback("MARIN")
-)
+# ── 8. MARIN (Liquidación) (APAGADO TEMPORALMENTE - Funciones delegadas a RUNE) ──
+# marin = Agent(...)
 
 # ── TAREAS ──
 tasks = [
     Task(description='Obtén los KPIs actuales desde railway_cache_tool.', expected_output='Resumen de liquidez.', agent=tidal),
-    Task(description='Revisa si hay volatilidad macro.', expected_output='Sentimiento del mercado.', agent=lumen),
     Task(description='Usa calc_area_under_curve con "[10,20,30]", "[1,2,3]". Y genera una matriz de markov con \'["Alcista", "Bajista", "Alcista"]\'.', expected_output='Fair Value y Matrices.', agent=noro),
     Task(description='Usa calculate_expected_value (wr=0.75, avg_win=100, avg_loss=50). Y genera score de ejecucion (prob=0.68, wr=0.75).', expected_output='Score de consenso.', agent=zephr),
-    Task(description='Analiza el score y decide si el riesgo de exposición cruzada es aceptable.', expected_output='Aprobación de cobertura.', agent=okapi),
-    Task(description='Revisa el output estadístico. Si el Score es mayor a 0.70, aprueba el trade.', expected_output='Dictamen de Riesgo (APROBADO/VETADO).', agent=rune),
-    Task(description='Redacta el ticket de ejecución del trade.', expected_output='Detalle de fill de mercado.', agent=veska),
-    Task(description='Escribe el reporte final en Obsidian.', expected_output='Confirmación de registro.', agent=marin)
+    Task(description='Revisa el output estadístico. Si el Score es mayor a 0.70 aprueba el trade, si no VETADO. Usa obsidian_writer_tool para guardar el dictamen.', expected_output='Confirmación de registro (APROBADO/VETADO guardado).', agent=rune)
 ]
 
 # ── CREW MASTER ──
 groktopus_crew = Crew(
-    agents=[tidal, lumen, noro, zephr, okapi, rune, veska, marin],
+    agents=[tidal, noro, zephr, rune],
     tasks=tasks,
     process=Process.sequential,
     verbose=True
@@ -151,7 +123,7 @@ groktopus_crew = Crew(
 
 if __name__ == "__main__":
     while True:
-        emit_ws_event("Master", "START", "Iniciando Groktopus Floor. Despertando a los 8 agentes...")
+        emit_ws_event("Master", "START", "Iniciando Groktopus Floor. Despertando a los 4 agentes (Core)...")
         try:
             result = groktopus_crew.kickoff()
             emit_ws_event("Master", "SUCCESS", "Ciclo completado con éxito. Veredicto asimilado.")
@@ -163,4 +135,4 @@ if __name__ == "__main__":
             
         emit_ws_event("Master", "SLEEP", "Enjambre en Criosueño. Siguiente análisis en 35 segundos...")
         print("\n[INFO] Durmiendo por 35 segundos para el Punto Dulce (TPM)...")
-        time.sleep(35) # 35 segundos de pausa entre ciclos globales
+        time.sleep(35) # Punto Dulce para no chocar con Groq
