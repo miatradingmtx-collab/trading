@@ -162,3 +162,12 @@ El "Stored Procedure" (SP) programado en el Backend (`app.py`, línea 1228) que 
 - Si existe 1 operación abierta (ej. Compra), el bot sólo tiene permitido abrir una segunda operación (para llegar al máximo de 2) **si y sólo si es en la misma dirección** (ej. otra Compra) como método de escalamiento.
 - Cualquier señal en contra generada por el escáner será **bloqueada absolutamente** hasta que se cierre la posición actual.
 - La detección de LUX OB o SMC OB (siendo totalmente independientes) sirve para validar segundas entradas a favor de la tendencia, pero NO otorgan permisos de Hedging. Toda operación cruzada queda cancelada.
+
+
+## 📝 Changelog Reciente
+
+### Septiembre 2026
+- **Migración a Upstash Redis:** Se eliminó la dependencia de Firebase/Railway RAM para el caché, pasando a Upstash (Serverless Redis) para prevenir bloqueos Error 429.
+- **Optimización de Groq (8000 TPM):** Se redujo el enjambre temporalmente de 8 a 4 agentes CORE (TIDAL, NORO, ZEPHR, RUNE) para cumplir la cuota.
+- **Velocidad de ejecución:** Se eliminó el sleep individual por agente y se configuró un ciclo de 35 segundos.
+- **Modelo Llama 3.3:** Migración forzada al modelo llama-3.3-70b-versatile en Groq tras el retiro del modelo 3.1.
