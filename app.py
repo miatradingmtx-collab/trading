@@ -216,8 +216,21 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+import asyncio
+async def upstash_cache_loop():
+    print("| UPSTASH LOOP | Iniciando actualizador de cache en background...")
+    while True:
+        try:
+            # Llama a la funcion que compila todo el dashboard y lo manda a Upstash (línea 3538)
+            api_dashboard_data()
+        except Exception as e:
+            pass
+        await asyncio.sleep(60)
+
 @app.on_event("startup")
 async def startup_event():
+    asyncio.create_task(upstash_cache_loop())
     # Inicializar la base de datos de Firebase si está conectada
     global firebase_inicializado, db
     if firebase_inicializado and db is not None:
