@@ -47,7 +47,7 @@ from langchain_groq import ChatGroq
 
 # CrewAI < 0.50 respeta Langchain, así que ChatGroq funcionará perfectamente.
 my_llm = ChatGroq(
-    model_name="llama-3.1-70b-versatile",
+    model_name="llama-3.3-70b-versatile",
     groq_api_key=os.environ.get("GROQ_API_KEY")
 )
 
@@ -123,7 +123,7 @@ groktopus_crew = Crew(
 
 if __name__ == "__main__":
     while True:
-        emit_ws_event("Master", "START", "Iniciando Groktopus Floor. Despertando a los 8 agentes...")
+        emit_ws_event("Master", "START", "Iniciando Groktopus Floor. Despertando a los 4 agentes (Core)...")
         try:
             result = groktopus_crew.kickoff()
             emit_ws_event("Master", "SUCCESS", "Ciclo completado con éxito. Veredicto asimilado.")

@@ -24,30 +24,29 @@ except Exception:
 
 @tool("Leer Railway Cache RAM")
 def railway_cache_tool() -> str:
-    """Útil para extraer métricas, KPIs y rendimiento por estrategia desde la caché RAM de Railway."""
+    """Útil para extraer métricas, KPIs y rendimiento por estrategia desde la caché RAM (Ahora en Upstash Redis)."""
     try:
-        headers = {'User-Agent': 'MiaSwarmBot/1.0'}
-        response = requests.get(
-            'https://trading-production-927a.up.railway.app/api/dashboard_data',
-            headers=headers, timeout=20
-        )
+        url = "https://certain-gnat-160816.upstash.io/get/cache_mt5"
+        headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        
+        session = requests.Session()
+        session.trust_env = False
+        response = session.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-        data = response.json().get("data", {})
-
-        # Extraer métricas clave disponibles en el endpoint
-        resumen = {
-            "fuente": "Railway Cache RAM (NO Firebase directo)",
-            "balance_actual": data.get("balance_actual"),
-            "equity": data.get("equity"),
-            "floating_pnl": data.get("floating_pnl"),
-            "kpis": data.get("kpis", {}),
-            "estrategias": data.get("estrategias", []),
-            "rendimiento_activos": data.get("rendimiento_activos", {}),
-            "operaciones_activas": data.get("operaciones_activas", []),
-        }
-        return json.dumps(resumen, indent=2, ensure_ascii=False)
+        
+        data = response.json()
+        if data.get("result"):
+            # Redis guarda strings, lo convertimos de vuelta a JSON
+            try:
+                parsed_data = json.loads(data["result"])
+                return f"Datos desde Upstash Redis:\n{json.dumps(parsed_data, indent=2)}"
+            except:
+                return f"Datos (Raw String) desde Upstash Redis:\n{data['result']}"
+        else:
+            return "El caché de Redis está vacío. Esperando datos del Bot MT5."
+            
     except Exception as e:
-        return f"Error leyendo Railway Cache: {str(e)}"
+        return f"Error leyendo Upstash Redis Cache: {str(e)}"
 
 @tool("Leer Mia Core Markdown")
 def mia_core_reader_tool() -> str:
