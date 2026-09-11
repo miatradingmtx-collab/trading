@@ -1545,7 +1545,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
         except Exception as e:
             pass
 
-    # INFERIR ESTRATEGIA SI SIGUE SIENDO MANUAL Y ES APERTURA
+    # INFERIR ESTRATEGIA SI SIGUE SIENDO MANUAL Y ES APERTURA (Fallo en Caché y DB)
     if alert.estrategia == "MANUAL" or alert.estrategia == "UNKNOWN":
         if alert.activo != "UNKNOWN" and alert.activo in GLOBAL_MATRICES_CACHE_FULL:
             matriz = GLOBAL_MATRICES_CACHE_FULL[alert.activo]
@@ -1553,12 +1553,20 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
             tiene_lux = any(conf.get(f"order_block_zona_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
             tiene_fvg = conf.get("fvg_detectado", False)
             tiene_retail = conf.get("order_block_detectado", False)
+            
+            # Armamos el string completo para que no diga solo "LUX" o "MANUAL"
             if tiene_lux: 
-                alert.estrategia = "LUX"
+                alert.estrategia = "SMC Setup | Liquidez + OB (Lux Algo)"
             elif tiene_fvg: 
-                alert.estrategia = "FVG"
+                alert.estrategia = "SMC Setup | FVG + OB"
             elif tiene_retail: 
-                alert.estrategia = "SMC"
+                alert.estrategia = "SMC Setup | Institucional SMC"
+            else:
+                alert.estrategia = "SMC Setup | Liquidez + OB (SMC Base)"
+                
+            # Tratamos de recuperar el detalle de la matriz si es posible
+            if not getattr(alert, 'detalle_setup_string', None):
+                alert.__setattr__('detalle_setup_string', f"{alert.activo} | {alert.estrategia} | SCORE: {matriz.get('score_porcentaje', 0)}%")
 
     print(f"\n========================================================")
     print(f"ALERTA RECIBIDA EN WEBHOOK (MT5/FIREBASE): {alert.accion} en {alert.activo}")
@@ -2809,7 +2817,7 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
             tp1_25 = round(ejecucion.precio_ejecucion + (distancia * 0.25) if es_buy else ejecucion.precio_ejecucion - (distancia * 0.25), 5)
             tp2_50 = round(ejecucion.precio_ejecucion + (distancia * 0.50) if es_buy else ejecucion.precio_ejecucion - (distancia * 0.50), 5)
 
-        audit_ref.set({
+        audit_data_dict = {
             "ticket": ejecucion.ticket,
             "estrategia": estrategia_real,
             "activo": ejecucion.activo,
@@ -2829,11 +2837,20 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
             "confirmaciones_tecnicas": data.get("confirmaciones_tecnicas", {}),
             "confirmaciones_fundamentales": data.get("confirmaciones_fundamentales", {}),
             "confirmaciones_institucionales": data.get("confirmaciones_institucionales", {})
-        }, merge=True)
-            
-        print(f"| AUDITORÍA | Trade registrado en TXT y Firebase (mia_audit_logs) para {ejecucion.activo}")
+        }
         
-        return {"status": "success", "mensaje": "Trade ejecutado y auditado en TXT y Firebase"}
+        audit_ref.set(audit_data_dict, merge=True)
+            
+        # Actualizar Caché en RAM directamente para no depender de Firebase (previene error si el webhook llega después y hay límite 429)
+        global GLOBAL_AUDIT_LOGS
+        if GLOBAL_AUDIT_LOGS is not None:
+            GLOBAL_AUDIT_LOGS.insert(0, audit_data_dict)
+            if len(GLOBAL_AUDIT_LOGS) > 1500:
+                GLOBAL_AUDIT_LOGS = GLOBAL_AUDIT_LOGS[:1500]
+                
+        print(f"| AUDITORÍA | Trade registrado en TXT, Firebase y Caché RAM para {ejecucion.activo}")
+        
+        return {"status": "success", "mensaje": "Trade ejecutado y auditado"}
     except Exception as e:
         print(f"| AUDITORÍA ERROR | {e}")
         raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
