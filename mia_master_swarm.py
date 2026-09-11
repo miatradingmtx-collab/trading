@@ -69,6 +69,7 @@ tidal = Agent(
     backstory="Analizas los deltas de volumen en milisegundos buscando trampas institucionales.",
     verbose=True,
     memory=False,
+    allow_delegation=False,
     llm=my_llm,
     step_callback=create_callback("TIDAL"),
     tools=[railway_cache_tool]
@@ -83,6 +84,7 @@ noro = Agent(
     goal='Calcular integrales y matrices de markov.',
     backstory='Eres un quant matemático. Usas las herramientas de Área Bajo la Curva y Matrices de Markov.',
     tools=[calc_area_under_curve, markov_transition_matrix],
+    allow_delegation=False,
     llm=my_llm,
     step_callback=create_callback("NORO")
 )
@@ -93,6 +95,7 @@ zephr = Agent(
     goal='Calcular la esperanza matemática y el score probabilístico.',
     backstory='Usas herramientas bayesianas para sacar un score final (Consenso > 0.70).',
     tools=[calculate_expected_value, generate_execution_score],
+    allow_delegation=False,
     llm=my_llm,
     step_callback=create_callback("ZEPHR")
 )
@@ -106,6 +109,7 @@ rune = Agent(
     goal='Validar todos los puntajes y dar el veredicto final (APROBADO/VETADO).',
     backstory='Eres la última línea de defensa. Recibes la data de los otros agentes. Si ves que el indicador LUX ALGO (order_block_zona) o Liquidez (alineamiento_liquidez) está presente, le das prioridad máxima absoluta por su alta probabilidad. Luego escribes el resultado en Obsidian.',
     tools=[obsidian_writer_tool],
+    allow_delegation=False,
     llm=my_llm,
     step_callback=create_callback("RUNE")
 )
