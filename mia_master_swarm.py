@@ -5,7 +5,6 @@ import requests
 import sys
 from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, Process
-from langchain_groq import ChatGroq
 
 from crew_tools import railway_cache_tool, obsidian_writer_tool
 from math_agent_skills import calc_area_under_curve, markov_transition_matrix
@@ -43,12 +42,13 @@ def create_callback(agent_name):
         emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
     return callback
 
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 
-# CrewAI < 0.50 respeta Langchain, así que ChatGroq funcionará perfectamente.
-my_llm = ChatGroq(
-    model_name="groq/compound-mini",
-    groq_api_key=os.environ.get("GROQ_API_KEY")
+# Usando Gemini 1.5 Flash: Lmite altsimo (15 RPM, millones de tokens al da)
+my_llm = ChatGoogleGenerativeAI(
+    model="gemini-1.5-flash",
+    google_api_key=os.environ.get("GOOGLE_API_KEY"),
+    temperature=0.2
 )
 
 # ── 1. TIDAL (Liquidez) ──
