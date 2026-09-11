@@ -40,8 +40,8 @@ FASTAPI_URL = os.getenv("FASTAPI_URL", "http://localhost:8080")
 ACCESS_TOKEN = os.getenv("BRIDGE_ACCESS_TOKEN", "tu-token-seguro-de-acceso")
 
 METAAPI_TOKEN = os.getenv("METAAPI_TOKEN")
-MT5_LOGIN = os.getenv("MT5_LOGIN", "5051870219")
-MT5_PASSWORD = os.getenv("MT5_PASSWORD", "*5FkZuJe")
+MT5_LOGIN = os.getenv("MT5_LOGIN", "112472341")
+MT5_PASSWORD = os.getenv("MT5_PASSWORD", "*uR8HmJh")
 MT5_SERVER = os.getenv("MT5_SERVER", "MetaQuotes-Demo")
 
 # Parámetros de la Matriz de Riesgo Residual (Inteligencia de Negocio)
