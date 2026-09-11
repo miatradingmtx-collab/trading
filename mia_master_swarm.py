@@ -46,21 +46,43 @@ from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 # ── FAILOVER DINÁMICO (Tolerancia a fallos 24/7) ──
-# Motor Principal: Groq (Llama-based, cuota diaria de 500k tokens)
+# Motor Principal: Groq Llama 70B (Mejor calidad, pero se agota rápido)
 primary_llm = ChatGroq(
-    model_name="groq/compound-mini",
-    groq_api_key=os.environ.get("GROQ_API_KEY")
+    model_name="llama-3.3-70b-versatile",
+    groq_api_key=os.environ.get("GROQ_API_KEY"),
+    temperature=0.2
 )
 
-# Motor de Respaldo: Gemini 1.5 Flash (1500 peticiones diarias gratuitas)
-# Intercepta automáticamente errores 429 de Groq para operar 24h sin frenar.
-fallback_llm = ChatGoogleGenerativeAI(
+# Respaldo 1: Groq Llama 8B (Menos pesado, límite altísimo de tokens)
+fallback_1 = ChatGroq(
+    model_name="llama-3.1-8b-instant",
+    groq_api_key=os.environ.get("GROQ_API_KEY"),
+    temperature=0.2
+)
+
+# Respaldo 2: Groq Mixtral (Usa una cuota diferente en Groq)
+fallback_2 = ChatGroq(
+    model_name="mixtral-8x7b-32768",
+    groq_api_key=os.environ.get("GROQ_API_KEY"),
+    temperature=0.2
+)
+
+# Respaldo 3: Groq Gemma 2 (Otra cuota separada)
+fallback_3 = ChatGroq(
+    model_name="gemma2-9b-it",
+    groq_api_key=os.environ.get("GROQ_API_KEY"),
+    temperature=0.2
+)
+
+# Respaldo 4: Google Gemini (Emergencia final, 20 peticiones)
+fallback_4 = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=os.environ.get("GOOGLE_API_KEY"),
     temperature=0.2
 )
 
-my_llm = primary_llm.with_fallbacks([fallback_llm])
+# Fusionar todos los motores en un cerebro indestructible
+my_llm = primary_llm.with_fallbacks([fallback_1, fallback_2, fallback_3, fallback_4])
 
 # ── 1. TIDAL (Liquidez) ──
 tidal = Agent(
