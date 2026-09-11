@@ -42,14 +42,25 @@ def create_callback(agent_name):
         emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
     return callback
 
+from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# Usando Gemini 1.5 Flash: Lmite altsimo (15 RPM, millones de tokens al da)
-my_llm = ChatGoogleGenerativeAI(
+# ── FAILOVER DINÁMICO (Tolerancia a fallos 24/7) ──
+# Motor Principal: Groq (Llama-based, cuota diaria de 500k tokens)
+primary_llm = ChatGroq(
+    model_name="groq/compound-mini",
+    groq_api_key=os.environ.get("GROQ_API_KEY")
+)
+
+# Motor de Respaldo: Gemini 1.5 Flash (1500 peticiones diarias gratuitas)
+# Intercepta automáticamente errores 429 de Groq para operar 24h sin frenar.
+fallback_llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-flash",
     google_api_key=os.environ.get("GOOGLE_API_KEY"),
     temperature=0.2
 )
+
+my_llm = primary_llm.with_fallbacks([fallback_llm])
 
 # ── 1. TIDAL (Liquidez) ──
 tidal = Agent(
