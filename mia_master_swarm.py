@@ -55,7 +55,7 @@ primary_llm = ChatGroq(
 # Motor de Respaldo: Gemini 1.5 Flash (1500 peticiones diarias gratuitas)
 # Intercepta automáticamente errores 429 de Groq para operar 24h sin frenar.
 fallback_llm = ChatGoogleGenerativeAI(
-    model="gemini-pro",
+    model="gemini-2.5-flash",
     google_api_key=os.environ.get("GOOGLE_API_KEY"),
     temperature=0.2
 )
