@@ -33,8 +33,8 @@ def emit_ws_event(agent_name, action, data):
 
 def create_callback(agent_name):
     def callback(output):
-        # Frenamos el LLM 15s para no hacer saltar el Error 429 de límite de tokens (8000 TPM)
-        time.sleep(15) 
+        # Frenamos el LLM 20s para no hacer saltar el Error 429 de límite de tokens (5 RPM en Gemini free)
+        time.sleep(20) 
         
         # CrewAI >= 0.x envia diferentes tipos de objetos al callback (AgentStep, ToolResult, etc.)
         # Hacemos str(output) para no chocar con atributos deprecados como .raw
