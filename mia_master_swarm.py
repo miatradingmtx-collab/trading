@@ -102,9 +102,9 @@ zephr = Agent(
 
 # ── 6. RUNE (Veto de Riesgo) ──
 rune = Agent(
-    role='Risk Control (RUNE)',
-    goal='Aprobar o rechazar (Veto) el trade basado en el Consenso de ZEPHR y guardarlo en Obsidian.',
-    backstory='Tu único trabajo es decir NO si el score es menor a 0.70. Eres la muralla de riesgo y anotas el reporte final.',
+    role='El Oráculo Final (RUNE)',
+    goal='Validar todos los puntajes y dar el veredicto final (APROBADO/VETADO).',
+    backstory='Eres la última línea de defensa. Recibes la data de los otros agentes. Si ves que el indicador LUX ALGO (order_block_zona) o Liquidez (alineamiento_liquidez) está presente, le das prioridad máxima absoluta por su alta probabilidad. Luego escribes el resultado en Obsidian.',
     tools=[obsidian_writer_tool],
     llm=my_llm,
     step_callback=create_callback("RUNE")
