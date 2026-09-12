@@ -159,7 +159,27 @@ groktopus_crew = Crew(
 )
 
 if __name__ == "__main__":
+    import datetime
     while True:
+        # --- Criosueño de Fin de Semana (Ahorro de Tokens) ---
+        now_utc = datetime.datetime.utcnow()
+        is_weekend = False
+        # Viernes después de las 21:00 UTC
+        if now_utc.weekday() == 4 and now_utc.hour >= 21:
+            is_weekend = True
+        # Sábado todo el día
+        elif now_utc.weekday() == 5:
+            is_weekend = True
+        # Domingo antes de las 21:00 UTC
+        elif now_utc.weekday() == 6 and now_utc.hour < 21:
+            is_weekend = True
+            
+        if is_weekend:
+            emit_ws_event("Master", "SLEEP", "Mercado Cerrado. Enjambre en Criosueño (Ahorro de tokens). Revisando en 1 hora...")
+            print(f"[{now_utc.strftime('%Y-%m-%d %H:%M:%S')}][INFO] Mercado Forex cerrado. Durmiendo 1 hora para no desperdiciar tokens...")
+            time.sleep(3600)
+            continue
+            
         emit_ws_event("Master", "START", "Iniciando Groktopus Floor. Despertando a los 4 agentes (Core)...")
         try:
             result = groktopus_crew.kickoff()
