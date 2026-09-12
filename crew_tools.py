@@ -88,10 +88,22 @@ def obsidian_writer_tool(titulo_archivo: str, contenido_markdown: str) -> str:
         session.trust_env = False
         res = session.post(upstash_url, headers=upstash_headers, data=json.dumps(payload), timeout=10)
         
+        # 3. Homologación en Firebase (Colección swarm_history)
+        firebase_msg = ""
+        global db
+        try:
+            if db is not None:
+                db.collection("swarm_history").document(safe_title).set(payload)
+                firebase_msg = "y homologado en Firebase (swarm_history)"
+            else:
+                firebase_msg = "(Firebase no conectado localmente)"
+        except Exception as e:
+            firebase_msg = f"(Error guardando en Firebase: {str(e)})"
+        
         if res.status_code == 200:
-            return f"✅ Éxito: Análisis guardado localmente ({safe_title}) y sincronizado perfectamente a la Nube (Upstash Redis)."
+            return f"✅ Éxito: Análisis guardado en Redis {firebase_msg}."
         else:
-            return f"⚠️ Guardado local, pero error en Upstash: {res.text}"
+            return f"⚠️ Guardado local/Firebase, pero error en Upstash: {res.text}"
 
     except Exception as e:
         return f"Error en obsidian_writer_tool: {str(e)}"
