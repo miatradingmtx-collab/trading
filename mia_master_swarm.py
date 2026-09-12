@@ -46,30 +46,30 @@ from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 # ── FAILOVER DINÁMICO (Tolerancia a fallos 24/7) ──
-# Motor Principal: Groq Llama 70B (Mejor calidad, pero se agota rápido)
+# Motor Principal: Groq Compound (Mejor calidad)
 primary_llm = ChatGroq(
-    model_name="llama-3.3-70b-versatile",
+    model_name="groq/compound",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
-# Respaldo 1: Groq Llama 8B (Menos pesado, límite altísimo de tokens)
+# Respaldo 1: Groq Compound Mini (Rápido, menos pesado)
 fallback_1 = ChatGroq(
-    model_name="llama-3.1-8b-instant",
+    model_name="groq/compound-mini",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
-# Respaldo 2: Groq Mixtral (Usa una cuota diferente en Groq)
+# Respaldo 2: Qwen 3.6 (Otra cuota separada)
 fallback_2 = ChatGroq(
-    model_name="mixtral-8x7b-32768",
+    model_name="qwen/qwen3.6-27b",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
-# Respaldo 3: Groq Gemma 2 (Otra cuota separada)
+# Respaldo 3: Allam (Otra cuota separada)
 fallback_3 = ChatGroq(
-    model_name="gemma2-9b-it",
+    model_name="allam-2-7b",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
