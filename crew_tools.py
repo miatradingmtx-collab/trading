@@ -59,20 +59,39 @@ def mia_core_reader_tool() -> str:
 
 @tool("Escribir Reporte en Obsidian")
 def obsidian_writer_tool(titulo_archivo: str, contenido_markdown: str) -> str:
-    """Útil para guardar físicamente los análisis de los agentes en formato .md en la bóveda de Obsidian."""
+    """Útil para guardar físicamente los análisis de los agentes (Veredicto y Variables) en formato .md. Sincroniza automáticamente a Upstash Redis para tener el histórico desacoplado en la nube."""
     try:
         import os
-        # Reemplazar espacios para nombres de archivo
+        import json
+        import requests
+        
+        # 1. Escritura Local en el contenedor (Opcional, pero util para logs)
         safe_title = titulo_archivo.replace(" ", "_").replace("/", "-")
         if not safe_title.endswith(".md"):
             safe_title += ".md"
             
-        base_path = r"D:\obsidiana\Proyectos\Mia_Trading"
-        os.makedirs(base_path, exist_ok=True)
-        full_path = os.path.join(base_path, safe_title)
-            
-        with open(full_path, "w", encoding="utf-8") as f:
+        with open(safe_title, "w", encoding="utf-8") as f:
             f.write(contenido_markdown)
-        return f"Éxito: Archivo {safe_title} creado correctamente en la bóveda de Obsidian en {full_path}."
+            
+        # 2. Desacoplamiento a Upstash Redis (Historial de Enjambres)
+        upstash_url = f"https://certain-gnat-160816.upstash.io/set/mia_swarm_history_{safe_title}"
+        upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        
+        # Guardamos un JSON estructurado con la historia
+        payload = {
+            "title": safe_title,
+            "content": contenido_markdown,
+            "timestamp": "2026-09-11" # Simplificado, el servidor pone el suyo
+        }
+        
+        session = requests.Session()
+        session.trust_env = False
+        res = session.post(upstash_url, headers=upstash_headers, data=json.dumps(payload), timeout=10)
+        
+        if res.status_code == 200:
+            return f"✅ Éxito: Análisis guardado localmente ({safe_title}) y sincronizado perfectamente a la Nube (Upstash Redis)."
+        else:
+            return f"⚠️ Guardado local, pero error en Upstash: {res.text}"
+
     except Exception as e:
-        return f"Error escribiendo en disco: {str(e)}"
+        return f"Error en obsidian_writer_tool: {str(e)}"
