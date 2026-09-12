@@ -161,23 +161,32 @@ groktopus_crew = Crew(
 if __name__ == "__main__":
     import datetime
     while True:
-        # --- Criosueño de Fin de Semana (Ahorro de Tokens) ---
-        now_utc = datetime.datetime.utcnow()
+        # --- Criosueño Profundo de Fin de Semana (Cierre a Apertura) ---
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
         is_weekend = False
-        # Viernes después de las 21:00 UTC
+        
+        # Viernes después de las 21:00 UTC (17:00 NY - Cierre)
         if now_utc.weekday() == 4 and now_utc.hour >= 21:
             is_weekend = True
         # Sábado todo el día
         elif now_utc.weekday() == 5:
             is_weekend = True
-        # Domingo antes de las 21:00 UTC
+        # Domingo antes de las 21:00 UTC (17:00 NY - Apertura)
         elif now_utc.weekday() == 6 and now_utc.hour < 21:
             is_weekend = True
             
         if is_weekend:
-            emit_ws_event("Master", "SLEEP", "Mercado Cerrado. Enjambre en Criosueño (Ahorro de tokens). Revisando en 1 hora...")
-            print(f"[{now_utc.strftime('%Y-%m-%d %H:%M:%S')}][INFO] Mercado Forex cerrado. Durmiendo 1 hora para no desperdiciar tokens...")
-            time.sleep(3600)
+            # Calcular exactamente los segundos hasta el domingo a las 21:00 UTC
+            days_ahead = 6 - now_utc.weekday()
+            target_date = now_utc + datetime.timedelta(days=days_ahead)
+            target_time = target_date.replace(hour=21, minute=0, second=0, microsecond=0)
+            
+            segundos_dormir = (target_time - now_utc).total_seconds()
+            horas_dormir = round(segundos_dormir / 3600, 2)
+            
+            emit_ws_event("Master", "SLEEP", f"Mercado Forex Cerrado. Criosueño profundo hasta apertura. ({horas_dormir} hrs restantes)")
+            print(f"[{now_utc.strftime('%Y-%m-%d %H:%M:%S')}][INFO] Mercado Forex cerrado. Entrando en Criosueño profundo por {horas_dormir} horas hasta la apertura asiática...")
+            time.sleep(segundos_dormir)
             continue
             
         emit_ws_event("Master", "START", "Iniciando Groktopus Floor. Despertando a los 4 agentes (Core)...")
