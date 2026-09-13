@@ -33,8 +33,8 @@ def emit_ws_event(agent_name, action, data):
 
 def create_callback(agent_name):
     def callback(output):
-        # Frenamos el LLM 20s para no hacer saltar el Error 429 de límite de tokens (5 RPM en Gemini free)
-        time.sleep(20) 
+        # Frenamos el LLM 31s para no hacer saltar el Error 429 de límite de tokens (RPM en Gemini free)
+        time.sleep(31) 
         
         # CrewAI >= 0.x envia diferentes tipos de objetos al callback (AgentStep, ToolResult, etc.)
         # Hacemos str(output) para no chocar con atributos deprecados como .raw
@@ -45,44 +45,30 @@ def create_callback(agent_name):
 from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# ── FAILOVER DINÁMICO (Tolerancia a fallos 24/7) ──
-# Motor Principal: Groq Compound (Mejor calidad)
-primary_llm = ChatGroq(
-    model_name="groq/compound",
-    groq_api_key=os.environ.get("GROQ_API_KEY"),
-    temperature=0.2
+# 🛸 FAILOVER DINÁMICO (Tolerancia a fallos 24/7) 🛸
+# Motor Principal: Gemini 2.5 Flash (1 Millón de Tokens de Contexto - Evita Error 429 de Groq)
+primary_llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",
+    google_api_key=os.environ.get("GOOGLE_API_KEY"),
+    temperature=0.2,
+    max_retries=3
 )
 
-# Respaldo 1: Groq Compound Mini (Rápido, menos pesado)
+# Respaldo 1: Groq Qwen (Por si Gemini cae)
 fallback_1 = ChatGroq(
-    model_name="groq/compound-mini",
-    groq_api_key=os.environ.get("GROQ_API_KEY"),
-    temperature=0.2
-)
-
-# Respaldo 2: Qwen 3.6 (Otra cuota separada)
-fallback_2 = ChatGroq(
     model_name="qwen/qwen3.6-27b",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
-# Respaldo 3: Allam (Otra cuota separada)
-fallback_3 = ChatGroq(
+# Respaldo 2: Groq Allam
+fallback_2 = ChatGroq(
     model_name="allam-2-7b",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
-# Respaldo 4: Google Gemini (Emergencia final, 20 peticiones)
-fallback_4 = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    google_api_key=os.environ.get("GOOGLE_API_KEY"),
-    temperature=0.2
-)
-
-# Fusionar todos los motores en un cerebro indestructible
-my_llm = primary_llm.with_fallbacks([fallback_1, fallback_2, fallback_3, fallback_4])
+my_llm = primary_llm.with_fallbacks([fallback_1, fallback_2])
 
 # ── 1. TIDAL (Liquidez) ──
 tidal = Agent(
