@@ -45,30 +45,35 @@ def create_callback(agent_name):
 from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# 🛸 FAILOVER DINÁMICO (Tolerancia a fallos 24/7) 🛸
-# Motor Principal: Gemini 2.5 Flash (1 Millón de Tokens de Contexto - Evita Error 429 de Groq)
-primary_llm = ChatGoogleGenerativeAI(
+# 🛸 MULTI-MODEL LOAD BALANCING (Balanceo de Carga y Especialización) 🛸
+
+# 1. CEREBRO GOOGLE (Contexto Masivo - 1 Millón de tokens)
+llm_gemini = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=os.environ.get("GOOGLE_API_KEY"),
     temperature=0.2,
     max_retries=3
 )
 
-# Respaldo 1: Groq Qwen (Por si Gemini cae)
-fallback_1 = ChatGroq(
+# 2. CEREBRO GROQ QWEN (Especialista en Razonamiento Matemático Lógico)
+llm_qwen = ChatGroq(
     model_name="qwen/qwen3.6-27b",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
-# Respaldo 2: Groq Allam
-fallback_2 = ChatGroq(
+# 3. CEREBRO GROQ ALLAM (Ágil, rápido, estadístico)
+llm_allam = ChatGroq(
     model_name="allam-2-7b",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
-my_llm = primary_llm.with_fallbacks([fallback_1, fallback_2])
+# Asignaciones con Failover Cruzado (Si Groq falla, lo salva Gemini. Si Gemini falla, lo salva Qwen)
+llm_para_tidal = llm_gemini.with_fallbacks([llm_qwen])
+llm_para_noro  = llm_qwen.with_fallbacks([llm_gemini])
+llm_para_zephr = llm_allam.with_fallbacks([llm_gemini])
+llm_para_rune  = llm_gemini.with_fallbacks([llm_qwen])
 
 # ── 1. TIDAL (Liquidez) ──
 tidal = Agent(
@@ -78,7 +83,7 @@ tidal = Agent(
     verbose=True,
     memory=False,
     allow_delegation=False,
-    llm=my_llm,
+    llm=llm_para_tidal,
     step_callback=create_callback("TIDAL"),
     tools=[railway_cache_tool]
 )
@@ -93,7 +98,7 @@ noro = Agent(
     backstory='Eres un quant matemático. Usas las herramientas de Área Bajo la Curva y Matrices de Markov.',
     tools=[calc_area_under_curve, markov_transition_matrix],
     allow_delegation=False,
-    llm=my_llm,
+    llm=llm_para_noro,
     step_callback=create_callback("NORO")
 )
 
@@ -104,7 +109,7 @@ zephr = Agent(
     backstory='Usas herramientas bayesianas para sacar un score final (Consenso > 0.70).',
     tools=[calculate_expected_value, generate_execution_score],
     allow_delegation=False,
-    llm=my_llm,
+    llm=llm_para_zephr,
     step_callback=create_callback("ZEPHR")
 )
 
@@ -118,7 +123,7 @@ rune = Agent(
     backstory='Eres la última línea de defensa. Recibes la data de los otros agentes. Si ves que el indicador LUX ALGO (order_block_zona) o Liquidez (alineamiento_liquidez) está presente, le das prioridad máxima absoluta por su alta probabilidad. Luego escribes el resultado en Obsidian.',
     tools=[obsidian_writer_tool],
     allow_delegation=False,
-    llm=my_llm,
+    llm=llm_para_rune,
     step_callback=create_callback("RUNE")
 )
 
