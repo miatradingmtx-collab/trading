@@ -1271,8 +1271,9 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         posiciones_activas = await connection.get_positions()
         simbolos_abiertos = [pos.get('symbol') for pos in posiciones_activas]
     except Exception as e:
-        print(f"| ESCANER ERROR | No se pudieron obtener las posiciones activas: {e}")
-        simbolos_abiertos = []
+        print(f"| ESCANER ERROR FATAL | No se pudieron obtener las posiciones activas desde MetaAPI: {e}")
+        print("| PROTECCIÓN ACTIVADA | Evitando abrir nuevas operaciones para no duplicar trades (Falla de lectura).")
+        return  # Aborta el ciclo completo hasta el próximo tick
         
     for activo in ACTIVOS:
         if not es_mercado_abierto(activo):
@@ -1349,6 +1350,7 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         gatillo_autorizado = webhook_response and webhook_response.get("gatillo_entrada") is True
         
         tiene_lux = any(confirmaciones.get(f"order_block_zona_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
+        tiene_smc = confirmaciones.get("smc_1_ob", False) or confirmaciones.get("smc_2_fvg", False)
         tiene_fvg = confirmaciones.get("fvg_detectado", False)
         tiene_retail = confirmaciones.get("order_block_detectado", False) or bool(soporte_activo)
         es_escenario_6 = tiene_lux and not tiene_fvg and not tiene_retail
