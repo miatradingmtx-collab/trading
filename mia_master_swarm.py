@@ -45,35 +45,42 @@ def create_callback(agent_name):
 from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# 🛸 MULTI-MODEL LOAD BALANCING (Balanceo de Carga y Especialización) 🛸
+# 🛸 MULTI-MODEL LOAD BALANCING (Optimizado para Límites) 🛸
 
-# 1. CEREBRO GOOGLE (Contexto Masivo - 1 Millón de tokens)
-llm_gemini = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    google_api_key=os.environ.get("GOOGLE_API_KEY"),
-    temperature=0.2,
-    max_retries=3
-)
-
-# 2. CEREBRO GROQ QWEN (Especialista en Razonamiento Matemático Lógico)
+# 1. CEREBRO GROQ QWEN (Lógica Fuerte, Contexto Medio)
 llm_qwen = ChatGroq(
     model_name="qwen/qwen3.6-27b",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
-# 3. CEREBRO GROQ ALLAM (Ágil, rápido, estadístico)
+# 2. CEREBRO GROQ ALLAM (Ágil, rápido, estadístico)
 llm_allam = ChatGroq(
     model_name="allam-2-7b",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
-# Asignaciones con Failover Cruzado (Si Groq falla, lo salva Gemini. Si Gemini falla, lo salva Qwen)
-llm_para_tidal = llm_gemini.with_fallbacks([llm_qwen])
-llm_para_noro  = llm_qwen.with_fallbacks([llm_gemini])
-llm_para_zephr = llm_allam.with_fallbacks([llm_gemini])
-llm_para_rune  = llm_gemini.with_fallbacks([llm_qwen])
+# 3. CEREBRO GROQ COMPOUND (Razonamiento Complejo)
+llm_compound = ChatGroq(
+    model_name="groq/compound-mini",
+    groq_api_key=os.environ.get("GROQ_API_KEY"),
+    temperature=0.2
+)
+
+# 4. CEREBRO GOOGLE (Solo en extrema emergencia 20 requests/día)
+llm_gemini = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",
+    google_api_key=os.environ.get("GOOGLE_API_KEY"),
+    temperature=0.2,
+    max_retries=1
+)
+
+# Asignaciones con Failover Cruzado dentro de Groq
+llm_para_tidal = llm_qwen.with_fallbacks([llm_compound, llm_gemini])
+llm_para_noro  = llm_compound.with_fallbacks([llm_qwen, llm_gemini])
+llm_para_zephr = llm_allam.with_fallbacks([llm_qwen, llm_gemini])
+llm_para_rune  = llm_qwen.with_fallbacks([llm_compound, llm_gemini])
 
 # ── 1. TIDAL (Liquidez) ──
 tidal = Agent(

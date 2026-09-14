@@ -39,9 +39,15 @@ def railway_cache_tool() -> str:
             # Redis guarda strings, lo convertimos de vuelta a JSON
             try:
                 parsed_data = json.loads(data["result"])
-                return f"Datos desde Upstash Redis:\n{json.dumps(parsed_data, indent=2)}"
-            except:
-                return f"Datos (Raw String) desde Upstash Redis:\n{data['result']}"
+                # MINIMIZACIÓN DE TOKENS: Extraemos solo lo vital para el Enjambre
+                data_filtrada = {
+                    "kpis": parsed_data.get("kpis", {}),
+                    "activos": parsed_data.get("rendimiento_activos", {}),
+                    "activas": parsed_data.get("operaciones_activas", [])
+                }
+                return f"Datos Minimizados (Upstash Redis):\n{json.dumps(data_filtrada, indent=2)}"
+            except Exception as e:
+                return f"Datos (Raw) desde Upstash Redis:\n{str(data.get('result'))[:1000]}... (TRUNCADO)"
         else:
             return "El caché de Redis está vacío. Esperando datos del Bot MT5."
             
