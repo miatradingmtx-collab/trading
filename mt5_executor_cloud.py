@@ -149,17 +149,14 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
         
     riesgo_dinero = 0.0
     
-    if balance > 5000.0:
+    if balance >= 4200.0:
         riesgo_dinero = balance * (riesgo_pct / 100.0)
-        print(f"| GESTOR RIESGO | Colchon Activo (Balance > ). Riesgo agresivo {riesgo_pct}%: ")
-    elif balance <= 4200.0:
+        print(f"| GESTOR RIESGO | Zona Activa (Balance >= ). Riesgo nominal {riesgo_pct}%: ")
+    else:
+        # balance < 4200
         riesgo_defensivo = 0.25
         riesgo_dinero = balance * (riesgo_defensivo / 100.0)
-        print(f"| GESTOR RIESGO WARN | Escudo Drawdown Limite (). Riesgo minimo {riesgo_defensivo}%: ")
-    else:
-        riesgo_conservador = 0.5
-        riesgo_dinero = balance * (riesgo_conservador / 100.0)
-        print(f"| GESTOR RIESGO | Zona Neutral. Riesgo defensivo {riesgo_conservador}%: ")
+        print(f"| GESTOR RIESGO WARN | Drawdown Activo (Balance < ). Riesgo minimo {riesgo_defensivo}%: ")
 
     distancia_precio = abs(entry_price - sl_price)
     
