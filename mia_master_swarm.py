@@ -49,21 +49,21 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 # 1. CEREBRO GROQ QWEN (Lógica Fuerte, Contexto Medio)
 llm_qwen = ChatGroq(
-    model_name="qwen/qwen3.6-27b",
+    model_name="llama-3.1-8b-instant",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
 # 2. CEREBRO GROQ ALLAM (Ágil, rápido, estadístico)
 llm_allam = ChatGroq(
-    model_name="allam-2-7b",
+    model_name="gemma2-9b-it",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
 # 3. CEREBRO GROQ COMPOUND (Razonamiento Complejo)
 llm_compound = ChatGroq(
-    model_name="groq/compound-mini",
+    model_name="mixtral-8x7b-32768",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )

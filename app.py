@@ -3409,7 +3409,12 @@ def api_dashboard_data():
                     if dt >= semana_atras: activos_stats[activo]["semana"] += pnl
                 except: pass
 
+        
+        for a in activos_stats:
+            for k in ["hoy", "semana", "mes", "trimestre", "semestre", "anual", "pnl_total"]:
+                activos_stats[a][k] = round(activos_stats[a][k], 2)
         data["rendimiento_activos"] = activos_stats
+
 
         # Calcular KPIs dinámicos con clasificación de cierres por ticket
         from collections import defaultdict

@@ -143,36 +143,29 @@ async def obtener_balance(connection) -> tuple:
         return 0.0, 0.0
 
 def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: float, sl_price: float, simbolo: str) -> float:
-    """Calcula el lote basado en un riesgo % del balance y la distancia del SL."""
+    """Calcula el lote basado en riesgo % y distancia del SL, respetando escudo de  y colchon > ."""
     if balance <= 0 or sl_price == 0 or entry_price == 0 or entry_price == sl_price:
-        return 0.02 # Fallback
+        return 0.04 # Fallback
         
-    # 1. Calcular objetivo del mes
-    objetivo_dinero = BASE_BALANCE_MENSUAL * (1.0 + OBJETIVO_MENSUAL_PCT / 100.0)
+    riesgo_dinero = 0.0
     
-    # 2. Lógica de Riesgo Residual (Cushion)
-    es_colchon_activo = False
-    if balance > objetivo_dinero:
-        es_colchon_activo = True
-        colchon_residual = balance - objetivo_dinero
-        # Arriesgamos un porcentaje del colchón acumulado
-        riesgo_dinero = colchon_residual * (RIESGO_RESIDUAL_MAX_PCT / 100.0)
-        print(f"| GESTOR RIESGO | Colchón Residual Activo (Meta del {OBJETIVO_MENSUAL_PCT}% superada). Colchón: ${colchon_residual:.2f}. Riesgo asignado: ${riesgo_dinero:.2f}")
-    else:
-        # 3. Lógica Normal / Escudo de Drawdown
-        if balance <= 4200.0:
-            riesgo_pct = riesgo_pct * 0.5
-            print(f"| GESTOR RIESGO | Escudo de Drawdown activado (Balance <= $4200). Reduciendo riesgo al 50%: {riesgo_pct:.2f}%")
-        
+    if balance > 5000.0:
         riesgo_dinero = balance * (riesgo_pct / 100.0)
+        print(f"| GESTOR RIESGO | Colchon Activo (Balance > ). Riesgo agresivo {riesgo_pct}%: ")
+    elif balance <= 4200.0:
+        riesgo_defensivo = 0.25
+        riesgo_dinero = balance * (riesgo_defensivo / 100.0)
+        print(f"| GESTOR RIESGO WARN | Escudo Drawdown Limite (). Riesgo minimo {riesgo_defensivo}%: ")
+    else:
+        riesgo_conservador = 0.5
+        riesgo_dinero = balance * (riesgo_conservador / 100.0)
+        print(f"| GESTOR RIESGO | Zona Neutral. Riesgo defensivo {riesgo_conservador}%: ")
 
-    # 4. Calcular distancia de pips y valor del lote
     distancia_precio = abs(entry_price - sl_price)
     
-    # 1 Lote estandar (1.00) = $10 por pip (Forex) o $10 por $1 move (Oro)
     if "JPY" in simbolo:
         distancia_pips = distancia_precio * 100
-        valor_pip_lote_estandar = 6.5 # Approx para GBPJPY
+        valor_pip_lote_estandar = 6.5
     elif "XAU" in simbolo or "GOLD" in simbolo:
         distancia_pips = distancia_precio * 10
         valor_pip_lote_estandar = 10.0
@@ -181,25 +174,17 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
         valor_pip_lote_estandar = 10.0
         
     if distancia_pips <= 0:
-        return 0.02
+        return 0.04
         
     lotes = riesgo_dinero / (distancia_pips * valor_pip_lote_estandar)
     lotes = round(lotes, 2)
     
-    # Validar restricción estricta de pérdida máxima si estamos sobre el objetivo
-    if es_colchon_activo:
-        max_perdida_posible = lotes * distancia_pips * valor_pip_lote_estandar
-        # Si la pérdida esperada supera el colchón residual total, reducimos el lote al mínimo seguro
-        if max_perdida_posible > colchon_residual:
-            lotes = colchon_residual / (distancia_pips * valor_pip_lote_estandar)
-            lotes = round(lotes, 2)
-            
-        # Si el colchón no alcanza ni para el lote mínimo de 0.01, cancelamos la entrada para proteger el ancla
-        if lotes < 0.01:
-            print(f"| GESTOR RIESGO CANCEL | Trade cancelado para proteger el ancla de ganancias (${objetivo_dinero}). Colchón insuficiente.")
-            return 0.0
-            
-    # Limites operativos normales
+    # FORZAR LOTE MINIMO PARA PARCIALES (0.04)
+    # Permite al broker cerrar el 25% (0.01) de manera exacta
+    if lotes < 0.04 and balance > 4500:
+        lotes = 0.04
+        print(f"| GESTOR RIESGO | Lotaje ajustado al MINIMO PARA PARCIALES (0.04).")
+
     if lotes < 0.01: lotes = 0.01
     if lotes > 10.0: lotes = 10.0
     

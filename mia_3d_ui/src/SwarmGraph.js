@@ -141,7 +141,7 @@ const GroktopusDashboard = () => {
               </style>
               {agents.map((ag, i) => {
                 const angle = (i / agents.length) * Math.PI * 2 - Math.PI / 2;
-                const radius = 29;
+                const radiusX = 38; const radiusY = 25;
                 const top = `${50 + Math.sin(angle) * radius}%`;
                 const left = `${50 + Math.cos(angle) * radius}%`;
                 
@@ -173,7 +173,7 @@ const GroktopusDashboard = () => {
             {/* TARJETAS DE AGENTES */}
             {agents.map((ag, i) => {
               const angle = (i / agents.length) * Math.PI * 2 - Math.PI / 2;
-              const radius = 29; 
+              const radiusX = 38; const radiusY = 25; 
               const top = `${50 + Math.sin(angle) * radius}%`;
               const left = `${50 + Math.cos(angle) * radius}%`;
               
