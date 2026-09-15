@@ -142,8 +142,8 @@ const GroktopusDashboard = () => {
               {agents.map((ag, i) => {
                 const angle = (i / agents.length) * Math.PI * 2 - Math.PI / 2;
                 const radiusX = 38; const radiusY = 25;
-                const top = `${50 + Math.sin(angle) * radius}%`;
-                const left = `${50 + Math.cos(angle) * radius}%`;
+                const top = `${50 + Math.sin(angle) * radiusY}%`;
+                const left = `${50 + Math.cos(angle) * radiusX}%`;
                 
                 const isMatch = activeAgent && (
                     ag.id.toLowerCase() === activeAgent.toLowerCase() ||
@@ -174,8 +174,8 @@ const GroktopusDashboard = () => {
             {agents.map((ag, i) => {
               const angle = (i / agents.length) * Math.PI * 2 - Math.PI / 2;
               const radiusX = 38; const radiusY = 25; 
-              const top = `${50 + Math.sin(angle) * radius}%`;
-              const left = `${50 + Math.cos(angle) * radius}%`;
+              const top = `${50 + Math.sin(angle) * radiusY}%`;
+              const left = `${50 + Math.cos(angle) * radiusX}%`;
               
               const isMatch = activeAgent && (
                   ag.id.toLowerCase() === activeAgent.toLowerCase() ||
