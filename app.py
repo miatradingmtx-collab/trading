@@ -3566,6 +3566,17 @@ def api_dashboard_data():
         data["indicadores"] = sorted(data["indicadores"], key=lambda x: x["win_rate"], reverse=True)
 
         # Actualizar la caché global
+        
+        def round_floats(obj):
+            if isinstance(obj, float):
+                return round(obj, 2)
+            elif isinstance(obj, dict):
+                return {k: round_floats(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [round_floats(x) for x in obj]
+            return obj
+            
+        data = round_floats(data)
         DASHBOARD_CACHE_DATA = data
         DASHBOARD_CACHE_TIME = time.time()
         print("| CACHE | Datos del dashboard actualizados y guardados en memoria")
