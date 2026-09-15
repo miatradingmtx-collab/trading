@@ -1735,18 +1735,9 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
             
         det_str = getattr(alert, 'detalle_setup_string', None)
         if det_str:
-            # Extraer solo la parte de las confirmaciones de la cadena detalle_setup
-            # Formato: ACTIVO | FECHA | SESION | ESTRATEGIA | CONFIRMACIONES | SCORE ...
-            partes = det_str.split('|')
-            if len(partes) > 4:
-                confirms = partes[4].strip()
-                msg_tg += f"\n👉 Estrategia: {alert.estrategia}\n👉 Confirmaciones: {confirms}"
-            else:
-                msg_tg += f"\n👉 Estrategia: {alert.estrategia}\n👉 Detalle: {det_str}"
+            msg_tg += f"\n🎯 Estrategia (Detalle Completo):\n{det_str}\n"
         else:
-            msg_tg += f"\n👉 Estrategia: {alert.estrategia}"
-        
-        # Disparar Telegram asíncrono
+            msg_tg += f"\n🎯 Estrategia: {alert.estrategia}\n"
         background_tasks.add_task(notificar_telegram, msg_tg)
     
     if BOTPRESS_WEBHOOK_URL:
