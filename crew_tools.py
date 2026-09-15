@@ -6,21 +6,28 @@ from langchain.tools import tool
 
 import requests
 
-# Inicializar Firebase solo si no está inicializado (ya no se usa para lectura, pero lo dejamos por si acaso)
-try:
-    firebase_admin.get_app()
-except ValueError:
-    try:
-        cred = credentials.Certificate('serviceAccountKey.json')
-        firebase_admin.initialize_app(cred)
-    except Exception:
-        pass
-
+# Inicializar Firebase para grabar historial del Enjambre
 db = None
 try:
+    firebase_admin.get_app()
     db = firestore.client()
-except Exception:
-    pass
+except ValueError:
+    try:
+        if os.path.exists('serviceAccountKey.json'):
+            cred = credentials.Certificate('serviceAccountKey.json')
+            firebase_admin.initialize_app(cred)
+            db = firestore.client()
+        elif os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON"):
+            import json
+            service_account_info = json.loads(os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON").strip())
+            cred = credentials.Certificate(service_account_info)
+            firebase_admin.initialize_app(cred)
+            db = firestore.client()
+    except Exception as e:
+        print(f"Error inicializando Firebase en crew_tools: {e}")
+except Exception as e:
+    print(f"Error general Firebase en crew_tools: {e}")
+
 
 @tool("Leer Railway Cache RAM")
 def railway_cache_tool() -> str:
