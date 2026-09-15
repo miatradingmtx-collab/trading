@@ -189,3 +189,9 @@ El "Stored Procedure" (SP) programado en el Backend (`app.py`, línea 1228) que 
 ### [2026-09-14] Estándar de Notificaciones y Reportes (Telegram / Exportaciones)
 - **Variable de Estrategia:** NUNCA se debe recortar o simplificar la variable estrategia. Todos los scripts de reportes (gen_post_fix_report.py, etch_api.py) y las notificaciones a Telegram (pp.py) deben inyectar la variable detalle_setup COMPLETA (Ej. EURUSD | 2026-08-20... | SMC Setup | MEDIAS MOVILES...).
 - **Telegram (Activación):** El bot enviará la notificación asíncrona a Telegram con todo este formato (incluyendo Take Profits y Break Even). Es mandatorio asegurar que las variables de entorno TELEGRAM_CHAT_ID y TELEGRAM_BOT_TOKEN estén declaradas en la infraestructura (Railway) para que el módulo de bypass las pueda usar.
+
+
+### [2026-09-15] Estandar de Base de Datos y Cache (Swarms y Auditoria)
+- **Prohibicion de etiqueta MANUAL:** Queda estrictamente prohibido guardar trades con la estrategia MANUAL en mia_audit_logs si se trata de un trade huerfano o reportado tras un fallo del broker. El sistema (app.py) DEBE hacer un barrido del string detalle_setup, extraer la estrategia original y asignarla correctamente.
+- **Fuente de Verdad de los Enjambres:** La cache de los enjambres en Upstash (mia_swarm_history_*) es la fuente primaria. Esta misma data se usa para crear y poblar la coleccion swarm_history en Firebase. Ya se realizo la migracion de los datos existentes.
+- **Consultas Aisladas:** Los Enjambres (Groktopus) tienen PROHIBIDO consultar Firebase directamente. Todas sus lecturas se hacen a traves del slot aislado de Upstash Redis (railway_cache_tool) para proteger la cuota de la base de datos.
