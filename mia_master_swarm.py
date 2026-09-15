@@ -33,11 +33,6 @@ def emit_ws_event(agent_name, action, data):
 
 def create_callback(agent_name):
     def callback(output):
-        # Frenamos el LLM 31s para no hacer saltar el Error 429 de límite de tokens (RPM en Gemini free)
-        time.sleep(31) 
-        
-        # CrewAI >= 0.x envia diferentes tipos de objetos al callback (AgentStep, ToolResult, etc.)
-        # Hacemos str(output) para no chocar con atributos deprecados como .raw
         texto = str(output)
         emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
     return callback
@@ -47,28 +42,21 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 # 🛸 MULTI-MODEL LOAD BALANCING (Optimizado para Límites) 🛸
 
-# 1. CEREBRO GROQ QWEN (Lógica Fuerte, Contexto Medio)
-llm_qwen = ChatGroq(
-    model_name="llama3-8b-8192",
+# 1. CEREBRO GROQ PRINCIPAL (Llama 3.1 70B - High IQ)
+llm_primary = ChatGroq(
+    model_name="llama-3.1-70b-versatile",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
-# 2. CEREBRO GROQ ALLAM (Ágil, rápido, estadístico)
-llm_allam = ChatGroq(
-    model_name="mixtral-8x7b-32768",
+# 2. CEREBRO GROQ RAPIDO (Llama 3.1 8B)
+llm_fast = ChatGroq(
+    model_name="llama-3.1-8b-instant",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
-# 3. CEREBRO GROQ COMPOUND (Razonamiento Complejo)
-llm_compound = ChatGroq(
-    model_name="mixtral-8x7b-32768",
-    groq_api_key=os.environ.get("GROQ_API_KEY"),
-    temperature=0.2
-)
-
-# 4. CEREBRO GOOGLE (Solo en extrema emergencia 20 requests/día)
+# 3. CEREBRO GOOGLE (Emergencia)
 llm_gemini = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=os.environ.get("GOOGLE_API_KEY"),
@@ -76,11 +64,11 @@ llm_gemini = ChatGoogleGenerativeAI(
     max_retries=1
 )
 
-# Asignaciones con Failover Cruzado dentro de Groq
-llm_para_tidal = llm_qwen.with_fallbacks([llm_compound, llm_gemini])
-llm_para_noro  = llm_compound.with_fallbacks([llm_qwen, llm_gemini])
-llm_para_zephr = llm_allam.with_fallbacks([llm_qwen, llm_gemini])
-llm_para_rune  = llm_qwen.with_fallbacks([llm_compound, llm_gemini])
+# SMART ROUTING: Alternate models to distribute load and prevent 429s
+llm_para_tidal = llm_fast.with_fallbacks([llm_primary, llm_gemini])
+llm_para_noro  = llm_primary.with_fallbacks([llm_fast, llm_gemini])
+llm_para_zephr = llm_fast.with_fallbacks([llm_primary, llm_gemini])
+llm_para_rune  = llm_primary.with_fallbacks([llm_fast, llm_gemini])
 
 # ── 1. TIDAL (Liquidez) ──
 tidal = Agent(
