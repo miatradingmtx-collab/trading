@@ -633,6 +633,15 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                         alert.estrategia = exist_data.get("estrategia")
                     elif exist_data.get("estrategia") and alert.estrategia in ["MANUAL", "UNKNOWN", "SMC", "LUX", "FVG"]:
                         alert.estrategia = exist_data.get("estrategia")
+                    
+                    # NUEVO BARRIDO: Si sigue siendo MANUAL pero tenemos detalle_setup, extraer de ahi
+                    if alert.estrategia == "MANUAL":
+                        det = exist_data.get("detalle_setup", "")
+                        if det and "|" in det:
+                            partes = [p.strip() for p in det.split("|")]
+                            if len(partes) >= 4:
+                                # ACTIVO | FECHA | SESION | ESTRATEGIA | CONFIRMACIONES...
+                                alert.estrategia = partes[3]
                         
                     # Almacenar PNL previo (de parciales anteriores)
                     pnl_acumulado_previo = float(exist_data.get("pnl", 0.0))
