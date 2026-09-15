@@ -5,7 +5,7 @@ import { Activity, Eye, Calculator, Map, ShieldCheck, Briefcase, Shield, Zap, Ch
 import * as THREE from 'three';
 
 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const WS_URL = ${protocol}///ws;
+const WS_URL = `${protocol}//${window.location.host}/ws`;
 
 const GroktopusCore = ({ activeAgent }) => {
   const meshRef = useRef();
@@ -107,42 +107,42 @@ const GroktopusDashboard = () => {
       <div className="w-full flex justify-between items-center p-4 bg-[#0a0d14] border-b border-slate-800 shadow-lg shrink-0">
         <div className="flex items-center gap-4">
           <div className="text-2xl font-black text-[#ff6a00] tracking-widest drop-shadow-[0_0_8px_rgba(255,106,0,0.8)]">GROKTOPUS</div>
-          <div className="text-[10px] text-slate-500 uppercase tracking-widest border-l border-slate-700 pl-4">Groq Bot - Autonomous Trading Floor / 8 Arms / 8 Agents</div>
+          <div className="text-[10px] text-slate-500 uppercase tracking-widest border-l border-slate-700 pl-4 hidden md:block">Groq Bot - Autonomous Trading Floor / 8 Arms / 8 Agents</div>
         </div>
         <div className="flex items-center gap-6 text-[10px] font-bold tracking-widest text-slate-400">
           <div>CYCLE <span className="text-white">12</span></div>
           <div>UPTIME <span className="text-white">313h 25m</span></div>
           <div>MANDATE <span className="text-[#ff6a00]">SWARM</span></div>
           <div className="flex items-center gap-2">
-            GRIP <div className={w-2 h-2 rounded-full animate-pulse }></div>
+            GRIP <div className={`w-2 h-2 rounded-full animate-pulse ${wsStatus.includes('LIVE') ? 'bg-[#00ffa3] shadow-[0_0_8px_#00ffa3]' : 'bg-red-500'}`}></div>
           </div>
         </div>
       </div>
 
-      <div className="w-full grid grid-cols-4 gap-4 p-4 shrink-0">
+      <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-4 p-4 shrink-0">
         {[ 
-          { label: "NET EQUITY", val: ",741.61", sub: "SEED ,000.00", color: "text-white" },
-          { label: "TOTAL P&L", val: "+,741.61", sub: "+11.83% PEAK ,930", color: "text-[#00ffa3]" },
-          { label: "24H VOLUME", val: ".24M", sub: "1,599 FILLS - 8 VENUES", color: "text-white" },
+          { label: "NET EQUITY", val: "$167,741.61", sub: "SEED $150,000.00", color: "text-white" },
+          { label: "TOTAL P&L", val: "+$17,741.61", sub: "+11.83% PEAK $169,930", color: "text-[#00ffa3]" },
+          { label: "24H VOLUME", val: "$2.24M", sub: "1,599 FILLS - 8 VENUES", color: "text-white" },
           { label: "HIT RATE", val: "76.1%", sub: "233W / 73L - SHARPE 2.41", color: "text-white" }
         ].map((m, i) => (
           <div key={i} className="bg-[#0a0d14] border border-slate-800 rounded-lg p-4 flex flex-col relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#ff6a00] to-transparent opacity-50"></div>
             <span className="text-[10px] text-slate-500 tracking-widest mb-1">{m.label}</span>
-            <span className={	ext-2xl font-black tracking-wider }>{m.val}</span>
+            <span className={`text-xl md:text-2xl font-black tracking-wider ${m.color}`}>{m.val}</span>
             <span className="text-[9px] text-slate-500 mt-1 uppercase">{m.sub}</span>
           </div>
         ))}
       </div>
 
       <div className="flex-1 w-full flex px-4 gap-4 overflow-hidden">
-        <div className="w-[300px] shrink-0 bg-[#0a0d14] border border-slate-800 rounded-lg p-4 flex flex-col hidden md:flex">
+        <div className="w-[300px] shrink-0 bg-[#0a0d14] border border-slate-800 rounded-lg p-4 flex-col hidden xl:flex">
           <div className="text-[10px] font-bold text-slate-500 tracking-widest mb-4 flex items-center gap-2"><BarChart2 size={12}/> BALANCE HISTORY</div>
           <div className="flex-1 relative flex items-center justify-center border border-slate-800/50 bg-[#06080c] rounded">
-            <div className="absolute top-2 right-2 text-[#00ffa3] text-xs font-bold">,741.64</div>
+            <div className="absolute top-2 right-2 text-[#00ffa3] text-xs font-bold">$167,741.64</div>
             <div className="w-full h-full p-2 flex items-end">
               {[3,5,4,6,5,7,8,7,9,10,12,11,14,13,15].map((h, i) => (
-                <div key={i} className="flex-1 bg-gradient-to-t from-transparent to-[#00ffa3]/50 mx-[1px] border-t border-[#00ffa3]" style={{height: ${h*5}%}}></div>
+                <div key={i} className="flex-1 bg-gradient-to-t from-transparent to-[#00ffa3]/50 mx-[1px] border-t border-[#00ffa3]" style={{height: `${h*5}%`}}></div>
               ))}
             </div>
           </div>
@@ -171,23 +171,23 @@ const GroktopusDashboard = () => {
               return (
                 <div 
                   key={ag.id} 
-                  className={bsolute -translate-x-1/2 -translate-y-1/2 p-2 rounded border bg-[#06080c]/80 backdrop-blur-md transition-all duration-300
-                    
-                  }
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 p-2 rounded border bg-[#06080c]/80 backdrop-blur-md transition-all duration-300
+                    ${isActive ? `border-[#00ffa3] scale-110 shadow-[0_0_15px_rgba(0,255,163,0.2)]` : 'border-slate-800 scale-100'}
+                  `}
                   style={{ top: ag.pos.top, left: ag.pos.left }}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <div className={w-1.5 h-1.5 rounded-full }></div>
-                    <span className={	ext-[10px] font-bold tracking-widest }>{ag.name}</span>
+                    <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-[#00ffa3] animate-pulse' : 'bg-slate-600'}`}></div>
+                    <span className={`text-[10px] font-bold tracking-widest ${isActive ? 'text-[#00ffa3]' : 'text-slate-400'}`}>{ag.name}</span>
                   </div>
-                  <div className="text-[8px] text-slate-500 uppercase px-1">{ag.desc}</div>
+                  <div className="text-[8px] text-slate-500 uppercase px-1 hidden md:block">{ag.desc}</div>
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="w-[350px] shrink-0 bg-[#0a0d14] border border-slate-800 rounded-lg flex flex-col overflow-hidden hidden lg:flex">
+        <div className="w-[350px] shrink-0 bg-[#0a0d14] border border-slate-800 rounded-lg flex-col overflow-hidden hidden lg:flex">
           <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-[#06080c]">
              <div className="text-[10px] font-bold text-slate-500 tracking-widest flex items-center gap-2"><TerminalSquare size={12}/> ACTIVITY LOG</div>
              <div className="text-[9px] text-slate-600">306 RESOLVED</div>
@@ -210,7 +210,7 @@ const GroktopusDashboard = () => {
           const isActive = activeAgent === ag.name;
           return (
             <div key={i} className="min-w-[120px] flex-1 bg-[#0a0d14] border border-slate-800 rounded-lg p-2 flex flex-col justify-between relative overflow-hidden">
-              <div className={bsolute top-0 left-0 w-full h-1 transition-colors duration-300 }></div>
+              <div className={`absolute top-0 left-0 w-full h-1 transition-colors duration-300 ${isActive ? 'bg-[#00ffa3]' : 'bg-slate-800'}`}></div>
               <div className="flex justify-between items-start mt-1">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-slate-300">{ag.name}</span>
@@ -218,7 +218,7 @@ const GroktopusDashboard = () => {
                 </div>
                 {React.cloneElement(ag.icon, { size: 14, className: isActive ? 'text-[#00ffa3]' : 'text-slate-600' })}
               </div>
-              <div className={	ext-[9px] tracking-widest mt-1 }>
+              <div className={`text-[9px] tracking-widest mt-1 ${isActive ? 'text-[#00ffa3] animate-pulse' : 'text-slate-600'}`}>
                 {isActive ? 'RUNNING' : 'STANDBY'}
               </div>
             </div>

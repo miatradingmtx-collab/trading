@@ -38,3 +38,6 @@ Telegram solo debe alertar (ya sea de apertura o cierre) sobre trades **ejecutad
 - TP1 (25%)
 - TP2 (50%)
 - Full TP
+
+## Regla de Logs (Bypass Notion & Excel)
+Dado que Notion y Excel actualmente no están configurados o habilitados, el sistema de Mia genera un log de error 401 para Notion y una advertencia de archivo no encontrado para Excel en Railway. **Estos no son errores críticos que deban ser corregidos**. Forman parte de un bypass intencional, y los agentes no deben enviar alertas de error ni intentar modificar el código para 'arreglarlos', simplemente ignorarlos en los logs de auditoría.

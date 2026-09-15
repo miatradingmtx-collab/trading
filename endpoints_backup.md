@@ -42,3 +42,8 @@ Rutas para acceder al panel de control y descargar datos.
 - **Reporte de Errores (Logs):** `/registrar_error_sistema`
 - **Petición de Datos (Dashboard):** `/api/dashboard_data`
 - **Petición de Gráficos (Velas):** `/api/chart_data/{symbol}`
+
+---
+
+## N8N Automation
+- **URL del Panel:** https://n8n-production-276f.up.railway.app
