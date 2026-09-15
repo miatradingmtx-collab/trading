@@ -184,3 +184,8 @@ El "Stored Procedure" (SP) programado en el Backend (`app.py`, línea 1228) que 
 - **Cancelaci�n de Delegaci�n en CrewAI:** Se desactiv� llow_delegation=False en todos los agentes para forzar una l�nea de ensamblaje recta (TIDAL -> NORO -> ZEPHR -> RUNE) y prevenir bucles infinitos de agentes rebotando tareas entre ellos.
 - **Variable Morgan (V_M) y �lgebra Lineal:** Se oficializ� la f�rmula del filtro absoluto: V_M = Fuerza_AUC * Sum(W_i * X_i). La matriz booleana comprob� que conceptos Retail puros (FVG, Sweep aislados) devuelven Win Rate de 0%. El algoritmo exige la presencia de Lux Algo Order Blocks (X1) para validar un trade. 
 - **Desacoplamiento de Memoria de Enjambres a Upstash:** La memoria de los an�lisis de RUNE se desvincul� de los contenedores ef�meros de Railway. Ahora se utiliza obsidian_writer_tool para realizar un POST directo hacia Upstash Redis (mia_swarm_history_[Nombre]), guardando el hist�rico perpetuo sin saturar la cach� viva (cache_mt5).
+
+
+### [2026-09-14] Estándar de Notificaciones y Reportes (Telegram / Exportaciones)
+- **Variable de Estrategia:** NUNCA se debe recortar o simplificar la variable estrategia. Todos los scripts de reportes (gen_post_fix_report.py, etch_api.py) y las notificaciones a Telegram (pp.py) deben inyectar la variable detalle_setup COMPLETA (Ej. EURUSD | 2026-08-20... | SMC Setup | MEDIAS MOVILES...).
+- **Telegram (Activación):** El bot enviará la notificación asíncrona a Telegram con todo este formato (incluyendo Take Profits y Break Even). Es mandatorio asegurar que las variables de entorno TELEGRAM_CHAT_ID y TELEGRAM_BOT_TOKEN estén declaradas en la infraestructura (Railway) para que el módulo de bypass las pueda usar.
