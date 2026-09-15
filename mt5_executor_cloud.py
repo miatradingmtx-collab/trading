@@ -149,11 +149,27 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
         
     riesgo_dinero = 0.0
     
-    if balance >= 4200.0:
+    # --- LOGICA DE HOUSE MONEY Y OBJETIVOS MENSUALES ---
+    # Asumimos una base inicial para el calculo del 10% (Se actualizara con Firebase a futuro)
+    BALANCE_INICIO_MES = 4500.0 
+    OBJETIVO_10_PCT = BALANCE_INICIO_MES * 1.10
+    remanente = balance - OBJETIVO_10_PCT
+
+    if remanente > 0:
+        # MODO AGRESIVO: Se alcanzo el >10% en el mes.
+        # Arriesgamos el % asignado potenciado (x1.5), pero NUNCA arriesgamos mas del 30% del remanente 
+        # para asegurar que si perdemos, no bajemos del objetivo mensual del 10%.
+        riesgo_dinero = balance * (riesgo_pct / 100.0) * 1.5
+        if riesgo_dinero > (remanente * 0.30):
+            riesgo_dinero = remanente * 0.30
+        print(f"| GESTOR RIESGO | 🔥 MODO AGRESIVO (House Money). Objetivo 10% superado. Remanente: . Riesgo de operacion: ")
+    elif balance >= 4200.0:
+        # ZONA ACTIVA NORMAL (Escalado exponencial natural 1, 2, 3%)
+        # Como se basa en 'balance', matematicamente el 1% de 5300 es mayor que el 1% de 4200.
         riesgo_dinero = balance * (riesgo_pct / 100.0)
-        print(f"| GESTOR RIESGO | Zona Activa (Balance >= ). Riesgo nominal {riesgo_pct}%: ")
+        print(f"| GESTOR RIESGO | Zona Activa Escalonada (Balance: ). Riesgo nominal {riesgo_pct}%: ")
     else:
-        # balance < 4200
+        # ESCUDO DE DRAWDOWN (balance < 4200)
         riesgo_defensivo = 0.25
         riesgo_dinero = balance * (riesgo_defensivo / 100.0)
         print(f"| GESTOR RIESGO WARN | Drawdown Activo (Balance < ). Riesgo minimo {riesgo_defensivo}%: ")
