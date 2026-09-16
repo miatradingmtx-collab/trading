@@ -5,7 +5,7 @@ import { Activity, Eye, Calculator, Map, ShieldCheck, Briefcase, Shield, Zap, Te
 import * as THREE from 'three';
 
 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const WS_URL = ${protocol}///ws;
+const WS_URL = `${protocol}//${window.location.host}/ws`;
 
 const GroktopusCore = ({ activeAgent }) => {
   const meshRef = useRef();
@@ -122,7 +122,7 @@ const GroktopusDashboard = () => {
         </div>
         <div className="text-right">
           <div className="flex items-center gap-2 justify-end">
-            <div className={w-3 h-3 rounded-full animate-pulse }></div>
+            <div className={`w-3 h-3 rounded-full animate-pulse ${wsStatus.includes('LIVE') ? 'bg-[#00ffa3] shadow-[0_0_8px_#00ffa3]' : 'bg-red-500'}`}></div>
             <span className="text-sm font-bold tracking-widest text-slate-400">{wsStatus}</span>
           </div>
           <p className="text-xs text-slate-600 mt-1">CONSENSUS THRESHOLD: 70%</p>
@@ -148,12 +148,12 @@ const GroktopusDashboard = () => {
               return (
                 <div 
                   key={ag.id} 
-                  className={bsolute -translate-x-1/2 -translate-y-1/2 p-4 rounded-xl border backdrop-blur-md transition-all duration-700
-                    
-                  }
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 p-4 rounded-xl border backdrop-blur-md transition-all duration-700
+                    ${isActive ? 'bg-slate-900/90 border-[#00ffa3] scale-125 z-50 shadow-[0_0_20px_rgba(0,255,163,0.3)]' : 'bg-slate-900/40 border-slate-800 scale-100 opacity-60'}
+                  `}
                   style={{ top: ag.pos.top, left: ag.pos.left }}
                 >
-                  <div className={lex items-center gap-3 mb-2 }>
+                  <div className={`flex items-center gap-3 mb-2 ${isActive ? 'text-[#00ffa3]' : 'text-slate-400'}`}>
                     {ag.icon}
                     <span className="font-bold text-lg tracking-wider">{ag.name}</span>
                   </div>
@@ -187,7 +187,7 @@ const GroktopusDashboard = () => {
                  <div key={i} className="flex flex-col md:flex-row md:items-start gap-2 border-l-2 border-slate-800 pl-3 hover:bg-white/5 p-1 transition-colors">
                    <div className="flex gap-2 shrink-0 text-xs mt-[2px]">
                      <span className="text-slate-600">[{log.ts}]</span>
-                     <span className={ont-bold uppercase tracking-wider }>
+                     <span className={`font-bold uppercase tracking-wider ${agentColor}`}>
                        [{log.agent || 'SYSTEM'}]
                      </span>
                    </div>
