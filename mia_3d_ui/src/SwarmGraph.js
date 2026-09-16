@@ -115,10 +115,13 @@ const GroktopusDashboard = () => {
       <div className="w-full p-4 md:p-6 z-20 flex flex-col md:flex-row justify-between items-center md:items-start shrink-0 pointer-events-none bg-gradient-to-b from-[#06080c] to-transparent absolute top-0">
         <div className="text-center md:text-left mb-2 md:mb-0">
           <h1 className="text-xl md:text-3xl font-bold tracking-[0.2em] text-[#ff6a00] drop-shadow-[0_0_10px_rgba(255,106,0,0.8)]">
-            GROKTOPUS
-          </h1>
-          <p className="text-[10px] md:text-xs text-slate-500 uppercase tracking-widest mt-1">
-            MODO: SHADOW TRADING (TESTING)
+              ANTOPUS
+            </h1>
+            <h2 className="text-sm md:text-md font-bold text-[#00ffa3] tracking-widest mt-1 drop-shadow-[0_0_5px_rgba(0,255,163,0.8)]">
+              MIA IA
+            </h2>
+            <p className="text-[10px] md:text-xs text-slate-500 uppercase tracking-widest mt-1">
+              MODO: SHADOW TRADING (TESTING)
           </p>
         </div>
         <div className="text-center md:text-right flex flex-col items-center md:items-end">
