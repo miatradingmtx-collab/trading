@@ -74,7 +74,7 @@ llm_gemini = ChatGoogleGenerativeAI(
 
 # ASIGNACIÓN QUIRÚRGICA PARA EVITAR RATE LIMITS (429):
 # TIDAL: Escanea Order Books (mucha data pero poca lógica). Usamos 8B.
-llm_para_tidal = llm_8b.with_fallbacks([llm_gemini])
+llm_para_tidal = llm_gemini
 
 # NORO: Precisión matemática extrema (muchos tokens). Lo mandamos a Gemini para no saturar Groq.
 llm_para_noro = llm_gemini.with_fallbacks([llm_70b])
@@ -83,7 +83,7 @@ llm_para_noro = llm_gemini.with_fallbacks([llm_70b])
 llm_para_zephr = llm_gemini.with_fallbacks([llm_8b])
 
 # RUNE: El Juez de Riesgo Final. Se lleva el Llama 70B en exclusiva.
-llm_para_rune = llm_70b.with_fallbacks([llm_gemini])
+llm_para_rune = llm_gemini
 # ── 1. TIDAL (Liquidez) ──
 tidal = Agent(
     role="TIDAL - Order Book Scanner",
