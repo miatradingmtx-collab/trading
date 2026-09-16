@@ -155,7 +155,8 @@ groktopus_crew = Crew(
     agents=[tidal, noro, zephr, rune],
     tasks=tasks,
     process=Process.sequential,
-    verbose=True
+    verbose=True,
+    max_rpm=14
 )
 
 if __name__ == "__main__":
