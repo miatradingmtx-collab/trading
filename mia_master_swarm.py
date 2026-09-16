@@ -44,81 +44,46 @@ def create_callback(agent_name):
 from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# 🌟 TOKEN-BUCKET PREDICTIVE ROUTER (HFT OPTIMIZADO) 🌟
-import time
-from typing import Any, List, Optional
-from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import BaseMessage
-from langchain_core.outputs import ChatResult
+# 🚀 MULTI-PROVIDER LOAD BALANCING (Bypass de TPM Groq) 🚀
+# El TPM de Groq 70B Free es muy bajo (6,000 TPM). NORO y RUNE lo devoran.
+# Solución: Distribuimos la carga pesada hacia Google Gemini (1 Millón TPM gratis) y Groq 8B (30k TPM gratis).
+from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
+import os
 
-global_token_count = 0
-global_window_start = time.time()
-
-class SmartTokenRouter(BaseChatModel):
-    primary_llm: Any
-    secondary_llm: Any
-    max_tpm: int = 5500
-
-    def _generate(self, messages: List[BaseMessage], stop: Optional[List[str]] = None, run_manager: Any = None, **kwargs: Any) -> ChatResult:
-        global global_token_count, global_window_start
-
-        prompt_text = str(messages)
-        est_tokens = len(prompt_text) // 4
-        
-        current_time = time.time()
-        if current_time - global_window_start > 60:
-            global_token_count = 0
-            global_window_start = current_time
-
-        print(f"\n[SMART ROUTER] Ventana: {int(current_time - global_window_start)}s | Tokens Usados: {global_token_count}/{self.max_tpm}")
-
-        if global_token_count + est_tokens >= self.max_tpm:
-            print("[SMART ROUTER] ⚠️ LÍMITE TPM CERCA. Desviando tráfico a Llama 8B (Secondary)...")
-            result = self.secondary_llm._generate(messages, stop, run_manager, **kwargs)
-        else:
-            print("[SMART ROUTER] 🧠 Capacidad OK. Usando Llama 70B (Primary)...")
-            result = self.primary_llm._generate(messages, stop, run_manager, **kwargs)
-        
-        used = est_tokens + 300
-        if hasattr(result, 'llm_output') and result.llm_output and "token_usage" in result.llm_output:
-            used = result.llm_output["token_usage"].get("total_tokens", used)
-            
-        global_token_count += used
-        return result
-
-    @property
-    def _llm_type(self) -> str:
-        return "smart-token-router"
-
-llm_primary_engine = ChatGroq(
+# 1. Groq Llama 70B (Máxima Inteligencia - Límite muy estricto)
+llm_70b = ChatGroq(
     model_name="llama-3.1-70b-versatile",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
-llm_fast_engine = ChatGroq(
+# 2. Groq Llama 8B (Muy Rápido - Límite intermedio)
+llm_8b = ChatGroq(
     model_name="llama-3.1-8b-instant",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
-llm_gemini_engine = ChatGoogleGenerativeAI(
+# 3. Google Gemini Flash (Inteligencia Alta - LÍMITE MASIVO 1,000,000 TPM)
+llm_gemini = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=os.environ.get("GOOGLE_API_KEY"),
-    temperature=0.2,
-    max_retries=1
+    temperature=0.2
 )
 
-smart_llm = SmartTokenRouter(
-    primary_llm=llm_primary_engine, 
-    secondary_llm=llm_fast_engine, 
-    max_tpm=5500
-).with_fallbacks([llm_gemini_engine])
+# ASIGNACIÓN QUIRÚRGICA PARA EVITAR RATE LIMITS (429):
+# TIDAL: Escanea Order Books (mucha data pero poca lógica). Usamos 8B.
+llm_para_tidal = llm_8b.with_fallbacks([llm_gemini])
 
-llm_para_tidal = smart_llm
-llm_para_noro  = smart_llm
-llm_para_zephr = smart_llm
-llm_para_rune  = smart_llm
+# NORO: Precisión matemática extrema (muchos tokens). Lo mandamos a Gemini para no saturar Groq.
+llm_para_noro = llm_gemini.with_fallbacks([llm_70b])
+
+# ZEPHR: Análisis de Liquidez. Lo mandamos a Gemini también.
+llm_para_zephr = llm_gemini.with_fallbacks([llm_8b])
+
+# RUNE: El Juez de Riesgo Final. Se lleva el Llama 70B en exclusiva.
+llm_para_rune = llm_70b.with_fallbacks([llm_gemini])
 # ── 1. TIDAL (Liquidez) ──
 tidal = Agent(
     role="TIDAL - Order Book Scanner",

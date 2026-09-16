@@ -9,12 +9,14 @@ const WS_URL = `${protocol}//${window.location.host}/ws`;
 
 const GroktopusCore = ({ activeAgent }) => {
   const meshRef = useRef();
-  const texture = useLoader(THREE.TextureLoader, '/logo512.png');
+  const texture = useLoader(THREE.TextureLoader, '/pro_octopus.jpg');
   
   useFrame((state) => {
     if (meshRef.current) {
-      const scaleBase = 4;
-      const pulse = Math.sin(state.clock.getElapsedTime() * 2) * 0.15;
+      // Ajuste responsivo: más pequeño en móviles
+      const isMobile = window.innerWidth < 768;
+      const scaleBase = isMobile ? 5 : 8;
+      const pulse = Math.sin(state.clock.getElapsedTime() * 2) * 0.25;
       meshRef.current.scale.set(scaleBase + pulse, scaleBase + pulse, 1);
     }
   });
@@ -22,13 +24,13 @@ const GroktopusCore = ({ activeAgent }) => {
   const isThinking = activeAgent && activeAgent !== 'Master' && activeAgent !== 'VESKA' && activeAgent !== 'RUNE';
   const isExecuting = activeAgent === 'Master' || activeAgent === 'VESKA' || activeAgent === 'RUNE';
 
-  let color = "#ff6a00";
-  if (isThinking) color = "#00ffa3";
-  if (isExecuting) color = "#ffeb3b";
+  let color = "#ffffff";
+  if (isThinking) color = "#aaffaa"; 
+  if (isExecuting) color = "#ffffaa"; 
 
   return (
     <sprite ref={meshRef}>
-      <spriteMaterial map={texture} color={color} transparent={true} opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} />
+      <spriteMaterial map={texture} color={color} transparent={true} opacity={1} blending={THREE.AdditiveBlending} depthWrite={false} />
     </sprite>
   );
 };
@@ -89,48 +91,48 @@ const GroktopusDashboard = () => {
     };
   }, []);
 
-  // Auto-scroll para la terminal
   useEffect(() => {
     if (logsEndRef.current) {
       logsEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [logs]);
 
+  // Contenedor responsivo % en lugar de px absolutos. (Valores entre 10% y 90% para no salirse de la pantalla)
   const agents = [
-    { id: 'TIDAL', name: 'TIDAL', desc: 'SCANNER', color: 'text-[#00ffa3]', border: 'border-[#00ffa3]', icon: <Activity size={24}/>, pos: { top: '30%', left: '85%' } },
-    { id: 'RUNE', name: 'RUNE', desc: 'RISK', color: 'text-red-500', border: 'border-red-500', icon: <Shield size={24}/>, pos: { top: '70%', left: '15%' } },
-    { id: 'LUMEN', name: 'LUMEN', desc: 'SENTIMENT', color: 'text-yellow-400', border: 'border-yellow-400', icon: <Eye size={24}/>, pos: { top: '25%', left: '65%' } },
-    { id: 'MARIN', name: 'MARIN', desc: 'SETTLEMENT', color: 'text-purple-400', border: 'border-purple-400', icon: <Briefcase size={24}/>, pos: { top: '75%', left: '60%' } },
-    { id: 'NORO', name: 'NORO', desc: 'PRICING', color: 'text-[#ff6a00]', border: 'border-[#ff6a00]', icon: <Calculator size={24}/>, pos: { top: '25%', left: '35%' } },
-    { id: 'OKAPI', name: 'OKAPI', desc: 'HEDGING', color: 'text-orange-400', border: 'border-orange-400', icon: <ShieldCheck size={24}/>, pos: { top: '75%', left: '40%' } },
-    { id: 'ZEPHR', name: 'ZEPHR', desc: 'LIQUIDITY', color: 'text-emerald-400', border: 'border-emerald-400', icon: <Map size={24}/>, pos: { top: '70%', left: '85%' } },
-    { id: 'VESKA', name: 'VESKA', desc: 'EXECUTION', color: 'text-blue-400', border: 'border-blue-400', icon: <Zap size={24}/>, pos: { top: '30%', left: '15%' } }
+    { id: 'NORO', name: 'NORO', desc: 'PRICING', color: 'text-[#ff6a00]', border: 'border-[#ff6a00]', icon: <Calculator size={18}/>, pos: { top: '15%', left: '50%' } },
+    { id: 'LUMEN', name: 'LUMEN', desc: 'SENTIMENT', color: 'text-yellow-400', border: 'border-yellow-400', icon: <Eye size={18}/>, pos: { top: '25%', left: '80%' } },
+    { id: 'TIDAL', name: 'TIDAL', desc: 'SCANNER', color: 'text-[#00ffa3]', border: 'border-[#00ffa3]', icon: <Activity size={18}/>, pos: { top: '50%', left: '90%' } },
+    { id: 'ZEPHR', name: 'ZEPHR', desc: 'LIQUIDITY', color: 'text-emerald-400', border: 'border-emerald-400', icon: <Map size={18}/>, pos: { top: '75%', left: '80%' } },
+    { id: 'MARIN', name: 'MARIN', desc: 'SETTLEMENT', color: 'text-purple-400', border: 'border-purple-400', icon: <Briefcase size={18}/>, pos: { top: '85%', left: '50%' } },
+    { id: 'OKAPI', name: 'OKAPI', desc: 'HEDGING', color: 'text-orange-400', border: 'border-orange-400', icon: <ShieldCheck size={18}/>, pos: { top: '75%', left: '20%' } },
+    { id: 'RUNE', name: 'RUNE', desc: 'RISK', color: 'text-red-500', border: 'border-red-500', icon: <Shield size={18}/>, pos: { top: '50%', left: '10%' } },
+    { id: 'VESKA', name: 'VESKA', desc: 'EXECUTION', color: 'text-blue-400', border: 'border-blue-400', icon: <Zap size={18}/>, pos: { top: '25%', left: '20%' } }
   ];
 
   return (
-    <div className="w-screen h-screen bg-[#06080c] text-slate-300 font-mono overflow-hidden flex flex-col relative">
+    <div className="w-screen h-[100dvh] bg-[#06080c] text-slate-300 font-mono flex flex-col relative overflow-hidden">
       
-      {/* HEADER ABSOLUTO (Para no romper el 3D) */}
-      <div className="absolute top-0 left-0 w-full p-6 z-20 flex justify-between items-start pointer-events-none">
-        <div>
-          <h1 className="text-3xl font-bold tracking-[0.2em] text-[#ff6a00] drop-shadow-[0_0_10px_rgba(255,106,0,0.8)]">
+      {/* HEADER */}
+      <div className="w-full p-4 md:p-6 z-20 flex flex-col md:flex-row justify-between items-center md:items-start shrink-0 pointer-events-none bg-gradient-to-b from-[#06080c] to-transparent">
+        <div className="text-center md:text-left mb-2 md:mb-0">
+          <h1 className="text-xl md:text-3xl font-bold tracking-[0.2em] text-[#ff6a00] drop-shadow-[0_0_10px_rgba(255,106,0,0.8)]">
             GROKTOPUS
           </h1>
-          <p className="text-xs text-slate-500 uppercase tracking-widest mt-1">
+          <p className="text-[10px] md:text-xs text-slate-500 uppercase tracking-widest mt-1">
             MODO: SHADOW TRADING (TESTING)
           </p>
         </div>
-        <div className="text-right">
-          <div className="flex items-center gap-2 justify-end">
-            <div className={`w-3 h-3 rounded-full animate-pulse ${wsStatus.includes('LIVE') ? 'bg-[#00ffa3] shadow-[0_0_8px_#00ffa3]' : 'bg-red-500'}`}></div>
-            <span className="text-sm font-bold tracking-widest text-slate-400">{wsStatus}</span>
+        <div className="text-center md:text-right flex flex-col items-center md:items-end">
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 md:w-3 md:h-3 rounded-full animate-pulse ${wsStatus.includes('LIVE') ? 'bg-[#00ffa3] shadow-[0_0_8px_#00ffa3]' : 'bg-red-500'}`}></div>
+            <span className="text-xs md:text-sm font-bold tracking-widest text-slate-400">{wsStatus}</span>
           </div>
-          <p className="text-xs text-slate-600 mt-1">CONSENSUS THRESHOLD: 70%</p>
+          <p className="text-[9px] md:text-xs text-slate-600 mt-1">CONSENSUS THRESHOLD: 70%</p>
         </div>
       </div>
 
       {/* TOP SECTION: 3D SCENE & ORBIT */}
-      <div className="relative w-full h-[65vh]">
+      <div className="relative w-full flex-1 min-h-[40vh]">
         <div className="absolute inset-0 z-0">
           <Canvas camera={{ position: [0, 0, 7] }}>
             <ambientLight intensity={0.1} />
@@ -140,24 +142,24 @@ const GroktopusDashboard = () => {
           </Canvas>
         </div>
 
-        {/* Orbit HTML Overlays */}
+        {/* Orbit HTML Overlays (Responsive Container) */}
         <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
-          <div className="relative w-[800px] h-[800px] scale-[0.5] md:scale-75 lg:scale-100 mt-10 md:mt-0">
+          <div className="relative w-full max-w-[800px] aspect-square">
             {agents.map((ag) => {
               const isActive = activeAgent === ag.name;
               return (
                 <div 
                   key={ag.id} 
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 p-4 rounded-xl border backdrop-blur-md transition-all duration-700
-                    ${isActive ? 'bg-slate-900/90 border-[#00ffa3] scale-125 z-50 shadow-[0_0_20px_rgba(0,255,163,0.3)]' : 'bg-slate-900/40 border-slate-800 scale-100 opacity-60'}
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 p-2 md:p-3 rounded-xl border backdrop-blur-md transition-all duration-700 flex flex-col items-center md:items-start
+                    ${isActive ? 'bg-slate-900/90 border-[#00ffa3] scale-110 md:scale-125 z-50 shadow-[0_0_15px_rgba(0,255,163,0.3)]' : 'bg-slate-900/60 border-slate-800 scale-75 md:scale-100 opacity-80'}
                   `}
                   style={{ top: ag.pos.top, left: ag.pos.left }}
                 >
-                  <div className={`flex items-center gap-3 mb-2 ${isActive ? 'text-[#00ffa3]' : 'text-slate-400'}`}>
-                    {ag.icon}
-                    <span className="font-bold text-lg tracking-wider">{ag.name}</span>
+                  <div className={`flex items-center justify-center md:justify-start gap-1 md:gap-2 mb-1 ${isActive ? 'text-[#00ffa3]' : 'text-slate-400'}`}>
+                    <div className="hidden md:block">{ag.icon}</div>
+                    <span className="font-bold text-[10px] md:text-sm tracking-wider">{ag.name}</span>
                   </div>
-                  <div className="text-xs text-slate-400 font-sans tracking-wide uppercase">{ag.desc}</div>
+                  <div className="text-[8px] md:text-xs text-slate-400 font-sans tracking-wide uppercase hidden sm:block">{ag.desc}</div>
                 </div>
               );
             })}
@@ -166,16 +168,16 @@ const GroktopusDashboard = () => {
       </div>
 
       {/* BOTTOM SECTION: SWARM TERMINAL */}
-      <div className="w-full h-[35vh] px-8 pb-8 z-30 flex justify-center">
-        <div className="w-full max-w-6xl h-full bg-[#08080c]/80 backdrop-blur-xl border border-[#ff6a00]/30 rounded-xl flex flex-col shadow-[0_0_30px_rgba(255,106,0,0.05)] overflow-hidden">
-          <div className="flex items-center gap-2 p-3 border-b border-[#ff6a00]/30 bg-black/60 shrink-0">
-            <TerminalSquare size={16} className="text-[#ff6a00]" />
-            <span className="text-xs font-bold text-[#ff6a00] tracking-widest">SWARM_TERMINAL // INTER-AGENT COMMS</span>
+      <div className="w-full h-[40vh] md:h-[35vh] px-2 md:px-8 pb-4 md:pb-8 z-30 flex justify-center shrink-0">
+        <div className="w-full max-w-6xl h-full bg-[#08080c]/90 backdrop-blur-xl border border-[#ff6a00]/30 rounded-xl flex flex-col shadow-[0_0_30px_rgba(255,106,0,0.1)] overflow-hidden">
+          <div className="flex items-center gap-2 p-2 md:p-3 border-b border-[#ff6a00]/30 bg-black/60 shrink-0">
+            <TerminalSquare size={14} className="text-[#ff6a00]" />
+            <span className="text-[10px] md:text-xs font-bold text-[#ff6a00] tracking-widest">SWARM_TERMINAL // INTER-AGENT COMMS</span>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth">
+          <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-2 md:space-y-3 scroll-smooth pointer-events-auto">
             {logs.length === 0 && (
-              <div className="text-slate-600 text-sm italic">Awaiting telemetry stream from Swarm...</div>
+              <div className="text-slate-600 text-[10px] md:text-sm italic">Awaiting telemetry stream from Swarm...</div>
             )}
             {logs.map((log, i) => {
                let agentColor = 'text-[#00ffa3]';
@@ -184,15 +186,15 @@ const GroktopusDashboard = () => {
                if (log.agent === 'NORO') agentColor = 'text-[#ff6a00]';
 
                return (
-                 <div key={i} className="flex flex-col md:flex-row md:items-start gap-2 border-l-2 border-slate-800 pl-3 hover:bg-white/5 p-1 transition-colors">
-                   <div className="flex gap-2 shrink-0 text-xs mt-[2px]">
+                 <div key={i} className="flex flex-col md:flex-row md:items-start gap-1 md:gap-2 border-l-2 border-slate-800 pl-2 hover:bg-white/5 p-1 transition-colors">
+                   <div className="flex gap-2 shrink-0 text-[10px] md:text-xs mt-[2px]">
                      <span className="text-slate-600">[{log.ts}]</span>
                      <span className={`font-bold uppercase tracking-wider ${agentColor}`}>
                        [{log.agent || 'SYSTEM'}]
                      </span>
                    </div>
-                   <div className="text-sm text-slate-300 leading-relaxed font-sans flex-1 break-words">
-                     <span className="text-slate-500 mr-2 uppercase text-[10px] tracking-widest border border-slate-700 rounded px-1">
+                   <div className="text-[11px] md:text-sm text-slate-300 leading-relaxed font-sans flex-1 break-words">
+                     <span className="text-slate-500 mr-2 uppercase text-[8px] md:text-[10px] tracking-widest border border-slate-700 rounded px-1">
                        {log.action}
                      </span>
                      {log.msg}
