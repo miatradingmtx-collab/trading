@@ -1,6 +1,6 @@
 import numpy as np
 import json
-from crewai.tools import tool
+from langchain.tools import tool
 
 @tool("Calcular Area Bajo Curva")
 def calc_area_under_curve(volume_data: str, time_intervals: str) -> str:

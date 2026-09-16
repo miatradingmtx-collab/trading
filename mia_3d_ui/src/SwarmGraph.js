@@ -13,7 +13,6 @@ const GroktopusCore = ({ activeAgent }) => {
   
   useFrame((state) => {
     if (meshRef.current) {
-      // Ajuste responsivo: más pequeño en móviles
       const isMobile = window.innerWidth < 768;
       const scaleBase = isMobile ? 5 : 8;
       const pulse = Math.sin(state.clock.getElapsedTime() * 2) * 0.25;
@@ -97,13 +96,13 @@ const GroktopusDashboard = () => {
     }
   }, [logs]);
 
-  // Contenedor responsivo % en lugar de px absolutos. (Valores entre 10% y 90% para no salirse de la pantalla)
+  // Posiciones aseguradas dentro del contenedor de 100% de alto y ancho (Ellipse instead of perfect circle to fit landscape screens)
   const agents = [
-    { id: 'NORO', name: 'NORO', desc: 'PRICING', color: 'text-[#ff6a00]', border: 'border-[#ff6a00]', icon: <Calculator size={18}/>, pos: { top: '15%', left: '50%' } },
+    { id: 'NORO', name: 'NORO', desc: 'PRICING', color: 'text-[#ff6a00]', border: 'border-[#ff6a00]', icon: <Calculator size={18}/>, pos: { top: '10%', left: '50%' } },
     { id: 'LUMEN', name: 'LUMEN', desc: 'SENTIMENT', color: 'text-yellow-400', border: 'border-yellow-400', icon: <Eye size={18}/>, pos: { top: '25%', left: '80%' } },
     { id: 'TIDAL', name: 'TIDAL', desc: 'SCANNER', color: 'text-[#00ffa3]', border: 'border-[#00ffa3]', icon: <Activity size={18}/>, pos: { top: '50%', left: '90%' } },
     { id: 'ZEPHR', name: 'ZEPHR', desc: 'LIQUIDITY', color: 'text-emerald-400', border: 'border-emerald-400', icon: <Map size={18}/>, pos: { top: '75%', left: '80%' } },
-    { id: 'MARIN', name: 'MARIN', desc: 'SETTLEMENT', color: 'text-purple-400', border: 'border-purple-400', icon: <Briefcase size={18}/>, pos: { top: '85%', left: '50%' } },
+    { id: 'MARIN', name: 'MARIN', desc: 'SETTLEMENT', color: 'text-purple-400', border: 'border-purple-400', icon: <Briefcase size={18}/>, pos: { top: '90%', left: '50%' } },
     { id: 'OKAPI', name: 'OKAPI', desc: 'HEDGING', color: 'text-orange-400', border: 'border-orange-400', icon: <ShieldCheck size={18}/>, pos: { top: '75%', left: '20%' } },
     { id: 'RUNE', name: 'RUNE', desc: 'RISK', color: 'text-red-500', border: 'border-red-500', icon: <Shield size={18}/>, pos: { top: '50%', left: '10%' } },
     { id: 'VESKA', name: 'VESKA', desc: 'EXECUTION', color: 'text-blue-400', border: 'border-blue-400', icon: <Zap size={18}/>, pos: { top: '25%', left: '20%' } }
@@ -113,7 +112,7 @@ const GroktopusDashboard = () => {
     <div className="w-screen h-[100dvh] bg-[#06080c] text-slate-300 font-mono flex flex-col relative overflow-hidden">
       
       {/* HEADER */}
-      <div className="w-full p-4 md:p-6 z-20 flex flex-col md:flex-row justify-between items-center md:items-start shrink-0 pointer-events-none bg-gradient-to-b from-[#06080c] to-transparent">
+      <div className="w-full p-4 md:p-6 z-20 flex flex-col md:flex-row justify-between items-center md:items-start shrink-0 pointer-events-none bg-gradient-to-b from-[#06080c] to-transparent absolute top-0">
         <div className="text-center md:text-left mb-2 md:mb-0">
           <h1 className="text-xl md:text-3xl font-bold tracking-[0.2em] text-[#ff6a00] drop-shadow-[0_0_10px_rgba(255,106,0,0.8)]">
             GROKTOPUS
@@ -132,7 +131,7 @@ const GroktopusDashboard = () => {
       </div>
 
       {/* TOP SECTION: 3D SCENE & ORBIT */}
-      <div className="relative w-full flex-1 min-h-[40vh]">
+      <div className="relative w-full flex-1 pt-20 pb-4">
         <div className="absolute inset-0 z-0">
           <Canvas camera={{ position: [0, 0, 7] }}>
             <ambientLight intensity={0.1} />
@@ -142,16 +141,16 @@ const GroktopusDashboard = () => {
           </Canvas>
         </div>
 
-        {/* Orbit HTML Overlays (Responsive Container) */}
-        <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
-          <div className="relative w-full max-w-[800px] aspect-square">
+        {/* Orbit HTML Overlays (w-full h-full to prevent clipping) */}
+        <div className="absolute inset-0 z-10 pointer-events-none mt-20 md:mt-10">
+          <div className="relative w-full h-full max-w-5xl mx-auto">
             {agents.map((ag) => {
               const isActive = activeAgent === ag.name;
               return (
                 <div 
                   key={ag.id} 
                   className={`absolute -translate-x-1/2 -translate-y-1/2 p-2 md:p-3 rounded-xl border backdrop-blur-md transition-all duration-700 flex flex-col items-center md:items-start
-                    ${isActive ? 'bg-slate-900/90 border-[#00ffa3] scale-110 md:scale-125 z-50 shadow-[0_0_15px_rgba(0,255,163,0.3)]' : 'bg-slate-900/60 border-slate-800 scale-75 md:scale-100 opacity-80'}
+                    ${isActive ? 'bg-slate-900/90 border-[#00ffa3] scale-110 md:scale-125 z-50 shadow-[0_0_15px_rgba(0,255,163,0.3)]' : 'bg-slate-900/60 border-slate-800 scale-90 md:scale-100 opacity-80'}
                   `}
                   style={{ top: ag.pos.top, left: ag.pos.left }}
                 >
@@ -169,13 +168,13 @@ const GroktopusDashboard = () => {
 
       {/* BOTTOM SECTION: SWARM TERMINAL */}
       <div className="w-full h-[40vh] md:h-[35vh] px-2 md:px-8 pb-4 md:pb-8 z-30 flex justify-center shrink-0">
-        <div className="w-full max-w-6xl h-full bg-[#08080c]/90 backdrop-blur-xl border border-[#ff6a00]/30 rounded-xl flex flex-col shadow-[0_0_30px_rgba(255,106,0,0.1)] overflow-hidden">
+        <div className="w-full max-w-6xl h-full bg-[#08080c]/90 backdrop-blur-xl border border-[#ff6a00]/30 rounded-xl flex flex-col shadow-[0_0_30px_rgba(255,106,0,0.1)] overflow-hidden pointer-events-auto">
           <div className="flex items-center gap-2 p-2 md:p-3 border-b border-[#ff6a00]/30 bg-black/60 shrink-0">
             <TerminalSquare size={14} className="text-[#ff6a00]" />
             <span className="text-[10px] md:text-xs font-bold text-[#ff6a00] tracking-widest">SWARM_TERMINAL // INTER-AGENT COMMS</span>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-2 md:space-y-3 scroll-smooth pointer-events-auto">
+          <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-2 md:space-y-3 scroll-smooth">
             {logs.length === 0 && (
               <div className="text-slate-600 text-[10px] md:text-sm italic">Awaiting telemetry stream from Swarm...</div>
             )}
