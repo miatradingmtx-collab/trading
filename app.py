@@ -3184,9 +3184,28 @@ def asegurar_cache_firebase():
             
             print("| FIREBASE CACHE | Caché de base de datos recargada con éxito.")
         except Exception as fe:
-            print(f"| FIREBASE CACHE WARNING | Error recargando caché (Posible exceso de cuota 429). Manteniendo datos en RAM: {fe}")
-            # Resiliencia: Si da 429 Quota Exceeded, no reiniciamos a None para evitar caídas
-            if GLOBAL_AUDIT_LOGS is None: GLOBAL_AUDIT_LOGS = []
+            print(f"| FIREBASE CACHE WARNING | Error recargando caché (Posible 429). Intentando restaurar desde Upstash Redis: {fe}")
+            
+            # Resiliencia: Si da 429 Quota Exceeded, intentamos cargar desde Upstash Redis que sobrevivió al reinicio
+            restaurado_upstash = False
+            if GLOBAL_AUDIT_LOGS is None:
+                try:
+                    import requests
+                    r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mt5", headers={"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}, timeout=3)
+                    if r.status_code == 200:
+                        import json
+                        up_res = r.json()
+                        up_data = json.loads(up_res.get("result", "{}"))
+                        GLOBAL_AUDIT_LOGS = up_data.get("recent_logs", [])
+                        if GLOBAL_AUDIT_LOGS:
+                            restaurado_upstash = True
+                            print("| UPSTASH RESTORE | Caché restaurada exitosamente desde Redis!")
+                except Exception as up_err:
+                    print(f"| UPSTASH ERROR | No se pudo restaurar desde Redis: {up_err}")
+            
+            if not restaurado_upstash:
+                if GLOBAL_AUDIT_LOGS is None: GLOBAL_AUDIT_LOGS = []
+                
             if GLOBAL_SYSTEM_LOGS is None: GLOBAL_SYSTEM_LOGS = []
             if not GLOBAL_PATRONES:
                 GLOBAL_PATRONES = [
