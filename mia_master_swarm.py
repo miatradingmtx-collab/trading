@@ -67,7 +67,7 @@ llm_8b = ChatGroq(
 
 # 3. Google Gemini Flash (Inteligencia Alta - LÍMITE MASIVO 1,000,000 TPM)
 llm_gemini = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",
+    model="gemini-flash-lite-latest",
     google_api_key=os.environ.get("GOOGLE_API_KEY"),
     temperature=0.2
 )
