@@ -13,6 +13,37 @@ from stat_agent_skills import calculate_expected_value, generate_execution_score
 load_dotenv()
 os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
 
+# Forzar codificación UTF-8 para evitar errores con emojis en Windows CMD (EventBus Error)
+if sys.stdout.encoding != 'utf-8':
+    os.environ["PYTHONIOENCODING"] = "utf-8"
+
+# Emisor de WebSocket para conectar con React 3D (La Terminal de Cristal)
+def emit_ws_event(agent_name, action, data):
+    """Envía un evento al WebSocket server vía HTTP interno"""
+    try:
+        import os
+        port = os.environ.get("PORT", "8000")
+        requests.post(f"http://localhost:{port}/emit", json={
+            "agent": agent_name,
+            "action": action,
+            "data": data
+        })
+    except:
+        pass
+
+def create_callback(agent_name):
+    def callback(output):
+        # Frenamos el LLM 31s para no hacer saltar el Error 429 de límite de tokens (RPM en Gemini free)
+        
+        # CrewAI >= 0.x envia diferentes tipos de objetos al callback (AgentStep, ToolResult, etc.)
+        # Hacemos str(output) para no chocar con atributos deprecados como .raw
+        texto = str(output)
+        emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
+    return callback
+
+from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
+
 # 🌟 TOKEN-BUCKET PREDICTIVE ROUTER (HFT OPTIMIZADO) 🌟
 import time
 from typing import Any, List, Optional
@@ -39,8 +70,7 @@ class SmartTokenRouter(BaseChatModel):
             global_token_count = 0
             global_window_start = current_time
 
-        print(f"
-[SMART ROUTER] Ventana: {int(current_time - global_window_start)}s | Tokens Usados: {global_token_count}/{self.max_tpm}")
+        print(f"\n[SMART ROUTER] Ventana: {int(current_time - global_window_start)}s | Tokens Usados: {global_token_count}/{self.max_tpm}")
 
         if global_token_count + est_tokens >= self.max_tpm:
             print("[SMART ROUTER] ⚠️ LÍMITE TPM CERCA. Desviando tráfico a Llama 8B (Secondary)...")
@@ -60,7 +90,6 @@ class SmartTokenRouter(BaseChatModel):
     def _llm_type(self) -> str:
         return "smart-token-router"
 
-# Instanciamos los motores puros
 llm_primary_engine = ChatGroq(
     model_name="llama-3.1-70b-versatile",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
@@ -80,19 +109,16 @@ llm_gemini_engine = ChatGoogleGenerativeAI(
     max_retries=1
 )
 
-# Envolvemos los motores en el Router Inteligente
 smart_llm = SmartTokenRouter(
     primary_llm=llm_primary_engine, 
     secondary_llm=llm_fast_engine, 
     max_tpm=5500
 ).with_fallbacks([llm_gemini_engine])
 
-# Asignamos el LLM Inteligente a todos los agentes
 llm_para_tidal = smart_llm
 llm_para_noro  = smart_llm
 llm_para_zephr = smart_llm
 llm_para_rune  = smart_llm
-
 # ── 1. TIDAL (Liquidez) ──
 tidal = Agent(
     role="TIDAL - Order Book Scanner",
