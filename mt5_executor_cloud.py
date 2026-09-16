@@ -741,19 +741,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             
         es_buy = str(pos.get('type')) in ['POSITION_TYPE_BUY', '0']
         
-        # 💵 REGLA DEL USUARIO: CERRAR OPERACIÓN SI LLEGA A +$20 USD (TOMAR GANANCIAS)
-        if profit_flotante >= 20.0:
-            print(f"| GESTOR GANANCIAS | ¡Ganancia flotante de +${profit_flotante:.2f} USD detectada en {ticket}! Tomando ganancias totales automáticamente.")
-            try:
-                await connection.close_position(ticket)
-                print(f"| GESTOR GANANCIAS | Posición {ticket} cerrada exitosamente. ¡+$20 asegurados!")
-                if ticket in POSICIONES_ACTIVAS:
-                    del POSICIONES_ACTIVAS[ticket]
-                continue # Evitar procesamiento de parciales ya que está cerrada
-            except Exception as tp_err:
-                print(f"| GESTOR GANANCIAS ERROR | No se pudo cerrar la posición {ticket} por ganancia: {tp_err}")
-                
-        # A. Tomar Parciales Escalonados (TP1: 25%, TP2: 50%)
+        # A. Tomar Parciales Escalonados (TP1: 25%, TP2: 50% o Parcial Fijo por Ganancia)
         import math
         nivel_parcial = POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0)
         
@@ -768,8 +756,10 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             if en_ganancia:
                 if porcentaje_recorrido >= 0.50 and nivel_parcial < 2:
                     toca_parcial = 2
-                elif porcentaje_recorrido >= 0.25 and nivel_parcial < 1:
+                elif (porcentaje_recorrido >= 0.25 or profit_flotante >= 20.0) and nivel_parcial < 1:
                     toca_parcial = 1
+                    if profit_flotante >= 20.0:
+                        print(f"| GESTOR GANANCIAS | Ganancia de +${profit_flotante:.2f} detectada en {ticket}. Forzando TP1 (Parcial 25% y BE).")
                     
             if toca_parcial > 0:
                 # Extraer Volume Step y Min Volume real del Broker
