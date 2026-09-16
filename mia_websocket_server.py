@@ -62,6 +62,11 @@ manager = ConnectionManager()
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
+        await websocket.send_json({
+            "agent": "SYSTEM",
+            "action": "INFO",
+            "data": "Conexión estable. El enjambre está operando con un freno anti-429 (Toma 40s por paso). Por favor espera..."
+        })
         while True:
             data = await websocket.receive_text()
     except WebSocketDisconnect:
