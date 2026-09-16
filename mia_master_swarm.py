@@ -159,6 +159,9 @@ groktopus_crew = Crew(
 )
 
 if __name__ == "__main__":
+    import time
+    print("Esperando 10s para que inicie el WebSocket...")
+    time.sleep(10)
     import datetime
     while True:
         # --- Criosueño Profundo de Fin de Semana (Cierre a Apertura) ---
