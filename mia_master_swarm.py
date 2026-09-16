@@ -33,13 +33,12 @@ def emit_ws_event(agent_name, action, data):
 
 def create_callback(agent_name):
     def callback(output):
-        import time
-        # Frenamos el LLM 15s para no hacer saltar el Error 429 de límite de tokens (RPM en Gemini free)
-        print(f"[{agent_name}] Pausa anti-429 (15s)...")
-        time.sleep(15)
-        
         texto = str(output)
         emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
+        
+        import time
+        print(f"[{agent_name}] Pausa anti-429 (15s)...")
+        time.sleep(15)
     return callback
 
 from langchain_groq import ChatGroq
