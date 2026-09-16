@@ -741,6 +741,18 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             
         es_buy = str(pos.get('type')) in ['POSITION_TYPE_BUY', '0']
         
+        # 💵 REGLA DEL USUARIO: CERRAR OPERACIÓN SI LLEGA A +$20 USD (TOMAR GANANCIAS)
+        if profit_flotante >= 20.0:
+            print(f"| GESTOR GANANCIAS | ¡Ganancia flotante de +${profit_flotante:.2f} USD detectada en {ticket}! Tomando ganancias totales automáticamente.")
+            try:
+                await connection.close_position(ticket)
+                print(f"| GESTOR GANANCIAS | Posición {ticket} cerrada exitosamente. ¡+$20 asegurados!")
+                if ticket in POSICIONES_ACTIVAS:
+                    del POSICIONES_ACTIVAS[ticket]
+                continue # Evitar procesamiento de parciales ya que está cerrada
+            except Exception as tp_err:
+                print(f"| GESTOR GANANCIAS ERROR | No se pudo cerrar la posición {ticket} por ganancia: {tp_err}")
+                
         # A. Tomar Parciales Escalonados (TP1: 25%, TP2: 50%)
         import math
         nivel_parcial = POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0)
@@ -1353,25 +1365,13 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         tiene_retail = confirmaciones.get("order_block_detectado", False) or bool(soporte_activo)
         es_escenario_6 = tiene_lux and not tiene_fvg and not tiene_retail
 
-        # REGLA ESTRICTA DE 2 TRADES Y CERO HEDGING
-        if num_abiertos >= 2:
-            print(f"| REGLA DE 2 TRADES | Ya existen {num_abiertos} posiciones para {activo}. Omitiendo.")
+        # REGLA ESTRICTA DE 1 TRADE MÁXIMO POR ACTIVO
+        if num_abiertos >= 1:
+            print(f"| REGLA DE RIESGO | Ya existe {num_abiertos} posición activa para {activo}. Omitiendo para evitar doble trade.")
             continue
         
-        # Validar dirección de la posición actual para evitar Hedging
+        # Validar dirección de la posición actual para evitar Hedging (Ya no ocurrirá porque cortamos arriba)
         direccion_abierta = None
-        if num_abiertos == 1:
-            for p in posiciones_activas:
-                pos = p if isinstance(p, dict) else getattr(p, '__dict__', {})
-                if pos.get('symbol') == simbolo:
-                    direccion_abierta = "COMPRA" if str(pos.get('type')) in ['POSITION_TYPE_BUY', '0'] else "VENTA"
-                    break
-        
-        if num_abiertos == 1:
-            if not (tiene_lux or tiene_smc):
-                print(f"| REQUISITO ESCALAMIENTO | 1 Posición abierta en {activo}. Para abrir una 2da operación, se requiere validación independiente de LUX OB o SMC OB. Omitiendo.")
-                continue
-            print(f"| ESCALA DE POSICIÓN | 1 Posición abierta ({direccion_abierta}) en {activo}. Confirmación de OB Institucional (LUX o SMC) detectada. Evaluando 2da entrada a favor de tendencia (Máx 2).")
 
         if gatillo_autorizado:
             # 🛡️ El filtro Anti-Stop Hunt (Sweep) ahora está vectorizado matemáticamente en app.py (Score = 45).
@@ -1389,7 +1389,7 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             es_alcista = conf_1h.get("bullish_signal", False) or conf_4h.get("bullish_signal", False)
             es_bajista = conf_1h.get("bearish_signal", False) or conf_4h.get("bearish_signal", False)
             
-            # REGLA ESTRICTA DE TENDENCIA (CERO HEDGING)
+            # REGLA ESTRICTA DE TENDENCIA
             if tendencia_alcista:
                 accion = "COMPRA"
             elif tendencia_bajista:
@@ -1397,11 +1397,6 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             else:
                 # Si el precio está consolidando entre las EMAs, usamos las señales SMC
                 accion = "COMPRA" if es_alcista else "VENTA"
-                
-            # Bloqueo absoluto de Hedging
-            if num_abiertos == 1 and direccion_abierta and accion != direccion_abierta:
-                print(f"| BLOQUEO ANTI-HEDGING | El sistema quiere abrir {accion} pero ya hay una {direccion_abierta} abierta en {activo}. Cancelando señal cruzada.")
-                continue 
 
             
             # Solicitar autorización al cerebro (Mia)
