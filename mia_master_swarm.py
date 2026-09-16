@@ -33,10 +33,11 @@ def emit_ws_event(agent_name, action, data):
 
 def create_callback(agent_name):
     def callback(output):
-        # Frenamos el LLM 31s para no hacer saltar el Error 429 de límite de tokens (RPM en Gemini free)
+        import time
+        # Frenamos el LLM 15s para no hacer saltar el Error 429 de límite de tokens (RPM en Gemini free)
+        print(f"[{agent_name}] Pausa anti-429 (15s)...")
+        time.sleep(15)
         
-        # CrewAI >= 0.x envia diferentes tipos de objetos al callback (AgentStep, ToolResult, etc.)
-        # Hacemos str(output) para no chocar con atributos deprecados como .raw
         texto = str(output)
         emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
     return callback
@@ -67,7 +68,7 @@ llm_8b = ChatGroq(
 
 # 3. Google Gemini Flash (Inteligencia Alta - LÍMITE MASIVO 1,000,000 TPM)
 llm_gemini = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model="gemini-1.5-flash",
     google_api_key=os.environ.get("GOOGLE_API_KEY"),
     temperature=0.2
 )
