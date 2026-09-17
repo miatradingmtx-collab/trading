@@ -7,7 +7,7 @@ import * as THREE from 'three';
 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const WS_URL = `${protocol}//${window.location.host}/ws`;
 
-const GroktopusCore = ({ activeAgent }) => {
+const AntopusCore = ({ activeAgent }) => {
   const meshRef = useRef();
   const texture = useLoader(THREE.TextureLoader, '/pro_octopus.jpg');
   
@@ -34,7 +34,7 @@ const GroktopusCore = ({ activeAgent }) => {
   );
 };
 
-const GroktopusDashboard = () => {
+const AntopusDashboard = () => {
   const [logs, setLogs] = useState([]);
   const [wsStatus, setWsStatus] = useState('CONNECTING...');
   const [activeAgent, setActiveAgent] = useState(null);
@@ -139,7 +139,7 @@ const GroktopusDashboard = () => {
           <Canvas camera={{ position: [0, 0, 7] }}>
             <ambientLight intensity={0.1} />
             <Stars radius={100} depth={50} count={4000} factor={4} saturation={0} fade speed={1.5} />
-            <GroktopusCore activeAgent={activeAgent} />
+            <AntopusCore activeAgent={activeAgent} />
             <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.5} />
           </Canvas>
         </div>
@@ -212,4 +212,4 @@ const GroktopusDashboard = () => {
   );
 };
 
-export default GroktopusDashboard;
+export default AntopusDashboard;

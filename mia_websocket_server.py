@@ -20,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Montar Interfaz de React (Groktopus 3D) ---
+# --- Montar Interfaz de React (Antopus 3D) ---
 build_dir = os.path.join(os.path.dirname(__file__), "mia_3d_ui", "build")
 if os.path.exists(build_dir):
     app.mount("/static", StaticFiles(directory=os.path.join(build_dir, "static")), name="static")

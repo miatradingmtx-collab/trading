@@ -168,7 +168,7 @@ tasks = [
 ]
 
 # ── CREW MASTER ──
-groktopus_crew = Crew(
+antopus_crew = Crew(
     agents=[tidal, lumen, noro, zephr, rune],
     tasks=tasks,
     process=Process.sequential,
@@ -209,9 +209,9 @@ if __name__ == "__main__":
             time.sleep(segundos_dormir)
             continue
             
-        emit_ws_event("Master", "START", "Iniciando Groktopus Floor. Despertando a los 4 agentes (Core)...")
+        emit_ws_event("Master", "START", "Iniciando Antopus Floor. Despertando a los 4 agentes (Core)...")
         try:
-            result = groktopus_crew.kickoff()
+            result = antopus_crew.kickoff()
             emit_ws_event("Master", "SUCCESS", "Ciclo completado con éxito. Veredicto asimilado.")
             print("\n[RESULTADO FINAL DEL ENJAMBRE]")
             print(result)
