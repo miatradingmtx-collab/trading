@@ -6,7 +6,7 @@ import sys
 from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, Process
 
-from crew_tools import railway_cache_tool, obsidian_writer_tool
+from crew_tools import railway_cache_tool, obsidian_writer_tool, mia_core_reader_tool
 from math_agent_skills import calc_area_under_curve, markov_transition_matrix
 from stat_agent_skills import calculate_expected_value, generate_execution_score
 
@@ -145,7 +145,7 @@ rune = Agent(
     role='El Oráculo Final (RUNE)',
     goal='Validar todos los puntajes y dar el veredicto final (APROBADO/VETADO).',
     backstory='Eres la última línea de defensa. Recibes la data de los otros agentes. Si ves que el indicador LUX ALGO (order_block_zona) o Liquidez (alineamiento_liquidez) está presente, le das prioridad máxima absoluta por su alta probabilidad. Luego escribes el resultado en Obsidian.',
-    tools=[obsidian_writer_tool],
+    tools=[mia_core_reader_tool, obsidian_writer_tool],
     allow_delegation=False,
     max_rpm=3,
     llm=llm_para_rune,
@@ -164,7 +164,7 @@ tasks = [
     Task(description='Analiza liquidez y sentimiento de mercado.', expected_output='Diagnóstico de sentimiento direccional institucional.', agent=lumen),
     Task(description='Usa calc_area_under_curve con "[10,20,30]", "[1,2,3]". Y genera una matriz de markov con \'["Alcista", "Bajista", "Alcista"]\'.', expected_output='Fair Value y Matrices.', agent=noro),
     Task(description='Usa calculate_expected_value (wr=0.75, avg_win=100, avg_loss=50). Y genera score de ejecucion (prob=0.68, wr=0.75).', expected_output='Score de consenso.', agent=zephr),
-    Task(description='Revisa el output estadístico. Si el Score es mayor a 0.70 aprueba el trade, si no VETADO. Usa obsidian_writer_tool para guardar el dictamen.', expected_output='Confirmación de registro (APROBADO/VETADO guardado).', agent=rune)
+    Task(description='1. Usa mia_core_reader_tool para leer la Base de Conocimiento (Reglas de Riesgo y ML).\n2. Revisa el output estadístico. Si el Score es mayor a 0.70 aprueba el trade, si no VETADO.\n3. Usa obsidian_writer_tool para guardar el dictamen.', expected_output='Confirmación de registro (APROBADO/VETADO guardado).', agent=rune)
 ]
 
 # ── CREW MASTER ──
