@@ -51,8 +51,9 @@ def railway_cache_tool() -> str:
                     "kpis": parsed_data.get("kpis", {}),
                     "activos": parsed_data.get("rendimiento_activos", {}),
                     "activas": parsed_data.get("operaciones_activas", []),
-                    "estrategias_vectorizadas": parsed_data.get("estrategias", {}), # El catálogo SMC/ICT/AMD
-                    "ml_matriz_scores": parsed_data.get("matriz_scores", {})       # Los pesos del Machine Learning
+                    "estrategias_vectorizadas": parsed_data.get("estrategias", []),
+                    "indicadores_ml": parsed_data.get("indicadores", []),          # Pesos de Sweeps, LUX ALGO, AMD
+                    "ml_matriz_scores": parsed_data.get("matriz_scores", {})
                 }
                 return f"Datos Minimizados (Upstash Redis):\n{json.dumps(data_filtrada, indent=2)}"
             except Exception as e:
