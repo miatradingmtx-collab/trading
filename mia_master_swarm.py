@@ -98,8 +98,20 @@ tidal = Agent(
     tools=[railway_cache_tool]
 )
 
-# ── 2. LUMEN (Sentimiento) (APAGADO TEMPORALMENTE - Límite de Tokens Groq) ──
-# lumen = Agent(...)
+  llm_para_lumen = llm_gemini
+  # 🟢 2. LUMEN (Sentimiento Institucional) 🟢
+  lumen = Agent(
+      role='LUMEN - Sentimiento y Liquidez',
+      goal='Evaluar las órdenes abiertas y liquidez.',
+      backstory='Especialista en sentimiento institucional.',
+      verbose=True,
+      memory=False,
+      allow_delegation=False,
+      max_rpm=3,
+      llm=llm_para_lumen,
+      step_callback=create_callback('LUMEN'),
+      tools=[railway_cache_tool]
+  )
 
 # ── 3. NORO (Matemáticas Duras) ──
 noro = Agent(
@@ -149,6 +161,7 @@ rune = Agent(
 # ── TAREAS ──
 tasks = [
     Task(description='Obtén los KPIs actuales desde railway_cache_tool.', expected_output='Resumen de liquidez.', agent=tidal),
+      Task(description='Analiza liquidez y sentimiento de mercado.', expected_output='Diagnóstico de sentimiento direccional institucional.', agent=lumen),
     Task(description='Usa calc_area_under_curve con "[10,20,30]", "[1,2,3]". Y genera una matriz de markov con \'["Alcista", "Bajista", "Alcista"]\'.', expected_output='Fair Value y Matrices.', agent=noro),
     Task(description='Usa calculate_expected_value (wr=0.75, avg_win=100, avg_loss=50). Y genera score de ejecucion (prob=0.68, wr=0.75).', expected_output='Score de consenso.', agent=zephr),
     Task(description='Revisa el output estadístico. Si el Score es mayor a 0.70 aprueba el trade, si no VETADO. Usa obsidian_writer_tool para guardar el dictamen.', expected_output='Confirmación de registro (APROBADO/VETADO guardado).', agent=rune)
