@@ -663,11 +663,11 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             fecha_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
             iso_time = now_dt.isoformat()
             
-            sesion = "NUEVA_YORK"
+            sesion = "new_york"
             h_local = now_dt.hour
-            if 1 <= h_local < 6: sesion = "LONDRES"
-            elif 6 <= h_local < 16: sesion = "NUEVA_YORK"
-            else: sesion = "ASIA"
+            if 1 <= h_local < 6: sesion = "london"
+            elif 6 <= h_local < 16: sesion = "new_york"
+            else: sesion = "asia"
             activo_norm = normalizar_activo(alert.activo)
             score = 0
             poc_price = 0.0
@@ -1665,7 +1665,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
         if 1.0 <= hora_decimal < 7.0:
             sesion_str = "Londres"
         elif 7.0 <= hora_decimal < 16.0:
-            sesion_str = "NY"
+            sesion_str = "new_york"
         else:
             sesion_str = "Tokio"
 
@@ -2173,9 +2173,9 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         iso_time = now_dt.isoformat()
         
         utc_hour = datetime.datetime.utcnow().hour
-        sesion = "NY"
-        if 0 <= utc_hour < 7: sesion = "ASIA"
-        elif 7 <= utc_hour < 12: sesion = "LONDRES"
+        sesion = "new_york"
+        if 0 <= utc_hour < 7: sesion = "asia"
+        elif 7 <= utc_hour < 12: sesion = "london"
         
         if score < 80:
             motivo = "Evaluación Continua (Score insuficiente"
@@ -2790,9 +2790,9 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         confirmaciones_str = " + ".join(activas) if activas else "Setup Base"
         
         utc_hour = datetime.now(timezone.utc).hour
-        sesion = "NY"
-        if 0 <= utc_hour < 7: sesion = "ASIA"
-        elif 7 <= utc_hour < 12: sesion = "LONDRES"
+        sesion = "new_york"
+        if 0 <= utc_hour < 7: sesion = "asia"
+        elif 7 <= utc_hour < 12: sesion = "london"
         
         estrategia_base = "SMC Setup"
         str_ejecutada = "SÍ" if ejecucion.ejecutada_mt5 else "NO"
@@ -2933,9 +2933,9 @@ def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[
         
         fecha = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         utc_hour = datetime.datetime.now(datetime.timezone.utc).hour
-        sesion = "NY"
-        if 0 <= utc_hour < 7: sesion = "ASIA"
-        elif 7 <= utc_hour < 12: sesion = "LONDRES"
+        sesion = "new_york"
+        if 0 <= utc_hour < 7: sesion = "asia"
+        elif 7 <= utc_hour < 12: sesion = "london"
         
         audit_data = {
             "accion": "CIERRE_PARCIAL_80",
@@ -3341,15 +3341,15 @@ def api_dashboard_data():
                     activo = "EURUSD"
                 
                 fecha = e.get('fecha', '')
-                sesion = "NUEVA_YORK"
+                sesion = "new_york"
                 if fecha:
                     try:
                         from datetime import datetime
                         dt = datetime.strptime(fecha, "%Y-%m-%d %H:%M:%S")
                         h = dt.hour
-                        if 1 <= h < 6: sesion = "LONDRES"
-                        elif 6 <= h < 16: sesion = "NUEVA_YORK"
-                        else: sesion = "ASIA"
+                        if 1 <= h < 6: sesion = "london"
+                        elif 6 <= h < 16: sesion = "new_york"
+                        else: sesion = "asia"
                     except:
                         pass
                 
@@ -3535,22 +3535,22 @@ def api_dashboard_data():
 
         # 5. Killzones Dinámicas (Calculadas a partir de todos_los_logs)
         killzone_stats = {
-            "LONDRES": {"ganados": 0, "perdidos": 0},
-            "NUEVA_YORK": {"ganados": 0, "perdidos": 0},
-            "ASIA": {"ganados": 0, "perdidos": 0}
+            "london": {"ganados": 0, "perdidos": 0},
+            "new_york": {"ganados": 0, "perdidos": 0},
+            "asia": {"ganados": 0, "perdidos": 0}
         }
         
         for l in todos_los_logs:
             pnl = l.get("pnl", 0.0)
             fecha = l.get("fecha", "")
-            ses = "NUEVA_YORK"
+            ses = "new_york"
             if fecha:
                 try:
                     dt = datetime.strptime(fecha, "%Y-%m-%d %H:%M:%S")
                     h = dt.hour
-                    if 1 <= h < 6: ses = "LONDRES"
-                    elif 6 <= h < 16: ses = "NUEVA_YORK"
-                    else: ses = "ASIA"
+                    if 1 <= h < 6: ses = "london"
+                    elif 6 <= h < 16: ses = "new_york"
+                    else: ses = "asia"
                 except: pass
                 
             if pnl > 0:

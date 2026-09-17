@@ -94,8 +94,8 @@ for trade in logs_recientes:
         # B) Extraer y Aprender Sesión
         detalle = str(trade.get('detalle_setup', '')).upper()
         sesion = "asia"
-        if "NEW_YORK" in detalle or "NY" in detalle: sesion = "new_york"
-        elif "LONDRES" in detalle or "LONDON" in detalle: sesion = "london"
+        if "NEW_YORK" in detalle or "new_york" in detalle: sesion = "new_york"
+        elif "london" in detalle or "london" in detalle: sesion = "london"
         
         ses_ref = db.collection("mia_kb").document("sesiones_rendimiento").collection("detalle").document(sesion)
         ses_doc = ses_ref.get()

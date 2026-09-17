@@ -1186,11 +1186,11 @@ def obtener_nombre_killzone() -> Optional[str]:
     hora_decimal = ahora.hour + ahora.minute / 60.0
     
     if LONDRES_INICIO <= hora_decimal < LONDRES_FIN:
-        return "LONDRES"
+        return "london"
     elif NY_INICIO <= hora_decimal < NY_FIN:
-        return "NUEVA_YORK"
+        return "new_york"
     elif ASIA_INICIO <= hora_decimal < ASIA_FIN:
-        return "ASIA"
+        return "asia"
     return None
 
 def es_ventana_operativa() -> bool:
