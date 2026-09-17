@@ -53,14 +53,14 @@ import os
 
 # 1. Groq Llama 70B (Máxima Inteligencia - Límite muy estricto)
 llm_70b = ChatGroq(
-    model_name="llama3-70b-8192",
+    model_name="llama-3.3-70b-versatile",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
 # 2. Groq Llama 8B (Muy Rápido - Límite intermedio)
 llm_8b = ChatGroq(
-    model_name="llama3-8b-8192",
+    model_name="llama-3.1-8b-instant",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
@@ -219,6 +219,6 @@ if __name__ == "__main__":
             emit_ws_event("Master", "ERROR", f"Error en el enjambre: {str(e)}")
             print(f"Error: {e}")
             
-        emit_ws_event("Master", "SLEEP", "Enjambre en Criosueño. Siguiente análisis en 15 minutos (Límite Diario)...")
+        emit_ws_event("Master", "SLEEP", "Enjambre en Criosueño. Siguiente analisis en 30 minutos (Límite Diario)...")
         print("\n[INFO] Durmiendo por 30 minutos para no quemar el Límite Diario (TPD) de 500,000 tokens...")
-        time.sleep(1800) # 15 minutos de pausa entre ciclos globales
+        time.sleep(1800) # 30 minutos de pausa entre ciclos globales
