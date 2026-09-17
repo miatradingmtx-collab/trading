@@ -74,13 +74,13 @@ llm_gemini = ChatGoogleGenerativeAI(
 
 # ASIGNACIÓN QUIRÚRGICA PARA EVITAR RATE LIMITS (429):
 # TIDAL: Escanea Order Books (mucha data pero poca lógica). Usamos 8B.
-llm_para_tidal = llm_gemini
+llm_para_tidal = llm_8b.with_fallbacks([llm_gemini])
 
 # NORO: Precisión matemática extrema (muchos tokens). Lo mandamos a Gemini para no saturar Groq.
 llm_para_noro = llm_gemini.with_fallbacks([llm_70b])
 
 # ZEPHR: Análisis de Liquidez. Lo mandamos a Gemini también.
-llm_para_zephr = llm_gemini.with_fallbacks([llm_8b])
+llm_para_zephr = llm_8b.with_fallbacks([llm_gemini])
 
 # RUNE: El Juez de Riesgo Final. Se lleva el Llama 70B en exclusiva.
 llm_para_rune = llm_gemini
@@ -98,7 +98,7 @@ tidal = Agent(
     tools=[railway_cache_tool]
 )
 
-llm_para_lumen = llm_gemini
+llm_para_lumen = llm_8b.with_fallbacks([llm_gemini])
 # 🟢 2. LUMEN (Sentimiento Institucional) 🟢
 lumen = Agent(
     role='LUMEN - Sentimiento y Liquidez',
@@ -220,5 +220,5 @@ if __name__ == "__main__":
             print(f"Error: {e}")
             
         emit_ws_event("Master", "SLEEP", "Enjambre en Criosueño. Siguiente análisis en 15 minutos (Límite Diario)...")
-        print("\n[INFO] Durmiendo por 15 minutos para no quemar el Límite Diario (TPD) de 500,000 tokens...")
-        time.sleep(900) # 15 minutos de pausa entre ciclos globales
+        print("\n[INFO] Durmiendo por 30 minutos para no quemar el Límite Diario (TPD) de 500,000 tokens...")
+        time.sleep(1800) # 15 minutos de pausa entre ciclos globales
