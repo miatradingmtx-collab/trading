@@ -50,7 +50,9 @@ def railway_cache_tool() -> str:
                 data_filtrada = {
                     "kpis": parsed_data.get("kpis", {}),
                     "activos": parsed_data.get("rendimiento_activos", {}),
-                    "activas": parsed_data.get("operaciones_activas", [])
+                    "activas": parsed_data.get("operaciones_activas", []),
+                    "estrategias_vectorizadas": parsed_data.get("estrategias", {}), # El catálogo SMC/ICT/AMD
+                    "ml_matriz_scores": parsed_data.get("matriz_scores", {})       # Los pesos del Machine Learning
                 }
                 return f"Datos Minimizados (Upstash Redis):\n{json.dumps(data_filtrada, indent=2)}"
             except Exception as e:
