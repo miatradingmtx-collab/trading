@@ -156,7 +156,7 @@ tasks = [
 
 # ── CREW MASTER ──
 groktopus_crew = Crew(
-    agents=[tidal, noro, zephr, rune],
+    agents=[tidal, lumen, noro, zephr, rune],
     tasks=tasks,
     process=Process.sequential,
     verbose=True
