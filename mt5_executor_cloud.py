@@ -332,7 +332,7 @@ def actualizar_memoria_obs_liquidez(activo: str, dfs: dict, precio_actual: float
         
     resultado = {}
     for t in tfs_soportados:
-        resultado[f"order_block_zona_{t}"] = False
+        resultado[f"lux_algo_ob_{t}"] = False
         resultado[f"alineamiento_liquidez_{t}"] = False
         
     margen = precio_actual * 0.0015 # Tolerancia
@@ -363,7 +363,7 @@ def actualizar_memoria_obs_liquidez(activo: str, dfs: dict, precio_actual: float
         if ob["tipo"] == "BAJISTA" and precio_actual > (ob["high"] + margen): continue
         if ob["low"] <= precio_actual <= ob["high"]: 
             tf_ob = ob["tf"]
-            resultado[f"order_block_zona_{tf_ob}"] = True
+            resultado[f"lux_algo_ob_{tf_ob}"] = True
         obs_sobrevivientes.append(ob)
         
     MEMORIA_OBS_NO_MITIGADOS[activo] = obs_sobrevivientes
@@ -396,7 +396,7 @@ def actualizar_memoria_obs_liquidez(activo: str, dfs: dict, precio_actual: float
 # ------------------------------------------------------------------------------
 def analizar_smc_ict(df: pd.DataFrame) -> Dict[str, bool]:
     confirmaciones = {
-        "order_block_detectado": False,
+        "smc_order_block": False,
         "fvg_detectado": False,
         "breaker_block_detectado": False,
         "sweep_liquidez_detectado": False,
@@ -434,7 +434,7 @@ def analizar_smc_ict(df: pd.DataFrame) -> Dict[str, bool]:
             confirmaciones["sweep_liquidez_detectado"] = True
 
     if df['close'].iloc[i-1] < df['open'].iloc[i-1] and df['close'].iloc[i] > df['high'].iloc[i-1]:
-        confirmaciones["order_block_detectado"] = True
+        confirmaciones["smc_order_block"] = True
 
     if df['close'].iloc[i] > df['high'].iloc[i-2] and df['close'].iloc[i-2] < df['open'].iloc[i-2]:
          confirmaciones["breaker_block_detectado"] = True
@@ -453,7 +453,7 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
     
     smc_codes = []
     # SMC & ICT Base
-    if confirmaciones.get("order_block_detectado"): smc_codes.append(1)
+    if confirmaciones.get("smc_order_block"): smc_codes.append(1)
     if confirmaciones.get("fvg_detectado"): smc_codes.append(2)
     if confirmaciones.get("breaker_block_detectado"): smc_codes.append(3)
     if confirmaciones.get("sweep_liquidez_detectado"): smc_codes.append(4) # AMD / Sweep
@@ -466,11 +466,11 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
     if poc_price: smc_codes.append(9)
     
     # LUX Algo Order Blocks
-    if confirmaciones.get("order_block_zona_1h"): smc_codes.append(10)
-    if confirmaciones.get("order_block_zona_2h"): smc_codes.append(11)
-    if confirmaciones.get("order_block_zona_3h"): smc_codes.append(12)
-    if confirmaciones.get("order_block_zona_4h"): smc_codes.append(13)
-    if confirmaciones.get("order_block_zona_8h"): smc_codes.append(14)
+    if confirmaciones.get("lux_algo_ob_1h"): smc_codes.append(10)
+    if confirmaciones.get("lux_algo_ob_2h"): smc_codes.append(11)
+    if confirmaciones.get("lux_algo_ob_3h"): smc_codes.append(12)
+    if confirmaciones.get("lux_algo_ob_4h"): smc_codes.append(13)
+    if confirmaciones.get("lux_algo_ob_8h"): smc_codes.append(14)
     
     # LUX Algo Alineamiento Liquidez
     if confirmaciones.get("alineamiento_liquidez_1h"): smc_codes.append(15)
@@ -489,7 +489,7 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
     }
     
     for tf in ["1h", "2h", "3h", "4h", "8h"]:
-        tecnicas[f"order_block_zona_{tf}"] = confirmaciones.get(f"order_block_zona_{tf}", False)
+        tecnicas[f"lux_algo_ob_{tf}"] = confirmaciones.get(f"lux_algo_ob_{tf}", False)
         tecnicas[f"alineamiento_liquidez_{tf}"] = confirmaciones.get(f"alineamiento_liquidez_{tf}", False)
 
     payload = {
@@ -1334,7 +1334,7 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         memoria_inst = actualizar_memoria_obs_liquidez(activo, dfs_mtf, precio_actual)
         
         confirmaciones = {
-            "order_block_detectado": conf_1h["order_block_detectado"] or conf_4h["order_block_detectado"],
+            "smc_order_block": conf_1h["smc_order_block"] or conf_4h["smc_order_block"],
             "fvg_detectado": conf_1h["fvg_detectado"] or conf_4h["fvg_detectado"],
             "breaker_block_detectado": conf_1h["breaker_block_detectado"] or conf_4h["breaker_block_detectado"],
             "sweep_liquidez_detectado": conf_1h["sweep_liquidez_detectado"] or conf_4h["sweep_liquidez_detectado"],
@@ -1349,10 +1349,10 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         # 2. Validar si el backend (Firebase) autorizó el gatillo (Score >= 80%)
         gatillo_autorizado = webhook_response and webhook_response.get("gatillo_entrada") is True
         
-        tiene_lux = any(confirmaciones.get(f"order_block_zona_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
+        tiene_lux = any(confirmaciones.get(f"lux_algo_ob_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
         tiene_smc = confirmaciones.get("smc_1_ob", False) or confirmaciones.get("smc_2_fvg", False)
         tiene_fvg = confirmaciones.get("fvg_detectado", False)
-        tiene_retail = confirmaciones.get("order_block_detectado", False) or bool(soporte_activo)
+        tiene_retail = confirmaciones.get("smc_order_block", False) or bool(soporte_activo)
         es_escenario_6 = tiene_lux and not tiene_fvg and not tiene_retail
 
         # REGLA ESTRICTA DE 1 TRADE MÁXIMO POR ACTIVO

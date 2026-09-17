@@ -852,10 +852,10 @@ def recalcular_score_ponderado(data: dict) -> float:
     w_poc = pesos.get("poc", 15)
     
     # DETECCIÓN DE ESCENARIOS
-    tiene_lux = any(tech.get(f"order_block_zona_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
+    tiene_lux = any(tech.get(f"lux_algo_ob_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
     tiene_tendencia = tech.get("medias_moviles_alineadas", False)
     tiene_fvg = tech.get("fvg_detectado", False)
-    tiene_retail = tech.get("soporte_resistencia_activo", False) or tech.get("order_block_detectado", False)
+    tiene_retail = tech.get("soporte_resistencia_activo", False) or tech.get("smc_order_block", False)
     
     # Escenario 6 (Bifurcación): PURO Lux OB sin confirmaciones extra para testeo de efectividad pura
     es_escenario_6 = tiene_lux and not tiene_fvg and not tiene_retail
@@ -883,8 +883,8 @@ def recalcular_score_ponderado(data: dict) -> float:
     
     # 3. Nuevos Indicadores Algorítmicos Clave (Zonas OB y Flujos de Liquidez por TF)
     for tf in ["1h", "2h", "3h", "4h", "8h"]:
-        if tech.get(f"order_block_zona_{tf}", False):
-            score += pesos.get(f"order_block_zona_{tf}", 25)
+        if tech.get(f"lux_algo_ob_{tf}", False):
+            score += pesos.get(f"lux_algo_ob_{tf}", 25)
             
         if tech.get(f"alineamiento_liquidez_{tf}", False):
             score += pesos.get(f"alineamiento_liquidez_{tf}", 25)
@@ -1378,16 +1378,16 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
             
         # 5. Detectar y Actualizar Patrones ICT/SMC
         ict_fields = {
-            "order_block_detectado": "SMC_OB",
+            "smc_order_block": "SMC_OB",
             "fvg_detectado": "FVG",
             "breaker_block_detectado": "BRK",
             "sweep_liquidez_detectado": "SWEEP",
             "soporte_resistencia_activo": "SR",
-            "order_block_zona_1h": "LUX_OB_1H",
-            "order_block_zona_2h": "LUX_OB_2H",
-            "order_block_zona_3h": "LUX_OB_3H",
-            "order_block_zona_4h": "LUX_OB_4H",
-            "order_block_zona_8h": "LUX_OB_8H",
+            "lux_algo_ob_1h": "LUX_OB_1H",
+            "lux_algo_ob_2h": "LUX_OB_2H",
+            "lux_algo_ob_3h": "LUX_OB_3H",
+            "lux_algo_ob_4h": "LUX_OB_4H",
+            "lux_algo_ob_8h": "LUX_OB_8H",
             "alineamiento_liquidez": "LIQ_FLOW"
         }
         patron_key_parts = sorted([ict_fields[f] for f in confirmaciones_activas if f in ict_fields])
@@ -1559,9 +1559,9 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
         if alert.activo != "UNKNOWN" and alert.activo in GLOBAL_MATRICES_CACHE_FULL:
             matriz = GLOBAL_MATRICES_CACHE_FULL[alert.activo]
             conf = matriz.get("confirmaciones_tecnicas", {})
-            tiene_lux = any(conf.get(f"order_block_zona_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
+            tiene_lux = any(conf.get(f"lux_algo_ob_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
             tiene_fvg = conf.get("fvg_detectado", False)
-            tiene_retail = conf.get("order_block_detectado", False)
+            tiene_retail = conf.get("smc_order_block", False)
             
             # Armamos el string completo para que no diga solo "LUX" o "MANUAL"
             if tiene_lux: 
@@ -1887,7 +1887,7 @@ async def test_boolean(activo: str = "XAUUSD", lote: float = 0.01):
                 "soporte_resistencia_activo": True,
                 "medias_moviles_alineadas": True,
                 "rsi_sobrecompra_sobreventa": True,
-                "order_block_detectado": True,
+                "smc_order_block": True,
                 "fvg_detectado": True,
                 "breaker_block_detectado": True,
                 "sweep_liquidez_detectado": True
@@ -2119,7 +2119,7 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
             return {"status": "success", "mensaje": "Datos idénticos. Escritura omitida por optimización.", "score": data.get("score_porcentaje")}
                 
         # Limpiar booleanos legacy si existen en la base de datos
-        legacy_keys = ["order_block_detectado", "fvg_detectado", "breaker_block_detectado", "sweep_liquidez_detectado"]
+        legacy_keys = ["smc_order_block", "fvg_detectado", "breaker_block_detectado", "sweep_liquidez_detectado"]
         for lk in legacy_keys:
             if lk in data["confirmaciones_tecnicas"]:
                 del data["confirmaciones_tecnicas"][lk]
@@ -2204,7 +2204,7 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
                         confs.append(SMC_MAP[code])
             elif isinstance(v, bool) and v and k not in [
                 "medias_moviles_alineadas", "rsi_sobrecompra_sobreventa", "soporte_resistencia_activo", "poc_price",
-                "order_block_zona_1h", "order_block_zona_2h", "order_block_zona_3h", "order_block_zona_4h", "order_block_zona_8h",
+                "lux_algo_ob_1h", "lux_algo_ob_2h", "lux_algo_ob_3h", "lux_algo_ob_4h", "lux_algo_ob_8h",
                 "alineamiento_liquidez_1h", "alineamiento_liquidez_2h", "alineamiento_liquidez_3h", "alineamiento_liquidez_4h", "alineamiento_liquidez_8h"
             ]: # Ignoramos los booleanos crudos si ya vienen en el vector smc_codes
                 confs.append(k.replace("_", " ").upper())
@@ -2782,7 +2782,7 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         for k, v in tech_data.items():
             if isinstance(v, bool) and v and k not in [
                 "medias_moviles_alineadas", "rsi_sobrecompra_sobreventa", "soporte_resistencia_activo", "poc_price",
-                "order_block_zona_1h", "order_block_zona_2h", "order_block_zona_3h", "order_block_zona_4h", "order_block_zona_8h",
+                "lux_algo_ob_1h", "lux_algo_ob_2h", "lux_algo_ob_3h", "lux_algo_ob_4h", "lux_algo_ob_8h",
                 "alineamiento_liquidez_1h", "alineamiento_liquidez_2h", "alineamiento_liquidez_3h", "alineamiento_liquidez_4h", "alineamiento_liquidez_8h"
             ]:
                 activas.append(k.replace("_", " ").upper())
@@ -2797,8 +2797,8 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         estrategia_base = "SMC Setup"
         str_ejecutada = "SÍ" if ejecucion.ejecutada_mt5 else "NO"
         
-        tiene_lux = 'order_block_zona_1h' in data.get("confirmaciones_tecnicas", {})
-        tiene_smc = 'order_block_detectado' in data.get("confirmaciones_tecnicas", {}) or 'fvg_detectado' in data.get("confirmaciones_tecnicas", {})
+        tiene_lux = 'lux_algo_ob_1h' in data.get("confirmaciones_tecnicas", {})
+        tiene_smc = 'smc_order_block' in data.get("confirmaciones_tecnicas", {}) or 'fvg_detectado' in data.get("confirmaciones_tecnicas", {})
         estrategia_real = "SMC Setup | Liquidez + OB (SMC Base)"
         if tiene_lux and not tiene_smc: estrategia_real = "SMC Setup | Liquidez + OB (Lux Algo)"
         elif tiene_smc and not tiene_lux: estrategia_real = "SMC Setup | Liquidez + OB (Institucional SMC)"
@@ -3220,7 +3220,7 @@ def asegurar_cache_firebase():
             if not GLOBAL_MIA_COLLECTIVE:
                 GLOBAL_MIA_COLLECTIVE = {
                     "dynamic_weights": {
-                        "smc_4_sweep": 45, "smc_2_fvg": 30, "order_block_zona_4h": 25, 
+                        "smc_4_sweep": 45, "smc_2_fvg": 30, "lux_algo_ob_4h": 25, 
                         "ma_alineada": 20, "smc_1_ob": 20, "smc_3_liq": 20, 
                         "smc_5_fvg_bajista": 15, "smc_6_fvg_alcista": 15,
                         "lux_ob_puro": 12, "lux_ob_validado": 18,
@@ -4148,7 +4148,7 @@ async def entrenar_pesos_dinamicos():
             "lux_ob_puro": 0, "lux_ob_validado": 0
         }
         for tf in ["1h", "2h", "3h", "4h", "8h"]:
-            frecuencias[f"order_block_zona_{tf}"] = 0
+            frecuencias[f"lux_algo_ob_{tf}"] = 0
             frecuencias[f"alineamiento_liquidez_{tf}"] = 0
         
         for g in ganadores:
@@ -4159,7 +4159,7 @@ async def entrenar_pesos_dinamicos():
             if tech.get("poc_price", 0.0) > 0: frecuencias["poc_price"] += 1
             
             for tf in ["1h", "2h", "3h", "4h", "8h"]:
-                if tech.get(f"order_block_zona_{tf}"): frecuencias[f"order_block_zona_{tf}"] += 1
+                if tech.get(f"lux_algo_ob_{tf}"): frecuencias[f"lux_algo_ob_{tf}"] += 1
                 if tech.get(f"alineamiento_liquidez_{tf}"): frecuencias[f"alineamiento_liquidez_{tf}"] += 1
             
             smc = tech.get("smc_codes", [])
@@ -4170,9 +4170,9 @@ async def entrenar_pesos_dinamicos():
             if 5 in smc: frecuencias["smc_5_fvg_bajista"] += 1
             if 6 in smc: frecuencias["smc_6_fvg_alcista"] += 1
             
-            tiene_lux = any(tech.get(f"order_block_zona_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
+            tiene_lux = any(tech.get(f"lux_algo_ob_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
             tiene_fvg = tech.get("fvg_detectado", False)
-            tiene_retail = tech.get("soporte_resistencia_activo", False) or tech.get("order_block_detectado", False)
+            tiene_retail = tech.get("soporte_resistencia_activo", False) or tech.get("smc_order_block", False)
             
             if tiene_lux:
                 if not tiene_fvg and not tiene_retail:
@@ -4197,7 +4197,7 @@ async def entrenar_pesos_dinamicos():
             "lux_ob_validado": 15 + int((frecuencias["lux_ob_validado"] / total) * 20)
         }
         for tf in ["1h", "2h", "3h", "4h", "8h"]:
-            nuevos_pesos[f"order_block_zona_{tf}"] = 25 + int((frecuencias[f"order_block_zona_{tf}"] / total) * 15)
+            nuevos_pesos[f"lux_algo_ob_{tf}"] = 25 + int((frecuencias[f"lux_algo_ob_{tf}"] / total) * 15)
             nuevos_pesos[f"alineamiento_liquidez_{tf}"] = 25 + int((frecuencias[f"alineamiento_liquidez_{tf}"] / total) * 15)
         
         # 4. Guardar en Firebase (system_memory)
