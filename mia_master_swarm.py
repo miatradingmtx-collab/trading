@@ -53,14 +53,14 @@ import os
 
 # 1. Groq Llama 70B (Máxima Inteligencia - Límite muy estricto)
 llm_70b = ChatGroq(
-    model_name="llama-3.3-70b-versatile",
+    model_name="qwen/qwen3.8-27b",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
 
 # 2. Groq Llama 8B (Muy Rápido - Límite intermedio)
 llm_8b = ChatGroq(
-    model_name="llama-3.1-8b-instant",
+    model_name="qwen/qwen3.8-27b",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2
 )
