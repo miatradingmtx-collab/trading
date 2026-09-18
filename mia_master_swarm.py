@@ -37,8 +37,8 @@ def create_callback(agent_name):
         emit_ws_event(agent_name, "OUTPUT", texto[:150] + "...")
         
         import time
-        print(f"[{agent_name}] Pausa anti-429 (15s)...")
-        time.sleep(15)
+        print(f"[{agent_name}] Pausa anti-429 (20s)...")
+        time.sleep(20)
     return callback
 
 from langchain_groq import ChatGroq
@@ -55,14 +55,16 @@ import os
 llm_70b = ChatGroq(
     model_name="qwen/qwen3.8-27b",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
-    temperature=0.2
+    temperature=0.2,
+    max_tokens=600
 )
 
 # 2. Groq Llama 8B (Muy Rápido - Límite intermedio)
 llm_8b = ChatGroq(
     model_name="qwen/qwen3.8-27b",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
-    temperature=0.2
+    temperature=0.2,
+    max_tokens=600
 )
 
 # 3. Google Gemini Flash (Inteligencia Alta - LÍMITE MASIVO 1,000,000 TPM)
