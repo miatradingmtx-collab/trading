@@ -2389,6 +2389,12 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             estrategia=req.estrategia
         )
         
+        # BYPASS DE ENJAMBRE: Ejecución instantánea basada solo en Machine Learning (MIA KB / Score Matemático)
+        # Se pausaron las consultas a los LLMs para priorizar velocidad y seguir reglas ganadoras estrictas.
+        analisis_ia = f"Filtro matemático local aprobado por Mia KB (Score: {score}%). Enjambres LLM en pausa. Operar con gestión de riesgo estricta."
+        print("| IA BYPASS | Usando exclusivamente Matriz ML (Score Matemático). Enjambres pausados a petición del usuario.")
+        
+        '''
         analisis_ia = "No se pudo obtener análisis de ninguna IA."
         if GEMINI_API_KEY and GEMINI_API_KEY != "TU_LLAVE_DE_GEMINI":
             print("| IA | Consultando análisis a Google Gemini...")
@@ -2402,6 +2408,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         else:
             print("| IA WARNING | Ninguna API Key de IA configurada. Usando fallback de análisis local.")
             analisis_ia = f"Filtro fundamental local aprobado por Mia. Memoria colectiva: {memoria_colectiva if memoria_colectiva else 'Ninguna'}. Operar con gestión de riesgo estricta."
+        '''
             
         # Calcular SL y TP inteligentes basados en el activo
         precio_ej = req.precio
