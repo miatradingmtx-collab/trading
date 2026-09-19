@@ -19,7 +19,7 @@ import pandas as pd
 import numpy as np
 import httpx
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -142,8 +142,8 @@ async def obtener_balance(connection) -> tuple:
         print(f"| GESTOR RIESGO | Error al obtener balance: {e}")
         return 0.0, 0.0
 
-def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: float, sl_price: float, simbolo: str) -> float:
-    """Calcula el lote basado en riesgo % y distancia del SL, respetando escudo de  y colchon > ."""
+def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: float, sl_price: float, simbolo: str, presupuesto_restante: float = 150.0) -> float:
+    """Calcula el lote basado en riesgo % y distancia del SL, respetando límites diarios y mensuales."""
     if balance <= 0 or sl_price == 0 or entry_price == 0 or entry_price == sl_price:
         return 0.04 # Fallback
         
@@ -181,6 +181,12 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
         riesgo_dinero = balance * (riesgo_pct / 100.0)
         print(f"| GESTOR RIESGO | Zona de Recuperación/Crecimiento (Balance: ${balance:.2f}). Riesgo normal: {riesgo_pct}%.")
 
+    # ----- REGLA ESTRICTA DE DRAWDOWN DIARIO -----
+    if riesgo_dinero > presupuesto_restante and presupuesto_restante > 0:
+        print(f"| GESTOR RIESGO ALERTA | Recortando riesgo del trade de ${riesgo_dinero:.2f} a ${presupuesto_restante:.2f} para cuadrar exacto con el límite diario.")
+        riesgo_dinero = presupuesto_restante
+    # ---------------------------------------------
+
     distancia_precio = abs(entry_price - sl_price)
     
     if "JPY" in simbolo:
@@ -210,26 +216,29 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
     
     return lotes
 
-async def verificar_drawdown_diario(balance: float, limite_pct: float = 3.0) -> bool:
-    """Consulta el backend para ver si el PNL de hoy supera la pérdida máxima permitida."""
+async def verificar_drawdown_diario(balance: float, equity: float, limite_usd: float = 150.0) -> Tuple[bool, float]:
+    """Consulta el backend para ver si el PNL de hoy supera la pérdida máxima permitida en USD."""
     url = f"{FASTAPI_URL}/api/pnl_hoy"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
+    pnl_hoy = 0.0
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers, timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 pnl_hoy = float(data.get("pnl_hoy", 0.0))
-                limite_dinero = -(balance * (limite_pct / 100.0))
-                
-                # Si la pérdida actual superó el límite (ej. pnl -150 <= -100)
-                if pnl_hoy <= limite_dinero:
-                    print(f"| GESTOR RIESGO ALERTA | ⛔ DRAWDOWN DIARIO ALCANZADO: PNL Hoy ${pnl_hoy:.2f} <= Límite ${limite_dinero:.2f} (-{limite_pct}%). Modo Pausa Activo.")
-                    return True
-                return False
     except Exception as e:
         print(f"| GESTOR RIESGO EXCEPTION | No se pudo verificar PNL diario: {e}")
-    return False
+        
+    pnl_flotante = equity - balance
+    pnl_total_dia = pnl_hoy + pnl_flotante
+    presupuesto_restante = limite_usd + pnl_total_dia
+    
+    if pnl_total_dia <= -limite_usd:
+        print(f"| GESTOR RIESGO ALERTA | ⛔ DRAWDOWN DIARIO ALCANZADO: PNL Total ${pnl_total_dia:.2f} (Cerrado: ${pnl_hoy:.2f} + Flotante: ${pnl_flotante:.2f}) <= Límite -${limite_usd:.2f}. Entradas bloqueadas.")
+        return True, 0.0
+        
+    return False, presupuesto_restante
 
 async def obtener_velas_cloud(account, simbolo: str, temporalidad: str, cantidad: int = 100) -> Optional[pd.DataFrame]:
     """Descarga las últimas velas para un símbolo usando la API de MetaAPI"""
@@ -1070,7 +1079,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
 # ------------------------------------------------------------------------------
 # 6. GESTOR DE OPERACIONES (Apertura de Órdenes)
 # ------------------------------------------------------------------------------
-async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: float, decision: Dict, balance: float) -> bool:
+async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: float, decision: Dict, balance: float, presupuesto_restante: float = 150.0) -> bool:
     simbolo_broker = MAPEO_BROKER.get(activo, activo)
     
     try:
@@ -1087,7 +1096,7 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
         
         # LOTAJE DINAMICO (Riesgo configurado sobre el balance diario real, 2% recomendado)
         riesgo_pct = 2.0 
-        lote = calcular_lotaje_dinamico(balance, riesgo_pct, precio_ejecucion, sl, simbolo_broker)
+        lote = calcular_lotaje_dinamico(balance, riesgo_pct, precio_ejecucion, sl, simbolo_broker, presupuesto_restante)
         decision["lote"] = lote
 
         # Generar un clientId único que siga el patrón requerido y no supere la longitud
@@ -1213,7 +1222,7 @@ def es_mercado_abierto(activo: str) -> bool:
 async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
     # 1. Obtener balance y validar Drawdown Diario
     balance, equity = await obtener_balance(connection)
-    en_drawdown = await verificar_drawdown_diario(balance, limite_pct=3.0)
+    en_drawdown, presupuesto_restante = await verificar_drawdown_diario(balance, equity, limite_usd=150.0)
     
     if not skip_risk:
         try:
@@ -1366,7 +1375,7 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             
             if decision and decision.get("authorized") is True:
                 print(f"| LEONA DE LA LIQUIDEZ CLOUD | ¡Gatillo Cruzado Exitoso! Entrando al mercado...")
-                exito = await ejecutar_orden_cloud(connection, activo, accion, precio_actual, decision, balance)
+                exito = await ejecutar_orden_cloud(connection, activo, accion, precio_actual, decision, balance, presupuesto_restante)
                 if not exito:
                     print(f"| GATILLO RECHAZADO | Falló la ejecución en el broker.")
             else:
