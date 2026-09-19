@@ -216,8 +216,8 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
     
     return lotes
 
-async def verificar_drawdown_diario(balance: float, equity: float, limite_usd: float = 150.0) -> Tuple[bool, float]:
-    """Consulta el backend para ver si el PNL de hoy supera la pérdida máxima permitida en USD."""
+async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: float = 3.0) -> Tuple[bool, float]:
+    """Consulta el backend para ver si el PNL de hoy supera la pérdida máxima permitida dinámica en %."""
     url = f"{FASTAPI_URL}/api/pnl_hoy"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
     pnl_hoy = 0.0
@@ -230,12 +230,16 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_usd: f
     except Exception as e:
         print(f"| GESTOR RIESGO EXCEPTION | No se pudo verificar PNL diario: {e}")
         
+    # El balance al abrir el día es el balance actual menos lo que ya se cerró (ganancia o pérdida)
+    balance_inicio_dia = balance - pnl_hoy
+    limite_usd = balance_inicio_dia * (limite_pct / 100.0)
+    
     pnl_flotante = equity - balance
     pnl_total_dia = pnl_hoy + pnl_flotante
     presupuesto_restante = limite_usd + pnl_total_dia
     
     if pnl_total_dia <= -limite_usd:
-        print(f"| GESTOR RIESGO ALERTA | ⛔ DRAWDOWN DIARIO ALCANZADO: PNL Total ${pnl_total_dia:.2f} (Cerrado: ${pnl_hoy:.2f} + Flotante: ${pnl_flotante:.2f}) <= Límite -${limite_usd:.2f}. Entradas bloqueadas.")
+        print(f"| GESTOR RIESGO ALERTA | ⛔ DRAWDOWN DIARIO ALCANZADO: PNL Total ${pnl_total_dia:.2f} <= Límite -${limite_usd:.2f} ({limite_pct}% de ${balance_inicio_dia:.2f}). Entradas bloqueadas.")
         return True, 0.0
         
     return False, presupuesto_restante
@@ -1222,7 +1226,7 @@ def es_mercado_abierto(activo: str) -> bool:
 async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
     # 1. Obtener balance y validar Drawdown Diario
     balance, equity = await obtener_balance(connection)
-    en_drawdown, presupuesto_restante = await verificar_drawdown_diario(balance, equity, limite_usd=150.0)
+    en_drawdown, presupuesto_restante = await verificar_drawdown_diario(balance, equity, limite_pct=3.0)
     
     if not skip_risk:
         try:
