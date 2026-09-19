@@ -754,7 +754,9 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             
             toca_parcial = 0
             if en_ganancia:
-                if distancia_total > 0 and porcentaje_recorrido >= 0.50 and nivel_parcial < 2:
+                if distancia_total > 0 and porcentaje_recorrido >= 0.75 and nivel_parcial < 3:
+                    toca_parcial = 3
+                elif distancia_total > 0 and porcentaje_recorrido >= 0.50 and nivel_parcial < 2:
                     toca_parcial = 2
                 elif ((distancia_total > 0 and porcentaje_recorrido >= 0.25) or profit_flotante >= 20.0) and nivel_parcial < 1:
                     toca_parcial = 1
@@ -781,9 +783,13 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 except Exception as e:
                     print(f"| GESTOR PARCIALES WARN | No se pudo obtener spec para {symbol}, usando 0.01 por defecto: {e}")
 
-                # TP1 (toca_parcial=1) -> 25% del volumen actual restante
-                # TP2 (toca_parcial=2) -> 50% del volumen actual restante
-                porcentaje_a_cerrar = 0.25 if toca_parcial == 1 else 0.50
+                # TP1 (toca_parcial=1) -> 25% del volumen
+                # TP2 (toca_parcial=2) -> 50% del volumen
+                # TP3 (toca_parcial=3) -> 0% del volumen (solo Trail)
+                if toca_parcial == 3:
+                    porcentaje_a_cerrar = 0.0
+                else:
+                    porcentaje_a_cerrar = 0.25 if toca_parcial == 1 else 0.50
                 
                 volumen_raw = volume * porcentaje_a_cerrar
                 lote_a_cerrar = round(math.floor(volumen_raw / volume_step) * volume_step, 4)
@@ -841,10 +847,14 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     if toca_parcial == 1:
                         nuevo_sl = entry_price + buffer_be if es_buy else entry_price - buffer_be
                         desc_sl = "Break Even"
-                    else:
+                    elif toca_parcial == 2:
                         distancia_tp1 = distancia_total * 0.25
                         nuevo_sl = (entry_price + distancia_tp1) if es_buy else (entry_price - distancia_tp1)
                         desc_sl = "Nivel TP1 (25%)"
+                    else:
+                        distancia_tp2 = distancia_total * 0.50
+                        nuevo_sl = (entry_price + distancia_tp2) if es_buy else (entry_price - distancia_tp2)
+                        desc_sl = "Nivel TP2 (50%)"
                         
                     # Verificar si el SL ya está en la posición deseada (ej. por el Trailing Stop del 15%)
                     sl_actual = POSICIONES_ACTIVAS[ticket].get("sl", 0.0)
@@ -876,33 +886,8 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     except Exception as t_e:
                         print(f"| TELEGRAM WARN | No se envió notificación parcial: {t_e}")                    
                     
-        # B. Trailing Stop Dinámico (Activo tras el primer cobro TP1 o +$20)
-        if POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0) >= 1:
-            distancia_total = abs(tp - entry_price) if tp > 0.0 else (current_price * 0.0020)
-            
-            # Distancia del trailing (qué tan lejos sigue al precio). Usamos 25% de la distancia total objetivo.
-            trailing_step = distancia_total * 0.25 
-            
-            nuevo_sl_ideal = current_price - trailing_step if es_buy else current_price + trailing_step
-            sl_actual = POSICIONES_ACTIVAS[ticket].get("sl", sl)
-            
-            debe_mover = False
-            # Solo permitimos mover el SL si nos acerca más a las ganancias (nunca retroceder)
-            # Exigimos un pequeño "salto" (5% de la distancia) para no hacer spam al broker
-            if es_buy and nuevo_sl_ideal > sl_actual + (distancia_total * 0.05):
-                debe_mover = True
-            elif not es_buy and (sl_actual == 0.0 or nuevo_sl_ideal < sl_actual - (distancia_total * 0.05)):
-                debe_mover = True
-                
-            if debe_mover:
-                try:
-                    await connection.modify_position(ticket, stop_loss=nuevo_sl_ideal, take_profit=tp)
-                    POSICIONES_ACTIVAS[ticket]["sl"] = nuevo_sl_ideal
-                    print(f"| GESTOR TRAILING SL | Precio avanzando. SL recorrido dinámicamente a {nuevo_sl_ideal:.5f} en {ticket}.")
-                except Exception as e:
-                    if "NO_CHANGES" not in str(e).upper():
-                        print(f"| GESTOR TRAILING SL ERROR | No se pudo mover SL: {e}")
-                            
+        # B. (Eliminado: Trailing Stop Dinámico continuo sustituido por Escalonado de 3 Fases en bloque A)
+
         # C. Gestión de Break-Even dinámico relativo a Liquidez Institucional (Para órdenes que aún no toman parciales)
         if POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0) == 0:
             # Actualizar el precio máximo a favor alcanzado históricamente en la sesión por este ticket
