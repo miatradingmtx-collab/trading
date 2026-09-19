@@ -637,12 +637,14 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                     # NUEVO BARRIDO: Si sigue siendo MANUAL pero tenemos detalle_setup, extraer de ahi
                     if alert.estrategia == "MANUAL":
                         det = exist_data.get("detalle_setup", "")
-                        if det and "|" in det:
-                            partes = [p.strip() for p in det.split("|")]
-                            if len(partes) >= 4:
-                                # ACTIVO | FECHA | SESION | ESTRATEGIA | CONFIRMACIONES...
-                                alert.estrategia = partes[3]
-                        
+                        if det:
+                            if "SMC Setup" in det:
+                                alert.estrategia = "SMC Setup"
+                            elif "Lux" in det or "LUX" in det:
+                                alert.estrategia = "Lux Algo"
+                            else:
+                                parts = det.split("|")
+                                alert.estrategia = parts[3].strip() if len(parts) >= 4 else det
                     # Almacenar PNL previo (de parciales anteriores)
                     pnl_acumulado_previo = float(exist_data.get("pnl", 0.0))
             except Exception as e:
@@ -3685,6 +3687,16 @@ def get_trade_tp(ticket: str):
                         tp = float(data.get("take_profit", data.get("tp", 0.0)))
                     if estrategia == "MANUAL":
                         estrategia = data.get("estrategia", "MANUAL")
+                        if estrategia == "MANUAL":
+                            det = data.get("detalle_setup", "")
+                            if "SMC Setup" in det:
+                                estrategia = "SMC Setup"
+                            elif "Lux" in det or "LUX" in det:
+                                estrategia = "Lux Algo"
+                            else:
+                                parts = det.split("|")
+                                if len(parts) >= 4:
+                                    estrategia = parts[3].strip()
             except: pass
         parcial_tomado = False
         if GLOBAL_AUDIT_LOGS:
