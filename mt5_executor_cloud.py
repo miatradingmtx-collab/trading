@@ -149,30 +149,37 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
         
     riesgo_dinero = 0.0
     
-    # --- LOGICA DE HOUSE MONEY Y OBJETIVOS MENSUALES ---
-    # Asumimos una base inicial para el calculo del 10% (Se actualizara con Firebase a futuro)
-    BALANCE_INICIO_MES = 4500.0 
-    OBJETIVO_10_PCT = BALANCE_INICIO_MES * 1.10
-    remanente = balance - OBJETIVO_10_PCT
-
-    if remanente > 0:
-        # MODO AGRESIVO: Se alcanzo el >10% en el mes.
-        # Arriesgamos el % asignado potenciado (x1.5), pero NUNCA arriesgamos mas del 30% del remanente 
-        # para asegurar que si perdemos, no bajemos del objetivo mensual del 10%.
-        riesgo_dinero = balance * (riesgo_pct / 100.0) * 1.5
-        if riesgo_dinero > (remanente * 0.30):
-            riesgo_dinero = remanente * 0.30
-        print(f"| GESTOR RIESGO | 🔥 MODO AGRESIVO (House Money). Objetivo 10% superado. Remanente: . Riesgo de operacion: ")
-    elif balance >= 4200.0:
-        # ZONA ACTIVA NORMAL (Escalado exponencial natural 1, 2, 3%)
-        # Como se basa en 'balance', matematicamente el 1% de 5300 es mayor que el 1% de 4200.
-        riesgo_dinero = balance * (riesgo_pct / 100.0)
-        print(f"| GESTOR RIESGO | Zona Activa Escalonada (Balance: ). Riesgo nominal {riesgo_pct}%: ")
+    # --- LÓGICA DE HOUSE MONEY Y OBJETIVOS MENSUALES ---
+    # Calculamos la meta dinámicamente sobre la base mensual actual.
+    if balance <= 4600:
+        base_mensual = 4200.0
+    elif balance <= 5600:
+        base_mensual = 5200.0
     else:
+        base_mensual = (balance // 1000) * 1000.0
+        
+    objetivo_8_pct = base_mensual * 1.08
+    remanente = balance - objetivo_8_pct
+
+    if balance < 4200.0:
         # ESCUDO DE DRAWDOWN (balance < 4200)
-        riesgo_defensivo = 0.25
+        # Se reduce matemáticamente el lotaje a la mitad (0.5%)
+        riesgo_defensivo = 0.50
         riesgo_dinero = balance * (riesgo_defensivo / 100.0)
-        print(f"| GESTOR RIESGO WARN | Drawdown Activo (Balance < ). Riesgo minimo {riesgo_defensivo}%: ")
+        print(f"| GESTOR RIESGO WARN | Drawdown Activo (Balance < 4200). Riesgo reducido a {riesgo_defensivo}%.")
+    elif remanente > 0:
+        # MODO AGRESIVO CON REMANENTE: Se alcanzó el +8% / +10% de la base.
+        # Operamos el remanente a favor sin sobrepasar lo ya ganado en la cuenta principal.
+        riesgo_dinero = balance * (riesgo_pct / 100.0) * 1.5
+        # Regla estricta: Nunca afectar la cuenta más allá del remanente ganado
+        if riesgo_dinero > (remanente * 0.35):
+            riesgo_dinero = remanente * 0.35
+        print(f"| GESTOR RIESGO | 🔥 MODO AGRESIVO (Remanente). Objetivo 8-10% superado. Remanente a favor: ${remanente:.2f}.")
+    else:
+        # ZONA DE RECUPERACIÓN / CRECIMIENTO (>= 4200)
+        # Entradas con el 1%, 2%, 3% conforme aumenta la cuenta
+        riesgo_dinero = balance * (riesgo_pct / 100.0)
+        print(f"| GESTOR RIESGO | Zona de Recuperación/Crecimiento (Balance: ${balance:.2f}). Riesgo normal: {riesgo_pct}%.")
 
     distancia_precio = abs(entry_price - sl_price)
     
