@@ -745,18 +745,18 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
         import math
         nivel_parcial = POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0)
         
-        if tp > 0.0 and entry_price > 0.0 and volume > 0.01:
-            distancia_total = abs(tp - entry_price)
+        if entry_price > 0.0 and volume >= 0.01:
+            distancia_total = abs(tp - entry_price) if tp > 0.0 else 0.0
             distancia_recorrida = abs(current_price - entry_price)
             en_ganancia = (es_buy and current_price > entry_price) or (not es_buy and current_price < entry_price)
             
-            porcentaje_recorrido = distancia_recorrida / distancia_total if distancia_total > 0 else 0
+            porcentaje_recorrido = distancia_recorrida / distancia_total if distancia_total > 0 else 0.0
             
             toca_parcial = 0
             if en_ganancia:
-                if porcentaje_recorrido >= 0.50 and nivel_parcial < 2:
+                if distancia_total > 0 and porcentaje_recorrido >= 0.50 and nivel_parcial < 2:
                     toca_parcial = 2
-                elif (porcentaje_recorrido >= 0.25 or profit_flotante >= 20.0) and nivel_parcial < 1:
+                elif ((distancia_total > 0 and porcentaje_recorrido >= 0.25) or profit_flotante >= 20.0) and nivel_parcial < 1:
                     toca_parcial = 1
                     if profit_flotante >= 20.0:
                         print(f"| GESTOR GANANCIAS | Ganancia de +${profit_flotante:.2f} detectada en {ticket}. Forzando TP1 (Parcial 25% y BE).")
@@ -876,52 +876,32 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     except Exception as t_e:
                         print(f"| TELEGRAM WARN | No se envió notificación parcial: {t_e}")                    
                     
-        # B. Gestión de SL en ganancias para Runners (Trades que ya tomaron TP2 al 50%)
-        if POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0) >= 2:
-            es_jpy = pos.get('symbol', '').endswith("JPY")
-            es_xau = "XAU" in pos.get('symbol', '')
+        # B. Trailing Stop Dinámico (Activo tras el primer cobro TP1 o +$20)
+        if POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0) >= 1:
+            distancia_total = abs(tp - entry_price) if tp > 0.0 else (current_price * 0.0020)
             
-            distancia_total = abs(tp - entry_price)
-            punto_mitad_tp = entry_price + (distancia_total * 0.5) if es_buy else entry_price - (distancia_total * 0.5)
+            # Distancia del trailing (qué tan lejos sigue al precio). Usamos 25% de la distancia total objetivo.
+            trailing_step = distancia_total * 0.25 
             
-            sl_ya_en_mitad = (es_buy and sl >= punto_mitad_tp - 0.0001) or (not es_buy and sl <= punto_mitad_tp + 0.0001)
+            nuevo_sl_ideal = current_price - trailing_step if es_buy else current_price + trailing_step
+            sl_actual = POSICIONES_ACTIVAS[ticket].get("sl", sl)
             
-            if not sl_ya_en_mitad:
-                distancia_recorrida = abs(current_price - entry_price)
+            debe_mover = False
+            # Solo permitimos mover el SL si nos acerca más a las ganancias (nunca retroceder)
+            # Exigimos un pequeño "salto" (5% de la distancia) para no hacer spam al broker
+            if es_buy and nuevo_sl_ideal > sl_actual + (distancia_total * 0.05):
+                debe_mover = True
+            elif not es_buy and (sl_actual == 0.0 or nuevo_sl_ideal < sl_actual - (distancia_total * 0.05)):
+                debe_mover = True
                 
-                # Para subir el SL al 50%, el precio debe haber superado al menos el 75%
-                ha_superado_umbral = (distancia_recorrida >= (distancia_total * 0.75))
-                
-                if ha_superado_umbral:
-                    # Validar confluencias técnicas (soportes/resistencias, EMAs) en H1
-                    df_1h = await obtener_velas_cloud(account, pos.get('symbol'), '1h', 100)
-                    if df_1h is not None and not df_1h.empty:
-                        try:
-                            rsi_series = calcular_rsi(df_1h)
-                            rsi_1h = rsi_series.iloc[-1]
-                            ema_50 = df_1h['close'].ewm(span=50, adjust=False).mean().iloc[-1]
-                            sr_levels = detectar_soportes_resistencias(df_1h)
-                            
-                            criterio_mover_sl = False
-                            if es_buy:
-                                soporte_cercano = any(abs(current_price - s) / current_price < 0.002 for s in sr_levels.get('soportes', []))
-                                cerca_ema = abs(current_price - ema_50) / current_price < 0.002
-                                criterio_mover_sl = soporte_cercano or cerca_ema or (rsi_1h < 65)
-                            else:
-                                resistencia_cercana = any(abs(current_price - r) / current_price < 0.002 for r in sr_levels.get('resistencias', []))
-                                cerca_ema = abs(current_price - ema_50) / current_price < 0.002
-                                criterio_mover_sl = resistencia_cercana or cerca_ema or (rsi_1h > 35)
-                                
-                            if criterio_mover_sl:
-                                print(f"| GESTOR TRAILING SL | Setup superó el 75% del TP. Moviendo SL al 50% (TP2={punto_mitad_tp}) para proteger ganancias del Runner.")
-                                try:
-                                    await connection.modify_position(ticket, stop_loss=punto_mitad_tp, take_profit=tp)
-                                    POSICIONES_ACTIVAS[ticket]["sl"] = punto_mitad_tp
-                                    await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "TRAILING_STOP", current_price, punto_mitad_tp, tp, pnl=0.0, comentario="Trailing Stop al 50%", estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""), lotaje=pos.get('volume', 0.0))
-                                except Exception as e:
-                                    print(f"| GESTOR TRAILING SL ERROR | No se pudo mover SL al 50% para ticket {ticket}: {e}")
-                        except Exception as eval_err:
-                            print(f"| GESTOR TRAILING SL | Error evaluando indicadores para trailing: {eval_err}")
+            if debe_mover:
+                try:
+                    await connection.modify_position(ticket, stop_loss=nuevo_sl_ideal, take_profit=tp)
+                    POSICIONES_ACTIVAS[ticket]["sl"] = nuevo_sl_ideal
+                    print(f"| GESTOR TRAILING SL | Precio avanzando. SL recorrido dinámicamente a {nuevo_sl_ideal:.5f} en {ticket}.")
+                except Exception as e:
+                    if "NO_CHANGES" not in str(e).upper():
+                        print(f"| GESTOR TRAILING SL ERROR | No se pudo mover SL: {e}")
                             
         # C. Gestión de Break-Even dinámico relativo a Liquidez Institucional (Para órdenes que aún no toman parciales)
         if POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0) == 0:
