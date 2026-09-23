@@ -3651,19 +3651,46 @@ def api_dashboard_data():
         DASHBOARD_CACHE_TIME = time.time()
         print("| CACHE | Datos del dashboard actualizados y guardados en memoria")
 
-        # PUSH TO UPSTASH REDIS
+        # --- PUSH TO UPSTASH REDIS (DUAL SLOT STRATEGY) ---
         try:
             import requests
             import json
-            upstash_url = "https://certain-gnat-160816.upstash.io/set/cache_mt5"
+            
             upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
             session = requests.Session()
             session.trust_env = False
-            session.post(upstash_url, headers=upstash_headers, data=json.dumps(data), timeout=5)
-            print("| UPSTASH | Caché sincronizada con Redis exitosamente")
+            
+            # 1. SLOT LIVE (Para decisiones instantáneas de Enjambres)
+            data_live = {
+                "balance_actual": data.get("balance_actual", 0),
+                "equity": data.get("equity", 0),
+                "floating_pnl": data.get("floating_pnl", 0),
+                "operaciones_activas": data.get("operaciones_activas", []),
+                "feed": data.get("feed", []),
+                "matriz_scores": data.get("matriz_scores", {})
+            }
+            url_live = "https://certain-gnat-160816.upstash.io/set/cache_mt5"
+            session.post(url_live, headers=upstash_headers, data=json.dumps(data_live), timeout=5)
+            
+            # 2. SLOT HISTÓRICO (Para reportes y ML sin tocar Firebase)
+            data_hist = {
+                "balance_base": data.get("balance_base", 0),
+                "pnl_total": data.get("pnl_total", 0),
+                "kpis": data.get("kpis", {}),
+                "estrategias": data.get("estrategias", []),
+                "rendimiento_sesiones": data.get("rendimiento_sesiones", []),
+                "rendimiento_activos": data.get("rendimiento_activos", []),
+                "indicadores": data.get("indicadores", []),
+                "killzones": data.get("killzones", []),
+                "curva_equity": data.get("curva_equity", []),
+                "recent_logs": GLOBAL_AUDIT_LOGS if GLOBAL_AUDIT_LOGS else []
+            }
+            url_hist = "https://certain-gnat-160816.upstash.io/set/cache_hist_mt5"
+            session.post(url_hist, headers=upstash_headers, data=json.dumps(data_hist), timeout=5)
+            
+            print("| UPSTASH | Caché dual (Live + Hist) sincronizada con Redis exitosamente")
         except Exception as e:
-            print(f"| UPSTASH ERROR | No se pudo subir caché a Redis: {e}")
-
+            print(f"| UPSTASH ERROR | No se pudo subir caché dual a Redis: {e}")
 
         data["recent_logs"] = GLOBAL_AUDIT_LOGS
         return {"status": "success", "data": data}
