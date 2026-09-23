@@ -51,7 +51,8 @@ from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
 import os
 
-# 1. Groq Principal (Llama 3.3 70B - Inteligencia alta)
+# --- DEFINICIÓN DE MODELOS (ANTI-404 y ANTI-429) ---
+# 1. Groq Principal (Llama 3.3 70B)
 llm_70b = ChatGroq(
     model_name="llama-3.3-70b-versatile",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
@@ -59,7 +60,7 @@ llm_70b = ChatGroq(
     max_tokens=600
 )
 
-# 2. Groq Secundario (Mixtral 8x7B / Gemma 2 - Intermedio con alto rate limit)
+# 2. Groq Secundario (Mixtral 8x7B)
 llm_8b = ChatGroq(
     model_name="mixtral-8x7b-32768",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
@@ -67,25 +68,30 @@ llm_8b = ChatGroq(
     max_tokens=600
 )
 
-# 3. Google Gemini (Respaldo absoluto contra 429 - 1 Millón TPM gratis)
+# 3. Groq Terciario (Gemma 2 9B - Respaldo si los de arriba fallan)
+llm_gemma = ChatGroq(
+    model_name="gemma2-9b-it",
+    groq_api_key=os.environ.get("GROQ_API_KEY"),
+    temperature=0.2,
+    max_tokens=600
+)
+
+# 4. Google Gemini (Respaldo definitivo - 1 Millón TPM gratis)
 llm_gemini = ChatGoogleGenerativeAI(
     model="gemini-1.5-flash",
     google_api_key=os.environ.get("GOOGLE_API_KEY"),
     temperature=0.2
 )
 
-# ASIGNACIÓN INTELIGENTE (ANTI-429) CON FALLBACKS AUTOMÁTICOS
-# TIDAL: Escanea mucha data. Usamos 8B, si falla pasa a Gemini.
-llm_para_tidal = llm_8b.with_fallbacks([llm_gemini])
+# ASIGNACIÓN INTELIGENTE CON FALLBACKS DINÁMICOS
+# Si falla el principal (por 404 de deprecación o 429), salta al siguiente en la lista automáticamente.
+llm_robusto_70b = llm_70b.with_fallbacks([llm_8b, llm_gemma, llm_gemini])
+llm_robusto_8b = llm_8b.with_fallbacks([llm_gemma, llm_70b, llm_gemini])
 
-# NORO: Matemática. Usamos 70B, si falla pasa a Gemini.
-llm_para_noro = llm_70b.with_fallbacks([llm_gemini])
-
-# ZEPHR: Análisis técnico. Lo mandamos a Gemini directo para balancear la carga.
-llm_para_zephr = llm_gemini
-
-# RUNE: Juez Maestro. Usamos 70B, si falla pasa a Gemini.
-llm_para_rune = llm_70b.with_fallbacks([llm_gemini])
+llm_para_tidal = llm_robusto_8b
+llm_para_noro = llm_robusto_70b
+llm_para_zephr = llm_robusto_8b
+llm_para_rune = llm_robusto_70b
 # ── 1. TIDAL (Liquidez) ──
 tidal = Agent(
     role="TIDAL - Order Book Scanner",
@@ -100,7 +106,7 @@ tidal = Agent(
     tools=[railway_cache_tool]
 )
 
-llm_para_lumen = llm_8b
+llm_para_lumen = llm_robusto_8b
 # 🟢 2. LUMEN (Sentimiento Institucional) 🟢
 lumen = Agent(
     role='LUMEN - Sentimiento y Liquidez',
