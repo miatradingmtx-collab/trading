@@ -59,9 +59,9 @@ llm_70b = ChatGroq(
     max_tokens=600
 )
 
-# 2. Groq Secundario (Llama 3.1 8B - Intermedio con alto rate limit)
+# 2. Groq Secundario (Mixtral 8x7B / Gemma 2 - Intermedio con alto rate limit)
 llm_8b = ChatGroq(
-    model_name="llama3-8b-8192",
+    model_name="mixtral-8x7b-32768",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2,
     max_tokens=600
