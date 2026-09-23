@@ -1134,9 +1134,9 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
                 "precio_ejecucion": precio_ejecucion,
                 "stop_loss": float(sl),
                 "take_profit": float(tp),
-                                "ejecutada_mt5": True,
+                "ejecutada_mt5": True,
                 "motivo": "Ejecutada por Escaner Cloud",
-                "estrategia": estrategia
+                "estrategia": decision.get("estrategia", "SMC_ICT_Leona")
             }
             async with httpx.AsyncClient() as client:
                 await client.post(url, headers=headers, json=payload, timeout=5)

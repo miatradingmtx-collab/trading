@@ -51,41 +51,41 @@ from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
 import os
 
-# 1. Groq Llama 70B (Máxima Inteligencia - Límite muy estricto)
+# 1. Groq Principal (Llama 3.3 70B - Inteligencia alta)
 llm_70b = ChatGroq(
-    model_name="qwen/qwen3.8-27b",
+    model_name="llama-3.3-70b-versatile",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2,
     max_tokens=600
 )
 
-# 2. Groq Llama 8B (Muy Rápido - Límite intermedio)
+# 2. Groq Secundario (Llama 3.1 8B - Intermedio con alto rate limit)
 llm_8b = ChatGroq(
-    model_name="qwen/qwen3.8-27b",
+    model_name="llama-3.1-8b-instant",
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     temperature=0.2,
     max_tokens=600
 )
 
-# 3. Google Gemini Flash (Inteligencia Alta - LÍMITE MASIVO 1,000,000 TPM)
+# 3. Google Gemini (Respaldo absoluto contra 429 - 1 Millón TPM gratis)
 llm_gemini = ChatGoogleGenerativeAI(
-    model="gemini-flash-lite-latest",
+    model="gemini-1.5-flash",
     google_api_key=os.environ.get("GOOGLE_API_KEY"),
     temperature=0.2
 )
 
-# ASIGNACIÓN QUIRÚRGICA PARA EVITAR RATE LIMITS (429):
-# TIDAL: Escanea Order Books (mucha data pero poca lógica). Usamos 8B.
-llm_para_tidal = llm_8b
+# ASIGNACIÓN INTELIGENTE (ANTI-429) CON FALLBACKS AUTOMÁTICOS
+# TIDAL: Escanea mucha data. Usamos 8B, si falla pasa a Gemini.
+llm_para_tidal = llm_8b.with_fallbacks([llm_gemini])
 
-# NORO: Precisión matemática extrema (muchos tokens). Lo mandamos a Gemini para no saturar Groq.
-llm_para_noro = llm_70b.with_fallbacks([llm_8b])
+# NORO: Matemática. Usamos 70B, si falla pasa a Gemini.
+llm_para_noro = llm_70b.with_fallbacks([llm_gemini])
 
-# ZEPHR: Análisis de Liquidez. Lo mandamos a Gemini también.
-llm_para_zephr = llm_8b
+# ZEPHR: Análisis técnico. Lo mandamos a Gemini directo para balancear la carga.
+llm_para_zephr = llm_gemini
 
-# RUNE: El Juez de Riesgo Final. Se lleva el Llama 70B en exclusiva.
-llm_para_rune = llm_8b
+# RUNE: Juez Maestro. Usamos 70B, si falla pasa a Gemini.
+llm_para_rune = llm_70b.with_fallbacks([llm_gemini])
 # ── 1. TIDAL (Liquidez) ──
 tidal = Agent(
     role="TIDAL - Order Book Scanner",

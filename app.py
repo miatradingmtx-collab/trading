@@ -740,6 +740,22 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 "detalle_setup": detalle_str
             }
             
+            # Recargar max_nivel_parcial de la memoria para que sobreviva al CIERRE_TOTAL
+            if GLOBAL_AUDIT_LOGS:
+                for l in GLOBAL_AUDIT_LOGS:
+                    if str(l.get("ticket")) == str(alert.ticket):
+                        if l.get("max_nivel_parcial"):
+                            audit_data["max_nivel_parcial"] = l.get("max_nivel_parcial")
+                        break
+                        
+            # Inyectar el parcial si la alerta actual lo trae
+            if alert.accion in ["CIERRE_PARCIAL", "TRAILING_STOP"]:
+                motivo_upper = (alert.motivo or "").upper()
+                if "50%" in motivo_upper or "TP2" in motivo_upper:
+                    audit_data["max_nivel_parcial"] = 2
+                elif "25%" in motivo_upper or "TP1" in motivo_upper:
+                    audit_data["max_nivel_parcial"] = max(audit_data.get("max_nivel_parcial", 0), 1)
+            
             # Solo actualizar la acción principal si es apertura o cierre
             if alert.accion in ["COMPRA", "VENTA", "CIERRE_TOTAL", "CIERRE_PARCIAL"]:
                 audit_data["accion"] = alert.accion
@@ -779,6 +795,18 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                         break
                 if not encontrado:
                     GLOBAL_AUDIT_LOGS.append(audit_data)
+                    
+            # Inyectar `resultado_salida` exacto para Swarms si es CIERRE_TOTAL
+            if alert.accion == "CIERRE_TOTAL" and alert.ticket:
+                try:
+                    ts_eval = determinar_tipo_salida_ticket(str(alert.ticket))
+                    audit_ref.set({"resultado_salida": ts_eval}, merge=True)
+                    if GLOBAL_AUDIT_LOGS:
+                        for i, log in enumerate(GLOBAL_AUDIT_LOGS):
+                            if log.get("ticket") == str(alert.ticket):
+                                GLOBAL_AUDIT_LOGS[i]["resultado_salida"] = ts_eval
+                except Exception as e:
+                    pass
                     
             invalidar_cache_dashboard()
             
@@ -1248,44 +1276,22 @@ def determinar_tipo_salida_ticket(ticket: str):
     if not t_logs:
         return "DESCONOCIDO"
         
-    acciones = [str(l.get("accion", "")).upper() for l in t_logs]
-    pnls = [float(l.get("pnl", 0.0)) for l in t_logs]
-    comentarios = [str(l.get("estrategia", "")).upper() for l in t_logs]
-    
-    has_cierre_total = "CIERRE_TOTAL" in acciones
-    has_cierre_parcial = "CIERRE_PARCIAL" in acciones or any("PARCIAL" in c for c in comentarios)
-    
-    if not has_cierre_total:
+    l = t_logs[0]
+    if str(l.get("accion")).upper() != "CIERRE_TOTAL":
         return "ABIERTO"
         
-    if has_cierre_parcial:
-        cierre_total_log = next((l for l in t_logs if str(l.get("accion")).upper() == "CIERRE_TOTAL"), None)
-        if cierre_total_log:
-            pnl_cierre = float(cierre_total_log.get("pnl", 0.0))
-            if abs(pnl_cierre) <= 1.5:
-                return "PARCIAL_BE"
-            else:
-                return "PARCIAL_MANUAL"
-        else:
-            return "PARCIAL_BE"
+    pnl = float(l.get("pnl", 0.0))
+    nivel_parcial = int(l.get("max_nivel_parcial", 0))
+    
+    if nivel_parcial > 0:
+        if abs(pnl) <= 1.5: return "PARCIAL_BE"
+        if nivel_parcial == 2: return "TRAILING_STOP_50"
+        if nivel_parcial == 1: return "TRAILING_STOP_25"
+        return "TP_COMPLETO" if pnl > 0 else "SL_ORIGINAL"
     else:
-        cierre_total_log = next((l for l in t_logs if str(l.get("accion")).upper() == "CIERRE_TOTAL"), None)
-        if cierre_total_log:
-            ct_comentario = str(cierre_total_log.get("estrategia", "")).upper()
-            pnl_cierre = float(cierre_total_log.get("pnl", 0.0))
-            
-            if pnl_cierre < 0:
-                return "SL_ORIGINAL"
-            elif "DESAPARICION" in ct_comentario or "MANUAL" in ct_comentario:
-                return "MANUAL_DIRECTO"
-            else:
-                return "TP_COMPLETO"
-        else:
-            pnl_final = sum(pnls)
-            if pnl_final < 0:
-                return "SL_ORIGINAL"
-            else:
-                return "TP_COMPLETO"
+        if pnl < 0: return "SL_ORIGINAL"
+        elif pnl > 0: return "TP_COMPLETO"
+        else: return "PARCIAL_BE"
 
 def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
     """
@@ -1362,16 +1368,42 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
             if ses_doc.exists:
                 ses_data = ses_doc.to_dict()
             else:
-                ses_data = {"trades_totales": 0, "trades_ganados": 0, "pnl_total": 0.0, "win_rate": 0.0}
+                ses_data = {
+                    "trades_totales": 0, "trades_ganados": 0, "pnl_acumulado": 0.0, "win_rate": 0.0,
+                    "total_hits_tp_full": 0, "total_hits_tp50": 0, "total_hits_tp25": 0,
+                    "total_hits_be": 0, "total_hits_sl": 0, "total_hits_manual": 0
+                }
                 
             ses_data["trades_totales"] = ses_data.get("trades_totales", 0) + 1
             if es_ganado:
                 ses_data["trades_ganados"] = ses_data.get("trades_ganados", 0) + 1
-            ses_data["pnl_total"] = ses_data.get("pnl_total", 0.0) + pnl
+            ses_data["pnl_acumulado"] = round(ses_data.get("pnl_acumulado", 0.0) + pnl, 2)
+            
+            # Borramos pnl_total si existía por error previo
+            if "pnl_total" in ses_data:
+                del ses_data["pnl_total"]
+                
             if ses_data["trades_totales"] > 0:
                 ses_data["win_rate"] = round(
                     (ses_data["trades_ganados"] / ses_data["trades_totales"]) * 100, 2
                 )
+            
+            # Obtener tipo de salida exacto para las estadísticas del Enjambre
+            if ticket:
+                tipo_salida = determinar_tipo_salida_ticket(ticket)
+                if tipo_salida == "TP_COMPLETO":
+                    ses_data["total_hits_tp_full"] = ses_data.get("total_hits_tp_full", 0) + 1
+                elif tipo_salida == "SL_ORIGINAL":
+                    ses_data["total_hits_sl"] = ses_data.get("total_hits_sl", 0) + 1
+                elif tipo_salida == "TRAILING_STOP_50":
+                    ses_data["total_hits_tp50"] = ses_data.get("total_hits_tp50", 0) + 1
+                elif tipo_salida == "TRAILING_STOP_25":
+                    ses_data["total_hits_tp25"] = ses_data.get("total_hits_tp25", 0) + 1
+                elif tipo_salida == "PARCIAL_BE":
+                    ses_data["total_hits_be"] = ses_data.get("total_hits_be", 0) + 1
+                elif "MANUAL" in tipo_salida:
+                    ses_data["total_hits_manual"] = ses_data.get("total_hits_manual", 0) + 1
+                    
             ses_data["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
             ses_ref.set(ses_data)
         except Exception as e:
@@ -2469,7 +2501,23 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         tp = round(tp, 5)
         probabilidad = score # Asignamos la probabilidad para evitar UnboundLocalError
         
-        # Logs en segundo plano (Notion, Excel Local y Firestore)
+        # 4. DETERMINAR ESTRATEGIA DINÁMICA BASADA EN LA MATRIZ (MIA KB + ML)
+        conf = data.get("confirmaciones_tecnicas", {})
+        tiene_lux = any(conf.get(f"lux_algo_ob_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
+        tiene_fvg = conf.get("fvg_detectado", False)
+        tiene_retail = conf.get("smc_order_block", False)
+        tiene_liq = conf.get("amd_manipulation", False) or conf.get("toma_liquidez", False)
+        
+        estrategia_dinamica = "SMC Setup | "
+        if tiene_lux: estrategia_dinamica += "OB (Lux Algo)"
+        elif tiene_fvg: estrategia_dinamica += "FVG"
+        elif tiene_retail: estrategia_dinamica += "Soportes/OB Retail"
+        else: estrategia_dinamica += "Acción de Precio"
+        
+        if tiene_liq: estrategia_dinamica += " + Toma Liquidez (AMD)"
+        
+        # Guardamos en logs de apertura
+        alert.estrategia = estrategia_dinamica
         background_tasks.add_task(enviar_a_notion, alert)
         background_tasks.add_task(actualizar_excel_local, alert)
         background_tasks.add_task(guardar_en_firestore, alert, None, None)
@@ -2478,7 +2526,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         data["estado_ejecucion"] = "EJECUTADO"
         doc_ref.set(data)
         
-        print(f"| DECISIÓN CLOUD | Trade AUTORIZADO para {activo_normalizado}. Score: {score}%. Probabilidad: {probabilidad}%. SL: {sl} | TP: {tp}")
+        print(f"| DECISIÓN CLOUD | Trade AUTORIZADO para {activo_normalizado}. Score: {score}%. Probabilidad: {probabilidad}%. SL: {sl} | TP: {tp} | Estrategia: {estrategia_dinamica}")
         
         return {
             "authorized": True,
@@ -2488,6 +2536,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             "lote": lote,
             "stop_loss": sl,
             "take_profit": tp,
+            "estrategia": estrategia_dinamica,
             "analisis_ia": analisis_ia,
             "score_porcentaje": score,
             "probabilidad_exito": probabilidad
@@ -2803,16 +2852,9 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         if 0 <= utc_hour < 7: sesion = "asia"
         elif 7 <= utc_hour < 12: sesion = "london"
         
-        estrategia_base = "SMC Setup"
         str_ejecutada = "SÍ" if ejecucion.ejecutada_mt5 else "NO"
+        estrategia_real = ejecucion.estrategia
         
-        tiene_lux = 'lux_algo_ob_1h' in data.get("confirmaciones_tecnicas", {})
-        tiene_smc = 'smc_order_block' in data.get("confirmaciones_tecnicas", {}) or 'fvg_detectado' in data.get("confirmaciones_tecnicas", {})
-        estrategia_real = "SMC Setup | Liquidez + OB (SMC Base)"
-        if tiene_lux and not tiene_smc: estrategia_real = "SMC Setup | Liquidez + OB (Lux Algo)"
-        elif tiene_smc and not tiene_lux: estrategia_real = "SMC Setup | Liquidez + OB (Institucional SMC)"
-        elif tiene_lux and tiene_smc: estrategia_real = "SMC Setup | OB Institucional + Confirmacion LUX"
-
         detalle_str = f"{ejecucion.activo} | {fecha} | {sesion} | {estrategia_real} | {confirmaciones_str} | SCORE: {ejecucion.score}% | EJECUTADA EN MT5: {str_ejecutada} | MOTIVO: {ejecucion.motivo}"
 
         audit_ref = db.collection("mia_audit_logs").document(str(ejecucion.ticket))
