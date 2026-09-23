@@ -774,13 +774,15 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             
             toca_parcial = 0
             if en_ganancia:
-                if distancia_total > 0 and porcentaje_recorrido >= 0.75 and nivel_parcial < 3:
+                # Damos respiro (oxígeno) al trade: 
+                # Antes: Parcial en 25%, ahora: Parcial 1 en 40%, Parcial 2 en 65%, Trail en 85%
+                if distancia_total > 0 and porcentaje_recorrido >= 0.85 and nivel_parcial < 3:
                     toca_parcial = 3
-                elif distancia_total > 0 and porcentaje_recorrido >= 0.50 and nivel_parcial < 2:
+                elif distancia_total > 0 and porcentaje_recorrido >= 0.65 and nivel_parcial < 2:
                     toca_parcial = 2
-                elif ((distancia_total > 0 and porcentaje_recorrido >= 0.25) or profit_flotante >= 20.0) and nivel_parcial < 1:
+                elif ((distancia_total > 0 and porcentaje_recorrido >= 0.40) or profit_flotante >= 50.0) and nivel_parcial < 1:
                     toca_parcial = 1
-                    if profit_flotante >= 20.0:
+                    if profit_flotante >= 50.0:
                         print(f"| GESTOR GANANCIAS | Ganancia de +${profit_flotante:.2f} detectada en {ticket}. Forzando TP1 (Parcial 25% y BE).")
                     
             if toca_parcial > 0:
@@ -865,16 +867,19 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     buffer_be = 0.0001 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.01
                     
                     if toca_parcial == 1:
+                        # Al llegar al 40%, asegurar Break Even
                         nuevo_sl = entry_price + buffer_be if es_buy else entry_price - buffer_be
                         desc_sl = "Break Even"
                     elif toca_parcial == 2:
-                        distancia_tp1 = distancia_total * 0.25
+                        # Al llegar al 65%, asegurar el 40% del recorrido
+                        distancia_tp1 = distancia_total * 0.40
                         nuevo_sl = (entry_price + distancia_tp1) if es_buy else (entry_price - distancia_tp1)
-                        desc_sl = "Nivel TP1 (25%)"
+                        desc_sl = "Nivel Seguro TP1 (40%)"
                     else:
-                        distancia_tp2 = distancia_total * 0.50
+                        # Al llegar al 85%, asegurar el 65% del recorrido
+                        distancia_tp2 = distancia_total * 0.65
                         nuevo_sl = (entry_price + distancia_tp2) if es_buy else (entry_price - distancia_tp2)
-                        desc_sl = "Nivel TP2 (50%)"
+                        desc_sl = "Nivel Seguro TP2 (65%)"
                         
                     # Verificar si el SL ya está en la posición deseada (ej. por el Trailing Stop del 15%)
                     sl_actual = POSICIONES_ACTIVAS[ticket].get("sl", 0.0)
