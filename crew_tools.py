@@ -55,6 +55,18 @@ def railway_cache_tool() -> str:
                     "indicadores_ml": parsed_data.get("indicadores", []),          # Pesos de Sweeps, LUX ALGO, AMD
                     "ml_matriz_scores": parsed_data.get("matriz_scores", {})
                 }
+                
+                # Desacoplamiento: Consultar Cerebro TensorFlow en Upstash Redis (Nuevo Slot)
+                try:
+                    tf_url = "https://certain-gnat-160816.upstash.io/get/cache_mia_tensorflow"
+                    tf_res = session.get(tf_url, headers=headers, timeout=5)
+                    if tf_res.status_code == 200:
+                        tf_data = tf_res.json().get("result")
+                        if tf_data:
+                            data_filtrada["tensorflow_ai"] = json.loads(tf_data)
+                except Exception as e_tf:
+                    data_filtrada["tensorflow_ai"] = {"status": "offline", "error": str(e_tf)}
+                
                 return f"Datos Minimizados (Upstash Redis):\n{json.dumps(data_filtrada, indent=2)}"
             except Exception as e:
                 return f"Datos (Raw) desde Upstash Redis:\n{str(data.get('result'))[:1000]}... (TRUNCADO)"
