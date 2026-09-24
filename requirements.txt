@@ -15,3 +15,5 @@ crewai<0.50.0
 langchain
 langchain-openai
 langchain-google-genai
+
+tensorflow-cpu>=2.15.0

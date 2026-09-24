@@ -4381,3 +4381,108 @@ def tomar_snapshot_diario_ml():
         print(f"| ML HISTORY ERROR | Fallo al crear snapshot: {e}")
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/cron/train_tensorflow")
+def train_tensorflow():
+    """
+    Arquitectura Cloud-Native: Entrena la Red Neuronal Profunda con TensorFlow de Google
+    usando datos de Upstash, y guarda el modelo (Base64) en un nuevo Slot de Upstash
+    (cache_mia_tensorflow) y lo homologa en Firebase (mia_tensorflow).
+    """
+    try:
+        import requests, json, os, base64, time
+        import pandas as pd
+        import tensorflow as tf
+        from tensorflow.keras.models import Sequential
+        from tensorflow.keras.layers import Dense, Dropout
+        
+        # 1. Extraer historial directamente desde Redis (No Firebase)
+        upstash_read_url = "https://certain-gnat-160816.upstash.io/get/cache_hist_mt5"
+        headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        res = requests.get(upstash_read_url, headers=headers, timeout=10)
+        
+        raw_data = res.json().get("result", "{}")
+        data = json.loads(raw_data)
+        logs = data.get("recent_logs", [])
+        
+        if len(logs) < 50:
+            return {"status": "error", "message": "Insuficientes datos en Upstash para entrenar TF"}
+            
+        # 2. Convertir JSON a Tensores (DataFrame en RAM)
+        df_data = []
+        for trade in logs:
+            if trade.get("accion") != "CIERRE_TOTAL": continue
+            pnl = float(trade.get("pnl", 0.0))
+            exito = 1 if pnl > 0.0 else 0
+            detalle = str(trade.get("detalle_setup", "")).lower()
+            
+            df_data.append({
+                "hora_utc": int(trade.get("hora_utc", 0)),
+                "score_original": float(trade.get("score_porcentaje", 0.0)),
+                "ind_lux_4h": 1 if "lux_algo_ob_4h" in detalle or "lux" in detalle else 0,
+                "ind_lux_8h": 1 if "lux_algo_ob_8h" in detalle else 0,
+                "ind_rsi": 1 if "rsi" in detalle else 0,
+                "ind_fvg": 1 if "fvg" in detalle else 0,
+                "EXITO": exito
+            })
+            
+        df = pd.DataFrame(df_data).fillna(0)
+        X = df[['hora_utc', 'score_original', 'ind_lux_4h', 'ind_lux_8h', 'ind_rsi', 'ind_fvg']].values
+        y = df['EXITO'].values
+        
+        # 3. Entrenar TensorFlow Keras Model en Memoria RAM
+        model = Sequential([
+            Dense(32, activation='relu', input_shape=(X.shape[1],)),
+            Dropout(0.2),
+            Dense(16, activation='relu'),
+            Dropout(0.1),
+            Dense(1, activation='sigmoid')
+        ])
+        
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+        print("| TENSORFLOW | Entrenando matriz profunda...")
+        model.fit(X, y, epochs=50, batch_size=16, verbose=0)
+        
+        loss, accuracy = model.evaluate(X, y, verbose=0)
+        
+        # 4. Exportar Modelo a Base64 para guardarlo en BD sin archivos locales
+        model_path = "temp_mia_tf.keras"
+        model.save(model_path)
+        with open(model_path, "rb") as f:
+            model_b64 = base64.b64encode(f.read()).decode('utf-8')
+        os.remove(model_path) # Limpiar contenedor
+        
+        # 5. El JSON Maestro Neuronal
+        tf_payload = {
+            "version": "v1.0",
+            "timestamp": time.time(),
+            "accuracy": float(accuracy),
+            "trades_aprendidos": len(df),
+            "keras_base64": model_b64 # El cerebro binario
+        }
+        
+        # 6. Desacoplamiento: Guardar en el nuevo Slot 5 de Upstash (cache_mia_tensorflow)
+        upstash_write_url = "https://certain-gnat-160816.upstash.io/set/cache_mia_tensorflow"
+        requests.post(upstash_write_url, headers=headers, json=tf_payload, timeout=10)
+        
+        # 7. Homologación: Guardar histórico en Firebase (mia_tensorflow)
+        try:
+            hoy_str = datetime.utcnow().strftime("%Y-%m-%d")
+            db.collection("mia_tensorflow").document(hoy_str).set({
+                "accuracy": float(accuracy),
+                "trades_aprendidos": len(df),
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            print("| TENSORFLOW | Homologado en Firebase exitosamente.")
+        except Exception as e_fb:
+            print(f"| TENSORFLOW FIREBASE ERROR | {e_fb}")
+        
+        return {
+            "status": "success", 
+            "accuracy": f"{accuracy*100:.2f}%", 
+            "message": "Modelo TensorFlow entrenado, cacheado en Upstash y homologado."
+        }
+        
+    except Exception as e:
+        print(f"| TENSORFLOW ERROR | {e}")
+        return {"status": "error", "message": str(e)}
+
