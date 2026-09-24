@@ -1282,11 +1282,13 @@ def determinar_tipo_salida_ticket(ticket: str):
         
     pnl = float(l.get("pnl", 0.0))
     nivel_parcial = int(l.get("max_nivel_parcial", 0))
+    fecha_log = str(l.get("fecha", ""))
+    is_new = fecha_log >= "2026-09-22"
     
     if nivel_parcial > 0:
         if abs(pnl) <= 1.5: return "PARCIAL_BE"
-        if nivel_parcial == 2: return "TRAILING_STOP_50"
-        if nivel_parcial == 1: return "TRAILING_STOP_25"
+        if nivel_parcial == 2: return "TRAILING_STOP_65" if is_new else "TRAILING_STOP_50"
+        if nivel_parcial == 1: return "TRAILING_STOP_40" if is_new else "TRAILING_STOP_25"
         return "TP_COMPLETO" if pnl > 0 else "SL_ORIGINAL"
     else:
         if pnl < 0: return "SL_ORIGINAL"
@@ -1371,6 +1373,7 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                 ses_data = {
                     "trades_totales": 0, "trades_ganados": 0, "pnl_acumulado": 0.0, "win_rate": 0.0,
                     "total_hits_tp_full": 0, "total_hits_tp50": 0, "total_hits_tp25": 0,
+                    "total_hits_tp65": 0, "total_hits_tp40": 0,
                     "total_hits_be": 0, "total_hits_sl": 0, "total_hits_manual": 0
                 }
                 
@@ -1395,6 +1398,10 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                     ses_data["total_hits_tp_full"] = ses_data.get("total_hits_tp_full", 0) + 1
                 elif tipo_salida == "SL_ORIGINAL":
                     ses_data["total_hits_sl"] = ses_data.get("total_hits_sl", 0) + 1
+                elif tipo_salida == "TRAILING_STOP_65":
+                    ses_data["total_hits_tp65"] = ses_data.get("total_hits_tp65", 0) + 1
+                elif tipo_salida == "TRAILING_STOP_40":
+                    ses_data["total_hits_tp40"] = ses_data.get("total_hits_tp40", 0) + 1
                 elif tipo_salida == "TRAILING_STOP_50":
                     ses_data["total_hits_tp50"] = ses_data.get("total_hits_tp50", 0) + 1
                 elif tipo_salida == "TRAILING_STOP_25":
@@ -4327,4 +4334,50 @@ async def entrenar_pesos_dinamicos():
         print(f"| MACHINE LEARNING | Entrenamiento finalizado. Pesos y Obsidian guardados.")
     except Exception as e:
         print(f"| MACHINE LEARNING | Error en el entrenamiento: {e}")
+
+@app.get("/api/cron/ml_snapshot")
+def tomar_snapshot_diario_ml():
+    """
+    Toma una fotografía exacta del cerebro de Mia (Indicadores y Sesiones)
+    y lo guarda en una tabla histórica, subiéndola a Upstash para los Enjambres.
+    """
+    global firebase_inicializado, db
+    if not firebase_inicializado or db is None:
+        return {"status": "error", "message": "Firebase no inicializado"}
+        
+    try:
+        from datetime import datetime
+        hoy = datetime.now().strftime("%Y-%m-%d")
+        
+        # 1. Recopilar datos vivos
+        inds_docs = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").get()
+        indicadores = [{"id": d.id, **d.to_dict()} for d in inds_docs]
+        
+        sess_docs = db.collection("mia_kb").document("sesiones_rendimiento").collection("detalle").get()
+        sesiones = [{"id": s.id, **s.to_dict()} for s in sess_docs]
+        
+        snapshot = {
+            "fecha": hoy,
+            "indicadores": indicadores,
+            "sesiones": sesiones,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # 2. Guardar Historial en Firebase (mia_ml_history)
+        db.collection("mia_ml_history").document(hoy).set(snapshot)
+        print(f"| ML HISTORY | Snapshot guardado en Firebase ({hoy})")
+        
+        # 3. Empujar a Slot Dedicado en Upstash (Para consumo gratis de Enjambres)
+        import requests, json
+        upstash_url = "https://certain-gnat-160816.upstash.io/set/cache_ml_history"
+        upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        
+        res = requests.post(upstash_url, headers=upstash_headers, json=snapshot, timeout=5)
+        if res.status_code == 200:
+            print("| UPSTASH | Snapshot ML sincronizado exitosamente con Redis")
+            
+        return {"status": "success", "fecha": hoy, "message": "Snapshot y espejo creados"}
+    except Exception as e:
+        print(f"| ML HISTORY ERROR | Fallo al crear snapshot: {e}")
+        return {"status": "error", "message": str(e)}
 
