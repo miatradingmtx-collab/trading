@@ -218,3 +218,13 @@ El "Stored Procedure" (SP) programado en el Backend (`app.py`, lÃ­nea 1228) qu
 - **Optimizaciones (Latencia y Hard-Throttle):** Para evadir bloqueos por ráfagas de consultas (ResourceExhausted 429) generados por los reintentos de Langchain, se inyectó un 	ime.sleep(15) en el step_callback de los Agentes. Este freno físico asegura un máximo de 4 RPM globales, sacrificando latencia de procesamiento por 100% de estabilidad de cuota. Además, se configuró max_rpm=3 de forma nativa por Agente (compatibilidad crewai<0.50).
 - **Minimización Matemática (Payloads):** Se eliminó el array masivo eed (DOM) dentro de la 
 ailway_cache_tool. Esta compresión redujo el peso del JSON de 54,000 a ~5,000 caracteres, evitando el desbordamiento prematuro del límite TPM (Tokens por Minuto).
+
+
+## 🧠 NODO: ARQUITECTURA TENSORFLOW Y UPSTASH (NUEVO ECOSISTEMA)
+- **Cerebro Neuronal:** Mia implementa TensorFlow (Keras Sequential) para predicción probabilística de éxito de trades.
+- **Topología de Caché (Upstash Redis):**
+  1. cache_mt5: Pulso en vivo del broker.
+  2. cache_hist_mt5: Historial para Dashboard (evade 429 de Firebase).
+  3. cache_mia_tensorflow: Modelo neuronal compilado en Base64 y métricas de Accuracy.
+  4. mia_swarm_history_...: Memoria colectiva de los Enjambres (Obsidian).
+- **Regla CI/CD:** El entrenamiento neuronal se dispara vía endpoint en Railway (/api/cron/train_tensorflow). JAMÁS ejecutar entrenamiento masivo local.
