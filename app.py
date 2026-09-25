@@ -1373,7 +1373,7 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
             else:
                 ses_data = {
                     "trades_totales": 0, "trades_ganados": 0, "pnl_acumulado": 0.0, "win_rate": 0.0,
-                    "total_hits_tp_full": 0, "total_hits_tp50": 0, "total_hits_tp25": 0,
+                    "total_hits_tp_full": 0, "total_hits_tp50": 0, "total_hits_tp45": 0, "total_hits_tp60": 0, "total_hits_tp25": 0,
                     "total_hits_tp65": 0, "total_hits_tp40": 0,
                     "total_hits_be": 0, "total_hits_sl": 0, "total_hits_manual": 0
                 }
@@ -1399,8 +1399,12 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                     ses_data["total_hits_tp_full"] = ses_data.get("total_hits_tp_full", 0) + 1
                 elif tipo_salida == "SL_ORIGINAL":
                     ses_data["total_hits_sl"] = ses_data.get("total_hits_sl", 0) + 1
+                elif tipo_salida == "TRAILING_STOP_60":
+                    ses_data["total_hits_tp60"] = ses_data.get("total_hits_tp60", 0) + 1
                 elif tipo_salida == "TRAILING_STOP_65":
                     ses_data["total_hits_tp65"] = ses_data.get("total_hits_tp65", 0) + 1
+                elif tipo_salida == "TRAILING_STOP_45":
+                    ses_data["total_hits_tp45"] = ses_data.get("total_hits_tp45", 0) + 1
                 elif tipo_salida == "TRAILING_STOP_40":
                     ses_data["total_hits_tp40"] = ses_data.get("total_hits_tp40", 0) + 1
                 elif tipo_salida == "TRAILING_STOP_50":
@@ -1494,7 +1498,7 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                             perdidos_arr.append(str(ticket))
                             pat_data["tickets_perdedores"] = perdidos_arr
                         
-                pat_data["pnl_generado"] = pat_data.get("pnl_generado", 0.0) + pnl
+                pat_data["pnl_generado"] = round(pat_data.get("pnl_generado", 0.0) + pnl, 2)
                 if pat_data["ocurrencias"] > 0:
                     pat_data["win_rate"] = round((pat_data["ganados"] / pat_data["ocurrencias"]) * 100, 2)
                 pat_data["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
