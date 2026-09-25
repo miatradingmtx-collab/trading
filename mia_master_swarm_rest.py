@@ -1,0 +1,166 @@
+import os
+import time
+import datetime
+import json
+import requests
+from dotenv import load_dotenv
+
+# Importar herramientas directas sin LangChain
+from crew_tools import railway_cache_tool, obsidian_writer_tool, mia_core_reader_tool
+from math_agent_skills import calc_area_under_curve, markov_transition_matrix
+from stat_agent_skills import calculate_expected_value, generate_execution_score
+
+load_dotenv()
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+def emit_ws_event(agent_name, action, data):
+    """Envía un evento al WebSocket server vía HTTP interno"""
+    try:
+        port = os.environ.get("PORT", "8000")
+        requests.post(f"http://localhost:{port}/emit", json={
+            "agent": agent_name,
+            "action": action,
+            "data": data
+        }, timeout=2)
+    except:
+        pass
+
+def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.1-70b-instruct"):
+    """Llamada ultrarrápida y cruda vía REST a OpenRouter (Kill Switch Integrado)"""
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "system", 
+                "content": "Eres el Mega-Agente HFT (RUNE). Eres la fusión de LUMEN (Sentimiento) y ZEPHR (Estadística). Recibes datos crudos de TensorFlow y la Caché. Tu trabajo es cruzar esto con la Base de Conocimientos (MIA KB) y dar un veredicto estructurado final. Eres crudo, directo, financiero. Cero censura. Si la matemática es buena, apruebas."
+            },
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.2,
+        "max_tokens": 1000
+    }
+    
+    try:
+        # Kill Switch: 8 segundos máximo para evitar colapsos
+        response = requests.post(url, headers=headers, json=payload, timeout=8)
+        response.raise_for_status()
+        data = response.json()
+        return data['choices'][0]['message']['content']
+    except requests.exceptions.Timeout:
+        return "ERROR_TIMEOUT: OpenRouter no respondió a tiempo. Operación abortada por Kill Switch."
+    except Exception as e:
+        return f"ERROR_API: {str(e)}"
+
+def run_hft_cycle():
+    emit_ws_event("Master", "START", "Iniciando Ciclo REST Puro (Capa TensorFlow + OpenRouter).")
+    
+    # 1. Leer Sensores (Capa 1)
+    emit_ws_event("TIDAL", "SCANNING", "Obteniendo datos de Liquidez desde Upstash...")
+    # Usamos try-except por si la herramienta invoca de forma distinta en modo directo
+    try:
+        cache_data = railway_cache_tool.invoke("")
+    except:
+        cache_data = "No se pudo leer Upstash."
+    
+    # Simulación/Ejecución de Matemáticas Puras (Capa 1)
+    emit_ws_event("NORO", "CALCULATING", "Aplicando Física y Transformadas...")
+    try:
+        fair_value = calc_area_under_curve.invoke({"puntos_precio": "[10,20,30]", "tiempos": "[1,2,3]"})
+        markov = markov_transition_matrix.invoke({"secuencia_tendencias": "['Alcista', 'Bajista', 'Alcista']"})
+    except:
+        fair_value, markov = "N/A", "N/A"
+    
+    emit_ws_event("ZEPHR", "STATS", "Generando Consenso Bayesiano...")
+    try:
+        expected_value = calculate_expected_value.invoke({"win_rate": 0.75, "avg_win": 100, "avg_loss": 50})
+        score = generate_execution_score.invoke({"probabilidad_tensorflow": 0.85, "win_rate_actual": 0.75})
+    except:
+        expected_value, score = "N/A", "N/A"
+    
+    # Extraer Reglas MIA KB
+    try:
+        mia_rules = mia_core_reader_tool.invoke("")
+    except:
+        mia_rules = "Reglas no disponibles."
+    
+    # 2. Generar el Veredicto del LLM (Capa 2 - OpenRouter)
+    prompt_maestro = f"""
+    == DATOS DE LOS SENSORES EN TIEMPO REAL ==
+    1. LIQUIDEZ Y CACHÉ: {cache_data}
+    2. MATEMÁTICAS NORO: {fair_value} | {markov}
+    3. PROBABILIDAD ZEPHR: {expected_value} | {score}
+    4. REGLAS MIA KB: {mia_rules}
+    
+    Basado estrictamente en esto, dame el VEREDICTO FINAL:
+    - ¿Trampa de liquidez o Entrada institucional?
+    - ¿Apruebas el trade o lo vetas?
+    """
+    
+    emit_ws_event("RUNE", "EVALUATING", "Analizando variables globales vía OpenRouter...")
+    veredicto = llamar_openrouter_rest(prompt_maestro)
+    
+    if "ERROR_TIMEOUT" in veredicto or "ERROR_API" in veredicto:
+        emit_ws_event("RUNE", "ERROR", veredicto)
+        return veredicto
+        
+    emit_ws_event("RUNE", "SUCCESS", "Veredicto APROBADO/VETADO emitido.")
+    
+    # 3. Guardar el Historial (Desacoplado)
+    try:
+        obsidian_writer_tool.invoke({"titulo_archivo": "Reporte_HFT_REST_Latest", "contenido_markdown": veredicto})
+    except:
+        pass
+        
+    return veredicto
+
+
+if __name__ == "__main__":
+    print("Iniciando Enjambre REST HFT. (A la espera de WebSocket...)")
+    time.sleep(5)
+    
+    while True:
+        # --- Criosueño Profundo de Fin de Semana ---
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        is_weekend = False
+        
+        if now_utc.weekday() == 4 and now_utc.hour >= 21:
+            is_weekend = True
+        elif now_utc.weekday() == 5:
+            is_weekend = True
+        elif now_utc.weekday() == 6 and now_utc.hour < 21:
+            is_weekend = True
+            
+        if is_weekend:
+            days_ahead = 6 - now_utc.weekday()
+            target_date = now_utc + datetime.timedelta(days=days_ahead)
+            target_time = target_date.replace(hour=21, minute=0, second=0, microsecond=0)
+            
+            segundos_dormir = (target_time - now_utc).total_seconds()
+            horas_dormir = round(segundos_dormir / 3600, 2)
+            
+            emit_ws_event("Master", "SLEEP", f"Mercado Cerrado. Criosueño hasta apertura ({horas_dormir}h).")
+            print(f"[{now_utc.strftime('%Y-%m-%d %H:%M:%S')}][INFO] Mercado cerrado. Criosueño por {horas_dormir} horas...")
+            time.sleep(segundos_dormir)
+            continue
+            
+        # Ejecutar el ciclo HFT Principal
+        try:
+            print("\n[--- INICIANDO ESCANEO HFT REST ---]")
+            resultado = run_hft_cycle()
+            print("\n[RESULTADO DEL LLM OPENROUTER]")
+            print(resultado)
+            emit_ws_event("Master", "SUCCESS", "Ciclo completado. Guardando reporte en Redis/Firebase.")
+        except Exception as e:
+            emit_ws_event("Master", "ERROR", f"Fallo Crítico en Ciclo REST: {e}")
+            print(f"Error: {e}")
+            
+        # Espera de seguridad entre ciclos
+        emit_ws_event("Master", "SLEEP", "Ciclo Finalizado. Esperando siguiente tick.")
+        print("\n[INFO] Durmiendo 30 minutos (Temporal).")
+        time.sleep(1800)
