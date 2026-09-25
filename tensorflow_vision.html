@@ -119,8 +119,10 @@
             if (l.active) alpha = 0.8; // Destello cuando hay evento
             
             // Color basado en el peso
-            if (l.weight > 0) ctx.strokeStyle = gba(0, 255, 163, ); // Bullish
-            else ctx.strokeStyle = gba(239, 68, 68, ); // Bearish
+            if (l.weight > 0) ctx.strokeStyle = 
+gba(0, 255, 163, ); // Bullish
+            else ctx.strokeStyle = 
+gba(239, 68, 68, ); // Bearish
             
             ctx.lineWidth = l.active ? 2 : 0.5;
             ctx.stroke();
@@ -137,9 +139,9 @@
             const g = Math.floor(n.activation * 255);
             const b = Math.floor(n.activation * 163);
             
-            ctx.fillStyle = gb(, , );
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
             ctx.shadowBlur = 15 * n.activation;
-            ctx.shadowColor = gb(, , );
+            ctx.shadowColor = `rgb(${r}, ${g}, ${b})`;
             ctx.fill();
             ctx.shadowBlur = 0;
         });
@@ -173,6 +175,7 @@
             const msg = data.msg || data.data || data.texto;
 
             // Animar la red basado en el agente
+            triggerPulse(msg.includes('Alcista') || Math.random() > 0.5);
             if (agent === 'ZEPHR') {
                 triggerPulse(msg.includes('Alcista') || Math.random() > 0.5);
                 document.getElementById('tf-pred').innerText = 'PROCESANDO PROBABILIDAD...';
