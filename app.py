@@ -4486,3 +4486,54 @@ def train_tensorflow():
         print(f"| TENSORFLOW ERROR | {e}")
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/swarm_history")
+def get_swarm_history():
+    """
+    Desacoplamiento: Lee el historial de los Enjambres (Dictámenes) 
+    directamente desde Upstash Redis, evitando el consumo de Firebase (429).
+    """
+    try:
+        import requests, json
+        headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        
+        # 1. Escanear todas las llaves de Swarm History
+        scan_url = "https://certain-gnat-160816.upstash.io/scan/0?match=mia_swarm_history_*&count=100"
+        res = requests.get(scan_url, headers=headers, timeout=10)
+        data = res.json()
+        
+        keys = data.get("result", [0, []])[1]
+        
+        if not keys:
+            return {"status": "success", "data": []}
+            
+        # 2. Obtener el valor de todas las llaves (MGET)
+        # Upstash REST usa /mget/key1/key2...
+        keys_path = "/".join(keys)
+        mget_url = f"https://certain-gnat-160816.upstash.io/mget/{keys_path}"
+        mget_res = requests.get(mget_url, headers=headers, timeout=10)
+        mget_data = mget_res.json()
+        
+        values = mget_data.get("result", [])
+        
+        history_list = []
+        for i, key in enumerate(keys):
+            val = values[i] if i < len(values) else None
+            if val:
+                # El valor puede ser un string JSON o texto plano
+                try:
+                    parsed_val = json.loads(val)
+                except:
+                    parsed_val = {"content": val}
+                
+                history_list.append({
+                    "id": key,
+                    "title": key.replace("mia_swarm_history_", "").replace('"', '').replace('.md', ''),
+                    "data": parsed_val
+                })
+                
+        return {"status": "success", "data": history_list}
+        
+    except Exception as e:
+        print(f"| SWARM HISTORY ERROR | {e}")
+        return {"status": "error", "message": str(e)}
+
