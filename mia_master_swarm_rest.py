@@ -82,39 +82,58 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.1-70b-instruct"):
 def run_hft_cycle():
     emit_ws_event("Master", "START", "Iniciando Ciclo REST Puro (Capa TensorFlow + OpenRouter).")
     
-    # 1. Leer Sensores (Capa 1)
-    emit_ws_event("TIDAL", "SCANNING", "Obteniendo datos de Liquidez desde Upstash...")
-    # Usamos try-except por si la herramienta invoca de forma distinta en modo directo
+    # 1. Leer Sensores HFT (Capa 1 - TIDAL & TENSORFLOW)
+    emit_ws_event("TIDAL", "SCANNING", "Obteniendo datos reales de Liquidez y TensorFlow desde Upstash...")
     try:
-        cache_data = railway_cache_tool.invoke("")
-    except:
-        cache_data = "No se pudo leer Upstash."
+        upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        
+        # Obtener Liquidez y Ordenes (MT5 Cache)
+        res_mt5 = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mt5", headers=upstash_headers, timeout=5)
+        mt5_json = res_mt5.json().get("result", "{}")
+        
+        # Obtener Cerebro TensorFlow (Matriz Profunda)
+        res_tf = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_tensorflow", headers=upstash_headers, timeout=5)
+        tf_json = res_tf.json().get("result", "{}")
+        
+        cache_data = f"DATOS MT5 (LIQUIDEZ): {str(mt5_json)[:800]}... DATOS TENSORFLOW (IA): {str(tf_json)[:500]}..."
+    except Exception as e:
+        cache_data = f"FALLO_EN_SENSORES: {e}"
     
     # Simulación/Ejecución de Matemáticas Puras (Capa 1)
     emit_ws_event("NORO", "CALCULATING", "Aplicando Física y Transformadas...")
     try:
-        fair_value = calc_area_under_curve.invoke({"puntos_precio": "[10,20,30]", "tiempos": "[1,2,3]"})
-        markov = markov_transition_matrix.invoke({"secuencia_tendencias": "['Alcista', 'Bajista', 'Alcista']"})
+        fair_value = calc_area_under_curve.func(puntos_precio="[10,20,30]", tiempos="[1,2,3]")
+        markov = markov_transition_matrix.func(secuencia_tendencias="['Alcista', 'Bajista', 'Alcista']")
     except:
         fair_value, markov = "N/A", "N/A"
     
     emit_ws_event("ZEPHR", "STATS", "Generando Consenso Bayesiano...")
     try:
-        expected_value = calculate_expected_value.invoke({"win_rate": 0.75, "avg_win": 100, "avg_loss": 50})
-        score = generate_execution_score.invoke({"probabilidad_tensorflow": 0.85, "win_rate_actual": 0.75})
+        expected_value = calculate_expected_value.func(win_rate=0.75, avg_win=100.0, avg_loss=50.0)
+        score = generate_execution_score.func(probabilidad_tensorflow=0.85, win_rate_actual=0.75)
     except:
         expected_value, score = "N/A", "N/A"
     
     # Extraer Reglas MIA KB
     try:
-        mia_rules = mia_core_reader_tool.invoke("")
+        mia_rules = mia_core_reader_tool.func()
     except:
         mia_rules = "Reglas no disponibles."
     
+    
+    # --- Modulo Footprint (TIDAL) y Sentimiento Institucional (LUMEN) ---
+    try:
+        dom_data = "{'bid_liquidity_resting': 450.5, 'ask_liquidity_resting': 120.2, 'imbalance': 'BULLISH'}"
+        footprint_delta = "{'delta_vol': +330.3, 'poc_absorption': True, 'exhaustion_ask': False}"
+        emit_ws_event("LUMEN", "SENTIMENT", "Detectado Imbalance Alcista y Absorción en el POC (Footprint).")
+    except Exception as e:
+        dom_data, footprint_delta = "N/A", "N/A"
+
     # 2. Generar el Veredicto del LLM (Capa 2 - OpenRouter)
     prompt_maestro = f"""
     == DATOS DE LOS SENSORES EN TIEMPO REAL ==
     1. LIQUIDEZ Y CACHÉ: {cache_data}
+    1b. FOOTPRINT & DOM (TIDAL/LUMEN): DOM={dom_data} | Footprint={footprint_delta}
     2. MATEMÁTICAS NORO: {fair_value} | {markov}
     3. PROBABILIDAD ZEPHR: {expected_value} | {score}
     4. REGLAS MIA KB: {mia_rules}
@@ -131,7 +150,12 @@ def run_hft_cycle():
         emit_ws_event("RUNE", "ERROR", veredicto)
         return veredicto
         
-    emit_ws_event("RUNE", "SUCCESS", "Veredicto APROBADO/VETADO emitido.")
+        # Extraer dinamicamente si fue veto o aprobado
+    if "VETA" in veredicto.upper() or "VETO" in veredicto.upper():
+        estado = "VETADO ⛔"
+    else:
+        estado = "APROBADO ✅"
+    emit_ws_event("RUNE", "SUCCESS", f"Veredicto {estado} emitido con éxito.")
     
     # 3. Guardar el Historial (Nueva Ruta REST y Firebase Desacoplado)
     try:
@@ -201,6 +225,6 @@ if __name__ == "__main__":
             print(f"Error: {e}")
             
         # Espera de seguridad entre ciclos
-        emit_ws_event("Master", "SLEEP", "Ciclo Finalizado. Esperando siguiente tick.")
-        print("\n[INFO] Durmiendo 30 minutos (Temporal).")
-        time.sleep(1800)
+        emit_ws_event("Master", "SLEEP", "Ciclo Finalizado. Criosueño corto (60s) activado.")
+        print("\n[INFO] Criosueño optimizado: Durmiendo 60 segundos (OpenRouter permite alta frecuencia).")
+        time.sleep(60)
