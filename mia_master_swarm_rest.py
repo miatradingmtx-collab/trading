@@ -123,11 +123,18 @@ def run_hft_cycle():
     
     # --- Modulo Footprint (TIDAL) y Sentimiento Institucional (LUMEN) ---
     try:
-        dom_data = "{'bid_liquidity_resting': 450.5, 'ask_liquidity_resting': 120.2, 'imbalance': 'BULLISH'}"
-        footprint_delta = "{'delta_vol': +330.3, 'poc_absorption': True, 'exhaustion_ask': False}"
-        emit_ws_event("LUMEN", "SENTIMENT", "Detectado Imbalance Alcista y Absorción en el POC (Footprint).")
+        # Extraer data real desde el caché inyectado por app.py
+        matrices_crudas = mt5_json.get("matrices_crudas", {})
+        if matrices_crudas:
+            dom_data = str(matrices_crudas)[:1000] # Mandamos un bloque del diccionario crudo al LLM
+            footprint_delta = "POC PRICE ACTUALIZADO VIA WEBHOOK MT5"
+            emit_ws_event("LUMEN", "SENTIMENT", f"Analizando {len(matrices_crudas)} activos reales desde MetaTrader...")
+        else:
+            dom_data = "Esperando que app.py publique la matriz..."
+            footprint_delta = "N/A"
+            emit_ws_event("LUMEN", "SENTIMENT", "Esperando datos reales del volumen institucional...")
     except Exception as e:
-        dom_data, footprint_delta = "N/A", "N/A"
+        dom_data, footprint_delta = f"Error: {e}", "N/A"
 
     # 2. Generar el Veredicto del LLM (Capa 2 - OpenRouter)
     prompt_maestro = f"""
