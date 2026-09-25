@@ -172,7 +172,10 @@ tasks = [
     Task(description='Analiza liquidez y sentimiento de mercado.', expected_output='Diagnóstico de sentimiento direccional institucional.', agent=lumen),
     Task(description='Usa calc_area_under_curve con "[10,20,30]", "[1,2,3]". Y genera una matriz de markov con \'["Alcista", "Bajista", "Alcista"]\'.', expected_output='Fair Value y Matrices.', agent=noro),
     Task(description='Usa calculate_expected_value (wr=0.75, avg_win=100, avg_loss=50). Y genera score de ejecucion (prob=0.68, wr=0.75).', expected_output='Score de consenso.', agent=zephr),
-    Task(description='1. Usa mia_core_reader_tool para leer la Base de Conocimiento (Reglas de Riesgo y ML).\n2. Revisa el output estadístico. Si el Score es mayor a 0.70 aprueba el trade, si no VETADO.\n3. Usa obsidian_writer_tool para guardar el dictamen.', expected_output='Confirmación de registro (APROBADO/VETADO guardado).', agent=rune)
+    Task(description="1. Lee reglas con mia_core_reader_tool.
+2. Revisa output estadístico y Red Neuronal. Si detectas falsa liquidez (anomalía TensorFlow), dicta CIERRE ANTICIPADO.
+3. Si es apertura y Score > 0.70 aprueba el trade, si no VETADO.
+4. Guarda dictamen con obsidian_writer_tool.", expected_output="Confirmación de registro (APROBADO/VETADO/CIERRE ANTICIPADO).", agent=rune)
 ]
 
 # ── CREW MASTER ──
