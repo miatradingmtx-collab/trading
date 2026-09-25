@@ -30,6 +30,13 @@ if os.path.exists(build_dir):
         return FileResponse(os.path.join(build_dir, "index.html"))
     
     # Manejar rutas de React Router o recursos estáticos en la raíz
+    @app.get("/brain")
+    async def render_brain():
+        try:
+            return FileResponse(os.path.join(os.path.dirname(__file__), "tensorflow_vision.html"))
+        except Exception as e:
+            return {"error": str(e)}
+
     @app.get("/{file_path:path}")
     async def serve_static_files(file_path: str):
         full_path = os.path.join(build_dir, file_path)
