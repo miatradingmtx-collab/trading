@@ -4182,10 +4182,10 @@ async def scheduler_volcado_logs_semanal():
 # MACHINE LEARNING FEEDBACK LOOP (Pesos DinÃƒÂ¡micos)
 # ------------------------------------------------------------------------------
 async def scheduler_daily_ai_cron():
-    "\""
+    """
     Scheduler diario que ejecuta automáticamente los snapshots de Firebase y 
     el entrenamiento de TensorFlow todos los días a la media noche.
-    "\""
+    """
     import asyncio
     from datetime import datetime, timedelta
     
