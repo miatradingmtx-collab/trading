@@ -120,9 +120,9 @@
             
             // Color basado en el peso
             if (l.weight > 0) ctx.strokeStyle = 
-gba(0, 255, 163, ); // Bullish
+`rgba(0, 255, 163, ${alpha})`; // Bullish
             else ctx.strokeStyle = 
-gba(239, 68, 68, ); // Bearish
+`rgba(239, 68, 68, ${alpha})`; // Bearish
             
             ctx.lineWidth = l.active ? 2 : 0.5;
             ctx.stroke();
