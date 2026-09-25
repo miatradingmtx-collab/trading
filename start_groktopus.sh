@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # start_groktopus.sh
 # ----------------------------------------------------
 # 1. Iniciar el Enjambre (REST Puro) en segundo plano
