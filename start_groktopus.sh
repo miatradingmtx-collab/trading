@@ -6,8 +6,8 @@ echo "Iniciando Swarm REST en Background..."
 python mia_master_swarm_rest.py &
 
 # 2. Iniciar el Servidor Web / WebSockets en primer plano
-if [ -z "$PORT" ]; then
+if [ -z "" ]; then
   export PORT=8080
 fi
-echo "Iniciando Servidor WebSocket y UI en el puerto $PORT..."
-uvicorn mia_websocket_server:app --host 0.0.0.0 --port $PORT
+echo "Iniciando Servidor WebSocket y UI en el puerto ..."
+uvicorn mia_websocket_server:app --host 0.0.0.0 --port 
