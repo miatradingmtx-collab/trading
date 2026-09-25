@@ -5,8 +5,30 @@ import json
 import requests
 from dotenv import load_dotenv
 
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+db = None
+try:
+    firebase_admin.get_app()
+    db = firestore.client()
+except ValueError:
+    try:
+        if os.path.exists('serviceAccountKey.json'):
+            cred = credentials.Certificate('serviceAccountKey.json')
+            firebase_admin.initialize_app(cred)
+            db = firestore.client()
+        elif os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON"):
+            service_account_info = json.loads(os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON").strip())
+            cred = credentials.Certificate(service_account_info)
+            firebase_admin.initialize_app(cred)
+            db = firestore.client()
+    except Exception as e:
+        print(f"Error inicializando Firebase: {e}")
+
+
 # Importar herramientas directas sin LangChain
-from crew_tools import railway_cache_tool, obsidian_writer_tool, mia_core_reader_tool
+from crew_tools import railway_cache_tool, mia_core_reader_tool
 from math_agent_skills import calc_area_under_curve, markov_transition_matrix
 from stat_agent_skills import calculate_expected_value, generate_execution_score
 
@@ -111,11 +133,29 @@ def run_hft_cycle():
         
     emit_ws_event("RUNE", "SUCCESS", "Veredicto APROBADO/VETADO emitido.")
     
-    # 3. Guardar el Historial (Desacoplado)
+    # 3. Guardar el Historial (Nueva Ruta REST y Firebase Desacoplado)
     try:
-        obsidian_writer_tool.invoke({"titulo_archivo": "Reporte_HFT_REST_Latest", "contenido_markdown": veredicto})
-    except:
-        pass
+        safe_title = f"REST_HFT_Report_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+        payload = {
+            "title": safe_title,
+            "content": veredicto,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+        }
+        
+        # Guardado en Firebase (Nueva coleccion: mia_swarm_rest_history)
+        if db is not None:
+            db.collection("mia_swarm_rest_history").document(safe_title).set(payload)
+            emit_ws_event("Master", "INFO", "Firebase mia_swarm_rest_history actualizado.")
+            
+        # Guardado en Upstash Redis (Nueva clave: cache_mia_swarm_rest_latest)
+        upstash_url = "https://certain-gnat-160816.upstash.io/set/cache_mia_swarm_rest_latest"
+        upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        
+        requests.post(upstash_url, headers=upstash_headers, json=payload, timeout=5)
+        emit_ws_event("Master", "INFO", "Caché Upstash (cache_mia_swarm_rest) actualizado.")
+        
+    except Exception as e:
+        print(f"Error guardando historiales: {e}")
         
     return veredicto
 
