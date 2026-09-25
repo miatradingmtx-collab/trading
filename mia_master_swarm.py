@@ -141,7 +141,12 @@ def run_hft_cycle():
         emit_ws_event("RUNE", "ERROR", veredicto)
         return veredicto
         
-    emit_ws_event("RUNE", "SUCCESS", "Veredicto APROBADO/VETADO emitido.")
+        # Extraer dinamicamente si fue veto o aprobado
+    if "VETA" in veredicto.upper() or "VETO" in veredicto.upper():
+        estado = "VETADO ⛔"
+    else:
+        estado = "APROBADO ✅"
+    emit_ws_event("RUNE", "SUCCESS", f"Veredicto {estado} emitido con éxito.")
     
     # 3. Guardar el Historial (Nueva Ruta REST y Firebase Desacoplado)
     try:
