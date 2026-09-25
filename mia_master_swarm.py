@@ -115,6 +115,7 @@ def run_hft_cycle():
     prompt_maestro = f"""
     == DATOS DE LOS SENSORES EN TIEMPO REAL ==
     1. LIQUIDEZ Y CACHÉ: {cache_data}
+    1b. FOOTPRINT & DOM (TIDAL/LUMEN): DOM={dom_data} | Footprint={footprint_delta}
     2. MATEMÁTICAS NORO: {fair_value} | {markov}
     3. PROBABILIDAD ZEPHR: {expected_value} | {score}
     4. REGLAS MIA KB: {mia_rules}
@@ -201,6 +202,6 @@ if __name__ == "__main__":
             print(f"Error: {e}")
             
         # Espera de seguridad entre ciclos
-        emit_ws_event("Master", "SLEEP", "Ciclo Finalizado. Esperando siguiente tick.")
-        print("\n[INFO] Durmiendo 30 minutos (Temporal).")
-        time.sleep(1800)
+        emit_ws_event("Master", "SLEEP", "Ciclo Finalizado. Criosueño corto (60s) activado.")
+        print("\n[INFO] Criosueño optimizado: Durmiendo 60 segundos (OpenRouter permite alta frecuencia).")
+        time.sleep(60)
