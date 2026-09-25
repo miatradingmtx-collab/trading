@@ -3158,6 +3158,22 @@ def resumen_trades_hoy(authorization: Optional[str] = Header(None)):
 # ------------------------------------------------------------------------------
 # DASHBOARD INSTITUCIONAL
 # ------------------------------------------------------------------------------
+@app.get("/brain", response_class=HTMLResponse)
+async def render_brain():
+    try:
+        with open("tensorflow_vision.html", "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HTMLResponse(
+            content=html_content,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+    except Exception as e:
+        return HTMLResponse(content=f"Error cargando dashboard neural: {e}", status_code=500)
+
 @app.get("/dashboard", response_class=HTMLResponse)
 async def render_dashboard():
     try:
