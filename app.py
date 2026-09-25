@@ -3695,7 +3695,8 @@ def api_dashboard_data():
                 "floating_pnl": data.get("floating_pnl", 0),
                 "operaciones_activas": data.get("operaciones_activas", []),
                 "feed": data.get("feed", []),
-                "matriz_scores": data.get("matriz_scores", {})
+                "matriz_scores": data.get("matriz_scores", {}),
+                "matrices_crudas": GLOBAL_MATRICES # <- RAW POC AND RSI INJECTED HERE
             }
             url_live = "https://certain-gnat-160816.upstash.io/set/cache_mt5"
             session.post(url_live, headers=upstash_headers, data=json.dumps(data_live), timeout=5)
