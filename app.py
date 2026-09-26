@@ -4292,26 +4292,31 @@ async def entrenar_pesos_endpoint(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 async def entrenar_pesos_dinamicos():
-    global db, GLOBAL_MIA_COLLECTIVE
-    if not firebase_inicializado or db is None:
-        return
-        
+    global db, GLOBAL_MIA_COLLECTIVE, GLOBAL_AUDIT_LOGS
+    
     print("| MACHINE LEARNING | Iniciando entrenamiento de pesos basado en trades ganadores...")
     try:
-        # 1. Traer todos los logs de auditorÃƒÂ­a (ÃƒÂºltimos 500 para no matar cuota)
-        logs_ref = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(500)
-        logs = logs_ref.get()
+        # 1. Traer logs de auditoria desde RAM o Upstash (0 lecturas Firebase para Anti-429)
+        logs = []
+        if GLOBAL_AUDIT_LOGS and len(GLOBAL_AUDIT_LOGS) > 0:
+            logs = GLOBAL_AUDIT_LOGS
+        else:
+            try:
+                import requests, json
+                up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=5)
+                if r.status_code == 200:
+                    d = json.loads(r.json().get("result", "{}"))
+                    logs = d.get("recent_logs", [])
+            except Exception:
+                pass
         
         ganadores = []
         for doc in logs:
-            data = doc.to_dict()
-            if data.get("pnl", 0.0) > 0 or data.get("accion") == "CERRAR_TP":
+            data = doc if isinstance(doc, dict) else (doc.to_dict() if hasattr(doc, 'to_dict') else {})
+            if float(data.get("pnl", 0.0) or 0.0) > 0 or str(data.get("accion")) in ["CERRAR_TP", "CIERRE_TOTAL", "CIERRE_PARCIAL"]:
                 ganadores.append(data)
-                
-        if len(ganadores) < 5:
-            print("| MACHINE LEARNING | Muy pocos trades ganadores para entrenar. Saltando.")
-            return
-            
+        
         print(f"| MACHINE LEARNING | Analizando {len(ganadores)} trades exitosos...")
         
         # 2. Contar la frecuencia de cada confirmaciÃƒÂ³n tÃƒÂ©cnica en los ganadores
