@@ -1118,3 +1118,19 @@ ecent_logs desde cache_hist_mt5.
 - **Optimización de Latidos de Criosueño y Respuesta Instantánea en Antopus:**
   - *Eliminación de Polling Innecesario:* Se reemplazó el despertar de cada 45 segundos por un ciclo sereno de **10 minutos (600s)** calculado dinámicamente como `min(600, max(5, int(segundos_dormir)))`, garantizando que el sistema despierte de manera milimétrica en el instante exacto de la apertura de Forex el domingo a las 21:00 UTC (17:00 EST).
   - *Handshake Inmediato en WebSockets (`on_connect`):* En `mia_websocket_server.py`, tan pronto un navegador abre Antopus (`/ws`), el servidor detecta el estatus y envía al instante el mensaje con las horas restantes de criosueño, eliminando cualquier espera para el usuario sin saturar la red ni el procesador.
+
+### [Update 2026-09-26 - Sesión 13] - Terminal CLI Universal Inter-Agente (Herds en Termux, CMD y PowerShell)
+- **Monitoreo Nativo en Línea de Comandos (Sin Interfaz Gráfica):**
+  - Se desarrolló `mia_herds_cli.py`, un cliente CLI ligero y universal que permite seguir el diálogo y la deliberación de los agentes en tiempo real desde cualquier terminal: Android (Termux), Windows (CMD / PowerShell) y Linux / macOS.
+- **Arquitectura de Conexión Híbrida y Resiliente:**
+  - *WebSocket Stream (`wss://trading-production-1fd4.up.railway.app/ws`):* Escucha en vivo cada paquete de microestructura, auditoría neuronal y dictamen de consenso con reconexión automática.
+  - *Fallback Upstash Redis REST:* Si el entorno no cuenta con la librería `websockets` (o hay restricciones de firewall), el CLI conmuta automáticamente a sondeo HTTP nativo con `urllib.request` contra `cache_herd_debate_latest` cada 4 segundos, garantizando funcionamiento con cero dependencias.
+  - *Snapshots de Arranque Inmediato:* Al abrir la terminal, extrae al instante el último estado de mercado (Criosueño / En Vivo), la precisión de TensorFlow (97.87%) y el último debate completo de las 3 manadas.
+- **Codificación y Diferenciación Cromática ANSI:**
+  - `HERD 1 (TIDAL & NORO)`: Cyan brillante (Microestructura, DOM y POC).
+  - `HERD 2 (ZEPHR & LUMEN)`: Amarillo (TensorFlow, Riesgo y Noticias).
+  - `HERD 3 (RUNE)`: Verde brillante para APROBADO y Rojo para VETADO.
+  - `Master`: Blanco destacado (Latidos y estados del ciclo).
+- **Lanzadores Rápidos Multiplataforma:**
+  - *Termux / Linux:* `herds_termux.sh` (instalación e inicio en 1 paso: `bash herds_termux.sh`).
+  - *Windows:* `herds_cmd.bat` (doble clic para abrir la consola de los agentes).
