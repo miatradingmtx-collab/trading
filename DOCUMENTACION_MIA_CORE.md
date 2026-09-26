@@ -1028,3 +1028,14 @@ egla_de_3 en Firebase no se había actualizado desde el 17 de Septiembre debido 
 
   - Se verificó el balance actual en $4,325.09, Equity en $4,348.26 y un flotante positivo de +.17 distribuido en 6 operaciones activas reales: GBPJPY, NZDCAD, EURUSD, GBPUSD, XAUUSD y AUDUSD.
 
+
+### [Update 2026-09-26 - Sesión 6] - Homologación de Parciales vs Break-Even y Limpieza de NULs
+- **Aclaración y Ajuste de Regla de Parciales vs Break-Even:**
+  1. *Lotes Indivisibles (0.01):* Cuando el volumen es de 0.01 lotes, el broker no permite partición (lote_a_cerrar = 0). Anteriormente solo movía el SL a BE (.00), cerrando en empate ante retrocesos. Con la nueva regla, al tocar el 40% del recorrido, el SL se asegura en **+15% de ganancia real** (entry_price + distancia * 0.15), garantizando beneficio positivo en lugar de cero.
+  2. *Lotes Divisibles (>= 0.02):* Se ejecuta la toma de parciales en dinero en MT5 y el remanente se protege con Trailing Profit garantizado (+15% a +40%).
+- **Bypass de Dashboard y Anti-429:**
+  - El endpoint /api/dashboard_data consume en primera prioridad los slots cache_hist_mt5 y cache_mt5 de Upstash Redis, garantizando renderizado instantáneo en 	rading-production-927a.up.railway.app/dashboard con 0 consultas a Firestore.
+  - Se corrigió la restauración de arranque para leer 
+ecent_logs desde cache_hist_mt5.
+- **Saneamiento UTF-8 de la Base de Conocimiento:**
+  - Se eliminaron por completo 1,830 caracteres NUL (\x00) y secuencias corruptas de codificación en DOCUMENTACION_MIA_CORE.md, restableciendo la integridad del documento en UTF-8 estándar.
