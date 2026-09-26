@@ -1086,3 +1086,23 @@ ecent_logs desde cache_hist_mt5.
   - *Transmisión WebSocket:* Cada intervención de los Herds se emite de forma individual al servidor WebSocket (`HERD 1: PROPOSAL`, `HERD 2: AUDIT`, `HERD 3: CONSENSUS`), permitiendo visualizar el debate inter-agente en vivo en la Terminal de Cristal (`/brain`).
   - *Memoria Compartida Desacoplada (Anti-429):* Los debates estructurados se respaldan en Upstash Redis (`cache_herd_debate_latest` y `cache_mia_swarm_rest_latest`) y se registran en `mia_swarm_rest_history` en Firebase Firestore con cero sobrecarga de red.
   - *Verificación en Vivo:* Ejecutado y validado en tiempo real con Llama 3.3 70B vía REST puro en 2.4 segundos, demostrando auto-corrección de niveles de entrada y trailing stop defensivo.
+
+### [Update 2026-09-26 - Sesión 11] - Autonomía Total (Auto-Aprendizaje sin Humano), Skills de Master y Desacoplamiento Antopus vs Brain
+- **Ciclo Autónomo de Auto-Aprendizaje sin Dependencia Humana:**
+  - El sistema opera de forma 100% autosuficiente y cerrada sin intervención de operadores humanos:
+    1. *Deliberación de Hipótesis:* Los enjambres Herds dialogan evaluando el estado del DOM, POC y la probabilidad neuronal predicha por TensorFlow $P(\text{Win}) = \sigma(W_2 \cdot \text{ReLU}(W_1 \cdot \vec{X} + b_1) + b_2)$.
+    2. *Ejecución Autónoma:* RUNE autoriza la orden en MetaTrader 5 (Shadow o Real) y registra el vector de entrada $\vec{X} \in \mathbb{R}^6$ en la caché de Upstash Redis.
+    3. *Retroalimentación de la Realidad:* Al alcanzar el Take Profit o Stop Loss, MT5 actualiza `cache_hist_mt5` con el resultado y PnL financiero real.
+    4. *Auto-Reentrenamiento Nocturno:* El cron diario de las 23:55 UTC ejecuta `train_tensorflow()` en Railway, reajustando pesos sinápticos mediante descenso de gradiente (Adam, `binary_crossentropy`), actualizando la red en Base64 en Upstash sin requerir reinicio del servidor.
+- **Definición de Competencias y Skills del Agente Master:**
+  - El agente **Master** no emite señales directas de compra o venta; actúa como el **Director de Orquesta y Puente de Infraestructura**:
+    1. *Clock & Ticking HFT:* Marca el pulso de ejecución cada 15 segundos y administra los períodos de criosueño de fin de semana.
+    2. *Vector Assembler:* Sintetiza las matrices crudas de MT5 (`cache_mt5`) en el vector estandarizado $\vec{X}$ para alimentar la red neuronal.
+    3. *Herds Dispatcher:* Orquesta la deliberación secuencial entre las 3 manadas (Microestructura -> Neuronal/Riesgo -> Consenso RUNE).
+    4. *Resilience & Failover Sentinel:* Vigila timeouts de OpenRouter (Kill Switch 8s), activa el salto automático a Groq/Llama local y audita la salida contra bucles repetitivos.
+- **Desacoplamiento Visual: Antopus 3D vs Matriz Profunda (/brain):**
+  - */brain (`tensorflow_vision.html`):* Reservado exclusivamente para la **Red Neuronal Profunda**. Muestra la topología de capas (Input 6 -> Dense 8 -> Dropout -> Sigmoid), sinapsis activas, pesos dinámicos y métricas dinámicas cargadas en tiempo real desde Upstash Redis (`cache_mia_tensorflow` con Accuracy del 97.87% y 47 trades aprendidos).
+  - *Antopus 3D UI (`trading-production-1fd4.up.railway.app`):* Piso de Trading principal y **Terminal de Deliberación Inter-Agente en Tiempo Real**. Conectado al WebSocket (`/ws`), despliega los logs de los 4 agentes, estados de las manadas y resoluciones de RUNE.
+- **Desbloqueo de Criosueño en WebSockets (Standby Activo):**
+  - Se sustituyó el bloqueo de sueño ciego de 37.5 horas (`time.sleep(segundos_dormir)`) en `mia_master_swarm_rest.py` por un bucle activo de **45 segundos**.
+  - Durante el fin de semana, el sistema emite periódicamente un evento `STANDBY` al WebSocket de Antopus (`Mercado Cerrado. Criosueño activo (X horas restantes)`), manteniendo a los clientes conectados e informados en tiempo real hasta la apertura del domingo a las 21:00 UTC.

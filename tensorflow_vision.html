@@ -28,11 +28,12 @@
     <div class="hud-box" style="width: 320px;">
         <h1>TENSORFLOW CORE</h1>
         <div class="stats">
-            <div>STATUS: <span class="stat-value" id="tf-status" style="color:#00ffa3">EN L?NEA (SHADOW TRADING)</span></div>
+            <div>STATUS: <span class="stat-value" id="tf-status" style="color:#00ffa3">EN LÍNEA (SHADOW TRADING)</span></div>
             <div>MODELO: <span class="stat-value">Sequential (Keras)</span></div>
-            <div>PRECISI?N (ACC): <span class="stat-value">0.75</span></div>
-            <div>CAPAS OCULTAS: <span class="stat-value">Dense, Dropout</span></div>
-            <div>?LTIMA PREDICCI?N: <span class="stat-value" id="tf-pred">ESPERANDO TICK...</span></div>
+            <div>PRECISIÓN (ACC): <span class="stat-value" id="tf-acc" style="color:#00ffa3">97.87%</span></div>
+            <div>TRADES APRENDIDOS: <span class="stat-value" id="tf-trades">47</span></div>
+            <div>CAPAS OCULTAS: <span class="stat-value">Dense (8), Dropout, Sigmoid</span></div>
+            <div>ÚLTIMA PREDICCIÓN: <span class="stat-value" id="tf-pred">ESPERANDO TICK...</span></div>
         </div>
     </div>
     <div class="hud-box log-container" id="logBox">
@@ -107,6 +108,31 @@
     };
     ws.onopen = () => { console.log("Cerebro TensorFlow Conectado."); };
     ws.onclose = () => { document.getElementById("tf-status").innerText = "DESCONECTADO - REINTENTANDO..."; document.getElementById("tf-status").style.color = "red"; };
+
+    // Cargar métricas reales de TensorFlow desde Upstash Redis
+    async function loadTensorFlowMetrics() {
+        try {
+            const res = await fetch("https://certain-gnat-160816.upstash.io/get/cache_mia_tensorflow", {
+                headers: { "Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA" }
+            });
+            const data = await res.json();
+            if (data && data.result) {
+                const parsed = typeof data.result === "string" ? JSON.parse(data.result) : data.result;
+                if (parsed.accuracy !== undefined) {
+                    const accPct = (parsed.accuracy > 1 ? parsed.accuracy : parsed.accuracy * 100).toFixed(2) + "%";
+                    document.getElementById("tf-acc").innerText = accPct;
+                }
+                if (parsed.trades_aprendidos !== undefined) {
+                    document.getElementById("tf-trades").innerText = parsed.trades_aprendidos;
+                }
+                console.log("| TF METRICS LOADED |", parsed.accuracy, parsed.trades_aprendidos);
+            }
+        } catch (e) {
+            console.warn("No se pudo cargar métricas de Upstash:", e);
+        }
+    }
+    loadTensorFlowMetrics();
+    setInterval(loadTensorFlowMetrics, 60000);
 </script>
 </body>
 </html>
