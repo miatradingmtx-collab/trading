@@ -112,11 +112,36 @@ def run_hft_cycle():
         res_tf = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_tensorflow", headers=upstash_headers, timeout=5)
         tf_json = res_tf.json().get("result", "{}")
         
-        cache_data = f"DATOS MT5 (LIQUIDEZ): {str(mt5_json)[:800]}... DATOS TENSORFLOW (IA): {str(tf_json)[:500]}..."
+        # Limpieza suiza de liquidez y balance
+        balance = mt5_json.get("balance_actual", 0.0)
+        equity = mt5_json.get("equity", 0.0)
+        pnl = mt5_json.get("floating_pnl", 0.0)
+        
+        ops_resumen = []
+        for op in mt5_json.get("operaciones_activas", []):
+            act = op.get("activo", "N/A")
+            sl = op.get("sl", "N/A")
+            tp = op.get("take_profit", "N/A")
+            ops_resumen.append(f"{act} (SL:{sl}, TP:{tp})")
+        str_ops = ", ".join(ops_resumen) if ops_resumen else "Ninguno"
+        
+        cache_data = f"Balance:  | Equity:  | PnL Flotante:  | Posiciones: {str_ops} | IA Accuracy: {tf_json.get('accuracy', 0.5)*100:.1f}%"
     except Exception as e:
         cache_data = f"FALLO_EN_SENSORES: {e}"
     
-        # --- Extracción de Datos Reales de MT5 y Cálculos HFT (NORO/ZEPHR) ---
+            # --- Inyeccion de Skill DOM CME FX & OANDA (TIDAL & LUMEN) ---
+    from dom_institutional_scanner import scan_institutional_dom
+    dom_heatmap_summary = "Sin datos de libro"
+    try:
+        # Escaneo institucional para EURUSD o el activo activo
+        dom_analisis = scan_institutional_dom("EURUSD", 1.08500, 1.08420)
+        dom_heatmap_summary = f"CME: {dom_analisis['cme_contract']} | Flujo: {dom_analisis['dom_imbalance']} (Compradores {dom_analisis['buyer_volume_pct']}% vs Vendedores {dom_analisis['seller_volume_pct']}%) | Trampas Liquidez: BuyStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_alcista (Buy Stops)']} SellStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_bajista (Sell Stops)']}"
+        emit_ws_event("TIDAL", "SCANNING", f"DOM CME/OANDA: {dom_analisis['dom_imbalance']} detectado.")
+    except Exception as e_dom:
+        dom_heatmap_summary = f"Error escaneando DOM: {e_dom}"
+
+    # --- Extracción de Datos Reales de MT5 y Cąlculos HFT (NORO/ZEPHR) ---
+# --- Extracción de Datos Reales de MT5 y Cálculos HFT (NORO/ZEPHR) ---
     emit_ws_event("NORO", "CALCULATING", "Aplicando Matemáticas a matrices reales...")
     emit_ws_event("ZEPHR", "STATS", "Generando Consenso Bayesiano...")
     
@@ -162,7 +187,7 @@ def run_hft_cycle():
     prompt_maestro = f"""
     == DATOS DE LOS SENSORES EN TIEMPO REAL ==
     1. LIQUIDEZ Y CACHÉ: {cache_data}
-    1b. FOOTPRINT & DOM (TIDAL/LUMEN): DOM={dom_data} | Footprint={footprint_delta}
+    1b. FOOTPRINT & DOM (TIDAL/LUMEN): DOM={dom_data} | Heatmap CME/OANDA={dom_heatmap_summary}
     2. MATEMÁTICAS NORO: {fair_value} | {markov}
     3. PROBABILIDAD ZEPHR: {expected_value} | {score}
     4. REGLAS MIA KB: {mia_rules}
