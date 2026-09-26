@@ -237,6 +237,6 @@ if __name__ == "__main__":
             print(f"Error: {e}")
             
         # Espera de seguridad entre ciclos
-        emit_ws_event("Master", "SLEEP", "Ciclo Finalizado. Criosueño corto (60s) activado.")
-        print("\n[INFO] Criosueño optimizado: Durmiendo 60 segundos (OpenRouter permite alta frecuencia).")
-        time.sleep(60)
+        emit_ws_event("Master", "SLEEP", "Ciclo Finalizado. Escaneo en Tiempo Real (15s)...")
+        print("\n[INFO] HFT ACTIVO (Freno quitado): Durmiendo 15 segundos (4 RPM, 100% seguro para OpenRouter).")
+        time.sleep(15)
