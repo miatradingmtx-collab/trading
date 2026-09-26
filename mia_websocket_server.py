@@ -72,7 +72,7 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.send_json({
             "agent": "SYSTEM",
             "action": "INFO",
-            "data": "Conexión estable. El enjambre está operando con un freno anti-429 (Toma 40s por paso). Por favor espera..."
+            "data": "Conexión estable. Enjambre HFT activo en OpenRouter (Llama 3.3 70B REST, Inferencia en tiempo real)."
         })
         while True:
             data = await websocket.receive_text()
