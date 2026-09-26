@@ -3665,13 +3665,20 @@ def api_dashboard_data():
 
         # Actualizar la cachÃƒÂ© global
         
-        def round_floats(obj):
+        def round_floats(obj, key_name=None):
             if isinstance(obj, float):
+                # Preservar hasta 5 decimales para Forex (ej: EURUSD 1.08451, SL, TP, POC)
+                k_lower = str(key_name).lower() if key_name else ""
+                if any(p in k_lower for p in ["sl", "take_profit", "precio", "price", "poc", "entry", "target"]):
+                    return round(obj, 5)
+                elif 0.00001 < abs(obj) < 25.0:
+                    # Divisas Forex tipicas cotizan entre 0.5 y 25.0 (ej. EURUSD, GBPUSD, AUDUSD, NZDUSD)
+                    return round(obj, 5)
                 return round(obj, 2)
             elif isinstance(obj, dict):
-                return {k: round_floats(v) for k, v in obj.items()}
+                return {k: round_floats(v, k) for k, v in obj.items()}
             elif isinstance(obj, list):
-                return [round_floats(x) for x in obj]
+                return [round_floats(x, key_name) for x in obj]
             return obj
             
         data = round_floats(data)
