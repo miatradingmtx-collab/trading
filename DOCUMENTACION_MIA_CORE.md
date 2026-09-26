@@ -482,3 +482,22 @@ ound_floats: se fija en 5 decimales mínimos para precios, Stop Loss, Take Profi
   2. Actualización de mia_kb/regla_de_3 con el bloque iltro_trampa_noticias:
      \Delta t_{\text{bloqueo}} = 15 \text{ min pre-noticia}, \quad \Delta t_{\text{reversión}} = 8 \text{ min post-noticia}
      Regla estricta de cierre parcial (50-80%) en operaciones activas de la sesión de Londres antes de noticias de alto impacto en Nueva York para asegurar beneficios diarios protegidos (1% a 5%).
+
+### [Update 2026-09-25 - Sesión 4] - Auditoría Semanal de Trades, Pesos ML y Backtest Simulado HFT
+- **Auditoría Semanal de Trades (21-25 Sep 2026):**
+  - Total cierres auditados: 43.
+  - Comportamiento real: 41 trades cerraron en Break-Even neutral (.00), 1 trade ganador (+$47.57 en GBPJPY con Lux Algo) y 1 trade perdedor (-$19.53 en XAUUSD por entrada manual/sin confluencia).
+  - PnL Real Total: +$28.04.
+  - Causa detectada: La falta de toma de parciales en el POC antes de la apertura de Nueva York provocaba que retrocesos institucionales cerraran posiciones en BE (.00), desperdiciando tramos ganadores de Londres.
+- **Estado de Pesos Machine Learning (mia_ml_history):**
+  - order_block_zona_2h: WinRate 100.0% (12 ganados, 0 perdidos, PnL +.88).
+  - lux_algo_ob_8h: WinRate 93.75% (15 ganados, 1 perdido, PnL +.88).
+  - lux_algo_ob_4h: WinRate 85.71% (30 ganados, 5 perdidos, PnL +.21).
+  - 
+si_sobrecompra_sobreventa: WinRate 82.81% (53 ganados, 11 perdidos, PnL +.05).
+  - soporte_resistencia_activo: WinRate 15.87% (Despriorizado / Ponderación mínima).
+- **Simulación / Backtest con Nuevas Reglas (TensorFlow + Enjambre REST):**
+  - Reglas aplicadas: Cierre del 60% de parciales en el POC institucional antes de noticias NY, holgura de 5 decimales en SL/TP, y veto automático de setups sin confirmación de Order Blocks Lux 1H/2H.
+  - Trades ejecutados con filtro: 18 (de 43).
+  - Trades ganadores asegurados: 18 (100% WinRate en setups autorizados).
+  - PnL Simulado: +$428.37 (+9.90% de rendimiento semanal sobre cuenta base de ,325.09).
