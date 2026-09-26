@@ -1075,3 +1075,11 @@ ecent_logs desde cache_hist_mt5.
 - **Eliminación Definitiva de Bucles en Reportes REST (Aclaración Línea 77):**
   - *Diagnóstico del Bucle 77:* Se clarificó que la aparición de listas infinitas que llegaban hasta `"77. Entr..."` en `mia_swarm_rest_history` se debía a una degeneración del LLM que repetía frases en bucle al tener `max_tokens: 1000` sin penalización por repetición.
   - *Blindaje de Salida:* Se configuró `repetition_penalty: 1.15`, se redujo a `max_tokens: 250` y se exigió un formato estricto de 4 líneas (ESTADO, TIPO, CONFLUENCIA, JUSTIFICACION). Verificado en ejecución en seco: veredictos concisos sin repeticiones ni duplicidad.
+
+### [Update 2026-09-26 - Sesión 10] - Evaluación de Arquitectura Herds para Comunicación Inter-Agentes
+- **Análisis de Viabilidad de Herds (Sub-Enjambres Especializados):**
+  - *Estructura Propuesta:*
+    1. **Herd 1 - Macro & Microestructura (TIDAL & NORO):** Especializado en escaneo de Libro de Órdenes (DOM CME FX / OANDA), pools de liquidez institucional y Matrices de Transición de Markov.
+    2. **Herd 2 - Inteligencia Neuronal & Estadística (ZEPHR & TensorFlow):** Especializado en inferencia tensorial ($\vec{X} \in \mathbb{R}^6$), Consenso Bayesiano y cálculo de Esperanza Matemática ($EV$).
+    3. **Herd 3 - Sentimiento, Noticias & Veredicto Supremo (LUMEN & RUNE):** Especializado en filtrado de trampas de liquidez por noticias de alto impacto y emisión del veredicto estructurado final.
+  - *Protocolo de Comunicación Óptimo:* Se descarta la mensajería síncrona pesada (CrewAI/LangChain) para evitar reintroducir latencia. La comunicación entre Herds se implementa mediante **Slots de Memoria en Upstash Redis** (`cache_herd_macro`, `cache_herd_stats`), manteniendo la velocidad de ejecución en menos de 2.5 segundos con cero consumo de cuota de Firebase.
