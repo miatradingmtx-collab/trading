@@ -19,10 +19,27 @@ except ValueError:
             firebase_admin.initialize_app(cred)
             db = firestore.client()
         elif os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON"):
-            service_account_info = json.loads(os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON").strip())
-            cred = credentials.Certificate(service_account_info)
-            firebase_admin.initialize_app(cred)
-            db = firestore.client()
+            raw_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON").strip()
+            service_account_info = None
+            try:
+                service_account_info = json.loads(raw_json)
+            except Exception:
+                try:
+                    import re
+                    keys = ["type", "project_id", "private_key_id", "private_key", "client_email", "client_id", "auth_uri", "token_uri", "auth_provider_x509_cert_url", "client_x509_cert_url", "universe_domain"]
+                    extracted = {}
+                    for k in keys:
+                        m = re.search(r'"' + k + r'"\s*:\s*"([^"]+)"', raw_json)
+                        if m:
+                            extracted[k] = m.group(1).replace("\\n", "\n")
+                    service_account_info = extracted
+                except Exception:
+                    pass
+            if service_account_info:
+                cred = credentials.Certificate(service_account_info)
+                firebase_admin.initialize_app(cred)
+                db = firestore.client()
+                print("| FIREBASE | Conectado exitosamente en Swarm REST.")
     except Exception as e:
         print(f"Error inicializando Firebase: {e}")
 
