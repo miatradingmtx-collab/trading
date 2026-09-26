@@ -65,8 +65,8 @@ def emit_ws_event(agent_name, action, data):
     except Exception:
         pass
 
-def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.1-70b-instruct"):
-    """Llamada ultrarrápida y cruda vía REST a OpenRouter (Kill Switch Integrado)"""
+def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
+    """Llamada ultrarrápida y cruda vía REST a OpenRouter (Kill Switch Integrado + Auto Failover)"""
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -95,6 +95,15 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.1-70b-instruct"):
     except requests.exceptions.Timeout:
         return "ERROR_TIMEOUT: OpenRouter no respondió a tiempo. Operación abortada por Kill Switch."
     except Exception as e:
+        # Failover automático si el modelo primario presenta intermitencia
+        if model != "meta-llama/llama-3.1-70b-instruct":
+            try:
+                payload["model"] = "meta-llama/llama-3.1-70b-instruct"
+                resp_fb = requests.post(url, headers=headers, json=payload, timeout=8)
+                resp_fb.raise_for_status()
+                return resp_fb.json()['choices'][0]['message']['content']
+            except Exception as e2:
+                return f"ERROR_API_FAILOVER: {str(e2)}"
         return f"ERROR_API: {str(e)}"
 
 def run_hft_cycle():

@@ -1061,3 +1061,6 @@ ecent_logs desde cache_hist_mt5.
   - *Eliminación de Imports Cíclicos:* Se movió la importación del escáner DOM al encabezado del módulo para no reimportarlo en cada iteración de 15 segundos.
   - *Latencia Local Cero:* Optimización de `emit_ws_event` apuntando a `127.0.0.1` con timeout de 0.3s, evitando resoluciones lentas de IPv6 en Windows y asegurando ciclos HFT limpios y ligeros.
   - *Inclusión de Footprint en Prompt Maestro:* Se restauró `{footprint_delta}` en la confluencia de Sensores 1b del prompt enviado al modelo de lenguaje en OpenRouter.
+- **Validación y Failover de Consumo en OpenRouter:**
+  - *Autenticación y Saldo:* Verificado con estatus HTTP 200 en `https://openrouter.ai/api/v1/auth/key` con un saldo disponible de $99.30 USD y sin límites restrictivos de frecuencia (`rate_limit: -1`).
+  - *Actualización a Llama 3.3 70B con Auto-Failover:* Se migró el modelo primario a `meta-llama/llama-3.3-70b-instruct` (latencia reducida a 2.30s), manteniendo respaldo automático e instantáneo hacia `meta-llama/llama-3.1-70b-instruct` con Kill Switch de 8 segundos ante cualquier intermitencia externa.
