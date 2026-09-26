@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 #                      MODERN TRADING WEB SERVICE (REST API)
 # ==============================================================================
 # NOTA IMPORTANTE SOBRE ARQUITECTURA:
@@ -3325,13 +3325,30 @@ def api_dashboard_data():
     global GLOBAL_AUDIT_LOGS, GLOBAL_SYSTEM_LOGS, GLOBAL_PATRONES, GLOBAL_MATRICES, ULTIMO_FETCH_FIREBASE
     global DASHBOARD_CACHE_DATA, DASHBOARD_CACHE_TIME
     
+    # --- 1. BYPASS ANTI-429 DIRECTO A UPSTASH REDIS ---
+    try:
+        import requests, json
+        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        r_hist = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=3)
+        r_live = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mt5", headers=up_headers, timeout=3)
+        if r_hist.status_code == 200 and r_live.status_code == 200:
+            res_h = r_hist.json().get("result")
+            res_l = r_live.json().get("result")
+            if res_h and res_l:
+                d_hist = json.loads(res_h)
+                d_live = json.loads(res_l)
+                combined = dict(d_hist)
+                combined.update(d_live)
+                return {"status": "success", "data": combined, "source": "upstash_anti_429"}
+    except Exception as e_up:
+        print(f"| DASHBOARD | Fallback a memoria RAM por error Upstash: {e_up}")
+
     if not firebase_inicializado or db is None:
         return {"status": "error", "message": "Firebase no inicializado"}
 
-    # CachÃƒÂ© en RAM de 3 minutos para el bloque completo del dashboard para proteger la cuota de Firebase
+    # Caché en RAM de 3 minutos para el bloque completo del dashboard para proteger la cuota de Firebase
     ahora_t = time.time()
     if DASHBOARD_CACHE_DATA and (ahora_t - DASHBOARD_CACHE_TIME) < 180.0:
-        # Devolver datos de cachÃƒÂ© RAM directamente sin lecturas
         DASHBOARD_CACHE_DATA["recent_logs"] = GLOBAL_AUDIT_LOGS
         return {"status": "success", "data": DASHBOARD_CACHE_DATA, "cached": True}
 
