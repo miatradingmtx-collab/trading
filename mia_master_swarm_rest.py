@@ -2,6 +2,7 @@ import os
 import time
 import datetime
 import json
+import re
 import requests
 from dotenv import load_dotenv
 
@@ -78,12 +79,19 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
         "messages": [
             {
                 "role": "system", 
-                "content": "Eres el Mega-Agente HFT (RUNE). Eres financiero, conciso y directo. Emite veredictos estructurados en exactamente 4 líneas. Prohibido repetir texto, generar listas infinitas o ciclar frases."
+                "content": (
+                    "Eres el Motor de Deliberación Inter-Agente Herds de MIA Core. "
+                    "Los 3 Sub-Enjambres especializados dialogan, se cuestionan, se corrigen y alcanzan consenso financiero antes de ejecutar: "
+                    "HERD 1 (TIDAL & NORO) propone microestructura y niveles; "
+                    "HERD 2 (ZEPHR & LUMEN) audita probabilidad con TensorFlow y filtra trampas de noticias; "
+                    "HERD 3 (RUNE) emite el consenso final con veredicto estructurado. "
+                    "El debate es directo, financiero, sin rodeos y sin repetir texto."
+                )
             },
             {"role": "user", "content": prompt}
         ],
         "temperature": 0.2,
-        "max_tokens": 250,
+        "max_tokens": 400,
         "repetition_penalty": 1.15
     }
     
@@ -238,7 +246,7 @@ def run_hft_cycle():
             "4. Cierre parcial al 40% del recorrido asegurando +15% de ganancia real en POC y trailing stop defensivo."
         )
 
-    # 2. Generar el Veredicto del LLM (Capa 2 - OpenRouter)
+    # 2. Generar el Debate y Veredicto de los Sub-Enjambres (Herds Deliberation)
     prompt_maestro = f"""
     == DATOS DE LOS SENSORES EN TIEMPO REAL ==
     1. LIQUIDEZ Y CACHÉ: {cache_data}
@@ -247,51 +255,72 @@ def run_hft_cycle():
     3. PROBABILIDAD ZEPHR: {expected_value} | {score}
     4. REGLAS MIA KB: {mia_rules}
     
-    INSTRUCCIONES ESTRICTAS:
-    Responde ÚNICAMENTE en exactamente este formato de 4 líneas (sin loops, listas infinitas ni numeraciones repetitivas):
-    ESTADO: [APROBADO o VETADO]
-    TIPO: [Entrada Institucional o Trampa de Liquidez]
-    CONFLUENCIA: [Resumen conciso en 1 línea]
-    JUSTIFICACION: [Explicación técnica en 1 línea]
+    INSTRUCCIONES DE DELIBERACIÓN HERDS:
+    Genera el diálogo de debate, validación y consenso entre los 3 Sub-Enjambres especializados:
+    **HERD 1 - TIDAL & NORO**: Propuesta técnica de entrada, SL y niveles clave basados en DOM y POC.
+    **HERD 2 - ZEPHR & LUMEN**: Auditoría y contrapunto basado en TensorFlow ({tf_acc*100:.1f}%) y filtro de noticias/trampas de liquidez.
+    **HERD 3 - RUNE**: Veredicto final consensuado [APROBADO o VETADO] con ajustes finales y tipo de entrada.
+    
+    Responde estrictamente con exactamente una intervención por Herd (máximo 3 líneas por Herd, concisas y técnicas).
     """
     
-    emit_ws_event("RUNE", "EVALUATING", "Analizando variables globales vía OpenRouter...")
+    emit_ws_event("Master", "DELIBERATION", "Iniciando debate inter-agente entre Herds...")
     veredicto = llamar_openrouter_rest(prompt_maestro)
     
     if "ERROR_TIMEOUT" in veredicto or "ERROR_API" in veredicto:
         emit_ws_event("RUNE", "ERROR", veredicto)
         return veredicto
         
-        # Extraer dinamicamente si fue veto o aprobado
+    # Extraer intervenciones individuales para el WebSocket Terminal
+    h1_match = re.search(r'HERD 1[^\n:]*:\s*(.*?)(?=\n\s*\*\*HERD|\Z)', veredicto, re.DOTALL | re.IGNORECASE)
+    h2_match = re.search(r'HERD 2[^\n:]*:\s*(.*?)(?=\n\s*\*\*HERD|\Z)', veredicto, re.DOTALL | re.IGNORECASE)
+    h3_match = re.search(r'HERD 3[^\n:]*:\s*(.*?)(?=\n\s*\*\*HERD|\Z)', veredicto, re.DOTALL | re.IGNORECASE)
+
+    if h1_match:
+        emit_ws_event("HERD 1 (TIDAL/NORO)", "PROPOSAL", h1_match.group(1).strip())
+    if h2_match:
+        emit_ws_event("HERD 2 (ZEPHR/LUMEN)", "AUDIT", h2_match.group(1).strip())
+    if h3_match:
+        emit_ws_event("HERD 3 (RUNE)", "CONSENSUS", h3_match.group(1).strip())
+
+    # Extraer dinámicamente si fue veto o aprobado
     if "VETA" in veredicto.upper() or "VETO" in veredicto.upper():
         estado = "VETADO ⛔"
     else:
         estado = "APROBADO ✅"
-    emit_ws_event("RUNE", "SUCCESS", f"Veredicto {estado} emitido con éxito.")
+    emit_ws_event("RUNE", "SUCCESS", f"Consenso {estado} alcanzado.")
     
-    # 3. Guardar el Historial (Nueva Ruta REST y Firebase Desacoplado)
+    # 3. Guardar el Historial y Debate (Upstash Redis + Firebase)
     try:
         safe_title = f"REST_HFT_Report_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
         payload = {
             "title": safe_title,
             "content": veredicto,
+            "debate": {
+                "herd_1_macro": h1_match.group(1).strip() if h1_match else "N/A",
+                "herd_2_stats": h2_match.group(1).strip() if h2_match else "N/A",
+                "herd_3_consensus": h3_match.group(1).strip() if h3_match else veredicto,
+                "estado": estado
+            },
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
         
-        # Guardado en Firebase (Nueva coleccion: mia_swarm_rest_history)
+        # Guardado en Firebase (mia_swarm_rest_history)
         if db is not None:
             db.collection("mia_swarm_rest_history").document(safe_title).set(payload)
-            emit_ws_event("Master", "INFO", "Firebase mia_swarm_rest_history actualizado.")
+            emit_ws_event("Master", "INFO", "Debate Herds registrado en Firebase.")
             
-        # Guardado en Upstash Redis (Nueva clave: cache_mia_swarm_rest_latest)
+        # Guardado en Upstash Redis (cache_herd_debate_latest y cache_mia_swarm_rest_latest)
         upstash_url = "https://certain-gnat-160816.upstash.io/set/cache_mia_swarm_rest_latest"
         upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-        
         requests.post(upstash_url, headers=upstash_headers, json=payload, timeout=5)
-        emit_ws_event("Master", "INFO", "Caché Upstash (cache_mia_swarm_rest) actualizado.")
+
+        upstash_herd_url = "https://certain-gnat-160816.upstash.io/set/cache_herd_debate_latest"
+        requests.post(upstash_herd_url, headers=upstash_headers, json=payload, timeout=5)
+        emit_ws_event("Master", "INFO", "Debate sincronizado en Upstash Redis.")
         
     except Exception as e:
-        print(f"Error guardando historiales: {e}")
+        print(f"Error guardando historiales de debate: {e}")
         
     return veredicto
 

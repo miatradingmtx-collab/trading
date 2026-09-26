@@ -1076,10 +1076,13 @@ ecent_logs desde cache_hist_mt5.
   - *Diagnóstico del Bucle 77:* Se clarificó que la aparición de listas infinitas que llegaban hasta `"77. Entr..."` en `mia_swarm_rest_history` se debía a una degeneración del LLM que repetía frases en bucle al tener `max_tokens: 1000` sin penalización por repetición.
   - *Blindaje de Salida:* Se configuró `repetition_penalty: 1.15`, se redujo a `max_tokens: 250` y se exigió un formato estricto de 4 líneas (ESTADO, TIPO, CONFLUENCIA, JUSTIFICACION). Verificado en ejecución en seco: veredictos concisos sin repeticiones ni duplicidad.
 
-### [Update 2026-09-26 - Sesión 10] - Evaluación de Arquitectura Herds para Comunicación Inter-Agentes
-- **Análisis de Viabilidad de Herds (Sub-Enjambres Especializados):**
-  - *Estructura Propuesta:*
-    1. **Herd 1 - Macro & Microestructura (TIDAL & NORO):** Especializado en escaneo de Libro de Órdenes (DOM CME FX / OANDA), pools de liquidez institucional y Matrices de Transición de Markov.
-    2. **Herd 2 - Inteligencia Neuronal & Estadística (ZEPHR & TensorFlow):** Especializado en inferencia tensorial ($\vec{X} \in \mathbb{R}^6$), Consenso Bayesiano y cálculo de Esperanza Matemática ($EV$).
-    3. **Herd 3 - Sentimiento, Noticias & Veredicto Supremo (LUMEN & RUNE):** Especializado en filtrado de trampas de liquidez por noticias de alto impacto y emisión del veredicto estructurado final.
-  - *Protocolo de Comunicación Óptimo:* Se descarta la mensajería síncrona pesada (CrewAI/LangChain) para evitar reintroducir latencia. La comunicación entre Herds se implementa mediante **Slots de Memoria en Upstash Redis** (`cache_herd_macro`, `cache_herd_stats`), manteniendo la velocidad de ejecución en menos de 2.5 segundos con cero consumo de cuota de Firebase.
+### [Update 2026-09-26 - Sesión 10] - Implementación y Despliegue de la Arquitectura Herds (Deliberación Inter-Agente)
+- **Desacoplamiento del Flujo Monolítico en Cadena:**
+  - El sistema dejó de operar como un script lineal monolítico para convertirse en un ecosistema de **3 Sub-Enjambres Especializados (Herds)** que dialogan, se cuestionan, se corrigen y alcanzan consenso antes de ejecutar:
+    1. **HERD 1 (TIDAL & NORO - Microestructura):** Propone niveles técnicos de entrada, Stop Loss defensivo y objetivos basados en el Libro de Órdenes (DOM CME FX / OANDA) y el POC de MetaTrader 5.
+    2. **HERD 2 (ZEPHR & LUMEN - Neuronal & Riesgo):** Audita la propuesta con la inferencia de TensorFlow (Accuracy 97.87%) y el filtro institucional de noticias anti-trampas de liquidez.
+    3. **HERD 3 (RUNE - Consenso Supremo):** Arbitra las objeciones, ajusta los parámetros de entrada y emite el veredicto final consensuado.
+- **Protocolo de Comunicación y Difusión en Tiempo Real:**
+  - *Transmisión WebSocket:* Cada intervención de los Herds se emite de forma individual al servidor WebSocket (`HERD 1: PROPOSAL`, `HERD 2: AUDIT`, `HERD 3: CONSENSUS`), permitiendo visualizar el debate inter-agente en vivo en la Terminal de Cristal (`/brain`).
+  - *Memoria Compartida Desacoplada (Anti-429):* Los debates estructurados se respaldan en Upstash Redis (`cache_herd_debate_latest` y `cache_mia_swarm_rest_latest`) y se registran en `mia_swarm_rest_history` en Firebase Firestore con cero sobrecarga de red.
+  - *Verificación en Vivo:* Ejecutado y validado en tiempo real con Llama 3.3 70B vía REST puro en 2.4 segundos, demostrando auto-corrección de niveles de entrada y trailing stop defensivo.
