@@ -501,3 +501,15 @@ si_sobrecompra_sobreventa: WinRate 82.81% (53 ganados, 11 perdidos, PnL +.05).
   - Trades ejecutados con filtro: 18 (de 43).
   - Trades ganadores asegurados: 18 (100% WinRate en setups autorizados).
   - PnL Simulado: +$428.37 (+9.90% de rendimiento semanal sobre cuenta base de ,325.09).
+
+### [Update 2026-09-25 - Sesión 5] - Homologación de Regla de 3 y Auditoría de Trades del Broker
+- **Resolución de Discrepancia en mia_kb/regla_de_3:**
+  - Se identificó que la colección 
+egla_de_3 en Firebase no se había actualizado desde el 17 de Septiembre debido a que la función entrenar_pesos_dinamicos intentaba leer 500 documentos directamente de mia_audit_logs, activando el límite Spark de 429 Quota Exceeded.
+  - Se refactorizó entrenar_pesos_dinamicos para leer exclusivamente de la memoria RAM (GLOBAL_AUDIT_LOGS) y del slot cache_hist_mt5 de Upstash Redis (0 lecturas de Firestore).
+  - Se actualizó forzosamente mia_kb/regla_de_3 en Firebase con los pesos reales del 25 de Septiembre:
+    * 	op_1: order_block_zona_2h (WinRate 100%, Peso 35).
+    * 	op_2: lux_algo_ob_8h (WinRate 94%, Peso 30).
+    * 	op_3: lux_algo_ob_4h (WinRate 86%, Peso 25).
+- **Homologación con el Broker (MetaTrader 5):**
+  - Se verificó el balance actual en $4,325.09, Equity en $4,348.26 y un flotante positivo de +.17 distribuido en 6 operaciones activas reales: GBPJPY, NZDCAD, EURUSD, GBPUSD, XAUUSD y AUDUSD.
