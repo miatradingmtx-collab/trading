@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import uvicorn
 import os
+import datetime
 
 RAILWAY_URL = "https://trading-production-927a.up.railway.app/api/dashboard_data"
 
@@ -69,10 +70,30 @@ manager = ConnectionManager()
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        is_weekend = False
+        if now_utc.weekday() == 4 and now_utc.hour >= 21:
+            is_weekend = True
+        elif now_utc.weekday() == 5:
+            is_weekend = True
+        elif now_utc.weekday() == 6 and now_utc.hour < 21:
+            is_weekend = True
+            
+        if is_weekend:
+            days_ahead = 6 - now_utc.weekday()
+            target_date = now_utc + datetime.timedelta(days=days_ahead)
+            target_time = target_date.replace(hour=21, minute=0, second=0, microsecond=0)
+            horas = round(max(0, (target_time - now_utc).total_seconds()) / 3600, 1)
+            init_msg = f"MERCADO CERRADO (Fin de semana). Criosueño activo ({horas}h restantes para apertura dom 21:00 UTC). Consumo de tokens: 0."
+            action_status = "STANDBY"
+        else:
+            init_msg = "MERCADO EN VIVO. Enjambre HFT activo en OpenRouter (Llama 3.3 70B REST & TensorFlow 97.87%)."
+            action_status = "LIVE"
+
         await websocket.send_json({
-            "agent": "SYSTEM",
-            "action": "INFO",
-            "data": "Conexión estable. Enjambre HFT activo en OpenRouter (Llama 3.3 70B REST, Inferencia en tiempo real)."
+            "agent": "Master",
+            "action": action_status,
+            "data": init_msg
         })
         while True:
             data = await websocket.receive_text()

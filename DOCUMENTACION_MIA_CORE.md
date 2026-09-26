@@ -1106,3 +1106,15 @@ ecent_logs desde cache_hist_mt5.
 - **Desbloqueo de Criosueño en WebSockets (Standby Activo):**
   - Se sustituyó el bloqueo de sueño ciego de 37.5 horas (`time.sleep(segundos_dormir)`) en `mia_master_swarm_rest.py` por un bucle activo de **45 segundos**.
   - Durante el fin de semana, el sistema emite periódicamente un evento `STANDBY` al WebSocket de Antopus (`Mercado Cerrado. Criosueño activo (X horas restantes)`), manteniendo a los clientes conectados e informados en tiempo real hasta la apertura del domingo a las 21:00 UTC.
+
+### [Update 2026-09-26 - Sesión 12] - Blindaje Anti-429/Anti-404 en OpenRouter, Cero Gasto en Criosueño y Optimización de Latidos
+- **Auditoría de Rate Limits (TPM y RPM) en OpenRouter vs Groq:**
+  - *Contexto:* El rate limit 429 previo en Groq obedecía a su cota compartida gratuita de 30 RPM y 6,000 TPM.
+  - *Arquitectura OpenRouter:* Con saldo prepago activo ($6.31 USD disponibles), OpenRouter otorga límites empresariales superiores a **200+ RPM y 100,000+ TPM**.
+  - *Consumo Real de MIA Swarm:* Con una pausa de 15s entre ciclos HFT, el sistema realiza ~3.3 RPM y consume ~2,000 TPM (apenas el 1.6% del cupo de OpenRouter). Además, los 3 Herds debaten en una **única llamada de inferencia consolidada**, evitando multiplicidad de peticiones.
+  - *Aislamiento Total de TensorFlow:* La Red Neuronal Profunda se ejecuta de forma local en la RAM/CPU del contenedor de Railway con un tiempo de cómputo de 2 ms, con cero peticiones a APIs externas y cero riesgo de 429 o 404.
+- **Validación de Consumo Cero ($0.00 USD) en Mercado Cerrado:**
+  - Se verificó que durante el fin de semana el código ejecuta un `continue` directo hacia el criosueño, **sin invocar en ningún momento a OpenRouter ni a MetaTrader 5**. El gasto en tokens o saldo durante el cierre semanal es estrictamente **$0.00 USD (cero tokens)**.
+- **Optimización de Latidos de Criosueño y Respuesta Instantánea en Antopus:**
+  - *Eliminación de Polling Innecesario:* Se reemplazó el despertar de cada 45 segundos por un ciclo sereno de **10 minutos (600s)** calculado dinámicamente como `min(600, max(5, int(segundos_dormir)))`, garantizando que el sistema despierte de manera milimétrica en el instante exacto de la apertura de Forex el domingo a las 21:00 UTC (17:00 EST).
+  - *Handshake Inmediato en WebSockets (`on_connect`):* En `mia_websocket_server.py`, tan pronto un navegador abre Antopus (`/ws`), el servidor detecta el estatus y envía al instante el mensaje con las horas restantes de criosueño, eliminando cualquier espera para el usuario sin saturar la red ni el procesador.

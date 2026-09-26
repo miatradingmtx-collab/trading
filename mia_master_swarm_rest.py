@@ -348,10 +348,10 @@ if __name__ == "__main__":
             
             segundos_dormir = max(0, (target_time - now_utc).total_seconds())
             horas_dormir = round(segundos_dormir / 3600, 2)
-            
-            emit_ws_event("Master", "STANDBY", f"Mercado Cerrado. Criosueño activo ({horas_dormir}h restantes para apertura dom 21:00 UTC). Enjambres en guardia.")
-            print(f"[{now_utc.strftime('%Y-%m-%d %H:%M:%S')}][INFO] Mercado cerrado. Standby ({horas_dormir}h restantes). Loop 45s...")
-            time.sleep(45)
+            emit_ws_event("Master", "STANDBY", f"Mercado Cerrado (Fin de semana). Criosueño activo ({horas_dormir}h restantes para apertura dom 21:00 UTC). Consumo de tokens: 0.")
+            print(f"[{now_utc.strftime('%Y-%m-%d %H:%M:%S')}][INFO] Mercado cerrado. Standby ({horas_dormir}h restantes). Consumo tokens: 0. Pausa 10 min...")
+            sleep_step = min(600, max(5, int(segundos_dormir)))
+            time.sleep(sleep_step)
             continue
             
         # Ejecutar el ciclo HFT Principal
