@@ -4204,6 +4204,11 @@ async def scheduler_daily_ai_cron():
             
             await asyncio.sleep(segundos_espera)
             
+            if datetime.now().weekday() in [4, 5]:
+                print("| DAILY AI CRON | Criosueno de Fin de Semana activo. Saltando entrenamiento TF.")
+                await asyncio.sleep(3600)
+                continue
+                
             print("| DAILY AI CRON | Disparando ML Snapshot...")
             try:
                 generar_ml_snapshot()
