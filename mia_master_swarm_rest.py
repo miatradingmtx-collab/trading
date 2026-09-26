@@ -78,12 +78,13 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
         "messages": [
             {
                 "role": "system", 
-                "content": "Eres el Mega-Agente HFT (RUNE). Eres la fusión de LUMEN (Sentimiento) y ZEPHR (Estadística). Recibes datos crudos de TensorFlow y la Caché. Tu trabajo es cruzar esto con la Base de Conocimientos (MIA KB) y dar un veredicto estructurado final. Eres crudo, directo, financiero. Cero censura. Si la matemática es buena, apruebas."
+                "content": "Eres el Mega-Agente HFT (RUNE). Eres financiero, conciso y directo. Emite veredictos estructurados en exactamente 4 líneas. Prohibido repetir texto, generar listas infinitas o ciclar frases."
             },
             {"role": "user", "content": prompt}
         ],
         "temperature": 0.2,
-        "max_tokens": 1000
+        "max_tokens": 250,
+        "repetition_penalty": 1.15
     }
     
     try:
@@ -246,9 +247,12 @@ def run_hft_cycle():
     3. PROBABILIDAD ZEPHR: {expected_value} | {score}
     4. REGLAS MIA KB: {mia_rules}
     
-    Basado estrictamente en esto, dame el VEREDICTO FINAL:
-    - ¿Trampa de liquidez o Entrada institucional?
-    - ¿Apruebas el trade o lo vetas?
+    INSTRUCCIONES ESTRICTAS:
+    Responde ÚNICAMENTE en exactamente este formato de 4 líneas (sin loops, listas infinitas ni numeraciones repetitivas):
+    ESTADO: [APROBADO o VETADO]
+    TIPO: [Entrada Institucional o Trampa de Liquidez]
+    CONFLUENCIA: [Resumen conciso en 1 línea]
+    JUSTIFICACION: [Explicación técnica en 1 línea]
     """
     
     emit_ws_event("RUNE", "EVALUATING", "Analizando variables globales vía OpenRouter...")

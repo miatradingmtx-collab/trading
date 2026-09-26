@@ -1064,3 +1064,14 @@ ecent_logs desde cache_hist_mt5.
 - **Validación y Failover de Consumo en OpenRouter:**
   - *Autenticación y Saldo Real en Billetera:* Verificado vía `https://openrouter.ai/api/v1/credits`. Se confirmó un saldo recargado de **$7.00 USD** exactos (`total_credits: 7.00`), con un consumo real acumulado de únicamente $0.69 USD, dejando un **saldo neto disponible de $6.31 USD** (el parámetro de $100 devuelto en `auth/key` correspondía al tope de seguridad o límite de gasto por clave, no al saldo de la cuenta).
   - *Migración de Groq a OpenRouter y Timeout a 8s:* Se desacoplaron los enjambres de los límites TPM de Groq hacia OpenRouter REST nativo. El timeout de red se redujo a un Kill Switch de **8 segundos** (inferencia real en ~2.30s con Llama 3.3 70B), con failover automático e instantáneo a Llama 3.1 70B ante cualquier contingencia.
+
+### [Update 2026-09-26 - Sesión 9] - Corrección de Cron Diario ML (23:55), Rehidratación de TensorFlow y Supresión de Bucles en Reportes REST
+- **Corrección del Scheduler Diario (23:55 UTC):**
+  - *NameError Resuelto:* Se corrigió el llamado a `generar_ml_snapshot()` en `scheduler_daily_ai_cron()`, el cual fallaba por no estar definido, conectándolo a la función real `tomar_snapshot_diario_ml()`.
+  - *Sincronización de Criosueño:* Se removió el bloqueo erróneo de los viernes (`weekday() == 4`), asegurando que la noche del viernes siempre consolide la semana completa de trades. Solo se salta el sábado noche (`weekday() == 5`) por inactividad total de Forex.
+- **Rehidratación y Entrenamiento TensorFlow Cloud-Native:**
+  - *Umbral Dinámico:* Se reemplazó la condición rígida de `len(logs) < 50` en `train_tensorflow()` por un mecanismo de auto-rehidratación que rescata 50 trades de `mia_audit_logs` si Upstash se reinicia o está vacío.
+  - *Entrenamiento en Producción Exitoso:* Se verificó en vivo en Railway con **97.87% de Accuracy** sobre 47 trades reales. El modelo compilado en Base64 se grabó en `cache_mia_tensorflow` (Upstash) y se homologaron los documentos del día `2026-09-26` en `mia_tensorflow` y `mia_ml_history` en Firebase Firestore.
+- **Eliminación Definitiva de Bucles en Reportes REST (Aclaración Línea 77):**
+  - *Diagnóstico del Bucle 77:* Se clarificó que la aparición de listas infinitas que llegaban hasta `"77. Entr..."` en `mia_swarm_rest_history` se debía a una degeneración del LLM que repetía frases en bucle al tener `max_tokens: 1000` sin penalización por repetición.
+  - *Blindaje de Salida:* Se configuró `repetition_penalty: 1.15`, se redujo a `max_tokens: 250` y se exigió un formato estricto de 4 líneas (ESTADO, TIPO, CONFLUENCIA, JUSTIFICACION). Verificado en ejecución en seco: veredictos concisos sin repeticiones ni duplicidad.

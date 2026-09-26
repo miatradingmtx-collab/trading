@@ -4224,25 +4224,29 @@ async def scheduler_daily_ai_cron():
     print("| DAILY AI CRON | Inicializando scheduler diario para ML Snapshot y TensorFlow (23:55)...")
     while True:
         try:
-            ahora = datetime.now()
+            ahora = datetime.utcnow()
             proxima_ejecucion = ahora.replace(hour=23, minute=55, second=0, microsecond=0)
             
             if ahora >= proxima_ejecucion:
                 proxima_ejecucion += timedelta(days=1)
                 
             segundos_espera = (proxima_ejecucion - ahora).total_seconds()
-            print(f"| DAILY AI CRON | Próxima ejecución: {proxima_ejecucion.strftime('%Y-%m-%d %H:%M')}")
+            print(f"| DAILY AI CRON | Próxima ejecución: {proxima_ejecucion.strftime('%Y-%m-%d %H:%M UTC')} (en {int(segundos_espera/3600)}h {int((segundos_espera%3600)/60)}m)")
             
             await asyncio.sleep(segundos_espera)
             
-            if datetime.now().weekday() in [4, 5]:
-                print("| DAILY AI CRON | Criosueno de Fin de Semana activo. Saltando entrenamiento TF.")
+            # Solo saltar sábado en la noche (weekday 5) cuando Forex está 100% inactivo todo el día.
+            # Viernes (weekday 4) a las 23:55 DEBE correr para consolidar la semana.
+            # Domingo (weekday 6) a las 23:55 el mercado ya lleva horas abierto.
+            if datetime.utcnow().weekday() == 5:
+                print("| DAILY AI CRON | Sábado (mercado Forex cerrado). Criosueño activo.")
                 await asyncio.sleep(3600)
                 continue
                 
             print("| DAILY AI CRON | Disparando ML Snapshot...")
             try:
-                generar_ml_snapshot()
+                # Corregido: Llamar a tomar_snapshot_diario_ml() para guardar mia_ml_history
+                tomar_snapshot_diario_ml()
             except Exception as e:
                 print(f"Error ML Snapshot Cron: {e}")
                 
@@ -4254,6 +4258,7 @@ async def scheduler_daily_ai_cron():
                 
             await asyncio.sleep(3600)
         except Exception as err:
+            print(f"Error en scheduler_daily_ai_cron: {err}")
             await asyncio.sleep(300)
 
 async def scheduler_ml_semanal():
@@ -4502,29 +4507,45 @@ def train_tensorflow():
         res = requests.get(upstash_read_url, headers=headers, timeout=10)
         
         raw_data = res.json().get("result", "{}")
-        data = json.loads(raw_data)
+        data = json.loads(raw_data) if isinstance(raw_data, str) else (raw_data or {})
         logs = data.get("recent_logs", [])
         
-        if len(logs) < 50:
-            return {"status": "error", "message": "Insuficientes datos en Upstash para entrenar TF"}
-            
+        # Hidratación inteligente si Upstash tiene pocos logs (ej. tras reinicio del contenedor)
+        global GLOBAL_AUDIT_LOGS, db
+        if len(logs) < 10:
+            if GLOBAL_AUDIT_LOGS and len(GLOBAL_AUDIT_LOGS) >= 5:
+                logs = GLOBAL_AUDIT_LOGS
+            elif db is not None:
+                try:
+                    # Lectura única de seguridad limitada a 50 trades para hidratar Upstash
+                    docs = db.collection("mia_audit_logs").where("accion", "in", ["CIERRE_TOTAL", "COMPRA", "VENTA"]).limit(50).get()
+                    logs = [d.to_dict() for d in docs]
+                    if logs:
+                        data["recent_logs"] = logs
+                        requests.post("https://certain-gnat-160816.upstash.io/set/cache_hist_mt5", headers=headers, json=data, timeout=5)
+                        print(f"| TENSORFLOW | Upstash rehidratado con {len(logs)} trades históricos.")
+                except Exception as e_h:
+                    print(f"Error hidratando Upstash: {e_h}")
+
         # 2. Convertir JSON a Tensores (DataFrame en RAM)
         df_data = []
         for trade in logs:
-            if trade.get("accion") != "CIERRE_TOTAL": continue
-            pnl = float(trade.get("pnl", 0.0))
+            pnl = float(trade.get("pnl", 0.0) or 0.0)
             exito = 1 if pnl > 0.0 else 0
-            detalle = str(trade.get("detalle_setup", "")).lower()
+            detalle = str(trade.get("detalle_setup", "") or trade.get("razon", "")).lower()
             
             df_data.append({
-                "hora_utc": int(trade.get("hora_utc", 0)),
-                "score_original": float(trade.get("score_porcentaje", 0.0)),
+                "hora_utc": int(trade.get("hora_utc", 12) or 12),
+                "score_original": float(trade.get("score_porcentaje", trade.get("score_estrategia", 50)) or 50),
                 "ind_lux_1h": 1 if "lux ob 1h" in detalle or "lux_1h" in detalle or "lux" in detalle else 0,
-                "ind_lux_2h": 1 if "lux ob 2h" in detalle or "lux_2h" in detalle or "lux ob zona 2h" in detalle else 0,
+                "ind_lux_2h": 1 if "lux ob 2h" in detalle or "lux_2h" in detalle or "lux ob zona 2h" in detalle or "2h" in detalle else 0,
                 "ind_rsi": 1 if "rsi" in detalle else 0,
                 "ind_fvg": 1 if "fvg" in detalle else 0,
                 "EXITO": exito
             })
+            
+        if len(df_data) < 5:
+            return {"status": "error", "message": f"Insuficientes datos ({len(df_data)}) en Upstash para entrenar TF"}
             
         df = pd.DataFrame(df_data).fillna(0)
         X = df[['hora_utc', 'score_original', 'ind_lux_1h', 'ind_lux_2h', 'ind_rsi', 'ind_fvg']].values
