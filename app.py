@@ -2864,10 +2864,12 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         if 0 <= utc_hour < 7: sesion = "asia"
         elif 7 <= utc_hour < 12: sesion = "london"
         
-        str_ejecutada = "SÃƒÂ" if ejecucion.ejecutada_mt5 else "NO"
-        estrategia_real = ejecucion.estrategia
+        str_ejecutada = "SÍ" if ejecucion.ejecutada_mt5 else "NO"
+        motivo_limpio = str(ejecucion.motivo or "Ejecución MT5").split("EJECUTADA EN MT5")[0].split("|")[0].strip()
+        estrategia_limpia = str(ejecucion.estrategia or "SMC Setup").split("EJECUTADA EN MT5")[0].split("|")[0].strip()
+        if not estrategia_limpia: estrategia_limpia = "SMC Setup"
         
-        detalle_str = f"{ejecucion.activo} | {fecha} | {sesion} | {estrategia_real} | {confirmaciones_str} | SCORE: {ejecucion.score}% | EJECUTADA EN MT5: {str_ejecutada} | MOTIVO: {ejecucion.motivo}"
+        detalle_str = f"{ejecucion.activo} | {fecha} | {sesion} | {estrategia_limpia} | {confirmaciones_str} | SCORE: {ejecucion.score}% | EJECUTADA EN MT5: {str_ejecutada} | MOTIVO: {motivo_limpio}"
 
         audit_ref = db.collection("mia_audit_logs").document(str(ejecucion.ticket))
         
@@ -3405,7 +3407,12 @@ def api_dashboard_data():
         operaciones_activas = []
         for t, d in dict_activas.items():
             if t not in tickets_cerrados:
-                operaciones_activas.append(d)
+                clean_d = dict(d)
+                det = str(clean_d.get("detalle_setup", ""))
+                if "EJECUTADA EN MT5" in det:
+                    partes = det.split("EJECUTADA EN MT5")
+                    clean_d["detalle_setup"] = partes[0].strip(" |") + " | EJECUTADA EN MT5: SÍ"
+                operaciones_activas.append(clean_d)
                 
         data["operaciones_activas"] = operaciones_activas
                 
