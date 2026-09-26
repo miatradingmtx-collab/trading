@@ -69,14 +69,14 @@
         links.forEach(l => {
             ctx.beginPath(); ctx.moveTo(l.source.x, l.source.y); ctx.lineTo(l.target.x, l.target.y);
             let alpha = 0.05 + Math.abs(l.weight) * 0.15; if (l.active) alpha = 0.8;
-            if (l.weight > 0) ctx.strokeStyle = "rgba(0, 255, 163, " + alpha + ")";
+            if (l.weight > 0) ctx.strokeStyle = "rgba(180, 0, 255, " + alpha + ")";
             else ctx.strokeStyle = "rgba(239, 68, 68, " + alpha + ")";
             ctx.lineWidth = l.active ? 2 : 0.5; ctx.stroke();
             if (l.active && Math.random() < 0.1) l.active = false;
         });
         nodes.forEach(n => {
             ctx.beginPath(); ctx.arc(n.x, n.y, 4 + n.activation * 3, 0, Math.PI * 2);
-            const r = Math.floor(n.activation * 0); const g = Math.floor(n.activation * 255); const b = Math.floor(n.activation * 163);
+            const r = Math.floor(n.activation * 180); const g = Math.floor(n.activation * 0); const b = Math.floor(n.activation * 255);
             ctx.fillStyle = "rgb(" + r + ", " + g + ", " + b + ")";
             ctx.shadowBlur = 15 * n.activation; ctx.shadowColor = ctx.fillStyle; ctx.fill(); ctx.shadowBlur = 0;
         });
