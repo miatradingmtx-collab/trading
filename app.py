@@ -4483,15 +4483,15 @@ def train_tensorflow():
             df_data.append({
                 "hora_utc": int(trade.get("hora_utc", 0)),
                 "score_original": float(trade.get("score_porcentaje", 0.0)),
-                "ind_lux_4h": 1 if "lux_algo_ob_4h" in detalle or "lux" in detalle else 0,
-                "ind_lux_8h": 1 if "lux_algo_ob_8h" in detalle else 0,
+                "ind_lux_1h": 1 if "lux ob 1h" in detalle or "lux_1h" in detalle or "lux" in detalle else 0,
+                "ind_lux_2h": 1 if "lux ob 2h" in detalle or "lux_2h" in detalle or "lux ob zona 2h" in detalle else 0,
                 "ind_rsi": 1 if "rsi" in detalle else 0,
                 "ind_fvg": 1 if "fvg" in detalle else 0,
                 "EXITO": exito
             })
             
         df = pd.DataFrame(df_data).fillna(0)
-        X = df[['hora_utc', 'score_original', 'ind_lux_4h', 'ind_lux_8h', 'ind_rsi', 'ind_fvg']].values
+        X = df[['hora_utc', 'score_original', 'ind_lux_1h', 'ind_lux_2h', 'ind_rsi', 'ind_fvg']].values
         y = df['EXITO'].values
         
         # 3. Entrenar TensorFlow Keras Model en Memoria RAM
