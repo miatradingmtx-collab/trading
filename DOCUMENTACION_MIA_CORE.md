@@ -458,3 +458,16 @@ ailway_cache_tool. Esta compresión redujo el peso del JSON de 54,000 a ~5,000 c
 - **Modificación de Arquitectura:** Despliegue de "Dual Railway" (Servidor 927A alimentando datos vía webhook, y Servidor 1FD4 procesando inferencias del Enjambre). Consolidación de base de datos en Firebase: Se establece mia_swarm_rest_history como la colección oficial de reportes, dejando a swarm_history como el backup inactivo de la era LangChain/CrewAI.
 - **Modelados Matemáticos:** Implementación del Cerebro TensorFlow de 4 capas (6, 8, 8, 4) evaluando probabilidad Bayesiana y Funciones de Activación ReLU/Sigmoid sobre 6 tensores principales (Hora, Score, LUX4h, LUX8h, RSI, FVG). Se prepara la arquitectura del Agente NORO para recibir integraciones de Series de Fourier y Transformadas Z en la siguiente fase.
 - **Optimizaciones:** Freno de mano removido. Reducción de latencia de Criosueño de 60s a 15s. Esto eleva la frecuencia del algoritmo a 4 RPM, operando en "tiempo real" sin sobrepasar el límite de 429 Too Many Requests de OpenRouter. Sincronización estricta de Criosueño con el cierre del mercado Forex (Viernes 17:00 EST a Domingo 17:00 EST).
+
+### [Update 2026-09-25 - Sesión 2] - Vectores de Entrada Lux Algo 1H/2H y Eliminación de Fantasmas en Firebase
+- **Modificación de Arquitectura:** Purga de documentos legados en Firebase Firestore. Se eliminó el documento residual Veredicto_de_Trade_-_Datos_Faltantes.md (fecha 2026-09-11) de mia_swarm_rest_history para evitar discrepancias de inferencia. Se incorporó inicializador robusto con fallback regex para FIREBASE_SERVICE_ACCOUNT_JSON en mia_master_swarm_rest.py.
+- **Modelados Matemáticos:** Ajuste del vector tensorial de entrada  \in \mathbb{R}^6$ para TensorFlow Keras:
+  \vec{V}_{input} = [\text{Hora}_{UTC}, \text{Score}_{SMC}, \text{Lux}_{1H}, \text{Lux}_{2H}, \text{RSI}, \text{FVG}]
+  Se sustituyeron los proxies 4H/8H por Lux_1H y Lux_2H (Order Blocks de 1H y 2H), coincidiendo con los patrones de mayor tasa de acierto (WinRate histórico >80%) validados por el motor ML.
+- **Formulaciones Integradas:**
+  1. *Área Bajo la Curva (Integral de Volumen Institucional):*
+     A = \int_{t_1}^{t_2} Vol(t) dt \approx \sum_{i=1}^{n-1} \frac{Vol_i + Vol_{i+1}}{2} (t_{i+1} - t_i)
+  2. *Matriz de Transición de Markov (Espacio Vectorial Estocástico):*
+     P_{ij} = P(S_{t+1} = j \mid S_t = i) = \frac{N_{ij}}{\sum_k N_{ik}}
+  3. *Consenso Bayesiano Ponderado (Score de Ejecución):*
+     Score_{Bayes} = w_1 P_{Markov} + w_2 WR_{hist} + w_3 (S_{sent} - 1), \quad (w_1=0.4, w_2=0.5, w_3=0.1)
