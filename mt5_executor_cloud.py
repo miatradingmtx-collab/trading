@@ -831,7 +831,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 if lote_a_cerrar < min_volume:
                     lote_a_cerrar = 0.0
                     
-                desc_tp = "25%" if toca_parcial == 1 else "50%"
+                desc_tp = "TP1 (25% vol at 40% dist)" if toca_parcial == 1 else "TP2 (50% vol at 65% dist)"
                 pnl_parcial = 0.0
                 
                 # --- 1. INTENTAR COBRAR PARCIAL ---
@@ -867,9 +867,10 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     buffer_be = 0.0001 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.01
                     
                     if toca_parcial == 1:
-                        # Al llegar al 40%, asegurar Break Even
-                        nuevo_sl = entry_price + buffer_be if es_buy else entry_price - buffer_be
-                        desc_sl = "Break Even"
+                        # Al llegar al 40%, asegurar el 15% del recorrido en GANANCIA REAL (Trailing Seguro) en vez de BE $0.00
+                        distancia_segura = distancia_total * 0.15
+                        nuevo_sl = (entry_price + distancia_segura) if es_buy else (entry_price - distancia_segura)
+                        desc_sl = "Nivel Seguro (+15% Profit Real)"
                     elif toca_parcial == 2:
                         # Al llegar al 65%, asegurar el 40% del recorrido
                         distancia_tp1 = distancia_total * 0.40
