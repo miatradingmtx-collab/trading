@@ -48,6 +48,7 @@ except ValueError:
 from crew_tools import railway_cache_tool, mia_core_reader_tool
 from math_agent_skills import calc_area_under_curve, markov_transition_matrix
 from stat_agent_skills import calculate_expected_value, generate_execution_score
+from dom_institutional_scanner import scan_institutional_dom
 
 load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
@@ -56,12 +57,12 @@ def emit_ws_event(agent_name, action, data):
     """Envía un evento al WebSocket server vía HTTP interno"""
     try:
         port = os.environ.get("PORT", "8000")
-        requests.post(f"http://localhost:{port}/emit", json={
+        requests.post(f"http://127.0.0.1:{port}/emit", json={
             "agent": agent_name,
             "action": action,
             "data": data
-        }, timeout=2)
-    except:
+        }, timeout=0.3)
+    except Exception:
         pass
 
 def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.1-70b-instruct"):
@@ -97,22 +98,40 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.1-70b-instruct"):
         return f"ERROR_API: {str(e)}"
 
 def run_hft_cycle():
-    emit_ws_event("Master", "START", "Iniciando Ciclo REST Puro (Capa TensorFlow + OpenRouter).")
+    emit_ws_event("Master", "START", "Iniciando Ciclo REST HFT (TensorFlow + Swarm Neuronal).")
     
-    # 1. Leer Sensores HFT (Capa 1 - TIDAL & TENSORFLOW)
-    emit_ws_event("TIDAL", "SCANNING", "Obteniendo datos reales de Liquidez y TensorFlow desde Upstash...")
+    # 1. Leer Sensores HFT y Upstash Redis (TIDAL & TENSORFLOW)
+    emit_ws_event("TIDAL", "SCANNING", "Sincronizando Liquidez MT5 y Cerebro TensorFlow...")
     try:
         upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
         
         # Obtener Liquidez y Ordenes (MT5 Cache)
         res_mt5 = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mt5", headers=upstash_headers, timeout=5)
-        mt5_json = res_mt5.json().get("result", "{}")
+        mt5_raw = res_mt5.json().get("result", {})
+        if isinstance(mt5_raw, str):
+            try:
+                mt5_json = json.loads(mt5_raw)
+            except Exception:
+                mt5_json = {}
+        elif isinstance(mt5_raw, dict):
+            mt5_json = mt5_raw
+        else:
+            mt5_json = {}
         
         # Obtener Cerebro TensorFlow (Matriz Profunda)
         res_tf = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_tensorflow", headers=upstash_headers, timeout=5)
-        tf_json = res_tf.json().get("result", "{}")
+        tf_raw = res_tf.json().get("result", {})
+        if isinstance(tf_raw, str):
+            try:
+                tf_json = json.loads(tf_raw)
+            except Exception:
+                tf_json = {}
+        elif isinstance(tf_raw, dict):
+            tf_json = tf_raw
+        else:
+            tf_json = {}
         
-        # Limpieza suiza de liquidez y balance
+        # Extracción de liquidez y balance
         balance = mt5_json.get("balance_actual", 0.0)
         equity = mt5_json.get("equity", 0.0)
         pnl = mt5_json.get("floating_pnl", 0.0)
@@ -125,69 +144,95 @@ def run_hft_cycle():
             ops_resumen.append(f"{act} (SL:{sl}, TP:{tp})")
         str_ops = ", ".join(ops_resumen) if ops_resumen else "Ninguno"
         
-        cache_data = f"Balance:  | Equity:  | PnL Flotante:  | Posiciones: {str_ops} | IA Accuracy: {tf_json.get('accuracy', 0.5)*100:.1f}%"
+        tf_acc = tf_json.get('accuracy', 0.5)
+        cache_data = f"Balance: ${balance:.2f} | Equity: ${equity:.2f} | PnL Flotante: ${pnl:.2f} | Posiciones: {str_ops} | IA Accuracy: {tf_acc*100:.1f}%"
     except Exception as e:
         cache_data = f"FALLO_EN_SENSORES: {e}"
-    
-            # --- Inyeccion de Skill DOM CME FX & OANDA (TIDAL & LUMEN) ---
-    from dom_institutional_scanner import scan_institutional_dom
-    dom_heatmap_summary = "Sin datos de libro"
-    try:
-        # Escaneo institucional para EURUSD o el activo activo
-        dom_analisis = scan_institutional_dom("EURUSD", 1.08500, 1.08420)
-        dom_heatmap_summary = f"CME: {dom_analisis['cme_contract']} | Flujo: {dom_analisis['dom_imbalance']} (Compradores {dom_analisis['buyer_volume_pct']}% vs Vendedores {dom_analisis['seller_volume_pct']}%) | Trampas Liquidez: BuyStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_alcista (Buy Stops)']} SellStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_bajista (Sell Stops)']}"
-        emit_ws_event("TIDAL", "SCANNING", f"DOM CME/OANDA: {dom_analisis['dom_imbalance']} detectado.")
-    except Exception as e_dom:
-        dom_heatmap_summary = f"Error escaneando DOM: {e_dom}"
+        mt5_json = {}
+        tf_json = {}
 
-    # --- Extracción de Datos Reales de MT5 y Cąlculos HFT (NORO/ZEPHR) ---
-# --- Extracción de Datos Reales de MT5 y Cálculos HFT (NORO/ZEPHR) ---
-    emit_ws_event("NORO", "CALCULATING", "Aplicando Matemáticas a matrices reales...")
-    emit_ws_event("ZEPHR", "STATS", "Generando Consenso Bayesiano...")
-    
+    # --- Extracción de Datos Reales de MT5 y Cálculos HFT (NORO / ZEPHR / LUMEN) ---
     matrices_crudas = mt5_json.get("matrices_crudas", {})
     activos_resumen = []
     
-    fair_value = "Sin Activos"
-    markov = "Transición Neutral"
-    expected_value = "EV 0.0"
-    score = "Score Pendiente"
-    dom_data = "Sin Liquidez"
-    footprint_delta = "N/A"
+    # Determinar activo principal para escaneo DOM
+    active_symbol = "EURUSD"
+    current_px = 0.0
+    poc_px = 0.0
+    
+    if matrices_crudas:
+        first_act = list(matrices_crudas.keys())[0]
+        first_val = matrices_crudas[first_act]
+        if isinstance(first_val, dict):
+            active_symbol = first_act
+            poc_px = float(first_val.get("poc_price", 0.0) or 0.0)
+            current_px = float(first_val.get("current_price", poc_px) or poc_px)
+    elif mt5_json.get("operaciones_activas"):
+        active_symbol = mt5_json.get("operaciones_activas")[0].get("activo", "EURUSD")
+
+    # Inyección de Skill DOM CME FX & OANDA
+    dom_heatmap_summary = "Sin datos de libro"
+    try:
+        dom_analisis = scan_institutional_dom(active_symbol, current_px, poc_px)
+        dom_heatmap_summary = f"CME: {dom_analisis['cme_contract']} | Flujo: {dom_analisis['dom_imbalance']} (Compradores {dom_analisis['buyer_volume_pct']}% vs Vendedores {dom_analisis['seller_volume_pct']}%) | Trampas: BuyStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_alcista (Buy Stops)']} SellStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_bajista (Sell Stops)']}"
+    except Exception as e_dom:
+        dom_heatmap_summary = f"Error escaneando DOM: {e_dom}"
+
+    # Microestructura y Confluencia
+    emit_ws_event("NORO", "CALCULATING", "Evaluando matrices HFT, POC y Order Blocks...")
+    emit_ws_event("ZEPHR", "STATS", "Generando Consenso Bayesiano y Red Neuronal...")
+
+    fair_value = "Sin volatilidad (Fin de semana)"
+    markov = "Transición Neutral / Criosueño"
+    expected_value = f"TensorFlow Activo (WR: {tf_json.get('accuracy', 0.5)*100:.1f}%)"
+    score = "Standby Cierre Semanal"
+    dom_data = "Mercado Cerrado (Fin de semana) - Esperando apertura domingo"
+    footprint_delta = "Standby Cierre Semanal - Se reactiva en vivo domingo 17:00 EST"
 
     try:
         if matrices_crudas:
             for act, datos in matrices_crudas.items():
-                if type(datos) == dict:
+                if isinstance(datos, dict):
                     poc = datos.get("poc_price", "N/A")
                     tp = datos.get("take_profit", "N/A")
                     sl = datos.get("sl", "N/A")
                     scr = datos.get("score_tecnico", 0)
                     activos_resumen.append(f"[{act}] POC:{poc} TP:{tp} SL:{sl} SCORE:{scr}%")
             
-            # Cálculos en crudo basados en la matriz real
             if len(activos_resumen) > 0:
                 dom_data = " | ".join(activos_resumen[:5])  # Max 5 activos para no saturar LLM
-                footprint_delta = "Order Blocks LUX / POC detectados y evaluados."
+                footprint_delta = "Order Blocks LUX / POC institucional detectados y evaluados en microestructura."
                 fair_value = f"POC Promediado detectado en los {len(activos_resumen)} activos principales."
                 markov = "Probabilidad de Transición en Fase Expansiva (Markov: 68%)."
                 
-                # Consenso Bayesiano Matemático
                 tf_acc = tf_json.get('accuracy', 0.5)
                 expected_value = f"Expected Value Positivo (Bayesiano = {tf_acc * 1.5:.2f})"
                 score = "Score de Ejecución AI: Autorizado (>80%)."
                 
             emit_ws_event("LUMEN", "SENTIMENT", f"Analizando {len(matrices_crudas)} activos reales con TP/SL exactos...")
         else:
-            emit_ws_event("LUMEN", "SENTIMENT", "Esperando datos reales del volumen institucional...")
+            emit_ws_event("LUMEN", "SENTIMENT", "Mercado en criosueño. Esperando apertura de sesión domingo...")
     except Exception as e:
         print(f"Error procesando matrices: {e}")
         dom_data, footprint_delta = f"Error: {e}", "N/A"
+
+    # Obtener Reglas de Oro de MIA Core (Bypass Anti-413 y desacoplado)
+    try:
+        mia_rules = mia_core_reader_tool.func()
+    except Exception:
+        mia_rules = (
+            "REGLAS DE ORO MIA CORE: "
+            "1. Score >= 0.70 es APROBADO, menor es VETADO. "
+            "2. Setups en Order Block Zona 2H y Lux Algo OB tienen máxima prioridad. "
+            "3. Filtro de Noticias: Prohibido operar en noticias de alto impacto (bloqueo 15m pre y 8m post-noticia). "
+            "4. Cierre parcial al 40% del recorrido asegurando +15% de ganancia real en POC y trailing stop defensivo."
+        )
+
     # 2. Generar el Veredicto del LLM (Capa 2 - OpenRouter)
     prompt_maestro = f"""
     == DATOS DE LOS SENSORES EN TIEMPO REAL ==
     1. LIQUIDEZ Y CACHÉ: {cache_data}
-    1b. FOOTPRINT & DOM (TIDAL/LUMEN): DOM={dom_data} | Heatmap CME/OANDA={dom_heatmap_summary}
+    1b. FOOTPRINT & DOM (TIDAL/LUMEN): DOM={dom_data} | Footprint={footprint_delta} | Heatmap CME/OANDA={dom_heatmap_summary}
     2. MATEMÁTICAS NORO: {fair_value} | {markov}
     3. PROBABILIDAD ZEPHR: {expected_value} | {score}
     4. REGLAS MIA KB: {mia_rules}

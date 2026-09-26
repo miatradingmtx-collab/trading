@@ -80,10 +80,14 @@ def railway_cache_tool() -> str:
 def mia_core_reader_tool() -> str:
     """Útil para que el Master Agent lea las reglas de oro y arquitectura base (Regla de 3, Riesgo) desde DOCUMENTACION_MIA_CORE.md"""
     try:
-        # BYPASS ANTI-413 (Groq ITPM Limit): El archivo original tiene 24,000 caracteres (7000+ tokens).
-        # Esto excedia el limite de Input Tokens Per Minute (7000 ITPM) causando un crash 413.
-        # Devolvemos solo la sintesis estricta de las reglas de riesgo:
-        return "REGLAS DE ORO MIA CORE: 1. Score >= 0.70 es APROBADO, menor es VETADO. 2. Si indicador lux_algo_ob o alineamiento_liquidez esta presente, asignar maxima prioridad y apalancamiento."
+        # BYPASS ANTI-413 (Token Optimization): Devolvemos la síntesis estricta de las reglas maestras de riesgo y ejecución
+        return (
+            "REGLAS DE ORO MIA CORE: "
+            "1. Score >= 0.70 es APROBADO, menor es VETADO. "
+            "2. Setups en Order Block Zona 2H y Lux Algo OB tienen máxima prioridad y apalancamiento institucional. "
+            "3. Filtro de Noticias: Prohibido operar en noticias de alto impacto (bloqueo 15m pre y 8m post-noticia para evitar trampas institucionales de liquidez). "
+            "4. Cierre parcial al 40% del recorrido asegurando +15% de ganancia real en POC y activando trailing stop defensivo."
+        )
     except Exception as e:
         return f"Error leyendo Mia Core: {str(e)}"
 

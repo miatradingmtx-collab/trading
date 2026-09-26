@@ -1044,7 +1044,20 @@ ecent_logs desde cache_hist_mt5.
 - **Modelado Matemático y Simulación:**
   - Se ejecutó el backtest cuantitativo sobre los 43 trades auditados de la semana (21-25 Sep 2026), aplicando la inferencia no lineal de TensorFlow Keras ($ec{X} \in \mathbb{R}^6$), el consenso bayesiano de ZEPHR, el filtro de veto de RUNE y la nueva gestión de riesgo con Trailing Profit +15% en el POC.
   - *Resultados Cuantitativos Proyectados:*
-    1. **Diario:** Promedio de 3.6 trades/día | +$85.67 USD/día (+1.98% diario sobre capital de ,325.09).
+    1. **Diario:** Promedio de 3.6 trades/día | +$85.67 USD/día (+1.98% diario sobre capital de $4,325.09).
     2. **Semanal:** 18 trades ejecutados de alta confluencia | WinRate proyectado del 90% al 95% | +$428.37 USD/semana (+9.90% semanal).
-    3. **Mensual (20 días de mercado):** ~72 trades | +$1,542.48 USD a ,713.48 USD/mes (+35.66% a +39.62% mensual).
+    3. **Mensual (20 días de mercado):** ~72 trades | +$1,542.48 USD a $1,713.48 USD/mes (+35.66% a +39.62% mensual).
     4. *Capital Proyectado a Fin de Mes:* De $4,325.09 a $5,867.57 USD.
+
+### [Update 2026-09-26 - Sesión 8] - Corrección de mia_rules, Desacoplamiento de Footprint/POC/TP/SL y Optimización Anti-Redundancia de Enjambres
+- **Corrección de la Variable mia_rules (Swarm REST):**
+  - Se resolvió la ausencia de definición de `mia_rules` antes de `prompt_maestro` en `mia_master_swarm_rest.py`. Ahora se extrae directamente vía `mia_core_reader_tool.func()` con un fallback robusto que inyecta las 4 Reglas de Oro de riesgo institucional (Score >= 0.70, Prioridad Lux Algo OB / 2H, Filtro de Noticias Anti-Trampa, Cierre Parcial 40% con +15% asegurado en POC).
+- **Diagnóstico y Solución de Footprint, POC, TP y SL:**
+  1. *Cierre Semanal de Mercado:* El mercado de Forex cerró el viernes a las 17:00 EST. Durante el fin de semana (criosueño) no hay flujo de ticks desde el broker MetaTrader 5, por lo que `matrices_crudas` se encuentra temporalmente vacío (`{}`). El sistema ahora despliega un estado claro: *"Mercado Cerrado (Fin de semana) - Esperando apertura domingo"* en lugar de un ambiguo `N/A`.
+  2. *Deserialización JSON en Upstash:* Se corrigió la lectura de `cache_mt5` y `cache_mia_tensorflow` implementando `json.loads()` seguro para strings retornados por Upstash Redis, evitando excepciones silenciosas (`'str' object has no attribute 'get'`).
+  3. *Apertura de Mercado:* Tan pronto abra el mercado el domingo a las 17:00 EST / 21:00 UTC y MT5 inyecte ticks a `cache_mt5`, los campos de POC, TP, SL, Score y Footprint Delta se actualizarán de forma automática e inmediata con los datos en tiempo real.
+- **Barrido Anti-Redundancia y Optimización de Latencia en Enjambres:**
+  - *Extracción Dinámica para DOM Institucional:* `scan_institutional_dom(active_symbol, current_px, poc_px)` ahora toma el activo principal y el POC real de las operaciones activas o matrices crudas en vez de valores fijos.
+  - *Eliminación de Imports Cíclicos:* Se movió la importación del escáner DOM al encabezado del módulo para no reimportarlo en cada iteración de 15 segundos.
+  - *Latencia Local Cero:* Optimización de `emit_ws_event` apuntando a `127.0.0.1` con timeout de 0.3s, evitando resoluciones lentas de IPv6 en Windows y asegurando ciclos HFT limpios y ligeros.
+  - *Inclusión de Footprint en Prompt Maestro:* Se restauró `{footprint_delta}` en la confluencia de Sensores 1b del prompt enviado al modelo de lenguaje en OpenRouter.
