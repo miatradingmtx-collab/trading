@@ -471,3 +471,14 @@ ailway_cache_tool. Esta compresión redujo el peso del JSON de 54,000 a ~5,000 c
      P_{ij} = P(S_{t+1} = j \mid S_t = i) = \frac{N_{ij}}{\sum_k N_{ik}}
   3. *Consenso Bayesiano Ponderado (Score de Ejecución):*
      Score_{Bayes} = w_1 P_{Markov} + w_2 WR_{hist} + w_3 (S_{sent} - 1), \quad (w_1=0.4, w_2=0.5, w_3=0.1)
+
+### [Update 2026-09-25 - Sesión 3] - Integración DOM (CME FX & OANDA) y Sanitización como Reloj Suizo
+- **Modificación de Arquitectura:**
+  1. Sanitización de cadenas recursivas en detalle_setup (pp.py y mia_master_swarm_rest.py). Se eliminó la concatenación exponencial de strings duplicados (EJECUTADA EN MT5), reduciendo la sobrecarga de tokens a un resumen ligero y ágil.
+  2. Creación del módulo institucional dom_institutional_scanner.py, asignando a los agentes **TIDAL** (microestructura y heatmap) y **LUMEN** (imbalance y absorción) la capacidad de leer contratos equivalentes de futuros de divisas CME (6E, 6B, 6J, 6A, 6N) y ratios de libro de órdenes de OANDA.
+- **Modelados Matemáticos y Ponderaciones:**
+  1. Ajuste de precisión decimal Forex en 
+ound_floats: se fija en 5 decimales mínimos para precios, Stop Loss, Take Profit y POC para evitar truncamiento destructivo en pares mayores y cruces JPY.
+  2. Actualización de mia_kb/regla_de_3 con el bloque iltro_trampa_noticias:
+     \Delta t_{\text{bloqueo}} = 15 \text{ min pre-noticia}, \quad \Delta t_{\text{reversión}} = 8 \text{ min post-noticia}
+     Regla estricta de cierre parcial (50-80%) en operaciones activas de la sesión de Londres antes de noticias de alto impacto en Nueva York para asegurar beneficios diarios protegidos (1% a 5%).
