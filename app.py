@@ -3271,16 +3271,16 @@ def asegurar_cache_firebase():
             restaurado_upstash = False
             if GLOBAL_AUDIT_LOGS is None:
                 try:
-                    import requests
-                    r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mt5", headers={"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}, timeout=3)
+                    import requests, json
+                    up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                    r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=3)
                     if r.status_code == 200:
-                        import json
                         up_res = r.json()
                         up_data = json.loads(up_res.get("result", "{}"))
                         GLOBAL_AUDIT_LOGS = up_data.get("recent_logs", [])
                         if GLOBAL_AUDIT_LOGS:
                             restaurado_upstash = True
-                            print("| UPSTASH RESTORE | CachÃƒÂ© restaurada exitosamente desde Redis!")
+                            print("| UPSTASH RESTORE | 150 Logs de Auditoría restaurados exitosamente desde Redis!")
                 except Exception as up_err:
                     print(f"| UPSTASH ERROR | No se pudo restaurar desde Redis: {up_err}")
             
