@@ -236,6 +236,21 @@ try:
             return {"status": "empty", "data": None}
         except Exception as e:
             return {"status": "error", "message": str(e)}
+
+    @app.get("/api/shadow/trades")
+    async def api_get_shadow_trades():
+        """Obtiene el historial de trades reales correlacionados con tickets virtuales #SHADOW_XXXXXX desde Upstash"""
+        try:
+            import requests, json
+            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+            r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_shadow_trades", headers=up_headers, timeout=4)
+            if r.status_code == 200:
+                raw = r.json().get("result")
+                data = json.loads(raw) if raw and isinstance(raw, str) else (raw or {})
+                return {"status": "success", "data": data, "source": "upstash_cache_shadow_trades"}
+            return {"status": "empty", "data": None}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 except Exception as e_mcp:
     print(f"Error montando MCP en websocket server: {e_mcp}")
 
