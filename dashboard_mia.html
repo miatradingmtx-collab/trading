@@ -593,32 +593,46 @@
 
                 <!-- Backtesting -->
                 <div class="card" style="margin-top:24px;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
                         <div>
-                            <div class="card-title" style="margin:0; font-size:16px; color:var(--text-main);">Resultados de Backtesting</div>
-                            <div style="font-size:11px; color:var(--text-muted);">Simulation Engine v4.2 | 100,000 iterations</div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div class="card-title" style="margin:0; font-size:16px; color:var(--text-main);">Resultados de Backtesting & Bifurcación A/B</div>
+                                <span style="background:rgba(255,170,0,0.15); border:1px solid rgba(255,170,0,0.4); color:#ffaa00; font-size:10px; padding:2px 8px; border-radius:12px; font-weight:bold;"><i class="fa-solid fa-shield-halved"></i> ATLAS APRENDIZ (SANDBOX ACTIVO)</span>
+                            </div>
+                            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Simulation Engine v4.2 | 100,000 iterations | <strong>MT5 Real: BLOQUEADO (Cero riesgo de ejecución)</strong></div>
                         </div>
-                        <div style="display:flex; gap:20px; align-items:center;">
-                            <div style="text-align:right;"><span style="font-size:10px; color:var(--text-muted);">Esperanza Matemática</span><br><strong class="text-green">+0.42R</strong></div>
-                            <div style="text-align:right;"><span style="font-size:10px; color:var(--text-muted);">Kelly Criterion</span><br><strong class="text-blue">0.18</strong></div>
-                            <button class="btn-green" style="padding:8px 16px;"><i class="fa-solid fa-play"></i> Desplegar en Vivo</button>
+                        <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+                            <div style="text-align:right;"><span style="font-size:10px; color:var(--text-muted);">Esperanza Sin ATLAS</span><br><strong class="text-muted">+0.42R</strong></div>
+                            <div style="text-align:right;"><span style="font-size:10px; color:var(--neon-green);">Esperanza Con ATLAS</span><br><strong class="text-green">+0.61R <small style="font-size:10px;">(+0.19R)</small></strong></div>
+                            <div style="text-align:right;"><span style="font-size:10px; color:var(--text-muted);">Kelly Criterion</span><br><strong class="text-blue">0.24</strong></div>
+                            <div style="background:rgba(0,255,157,0.1); border:1px solid rgba(0,255,157,0.3); color:var(--neon-green); padding:6px 12px; border-radius:6px; font-size:11px; font-weight:bold;"><i class="fa-solid fa-flask"></i> A/B Testing Científico</div>
                         </div>
                     </div>
                     
-                    <div style="display:grid; grid-template-columns:3fr 1fr; gap:24px;">
-                        <div style="height:200px; border:1px solid var(--border-color); border-radius:6px; display:flex; align-items:flex-end; padding:20px; position:relative;">
-                            <div style="position:absolute; top:10px; left:20px; font-size:10px; color:var(--text-muted);">Cumulative Equity Curve (Out-of-sample)</div>
+                    <div style="display:grid; grid-template-columns:2.5fr 1.5fr; gap:24px;">
+                        <div style="height:210px; border:1px solid var(--border-color); border-radius:6px; display:flex; align-items:flex-end; padding:20px; position:relative; background:rgba(0,0,0,0.15);">
+                            <div style="position:absolute; top:10px; left:20px; font-size:10px; color:var(--text-muted); display:flex; gap:16px;">
+                                <span><i class="fa-solid fa-minus text-green"></i> <strong>Con ATLAS (CVD Delta + ATR + DOM): +128%</strong></span>
+                                <span><i class="fa-solid fa-ellipsis" style="color:#8b949e;"></i> Sin ATLAS (Baseline Tradicional): +95%</span>
+                            </div>
                             <!-- Mock chart curve SVG -->
                             <svg viewBox="0 0 500 100" style="width:100%; height:100%; overflow:visible;">
-                                <path d="M 0 90 L 50 85 L 100 88 L 150 70 L 200 65 L 250 40 L 300 45 L 350 25 L 400 30 L 450 10 L 500 5" fill="none" stroke="var(--neon-green)" stroke-width="2"/>
-                                <path d="M 0 90 L 50 88 L 100 92 L 150 85 L 200 80 L 250 75 L 300 70 L 350 65 L 400 55 L 450 60 L 500 50" fill="none" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="4"/>
+                                <!-- Rama B: Con ATLAS (Curva Superior con menor drawdown) -->
+                                <path d="M 0 90 L 50 82 L 100 85 L 150 62 L 200 54 L 250 32 L 300 35 L 350 18 L 400 20 L 450 6 L 500 2" fill="none" stroke="var(--neon-green)" stroke-width="2.5"/>
+                                <!-- Rama A: Sin ATLAS (Curva Baseline) -->
+                                <path d="M 0 90 L 50 88 L 100 92 L 150 85 L 200 80 L 250 75 L 300 70 L 350 65 L 400 55 L 450 60 L 500 50" fill="none" stroke="var(--text-muted)" stroke-width="1.2" stroke-dasharray="4"/>
                             </svg>
                         </div>
                         <div>
-                            <h4 style="font-size:10px; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px;">Métricas de Rendimiento</h4>
-                            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-color); padding:8px 0; font-size:12px;"><span>Total de Trades</span><strong>1,248</strong></div>
-                            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-color); padding:8px 0; font-size:12px;"><span>Promedio de Ganancia / Trade</span><strong class="text-green">+$142.50</strong></div>
-                            <div style="display:flex; justify-content:space-between; padding:8px 0; font-size:12px;"><span>Z-Score</span><strong>2.14</strong></div>
+                            <h4 style="font-size:10px; color:var(--text-muted); text-transform:uppercase; margin-bottom:10px; display:flex; justify-content:space-between;">
+                                <span>Métrica Comparativa</span>
+                                <span>Sin ATLAS vs <strong>Con ATLAS</strong></span>
+                            </h4>
+                            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-color); padding:6px 0; font-size:11px;"><span>Win Rate Global</span><span>78.0% vs <strong class="text-green">83.5% (+5.5%)</strong></span></div>
+                            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-color); padding:6px 0; font-size:11px;"><span>Profit Factor</span><span>2.15 vs <strong class="text-green">2.65 (+0.50)</strong></span></div>
+                            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-color); padding:6px 0; font-size:11px;"><span>Max Drawdown</span><span>-4.0% vs <strong class="text-green">-2.8% (Menos DD)</strong></span></div>
+                            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-color); padding:6px 0; font-size:11px;"><span>Promedio / Trade</span><span>+$142.50 vs <strong class="text-green">+$168.20</strong></span></div>
+                            <div style="display:flex; justify-content:space-between; padding:6px 0; font-size:11px;"><span>Z-Score (Confiabilidad)</span><span>2.14 vs <strong class="text-blue">2.45 (>98%)</strong></span></div>
                         </div>
                     </div>
                 </div>

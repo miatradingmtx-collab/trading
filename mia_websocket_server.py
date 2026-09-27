@@ -207,6 +207,21 @@ try:
             return {"status": "empty", "data": None}
         except Exception as e:
             return {"status": "error", "message": str(e)}
+
+    @app.get("/api/atlas/backtest_data")
+    async def api_get_atlas_backtest_data():
+        """Obtiene la matriz comparativa A/B (Champion vs Challenger) directamente desde Upstash Redis"""
+        try:
+            import requests, json
+            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+            r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_atlas", headers=up_headers, timeout=4)
+            if r.status_code == 200:
+                raw = r.json().get("result")
+                data = json.loads(raw) if raw and isinstance(raw, str) else (raw or {})
+                return {"status": "success", "data": data, "source": "upstash_cache_mia_atlas"}
+            return {"status": "empty", "data": None}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 except Exception as e_mcp:
     print(f"Error montando MCP en websocket server: {e_mcp}")
 

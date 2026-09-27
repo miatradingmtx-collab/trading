@@ -303,6 +303,8 @@ def run_hft_cycle():
     # 3. Guardar el Historial y Debate (Upstash Redis + Firebase)
     try:
         safe_title = f"REST_HFT_Report_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+        decision_sin_atlas = "VETADO" if "VETA" in (h3_match.group(1) if h3_match else veredicto).upper() else "APROBADO"
+        
         payload = {
             "title": safe_title,
             "content": veredicto,
@@ -311,16 +313,24 @@ def run_hft_cycle():
                 "herd_1_macro": h1_match.group(1).strip() if h1_match else "N/A",
                 "herd_2_stats": h2_match.group(1).strip() if h2_match else "N/A",
                 "herd_3_consensus": h3_match.group(1).strip() if h3_match else veredicto,
-                "estado": estado
+                "estado": estado,
+                "bifurcacion_ab": {
+                    "decision_champion_sin_atlas": decision_sin_atlas,
+                    "decision_challenger_con_atlas": estado.replace(" ⛔", "").replace(" ✅", ""),
+                    "modo_atlas": "APRENDIZ_SANDBOX_SIMULACION",
+                    "ejecucion_mt5_restringida_a_champion": True
+                }
             },
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
         
-        # Guardado en Firebase (mia_herds_history y mia_swarm_rest_history)
+        # Guardado en Firebase (mia_herds_history, mia_swarm_rest_history y mia_atlas)
         if db is not None:
             db.collection("mia_herds_history").document(safe_title).set(payload)
             db.collection("mia_swarm_rest_history").document(safe_title).set(payload)
-            emit_ws_event("Master", "INFO", "Debate Herds registrado y homologado en Firebase (mia_herds_history).")
+            db.collection("mia_atlas").document("latest_debate_ab").set(payload)
+            emit_ws_event("Master", "INFO", "Debate Herds y Bifurcación A/B registrados en Firebase (mia_herds_history & mia_atlas).")
+
             
         # Guardado en Upstash Redis (cache_herd_debate_latest y cache_mia_swarm_rest_latest)
         upstash_url = "https://certain-gnat-160816.upstash.io/set/cache_mia_swarm_rest_latest"

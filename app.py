@@ -3602,6 +3602,21 @@ def api_researcher_latest():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/atlas/backtest_data")
+def api_atlas_backtest_data():
+    """Retorna la matriz de bifurcación A/B (Champion vs Challenger) desde Upstash Redis (Anti-429)."""
+    try:
+        import requests, json
+        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_atlas", headers=up_headers, timeout=3)
+        if r.status_code == 200:
+            res = r.json().get("result")
+            if res:
+                return {"status": "success", "data": json.loads(res), "source": "upstash_cache_mia_atlas"}
+        return {"status": "empty", "data": None}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 
 @app.get("/api/open_trades")
 def api_open_trades():
