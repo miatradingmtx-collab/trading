@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIA Core — Servidor MCP ATLAS & Conexiones Externas</title>
+    <title>MIA Core — Servidor MCP ATLAS & Topología de Conexiones Externas</title>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -15,19 +15,21 @@
             --neon-green: #10b981;
             --neon-amber: #f59e0b;
             --neon-violet: #8b5cf6;
+            --neon-pink: #ec4899;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
         }
+        * { box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
             margin: 0;
-            padding: 24px;
+            padding: 20px;
         }
         .header {
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             padding-bottom: 16px;
             border-bottom: 1px solid var(--border-color);
         }
@@ -35,6 +37,7 @@
             color: var(--neon-blue);
             margin: 0 0 8px 0;
             font-size: 26px;
+            letter-spacing: 0.5px;
         }
         .header p {
             color: var(--text-muted);
@@ -44,7 +47,7 @@
         .badge-bar {
             display: flex;
             justify-content: center;
-            gap: 12px;
+            gap: 10px;
             margin-top: 14px;
             flex-wrap: wrap;
         }
@@ -72,24 +75,100 @@
             border-color: var(--neon-violet);
             color: var(--neon-violet);
         }
-        .diagram-card {
-            background: var(--card-bg);
+        .badge.pink {
+            background: rgba(236, 72, 153, 0.1);
+            border-color: var(--neon-pink);
+            color: var(--neon-pink);
+        }
+
+        /* Viewport Pan & Zoom */
+        .viewport-wrapper {
+            position: relative;
+            width: 100%;
+            height: 740px;
+            background: radial-gradient(circle at center, #0f172a 0%, #080c14 100%);
             border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-            overflow-x: auto;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            cursor: grab;
+            user-select: none;
+        }
+        .viewport-wrapper:active {
+            cursor: grabbing;
+        }
+        .zoom-toolbar {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 8px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+        }
+        .btn-tool {
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-tool:hover {
+            background: var(--neon-blue);
+            color: #080c14;
+            box-shadow: 0 0 12px var(--neon-blue);
+        }
+        .zoom-indicator {
+            font-family: monospace;
+            font-size: 14px;
+            color: var(--neon-green);
+            font-weight: bold;
+            min-width: 50px;
+            text-align: center;
+        }
+        .zoom-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            border-left: 1px solid var(--border-color);
+            padding-left: 10px;
+            margin-left: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pan-zoom-container {
+            width: 100%;
+            height: 100%;
+            transform-origin: 0 0;
+            display: inline-block;
+            padding: 40px;
         }
         .mermaid {
-            display: flex;
-            justify-content: center;
+            display: inline-block;
+            min-width: 1600px;
         }
+
+        /* Tabla de herramientas */
         .tools-table-container {
             margin-top: 24px;
             background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
             overflow-x: auto;
         }
         table {
@@ -113,7 +192,7 @@
         }
         .code-tag {
             font-family: monospace;
-            background: rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.4);
             border: 1px solid var(--border-color);
             padding: 2px 6px;
             border-radius: 4px;
@@ -125,29 +204,42 @@
 
     <div class="header">
         <h1><i class="fa-solid fa-satellite-dish"></i> Servidor MCP ATLAS & Topología de Conexiones Externas</h1>
-        <p>Extracción de Microestructura, Feeds Institucionales y Cruce Matricial en Upstash Redis (Anti-429)</p>
+        <p>Extracción de Microestructura, Feeds Institucionales y Cruce Matricial en Upstash Redis (Anti-429) | Zoom Interactivo</p>
         <div class="badge-bar">
-            <span class="badge"><i class="fa-solid fa-server"></i> MCP JSON-RPC 2.0 (Protocolo 2024-11-05)</span>
-            <span class="badge green"><i class="fa-solid fa-bolt"></i> Latencia In-Process: < 2ms</span>
+            <span class="badge"><i class="fa-solid fa-server"></i> MCP JSON-RPC 2.0 (FastAPI 1fd4)</span>
+            <span class="badge green"><i class="fa-solid fa-bolt"></i> Latencia In-Process: &lt; 2ms</span>
             <span class="badge amber"><i class="fa-solid fa-database"></i> Slots Upstash: cache_mia_atlas & cache_shadow_trades</span>
             <span class="badge violet"><i class="fa-solid fa-shield-halved"></i> Sandboxed (0 Órdenes MT5)</span>
+            <span class="badge pink"><i class="fa-solid fa-network-wired"></i> Desacoplamiento 7 Herds + Master</span>
         </div>
     </div>
 
-    <div class="diagram-card">
-        <div class="mermaid">
+    <!-- Contenedor con Zoom & Pan -->
+    <div class="viewport-wrapper" id="viewport-wrapper">
+        <div class="zoom-toolbar">
+            <button class="btn-tool" id="btn-zoom-in" title="Acercar (Zoom In)"><i class="fa-solid fa-plus"></i></button>
+            <button class="btn-tool" id="btn-zoom-out" title="Alejar (Zoom Out)"><i class="fa-solid fa-minus"></i></button>
+            <button class="btn-tool" id="btn-reset" title="Restablecer (100%)"><i class="fa-solid fa-rotate-right"></i> 100%</button>
+            <button class="btn-tool" id="btn-fit" title="Ajustar a pantalla"><i class="fa-solid fa-expand"></i> Ajustar</button>
+            <span class="zoom-indicator" id="zoom-val">100%</span>
+            <span class="zoom-hint"><i class="fa-solid fa-mouse"></i> Rueda = Zoom | <i class="fa-solid fa-hand"></i> Arrastra = Mover</span>
+        </div>
+
+        <div class="pan-zoom-container" id="pan-zoom-container">
+            <div class="mermaid" id="mermaid-graph">
 flowchart TD
-    classDef extStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff;
+    classDef extStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#e0e7ff;
     classDef mcpStyle fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#f0f9ff;
     classDef toolStyle fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#ecfdf5;
     classDef agentStyle fill:#312e81,stroke:#a78bfa,stroke-width:2px,color:#f5f3ff;
+    classDef herdStyle fill:#1e293b,stroke:#ec4899,stroke-width:2px,color:#fdf2f8;
     classDef cacheStyle fill:#451a03,stroke:#f59e0b,stroke-width:2px,color:#fef3c7;
     classDef syncStyle fill:#14532d,stroke:#4ade80,stroke-width:1.5px,color:#f0fdf4;
 
     subgraph FEEDS_EXTERNOS["1. Fuentes Externas de Información Institucional"]
         direction TB
         CME["CME Group Futures API\nContratos: 6E, 6B, 6J, 6A, GC\n(Order Flow & Heatmap)"]:::extStyle
-        OANDA["OANDA OrderBook REST API\n/v3/instruments/{instrument}/orderBook\n(Resting Liquidity & Retail Ratios)"]:::extStyle
+        OANDA["OANDA OrderBook REST API\n/v3/instruments/{symbol}/orderBook\n(Resting Liquidity & Retail Ratios)"]:::extStyle
         STOOQ["Stooq / Yahoo Finance Gateway\n/api/chart_data/{symbol}\n(ATR Dinámico & Desviación)"]:::extStyle
         NEWS["Forex Factory / TradingEconomics\nCalendario de Noticias de Alto Impacto\n(Filtro de Bloqueo 15m/8m)"]:::extStyle
         FRED["Federal Reserve FRED API\nYields US10Y & Tasas de Interés\n(Sesgo Macro de Divisas)"]:::extStyle
@@ -170,7 +262,7 @@ flowchart TD
 
     subgraph AGENTE_ATLAS["3. Agente Investigador Cuantitativo (mia_researcher_agent.py)"]
         direction TB
-        ATLAS_CORE["ATLAS: Motor de Minería y Aprendizaje\n- Modo Aprendiz Activo\n- Cruce Matricial Histórico MT5 x Datos Nuevos\n- Asignación de Tickets #SHADOW_XXXXXX"]:::agentStyle
+        ATLAS_CORE["HERD 7 - ATLAS: Minería y Aprendizaje\n- Modo Aprendiz Activo\n- Cruce Matricial Histórico MT5 x Datos Nuevos\n- Asignación de Tickets #SHADOW_XXXXXX"]:::agentStyle
         BRIEF_BUILDER["Generador de 'Researcher Brief'\n(Para deliberación inter-agente Herds)"]:::agentStyle
         WHAT_IF_ENGINE["Motor Contrafactual 'What-If'\n(Comparativa de WinRate Con vs Sin ATLAS)"]:::agentStyle
     end
@@ -183,14 +275,19 @@ flowchart TD
         SLOT_MGET["cache_mget\n(Snapshot Consolidado del Sistema)"]:::cacheStyle
     end
 
-    subgraph PERSISTENCIA_PASIVA["5. Persistencia Pasiva Firestore & Consumo UI"]
+    subgraph MALLA_7_HERDS["5. Malla Desacoplada de 7 Herds Especializados (Sin Colisiones)"]
         direction TB
-        FB_ATLAS["Firestore: mia_atlas\n(Documento 'state' y Snapshots de Auditoría)"]:::syncStyle
-        DASH_STRATS["Dashboard 'Algo Strategies'\n(Renderiza Curva A/B y Z-Score 2.45)"]:::syncStyle
-        SWARM_HERDS["Enjambres Herds (TIDAL, NORO, ZEPHR, RUNE)\n(Consumen Brief sin consultar Firebase)"]:::syncStyle
+        H1["HERD 1: TIDAL\nMacro & Flujo Institucional"]:::herdStyle
+        H2["HERD 2: NORO\nMatemáticas & Cadenas de Markov"]:::herdStyle
+        H3["HERD 3: ZEPHR\nProbabilidad & Expected Value"]:::herdStyle
+        H4["HERD 4: LUMEN\nSmart Money Concepts & Order Blocks"]:::herdStyle
+        H5["HERD 5: RUNE\nGestión de Riesgo & Stop Defensivo"]:::herdStyle
+        H6["HERD 6: TENSORFLOW\nInferencia Neuronal Profunda"]:::herdStyle
+        H7["HERD 7: ATLAS\nMicroestructura DOM & CVD Delta"]:::herdStyle
+        MASTER["MASTER ORCHESTRATOR\nQuórum Calificado Ponderado (Score >= 0.70)"]:::syncStyle
     end
 
-    %% Relaciones
+    %% Conexiones
     CME & OANDA --> T_DOM & T_DELTA
     STOOQ --> T_ATR
     NEWS & FRED --> T_SENT
@@ -206,12 +303,14 @@ flowchart TD
     T_SYNC -->|Escritura Directa Sub-50ms| SLOT_ATLAS & SLOT_SHADOW & SLOT_INSIGHTS
     SLOT_ATLAS & SLOT_SHADOW & SLOT_INSIGHTS --- SLOT_MGET
 
-    SLOT_ATLAS & SLOT_SHADOW -.->|Snapshot Pasivo en Background| FB_ATLAS
-    SLOT_ATLAS -->|Zero Firestore Reads| DASH_STRATS
-    SLOT_INSIGHTS -->|Zero Firestore Reads| SWARM_HERDS
+    SLOT_INSIGHTS -->|Zero Firestore Reads| H7
+    SLOT_MGET -->|Bus MGET < 15ms| H1 & H2 & H3 & H4 & H5 & H6 & H7
+    H1 & H2 & H3 & H4 & H5 & H6 & H7 --> MASTER
+            </div>
         </div>
     </div>
 
+    <!-- Tabla Técnica -->
     <div class="tools-table-container">
         <h3 style="color:var(--neon-green); margin-top:0;"><i class="fa-solid fa-list-check"></i> Especificación Técnica de Herramientas del Servidor MCP</h3>
         <table>
@@ -271,16 +370,107 @@ flowchart TD
         </table>
     </div>
 
+    <!-- Script de Pan & Zoom y Mermaid -->
     <script>
         mermaid.initialize({
             startOnLoad: true,
             theme: 'dark',
             securityLevel: 'loose',
             flowchart: {
-                useMaxWidth: true,
+                useMaxWidth: false,
                 htmlLabels: true,
                 curve: 'basis'
             }
+        });
+
+        // Motor Pan & Zoom
+        const wrapper = document.getElementById('viewport-wrapper');
+        const container = document.getElementById('pan-zoom-container');
+        const zoomVal = document.getElementById('zoom-val');
+
+        let scale = 1.0;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+
+        function updateTransform() {
+            container.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            zoomVal.textContent = `${Math.round(scale * 100)}%`;
+        }
+
+        // Zoom In / Out / Reset / Fit
+        document.getElementById('btn-zoom-in').addEventListener('click', () => {
+            scale = Math.min(scale * 1.25, 4.0);
+            updateTransform();
+        });
+
+        document.getElementById('btn-zoom-out').addEventListener('click', () => {
+            scale = Math.max(scale / 1.25, 0.25);
+            updateTransform();
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            scale = 1.0;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
+        });
+
+        document.getElementById('btn-fit').addEventListener('click', () => {
+            const svg = container.querySelector('svg');
+            if (svg) {
+                const bBox = svg.getBBox();
+                const wrapW = wrapper.clientWidth - 40;
+                const wrapH = wrapper.clientHeight - 40;
+                scale = Math.min(wrapW / bBox.width, wrapH / bBox.height, 1.2);
+                translateX = (wrapper.clientWidth - bBox.width * scale) / 2;
+                translateY = (wrapper.clientHeight - bBox.height * scale) / 2;
+                updateTransform();
+            }
+        });
+
+        // Mouse Wheel Zoom
+        wrapper.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = wrapper.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+            const newScale = Math.min(Math.max(scale * zoomFactor, 0.25), 4.5);
+
+            translateX = mouseX - (mouseX - translateX) * (newScale / scale);
+            translateY = mouseY - (mouseY - translateY) * (newScale / scale);
+            scale = newScale;
+            updateTransform();
+        }, { passive: false });
+
+        // Mouse Drag Pan
+        wrapper.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.zoom-toolbar')) return;
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            updateTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // Auto-fit inicial al renderizar Mermaid
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('btn-fit').click();
+            }, 600);
         });
     </script>
 </body>

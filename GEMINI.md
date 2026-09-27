@@ -65,3 +65,22 @@ trigger: always_on
 2. **Asignación de Tickets Virtuales:** Cada trade analizado o simulado por los Enjambres Herds, TensorFlow o ATLAS debe asignarse a un ticket virtual con formato `#SHADOW_XXXXXX` correlacionado con el ticket real.
 3. **Análisis Contrafactual ("What-If"):** Toda comparación entre la Rama Champion (Herds tradicionales) y la Rama Challenger (ATLAS con CVD Delta + ATR + DOM) se almacena en los slots `cache_shadow_trades` y `cache_mia_atlas` de Upstash Redis para no contaminar el historial productivo ni generar errores 429 en Firebase.
 
+---
+name: malla_7_herds_desacoplada
+description: Regla para la arquitectura de 7 Herds desacoplados, Quórum Master y prevención de 429/404 en OpenRouter.
+trigger: always_on
+---
+
+# 🐝 REGLA: MALLA DE 7 HERDS DESACOPLADOS Y QUÓRUM MASTER
+1. **Taxonomía Unívoca de Especialización (Single Responsibility):** Prohibido fusionar o mezclar roles en un solo Herd. La malla consta de 7 agentes independientes:
+   - `HERD 1 (TIDAL)`: Macro Trend & Liquidez de Sesiones.
+   - `HERD 2 (NORO)`: Matemáticas Cuantitativas, POC y Markov.
+   - `HERD 3 (ZEPHR)`: Probabilidad Bayesiana y Expected Value.
+   - `HERD 4 (LUMEN)`: Smart Money Concepts (SMC) & Order Blocks.
+   - `HERD 5 (RUNE)`: Gestión de Riesgo Defensivo y Sizing.
+   - `HERD 6 (TENSORFLOW)`: Inferencia Neuronal Continua (Railway).
+   - `HERD 7 (ATLAS)`: Microestructura DOM CME/OANDA, CVD Delta y Servidor MCP.
+   - `MASTER ORCHESTRATOR`: Gatekeeper de Quórum Calificado Ponderado ($\sum w_i \cdot v_i \ge 0.70$).
+2. **Prevención Anti-429 y Anti-404:** Toda la deliberación inter-agente debe ejecutarse en un solo ciclo atómico a OpenRouter con triple failover (`meta-llama/llama-3.3-70b-instruct` -> `deepseek/deepseek-chat` -> `meta-llama/llama-3.1-70b-instruct`). Cero tokens de LLM para cómputo determinista (TF, NORO y ATLAS MCP corren en C++/Python nativo).
+
+

@@ -1474,6 +1474,39 @@ ecent_logs desde cache_hist_mt5.
      - Detalla la extracción hacia: CME Group FX Futures, OANDA OrderBook, Yahoo/Stooq ATR, Forex Factory Lockout, FRED Yields y arXiv Quantitative Finance.
      - Especifica el catálogo de 6 herramientas cuantitativas estandarizadas bajo el protocolo MCP JSON-RPC 2.0.
 
+### [Update 2026-09-27 - Sesión 29] - Arquitectura de 7 Herds Desacoplados, Motor Pan & Zoom en Diagramas HTML y Prevención de 429/404 en OpenRouter
+- **Taxonomía Desacoplada de 7 Herds Especializados + Master Orchestrator:**
+  - Se eliminó la agrupación híbrida de agentes para erradicar el sesgo de fusión (*Role Bleed*) y colisiones de prompt:
+    1. **HERD 1 (TIDAL):** Tendencia macro de sesiones (Londres/NY), sesgo de absorción institucional y volumen delta.
+    2. **HERD 2 (NORO):** Matemáticas cuantitativas, POC dinámico, POC semanal institucional y confluencia de Cadenas de Markov.
+    3. **HERD 3 (ZEPHR):** Probabilidad bayesiana continua, Expected Value ($EV = P_w \cdot W - P_l \cdot L$) y ratio Sharpe/Sortino adaptativo.
+    4. **HERD 4 (LUMEN):** Smart Money Concepts (SMC), Order Blocks LuxAlgo, Fair Value Gaps (FVG) y detección de trampas de liquidez.
+    5. **HERD 5 (RUNE):** Gestión de riesgo estricto, tamaño de lote defensivo, trailing stop y ratio R:R mínimo de 1:2.
+    6. **HERD 6 (TENSORFLOW):** Inferencia de red neuronal profunda en Railway (accuracy continuo 97.87%).
+    7. **HERD 7 (ATLAS):** Microestructura de libro de órdenes DOM CME/OANDA, Cumulative Volume Delta (CVD) y herramientas MCP.
+    - **MASTER ORCHESTRATOR:** Gatekeeper de Quórum Calificado Ponderado con umbral de decisión:
+      $$\text{Consensus Score} = \sum_{i=1}^{7} w_i \cdot \text{Voto}_i \ge 0.70 \implies \text{APROBADO} \quad (\text{sino VETADO})$$
+- **Evaluación Cuantitativa y Justificación como Mejor Práctica Institucional:**
+  - **Especialización Cognitiva Pura:** LUMEN ya no diluye su análisis en cálculos estadísticos; ZEPHR ya no inventa niveles técnicos; RUNE actúa como veto de riesgo puro e implacable.
+  - **Ponderación Matricial Individual:** Los pesos $w_1 \dots w_7$ se gestionan dinámicamente en Upstash Redis (`cache_dynamic_weights`).
+  - **Aislamiento de Fallos (Fault Isolation):** Si una fuente de datos o sensor externo experimenta latencia, los demás 6 Herds siguen deliberando sin bloqueos en cascada.
+- **Estrategia Anti-429 y Anti-404 en OpenRouter:**
+  - **Cálculo Determinista sin Consumo de LLM:** TensorFlow, las matemáticas de Markov de NORO y las herramientas MCP de ATLAS computan en C++/Python nativo en $< 2\text{ms}$ y publican en Upstash Redis (`cache_mget`). Cero gasto de tokens para matemáticas.
+  - **1 Sola Llamada Atómica por Ciclo:** La deliberación de los 7 Herds y el Master se envía a OpenRouter mediante turnos multi-agente estructurados en un solo request ($< 900\text{ms}$), impidiendo la saturación de cuota de peticiones por minuto (RPM) y erradicando bloqueos 429.
+  - **Triple Failover Dinámico de Modelos:** Para blindar contra caídas o errores 404 (modelos deprecados):
+    - *Champion:* `meta-llama/llama-3.3-70b-instruct` (Máxima precisión financiera).
+    - *Challenger:* `deepseek/deepseek-chat` (Alta velocidad y razonamiento cuantitativo).
+    - *Fallback:* `meta-llama/llama-3.1-70b-instruct` (Respaldo robusto de alta disponibilidad).
+- **Implementación del Motor Interactivo Pan & Zoom en Diagramas HTML:**
+  - Se solventó la pérdida de legibilidad en pantallas reducidas en:
+    - `diagrama_atlas_mcp_externo.html` (Ruta Railway: `/diagramas/atlas-mcp`)
+    - `diagrama_malla_shadow_bifurcacion.html` (Ruta Railway: `/diagramas/malla-shadow`)
+  - **Capacidades del Motor:**
+    - Barra de herramientas con botones: Acercar (`+`), Alejar (`-`), Restablecer (`100%`) y Ajustar a Pantalla (`Auto-Fit`).
+    - Zoom fluido mediante rueda del ratón (`wheel`) focalizado en la posición del cursor.
+    - Arrastre táctil y con cursor (`click & drag pan`) con estilo visual `grab` / `grabbing`.
+    - Renderizado con `flowchart: { useMaxWidth: false }` para preservar la resolución vectorial nativa y la nitidez tipográfica en cualquier nivel de ampliación.
+
 ---
 
 

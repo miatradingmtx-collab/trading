@@ -68,33 +68,40 @@ def emit_ws_event(agent_name, action, data):
         pass
 
 def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
-    """Llamada ultrarrápida y cruda vía REST a OpenRouter (Kill Switch Integrado + Auto Failover)"""
+    """Llamada ultrarrápida y cruda vía REST a OpenRouter (Kill Switch Integrado + Auto Failover Multi-Modelo)"""
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json"
     }
     
+    system_text = (
+        "Eres el Motor de Deliberación Inter-Agente Herds de MIA Core. "
+        "Una malla desacoplada de 7 Herds especializados dialogan, se cuestionan, se corrigen y alcanzan consenso financiero antes de ejecutar: "
+        "HERD 1 (TIDAL): Flujo macro, sesiones Londres/NY y volumen delta; "
+        "HERD 2 (NORO): Matemáticas cuantitativas, POC dinámico y cadenas de Markov; "
+        "HERD 3 (ZEPHR): Probabilidad bayesiana, Expected Value y ratio Sharpe; "
+        "HERD 4 (LUMEN): Smart Money Concepts (SMC), Order Blocks LuxAlgo y Fair Value Gaps; "
+        "HERD 5 (RUNE): Gestión de riesgo estricto, tamaño de lote defensivo y trailing stop; "
+        "HERD 6 (TENSORFLOW): Inferencia neuronal profunda continua; "
+        "HERD 7 (ATLAS): Microestructura institucional, Order Book DOM CME/OANDA, CVD Delta y MCP; "
+        "MASTER: Veredicto final ponderado (Score >= 0.70 APROBADO o VETADO). "
+        "El debate es directo, técnico, sin rodeos y sin repetir texto."
+    )
+    
     payload = {
         "model": model,
         "messages": [
-            {
-                "role": "system", 
-                "content": (
-                    "Eres el Motor de Deliberación Inter-Agente Herds de MIA Core. "
-                    "Los 3 Sub-Enjambres especializados dialogan, se cuestionan, se corrigen y alcanzan consenso financiero antes de ejecutar: "
-                    "HERD 1 (TIDAL & NORO) propone microestructura y niveles; "
-                    "HERD 2 (ZEPHR & LUMEN) audita probabilidad con TensorFlow y filtra trampas de noticias; "
-                    "HERD 3 (RUNE) emite el consenso final con veredicto estructurado. "
-                    "El debate es directo, financiero, sin rodeos y sin repetir texto."
-                )
-            },
+            {"role": "system", "content": system_text},
             {"role": "user", "content": prompt}
         ],
         "temperature": 0.2,
-        "max_tokens": 400,
+        "max_tokens": 550,
         "repetition_penalty": 1.15
     }
+    
+    # Modelos de failover en caso de timeout o 404/429
+    fallback_models = ["deepseek/deepseek-chat", "meta-llama/llama-3.1-70b-instruct"]
     
     try:
         # Kill Switch: 8 segundos máximo para evitar colapsos
@@ -102,19 +109,16 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
         response.raise_for_status()
         data = response.json()
         return data['choices'][0]['message']['content']
-    except requests.exceptions.Timeout:
-        return "ERROR_TIMEOUT: OpenRouter no respondió a tiempo. Operación abortada por Kill Switch."
-    except Exception as e:
-        # Failover automático si el modelo primario presenta intermitencia
-        if model != "meta-llama/llama-3.1-70b-instruct":
+    except Exception as e_primary:
+        for fb_model in fallback_models:
             try:
-                payload["model"] = "meta-llama/llama-3.1-70b-instruct"
+                payload["model"] = fb_model
                 resp_fb = requests.post(url, headers=headers, json=payload, timeout=8)
                 resp_fb.raise_for_status()
                 return resp_fb.json()['choices'][0]['message']['content']
-            except Exception as e2:
-                return f"ERROR_API_FAILOVER: {str(e2)}"
-        return f"ERROR_API: {str(e)}"
+            except Exception:
+                continue
+        return f"ERROR_API_FAILOVER: {str(e_primary)}"
 
 def run_hft_cycle():
     emit_ws_event("Master", "START", "Iniciando Ciclo REST HFT (TensorFlow + Swarm Neuronal).")
@@ -254,65 +258,87 @@ def run_hft_cycle():
 
     prompt_maestro = f"""
     == DATOS DE LOS SENSORES EN TIEMPO REAL ==
-    0. INVESTIGACIÓN Y HERRAMIENTAS MCP (ATLAS): {researcher_brief}
-    1. LIQUIDEZ Y CACHÉ: {cache_data}
-    1b. FOOTPRINT & DOM (TIDAL/LUMEN): DOM={dom_data} | Footprint={footprint_delta} | Heatmap CME/OANDA={dom_heatmap_summary}
-    2. MATEMÁTICAS NORO: {fair_value} | {markov}
-    3. PROBABILIDAD ZEPHR: {expected_value} | {score}
-    4. REGLAS MIA KB & BACKTEST ADAPTATIVO: {mia_rules}
+    1. LIQUIDEZ Y SALDO MT5: {cache_data}
+    2. MICROESTRUCTURA INSTITUCIONAL (DOM/CVD): DOM={dom_data} | Footprint={footprint_delta} | Heatmap CME/OANDA={dom_heatmap_summary}
+    3. MATEMÁTICAS CUANTITATIVAS (NORO): {fair_value} | {markov}
+    4. PROBABILIDAD Y EXPECTED VALUE (ZEPHR): {expected_value} | {score}
+    5. INFERENCIA RED NEURONAL (TENSORFLOW): Accuracy={tf_acc*100:.1f}%
+    6. BRIEF INTELIGENCIA EXTERNA ATLAS MCP: {researcher_brief}
+    7. REGLAS MIA KB & RIESGO: {mia_rules}
     
-    INSTRUCCIONES DE DELIBERACIÓN HERDS:
-    Genera el diálogo de debate, validación y consenso entre los 4 Enjambres especializados:
-    **HERD 0 - ATLAS**: Hallazgo de microestructura fresca (CVD Delta, ATR dinámico, CME resting liquidity y nuevas estrategias validadas por backtesting).
-    **HERD 1 - TIDAL & NORO**: Propuesta técnica de entrada, SL y niveles clave basados en DOM y POC.
-    **HERD 2 - ZEPHR & LUMEN**: Auditoría y contrapunto basado en TensorFlow ({tf_acc*100:.1f}%) y filtro de noticias/trampas de liquidez reportadas por ATLAS.
-    **HERD 3 - RUNE**: Veredicto final consensuado [APROBADO o VETADO] con ajustes finales y tipo de entrada.
+    INSTRUCCIONES DE DELIBERACIÓN DE LA MALLA (7 HERDS ESPECIALIZADOS + MASTER):
+    Genera el diálogo de debate, contrapuntos y consenso final entre los 7 Herds independientes:
+    **HERD 1 - TIDAL**: Tendencia macro de sesiones (Londres/NY) y sesgo de absorción institucional.
+    **HERD 2 - NORO**: Niveles cuantitativos clave (POC dinámico, POC semanal y confluencia de Markov).
+    **HERD 3 - ZEPHR**: Probabilidad estadística bayesiana y cálculo de Expected Value (EV en R).
+    **HERD 4 - LUMEN**: Smart Money Concepts (Order Blocks LuxAlgo, Fair Value Gaps y trampas de liquidez).
+    **HERD 5 - RUNE**: Gestión de riesgo estricto (SL técnico defensivo, tamaño de lote y ratio R:R).
+    **HERD 6 - TENSORFLOW**: Inferencia de red neuronal profunda (probabilidad continua de acierto).
+    **HERD 7 - ATLAS**: Microestructura de libro de órdenes DOM (CVD Delta, absorción y datos MCP externos).
+    **MASTER**: Veredicto final del Quórum Calificado [APROBADO ✅ o VETADO ⛔] indicando el Score Ponderado (0.00 a 1.00, umbral >= 0.70).
     
-    Responde estrictamente con exactamente una intervención por Herd (máximo 3 líneas por Herd, concisas y técnicas).
+    Responde estrictamente con exactamente una intervención por Herd (máximo 2 líneas por Herd, concisas y técnicas) y el veredicto del MASTER.
     """
     
-    emit_ws_event("Master", "DELIBERATION", "Iniciando debate inter-agente entre Herds (ATLAS + TIDAL/NORO + ZEPHR/LUMEN + RUNE)...")
+    emit_ws_event("Master", "DELIBERATION", "Iniciando debate inter-agente en Malla de 7 Herds Desacoplados + Master...")
     veredicto = llamar_openrouter_rest(prompt_maestro)
     
     if "ERROR_TIMEOUT" in veredicto or "ERROR_API" in veredicto:
-        emit_ws_event("RUNE", "ERROR", veredicto)
+        emit_ws_event("Master", "ERROR", veredicto)
         return veredicto
         
-    # Extraer intervenciones individuales para el WebSocket Terminal
-    h0_match = re.search(r'\*\*HERD 0[^\*]*\*\*[:\s]*([\s\S]*?)(?=\*\*HERD 1|\Z)', veredicto, re.IGNORECASE)
+    # Extraer intervenciones individuales para la terminal WebSocket y Malla
     h1_match = re.search(r'\*\*HERD 1[^\*]*\*\*[:\s]*([\s\S]*?)(?=\*\*HERD 2|\Z)', veredicto, re.IGNORECASE)
     h2_match = re.search(r'\*\*HERD 2[^\*]*\*\*[:\s]*([\s\S]*?)(?=\*\*HERD 3|\Z)', veredicto, re.IGNORECASE)
-    h3_match = re.search(r'\*\*HERD 3[^\*]*\*\*[:\s]*([\s\S]*?)(?=\Z)', veredicto, re.IGNORECASE)
+    h3_match = re.search(r'\*\*HERD 3[^\*]*\*\*[:\s]*([\s\S]*?)(?=\*\*HERD 4|\Z)', veredicto, re.IGNORECASE)
+    h4_match = re.search(r'\*\*HERD 4[^\*]*\*\*[:\s]*([\s\S]*?)(?=\*\*HERD 5|\Z)', veredicto, re.IGNORECASE)
+    h5_match = re.search(r'\*\*HERD 5[^\*]*\*\*[:\s]*([\s\S]*?)(?=\*\*HERD 6|\Z)', veredicto, re.IGNORECASE)
+    h6_match = re.search(r'\*\*HERD 6[^\*]*\*\*[:\s]*([\s\S]*?)(?=\*\*HERD 7|\Z)', veredicto, re.IGNORECASE)
+    h7_match = re.search(r'\*\*HERD 7[^\*]*\*\*[:\s]*([\s\S]*?)(?=\*\*MASTER|\Z)', veredicto, re.IGNORECASE)
+    master_match = re.search(r'\*\*MASTER[^\*]*\*\*[:\s]*([\s\S]*?)(?=\Z)', veredicto, re.IGNORECASE)
 
-    if h0_match:
-        emit_ws_event("HERD 0 (ATLAS)", "RESEARCH", h0_match.group(1).strip())
     if h1_match:
-        emit_ws_event("HERD 1 (TIDAL/NORO)", "PROPOSAL", h1_match.group(1).strip())
+        emit_ws_event("HERD 1 (TIDAL)", "MACRO", h1_match.group(1).strip())
     if h2_match:
-        emit_ws_event("HERD 2 (ZEPHR/LUMEN)", "AUDIT", h2_match.group(1).strip())
+        emit_ws_event("HERD 2 (NORO)", "MATH", h2_match.group(1).strip())
     if h3_match:
-        emit_ws_event("HERD 3 (RUNE)", "CONSENSUS", h3_match.group(1).strip())
+        emit_ws_event("HERD 3 (ZEPHR)", "STATS", h3_match.group(1).strip())
+    if h4_match:
+        emit_ws_event("HERD 4 (LUMEN)", "SMC", h4_match.group(1).strip())
+    if h5_match:
+        emit_ws_event("HERD 5 (RUNE)", "RISK", h5_match.group(1).strip())
+    if h6_match:
+        emit_ws_event("HERD 6 (TENSORFLOW)", "NEURAL", h6_match.group(1).strip())
+    if h7_match:
+        emit_ws_event("HERD 7 (ATLAS)", "DOM_MCP", h7_match.group(1).strip())
+    if master_match:
+        emit_ws_event("MASTER", "QUORUM", master_match.group(1).strip())
 
     # Extraer dinámicamente si fue veto o aprobado
-    if "VETA" in veredicto.upper() or "VETO" in veredicto.upper():
+    master_text = master_match.group(1) if master_match else veredicto
+    if "VETA" in master_text.upper() or "VETO" in master_text.upper():
         estado = "VETADO ⛔"
     else:
         estado = "APROBADO ✅"
-    emit_ws_event("RUNE", "SUCCESS", f"Consenso {estado} alcanzado.")
+    emit_ws_event("Master", "SUCCESS", f"Quórum de 7 Herds: {estado} alcanzado.")
     
     # 3. Guardar el Historial y Debate (Upstash Redis + Firebase)
     try:
         safe_title = f"REST_HFT_Report_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-        decision_sin_atlas = "VETADO" if "VETA" in (h3_match.group(1) if h3_match else veredicto).upper() else "APROBADO"
+        decision_sin_atlas = "VETADO" if ("VETA" in (h5_match.group(1) if h5_match else "").upper() or "VETA" in (h1_match.group(1) if h1_match else "").upper()) else "APROBADO"
         
         payload = {
             "title": safe_title,
             "content": veredicto,
             "debate": {
-                "herd_0_researcher": h0_match.group(1).strip() if h0_match else (researcher_brief or "N/A"),
-                "herd_1_macro": h1_match.group(1).strip() if h1_match else "N/A",
-                "herd_2_stats": h2_match.group(1).strip() if h2_match else "N/A",
-                "herd_3_consensus": h3_match.group(1).strip() if h3_match else veredicto,
+                "herd_1_tidal": h1_match.group(1).strip() if h1_match else "N/A",
+                "herd_2_noro": h2_match.group(1).strip() if h2_match else "N/A",
+                "herd_3_zephr": h3_match.group(1).strip() if h3_match else "N/A",
+                "herd_4_lumen": h4_match.group(1).strip() if h4_match else "N/A",
+                "herd_5_rune": h5_match.group(1).strip() if h5_match else "N/A",
+                "herd_6_tensorflow": h6_match.group(1).strip() if h6_match else f"Accuracy {tf_acc*100:.1f}%",
+                "herd_7_atlas": h7_match.group(1).strip() if h7_match else (researcher_brief or "N/A"),
+                "master_quorum": master_match.group(1).strip() if master_match else veredicto,
                 "estado": estado,
                 "bifurcacion_ab": {
                     "decision_champion_sin_atlas": decision_sin_atlas,

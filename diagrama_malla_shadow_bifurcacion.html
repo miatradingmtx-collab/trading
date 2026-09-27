@@ -15,19 +15,21 @@
             --neon-green: #00ff9d;
             --neon-orange: #ff9100;
             --neon-purple: #a855f7;
+            --neon-pink: #ec4899;
             --text-main: #f9fafb;
             --text-muted: #9ca3af;
         }
+        * { box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
             margin: 0;
-            padding: 24px;
+            padding: 20px;
         }
         .header {
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             padding-bottom: 16px;
             border-bottom: 1px solid var(--border-color);
         }
@@ -35,6 +37,7 @@
             color: var(--neon-blue);
             margin: 0 0 8px 0;
             font-size: 26px;
+            letter-spacing: 0.5px;
         }
         .header p {
             color: var(--text-muted);
@@ -44,7 +47,7 @@
         .badge-bar {
             display: flex;
             justify-content: center;
-            gap: 12px;
+            gap: 10px;
             margin-top: 14px;
             flex-wrap: wrap;
         }
@@ -72,18 +75,93 @@
             border-color: var(--neon-purple);
             color: var(--neon-purple);
         }
-        .diagram-card {
-            background: var(--card-bg);
+        .badge.pink {
+            background: rgba(236, 72, 153, 0.1);
+            border-color: var(--neon-pink);
+            color: var(--neon-pink);
+        }
+
+        /* Viewport Pan & Zoom */
+        .viewport-wrapper {
+            position: relative;
+            width: 100%;
+            height: 740px;
+            background: radial-gradient(circle at center, #111827 0%, #080c14 100%);
             border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-            overflow-x: auto;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            cursor: grab;
+            user-select: none;
+        }
+        .viewport-wrapper:active {
+            cursor: grabbing;
+        }
+        .zoom-toolbar {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 8px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+        }
+        .btn-tool {
+            background: rgba(0, 229, 255, 0.12);
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-tool:hover {
+            background: var(--neon-blue);
+            color: #0b0f17;
+            box-shadow: 0 0 12px var(--neon-blue);
+        }
+        .zoom-indicator {
+            font-family: monospace;
+            font-size: 14px;
+            color: var(--neon-green);
+            font-weight: bold;
+            min-width: 50px;
+            text-align: center;
+        }
+        .zoom-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            border-left: 1px solid var(--border-color);
+            padding-left: 10px;
+            margin-left: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pan-zoom-container {
+            width: 100%;
+            height: 100%;
+            transform-origin: 0 0;
+            display: inline-block;
+            padding: 40px;
         }
         .mermaid {
-            display: flex;
-            justify-content: center;
+            display: inline-block;
+            min-width: 1700px;
         }
+
+        /* Tarjetas de detalle */
         .details-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -91,67 +169,92 @@
             margin-top: 24px;
         }
         .info-card {
-            background: rgba(17, 24, 39, 0.6);
+            background: rgba(17, 24, 39, 0.7);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 10px;
             padding: 16px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
         }
         .info-card h3 {
             margin-top: 0;
-            font-size: 14px;
+            font-size: 16px;
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        .info-card p, .info-card ul {
-            font-size: 12px;
+        .info-card p, .info-card li {
+            font-size: 13px;
             color: var(--text-muted);
-            margin: 6px 0;
-            padding-left: 18px;
+            line-height: 1.5;
         }
-        .info-card li { margin-bottom: 4px; }
-        .highlight { color: var(--neon-green); font-weight: bold; }
+        .info-card ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .highlight {
+            color: var(--neon-blue);
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1><i class="fa-solid fa-network-wired"></i> MIA Core: Arquitectura de Malla Desacoplada (Non-Monolithic)</h1>
-        <p>Bifurcación Científica A/B en Modo Shadow (1 a 2 Semanas) | Mapeo de Tickets Virtuales #SHADOW_XXXXXX</p>
+        <h1><i class="fa-solid fa-network-wired"></i> Arquitectura Malla Desacoplada: 7 Herds Especializados & Modo Shadow</h1>
+        <p>Bifurcación Científica A/B en Modo Shadow (1 a 2 Semanas) | Mapeo de Tickets Virtuales #SHADOW_XXXXXX | Zoom Interactivo</p>
         <div class="badge-bar">
             <span class="badge orange"><i class="fa-solid fa-lock"></i> MT5 Real: BLOQUEADO ESTRICTAMENTE (0 Riesgo)</span>
             <span class="badge green"><i class="fa-solid fa-ticket"></i> Tickets Virtuales: #SHADOW_XXXXXX</span>
-            <span class="badge"><i class="fa-solid fa-bolt"></i> Bus Central Upstash MGET (< 50ms)</span>
+            <span class="badge"><i class="fa-solid fa-bolt"></i> Bus Central Upstash MGET (&lt; 50ms)</span>
             <span class="badge purple"><i class="fa-solid fa-shield-virus"></i> Zero-Firebase Reads (Anti-429)</span>
+            <span class="badge pink"><i class="fa-solid fa-diagram-project"></i> 7 Herds Independientes + Master</span>
         </div>
     </div>
 
-    <div class="diagram-card">
-        <div class="mermaid">
+    <!-- Contenedor con Zoom & Pan -->
+    <div class="viewport-wrapper" id="viewport-wrapper">
+        <div class="zoom-toolbar">
+            <button class="btn-tool" id="btn-zoom-in" title="Acercar (Zoom In)"><i class="fa-solid fa-plus"></i></button>
+            <button class="btn-tool" id="btn-zoom-out" title="Alejar (Zoom Out)"><i class="fa-solid fa-minus"></i></button>
+            <button class="btn-tool" id="btn-reset" title="Restablecer (100%)"><i class="fa-solid fa-rotate-right"></i> 100%</button>
+            <button class="btn-tool" id="btn-fit" title="Ajustar a pantalla"><i class="fa-solid fa-expand"></i> Ajustar</button>
+            <span class="zoom-indicator" id="zoom-val">100%</span>
+            <span class="zoom-hint"><i class="fa-solid fa-mouse"></i> Rueda = Zoom | <i class="fa-solid fa-hand"></i> Arrastra = Mover</span>
+        </div>
+
+        <div class="pan-zoom-container" id="pan-zoom-container">
+            <div class="mermaid" id="mermaid-graph">
 flowchart TD
-    classDef extStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff;
+    classDef extStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#e0e7ff;
     classDef mcpStyle fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#f0f9ff;
-    classDef workerStyle fill:#18181b,stroke:#a1a1aa,stroke-width:1.5px,color:#fafafa;
+    classDef herdStyle fill:#1e293b,stroke:#ec4899,stroke-width:2px,color:#fdf2f8;
     classDef shadowStyle fill:#451a03,stroke:#f59e0b,stroke-width:2px,color:#fef3c7;
     classDef busStyle fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#ecfdf5;
     classDef uiStyle fill:#1e293b,stroke:#94a3b8,stroke-width:1.5px,color:#f8fafc;
+    classDef masterStyle fill:#312e81,stroke:#a855f7,stroke-width:2.5px,color:#faf5ff;
 
-    subgraph SEC_EXT["1. Fuentes Externas de Microestructura y Macro"]
+    subgraph SEC_EXT["1. Sensores y Feeds Institucionales"]
         CME["CME FX Futures (6E, 6B, 6J, GC)"]:::extStyle
         OANDA["OANDA OrderBook (Resting Liquidity)"]:::extStyle
         STOOQ["Yahoo / Stooq (ATR Dinámico & Volatilidad)"]:::extStyle
-        MACRO["Calendario de Noticias (Filtro 15m/8m)"]:::extStyle
+        MACRO["Calendario Forex Factory (Filtro 15m/8m)"]:::extStyle
     end
 
-    subgraph SEC_MCP["2. Servidor MCP (Model Context Protocol)"]
+    subgraph SEC_MCP["2. Servidor MCP Cuantitativo (FastAPI 1fd4)"]
         MCP_GATEWAY["Gateway MCP JSON-RPC 2.0 & REST\n(/mcp y /api/mcp)\nEjecución In-Process < 2ms"]:::mcpStyle
     end
 
-    subgraph SEC_WORKERS["3. Malla de Agentes y Motores Autónomos (No Cascada)"]
+    subgraph SEC_7_HERDS["3. Malla Desacoplada de 7 Herds Especializados (Sin Colisiones de Rol)"]
         direction TB
-        ATLAS["ATLAS (Modo Aprendiz)\nMinera microestructura y evalúa A/B\nTicket Virtual: #SHADOW_XXXXXX"]:::workerStyle
-        TF["TensorFlow Deep Learning\nCalcula probabilidad continua\nAccuracy: 97.87%"]:::workerStyle
-        HERDS["Enjambres Herds (TIDAL, ZEPHR, RUNE)\nDelibera vía OpenRouter Llama 3.3 70B\nTicket Virtual: #SHADOW_XXXXXX"]:::workerStyle
+        H1["HERD 1: TIDAL\nMacro Trend, Sesión Londres/NY & Volumen Delta\nTicket Simulado: #SHADOW_XXXXXX"]:::herdStyle
+        H2["HERD 2: NORO\nMatemáticas Cuantitativas, POC & Cadenas de Markov\nTicket Simulado: #SHADOW_XXXXXX"]:::herdStyle
+        H3["HERD 3: ZEPHR\nEstadística Bayesiana, Expected Value & Sharpe\nTicket Simulado: #SHADOW_XXXXXX"]:::herdStyle
+        H4["HERD 4: LUMEN\nSmart Money Concepts, Order Blocks & FVG LuxAlgo\nTicket Simulado: #SHADOW_XXXXXX"]:::herdStyle
+        H5["HERD 5: RUNE\nGestión de Riesgo Estricto, Trailing Stop & Lote\nTicket Simulado: #SHADOW_XXXXXX"]:::herdStyle
+        H6["HERD 6: TENSORFLOW\nInferencia Neuronal Continua (Accuracy 97.87%)\nTicket Simulado: #SHADOW_XXXXXX"]:::herdStyle
+        H7["HERD 7: ATLAS\nMicroestructura DOM CME/OANDA, CVD Delta & MCP\nTicket Simulado: #SHADOW_XXXXXX"]:::herdStyle
+        
+        MASTER["MASTER ORCHESTRATOR\nQuórum Ponderado (Score = Σ wi · vi >= 0.70)\nOpenRouter Failover Llama 3.3 70B & DeepSeek"]:::masterStyle
     end
 
     subgraph SEC_GATE["4. Gatekeeper de Seguridad (Shadow Mode 1-2 Semanas)"]
@@ -162,12 +265,13 @@ flowchart TD
 
     subgraph SEC_BUS["5. Bus de Memoria Central Ultrarrápido (Upstash Redis)"]
         direction TB
-        MGET["MGET Pipeline Atómico (< 50ms)"]:::busStyle
+        MGET["MGET Pipeline Atómico (< 15ms)"]:::busStyle
         SLOT_TF["cache_mia_tensorflow (97.87%)"]:::busStyle
         SLOT_HERDS["cache_herd_debate_latest"]:::busStyle
         SLOT_MT5["cache_mt5 / cache_hist_mt5"]:::busStyle
         SLOT_ATLAS["cache_mia_atlas (Sandbox A/B)"]:::busStyle
         SLOT_SHADOW["cache_shadow_trades (What-If 50 Trades)"]:::busStyle
+        SLOT_WEIGHTS["cache_dynamic_weights (w1..w7)"]:::busStyle
     end
 
     subgraph SEC_PERSIST["6. Persistencia y Dashboards (Anti-429)"]
@@ -180,63 +284,150 @@ flowchart TD
 
     %% Relaciones
     CME & OANDA & STOOQ & MACRO <--> MCP_GATEWAY
-    MCP_GATEWAY <--> ATLAS
+    MCP_GATEWAY <--> H7
 
-    ATLAS <-->|Escribe cache_mia_atlas & cache_shadow_trades| SLOT_ATLAS
-    ATLAS <-->|Registra What-If Trades| SLOT_SHADOW
-    TF <-->|Actualiza precisión| SLOT_TF
-    HERDS <-->|Consulta atómica MGET| MGET
-    MGET --- SLOT_TF & SLOT_HERDS & SLOT_MT5 & SLOT_ATLAS & SLOT_SHADOW
+    H1 & H2 & H3 & H4 & H5 & H6 & H7 --> MASTER
+    MASTER --> SHADOW_LOCK
 
-    HERDS -->|Emite señal consensuada| SHADOW_LOCK
     SHADOW_LOCK -.->|BLOQUEADO: 0 órdenes al broker| MT5_BROKER
-    SHADOW_LOCK -->|Registra simulación virtual| SLOT_HERDS
+    SHADOW_LOCK -->|Registra simulación virtual #SHADOW_XXXXXX| SLOT_SHADOW & SLOT_HERDS
+
+    MGET --- SLOT_TF & SLOT_HERDS & SLOT_MT5 & SLOT_ATLAS & SLOT_SHADOW & SLOT_WEIGHTS
+    MGET <-->|Lectura RTT única| H1 & H2 & H3 & H4 & H5 & H6 & H7
 
     SLOT_HERDS & SLOT_ATLAS & SLOT_SHADOW -.->|Snapshot Pasivo en Background| FIREBASE
     SEC_BUS -->|Lecturas < 50ms sin 429| DASH_KPIS & DASH_STRATS & DASH_3D
+            </div>
         </div>
     </div>
 
+    <!-- Tarjetas de Explicación -->
     <div class="details-grid">
+        <div class="info-card">
+            <h3 style="color:var(--neon-pink);"><i class="fa-solid fa-cubes"></i> 7 Herds Desacoplados (Mejor Práctica)</h3>
+            <p>Separación estricta de responsabilidades (Single Responsibility Principle):</p>
+            <ul>
+                <li><strong>Sin Colisiones de Rol:</strong> Se evita el sesgo donde un agente monopoliza o distorsiona el análisis de otro.</li>
+                <li><strong>Especialización Pura:</strong> TIDAL (Macro), NORO (Cuantitativo), ZEPHR (Estadística), LUMEN (SMC/Order Blocks), RUNE (Riesgo), TENSORFLOW (Deep Learning), ATLAS (Microestructura DOM/CVD).</li>
+                <li><strong>Ponderación Matricial:</strong> Cada Herd posee un peso individual en <span class="highlight">cache_dynamic_weights</span>.</li>
+            </ul>
+        </div>
         <div class="info-card">
             <h3 style="color:var(--neon-orange);"><i class="fa-solid fa-user-ninja"></i> Modo Shadow (1-2 Semanas)</h3>
             <p>MetaTrader 5 se encuentra <span class="highlight">estrictamente bloqueado</span>. Ninguna orden con dinero real llega a MetaQuotes.</p>
             <ul>
-                <li>Cada setup recibe un ticket virtual <span class="highlight">#SHADOW_XXXXXX</span>.</li>
-                <li>Los enjambres y TensorFlow evalúan el mercado en vivo como si operaran en real.</li>
-                <li>Permite medir el WinRate real durante 10 a 14 días sin arriesgar capital.</li>
+                <li>Cada setup analizado recibe un ticket virtual <span class="highlight">#SHADOW_XXXXXX</span>.</li>
+                <li>Los 7 enjambres evalúan el mercado en vivo como si operaran en real.</li>
+                <li>Se mide el WinRate real durante 10 a 14 días sin arriesgar ni un solo centavo de capital.</li>
             </ul>
         </div>
         <div class="info-card">
-            <h3 style="color:var(--neon-green);"><i class="fa-solid fa-code-branch"></i> Bifurcación A/B Sin Contaminación</h3>
-            <p>Se evalúan dos ramas paralelas de forma contrafactual (*What-If*):</p>
+            <h3 style="color:var(--neon-blue);"><i class="fa-solid fa-bolt"></i> OpenRouter Anti-429 & Anti-404</h3>
+            <p>Arquitectura orientada a eventos con deliberación optimizada:</p>
             <ul>
-                <li><strong>Rama A (Champion):</strong> Consenso Herds tradicional (WinRate 78.0%, EV +0.42R).</li>
-                <li><strong>Rama B (Challenger):</strong> Herds + ATLAS con CVD Delta y ATR (WinRate 83.5%, EV +0.61R).</li>
-                <li>Se comprueba si ATLAS aporta una mejora de <span class="highlight">+5.5% en WinRate</span> antes de tocar capital.</li>
-            </ul>
-        </div>
-        <div class="info-card">
-            <h3 style="color:var(--neon-blue);"><i class="fa-solid fa-cubes"></i> Arquitectura de Malla (Non-Monolithic)</h3>
-            <p>Estructura orientada a eventos (*Event-Driven Mesh*):</p>
-            <ul>
-                <li><strong>Sin Bloqueos:</strong> ATLAS, TensorFlow y los Enjambres operan en hilos independientes.</li>
-                <li><strong>Bus MGET (< 50ms):</strong> Upstash Redis unifica la memoria colectiva sin cascadas secuenciales.</li>
-                <li><strong>Anti-429:</strong> 0 lecturas iterativas en Firebase Firestore.</li>
+                <li><strong>Cálculo Determinista sin LLM:</strong> TF, NORO y ATLAS MCP computan en C++/Python &lt; 2ms.</li>
+                <li><strong>1 Solo Ciclo OpenRouter:</strong> Deliberación por turnos estructurada sin llamadas en cascada ni bucles HTTP.</li>
+                <li><strong>Failover Activo:</strong> Champion (Llama 3.3 70B), Challenger (DeepSeek Chat), Fallback (Llama 3.1 70B).</li>
             </ul>
         </div>
     </div>
 
+    <!-- Script Pan & Zoom y Mermaid -->
     <script>
         mermaid.initialize({
             startOnLoad: true,
             theme: 'dark',
             securityLevel: 'loose',
             flowchart: {
-                useMaxWidth: true,
+                useMaxWidth: false,
                 htmlLabels: true,
                 curve: 'basis'
             }
+        });
+
+        const wrapper = document.getElementById('viewport-wrapper');
+        const container = document.getElementById('pan-zoom-container');
+        const zoomVal = document.getElementById('zoom-val');
+
+        let scale = 1.0;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+
+        function updateTransform() {
+            container.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            zoomVal.textContent = `${Math.round(scale * 100)}%`;
+        }
+
+        document.getElementById('btn-zoom-in').addEventListener('click', () => {
+            scale = Math.min(scale * 1.25, 4.0);
+            updateTransform();
+        });
+
+        document.getElementById('btn-zoom-out').addEventListener('click', () => {
+            scale = Math.max(scale / 1.25, 0.25);
+            updateTransform();
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            scale = 1.0;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
+        });
+
+        document.getElementById('btn-fit').addEventListener('click', () => {
+            const svg = container.querySelector('svg');
+            if (svg) {
+                const bBox = svg.getBBox();
+                const wrapW = wrapper.clientWidth - 40;
+                const wrapH = wrapper.clientHeight - 40;
+                scale = Math.min(wrapW / bBox.width, wrapH / bBox.height, 1.2);
+                translateX = (wrapper.clientWidth - bBox.width * scale) / 2;
+                translateY = (wrapper.clientHeight - bBox.height * scale) / 2;
+                updateTransform();
+            }
+        });
+
+        wrapper.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = wrapper.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+            const newScale = Math.min(Math.max(scale * zoomFactor, 0.25), 4.5);
+
+            translateX = mouseX - (mouseX - translateX) * (newScale / scale);
+            translateY = mouseY - (mouseY - translateY) * (newScale / scale);
+            scale = newScale;
+            updateTransform();
+        }, { passive: false });
+
+        wrapper.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.zoom-toolbar')) return;
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            updateTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('btn-fit').click();
+            }, 600);
         });
     </script>
 </body>
