@@ -17,8 +17,13 @@ if ! command -v python3 &> /dev/null; then
     fi
 fi
 
-# Instalar websockets si no está presente
-python3 -c "import websockets" 2>/dev/null || pip install websockets --quiet
+# Sincronizar última versión de la Malla 7 Herds evitando caché de APN / CDN
+if command -v ip &> /dev/null; then
+    ip neigh flush all 2>/dev/null || true
+fi
+
+echo "[*] Sincronizando Malla de 7 Herds (Bypass APN Cache)..."
+curl -sL -H "Cache-Control: no-cache, no-store, must-revalidate" "https://raw.githubusercontent.com/miatradingmtx-collab/trading/main/mia_herds_cli.py?nocache=$(date +%s)" -o mia_herds_cli.py 2>/dev/null || true
 
 # Ejecutar CLI de Herds
 python3 mia_herds_cli.py "$@"

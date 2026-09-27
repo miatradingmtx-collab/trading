@@ -58,9 +58,14 @@ if os.name == "nt":
 def fetch_upstash(key: str) -> dict:
     """Lee un slot de Upstash Redis via REST nativo (cero dependencias externas)."""
     try:
+        headers = {
+            "Authorization": f"Bearer {UPSTASH_TOKEN}",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache"
+        }
         req = urllib.request.Request(
             f"{UPSTASH_URL}/get/{key}",
-            headers={"Authorization": f"Bearer {UPSTASH_TOKEN}"}
+            headers=headers
         )
         with urllib.request.urlopen(req, timeout=5) as response:
             data = json.loads(response.read().decode("utf-8"))

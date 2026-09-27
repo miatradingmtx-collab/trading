@@ -37,19 +37,29 @@ fi
 python3 -c "import websockets" 2>/dev/null || pip install websockets --quiet || true
 
 # 3. Descargar el script principal de Herds
-echo -e "\033[93m[*] Descargando núcleo de Herds CLI...\033[0m"
-curl -sL -o "$MIA_DIR/mia_herds_cli.py" https://raw.githubusercontent.com/miatradingmtx-collab/trading/main/mia_herds_cli.py
+echo -e "\033[93m[*] Descargando núcleo de Herds CLI (Malla 7 Herds)...\033[0m"
+curl -sL -H "Cache-Control: no-cache, no-store, must-revalidate" "https://raw.githubusercontent.com/miatradingmtx-collab/trading/main/mia_herds_cli.py?nocache=$(date +%s)" -o "$MIA_DIR/mia_herds_cli.py"
 
 # 4. Crear el comando ejecutable global 'herds'
 HERDS_EXEC="$BIN_DIR/herds"
 
 cat << 'EOF' > "$HERDS_EXEC"
 #!/bin/bash
-# MIA Herds CLI - Wrapper con auto-actualización silenciosa
+# MIA Herds CLI - Wrapper con auto-actualización silenciosa y refresco APN/ARP
 
 MIA_DIR="$HOME/.mia"
 if [ -d "/data/data/com.termux/files/home/.mia" ]; then
     MIA_DIR="/data/data/com.termux/files/home/.mia"
+fi
+
+# Comando explícito de refresco de tablas APN / ARP y actualización a 7 Herds
+if [ "$1" == "update" ] || [ "$1" == "refresh" ] || [ "$1" == "--refresh" ] || [ "$1" == "-u" ]; then
+    echo -e "\033[93m[*] Refrescando tablas APN / ARP y descargando Malla de 7 Herds...\033[0m"
+    ip neigh flush all 2>/dev/null || true
+    curl -sL -H "Cache-Control: no-cache, no-store, must-revalidate" "https://raw.githubusercontent.com/miatradingmtx-collab/trading/main/mia_herds_cli.py?nocache=$(date +%s)" -o "$MIA_DIR/mia_herds_cli.py"
+    echo -e "\033[92m[OK] Malla de 7 Herds actualizada exitosamente en Termux.\033[0m"
+    python3 "$MIA_DIR/mia_herds_cli.py" --once
+    exit 0
 fi
 
 # Soporte para colgar en segundo plano (Background Daemon)
@@ -78,8 +88,8 @@ if [ "$1" == "stop" ]; then
     exit 0
 fi
 
-# Auto-actualización silenciosa con timeout de 3s (no bloquea si no hay internet)
-(curl -s -m 3 -o "$MIA_DIR/mia_herds_cli.py.tmp" https://raw.githubusercontent.com/miatradingmtx-collab/trading/main/mia_herds_cli.py && mv "$MIA_DIR/mia_herds_cli.py.tmp" "$MIA_DIR/mia_herds_cli.py" 2>/dev/null) &
+# Auto-actualización silenciosa con bypass de caché de proxy APN
+(curl -s -m 4 -H "Cache-Control: no-cache" "https://raw.githubusercontent.com/miatradingmtx-collab/trading/main/mia_herds_cli.py?nocache=$(date +%s)" -o "$MIA_DIR/mia_herds_cli.py.tmp" && mv "$MIA_DIR/mia_herds_cli.py.tmp" "$MIA_DIR/mia_herds_cli.py" 2>/dev/null) &
 
 # Evitar que Android duerma la conexión mientras el CLI esté abierto
 if command -v termux-wake-lock &> /dev/null; then
