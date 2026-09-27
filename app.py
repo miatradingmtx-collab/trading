@@ -3215,55 +3215,45 @@ def asegurar_cache_firebase():
     from datetime import datetime
     ahora = datetime.now()
     
-    # 🛡️ PROTECCIÓN ANTI-429 ESTRICTA: Leer todas las tablas desacopladas desde Upstash Redis (0 lecturas a Firestore)
+    # 🛡️ PROTECCIÓN ANTI-429 ESTRICTA: MGET de todas las tablas desacopladas desde Upstash Redis (1 llamada HTTP, 0 Firebase)
     try:
         import requests, json
         up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
         session = requests.Session()
         session.trust_env = False
         
-        # 1. Audit logs
-        r_hist = session.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=2)
-        if r_hist.status_code == 200:
-            res_h = r_hist.json().get("result")
-            if res_h:
-                d_h = json.loads(res_h)
-                GLOBAL_AUDIT_LOGS = d_h.get("recent_logs", [])
-
-        # 2. Trading Matrix (21 activos)
-        r_mat = session.get("https://certain-gnat-160816.upstash.io/get/cache_trading_matrix", headers=up_headers, timeout=2)
-        if r_mat.status_code == 200:
-            res_m = r_mat.json().get("result")
-            if res_m:
-                d_m = json.loads(res_m)
-                GLOBAL_MATRICES_CACHE_FULL = d_m
-                GLOBAL_MATRICES = {k: v.get("score_porcentaje", 0) for k, v in d_m.items()}
-
-        # 3. Patrones ICT / SMC (32 patrones)
-        r_pat = session.get("https://certain-gnat-160816.upstash.io/get/cache_mia_kb_patrones", headers=up_headers, timeout=2)
-        if r_pat.status_code == 200:
-            res_p = r_pat.json().get("result")
-            if res_p:
-                GLOBAL_PATRONES = json.loads(res_p)
-
-        # 4. Indicadores de Impacto (45 indicadores)
-        r_ind = session.get("https://certain-gnat-160816.upstash.io/get/cache_mia_kb_indicadores", headers=up_headers, timeout=2)
-        if r_ind.status_code == 200:
-            res_i = r_ind.json().get("result")
-            if res_i:
-                GLOBAL_INDICADORES = json.loads(res_i)
-
-        # 5. Memoria Colectiva
-        r_mem = session.get("https://certain-gnat-160816.upstash.io/get/cache_system_memory", headers=up_headers, timeout=2)
-        if r_mem.status_code == 200:
-            res_mem = r_mem.json().get("result")
-            if res_mem:
-                GLOBAL_MIA_COLLECTIVE = json.loads(res_mem)
-
-        ULTIMO_FETCH_FIREBASE = ahora
-        return
-    except Exception:
-        pass
+        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_hist_mt5/cache_trading_matrix/cache_mia_kb_patrones/cache_mia_kb_indicadores/cache_system_memory"
+        r_all = session.get(mget_url, headers=up_headers, timeout=5)
+        if r_all.status_code == 200:
+            slots = r_all.json().get("result", [])
+            if len(slots) >= 5:
+                # 1. Audit logs
+                if slots[0]:
+                    d_h = json.loads(slots[0])
+                    GLOBAL_AUDIT_LOGS = d_h.get("recent_logs", [])
+                
+                # 2. Trading Matrix (21 activos)
+                if slots[1]:
+                    d_m = json.loads(slots[1])
+                    GLOBAL_MATRICES_CACHE_FULL = d_m
+                    GLOBAL_MATRICES = {k: v.get("score_porcentaje", 0) for k, v in d_m.items()}
+                
+                # 3. Patrones ICT / SMC (32 patrones)
+                if slots[2]:
+                    GLOBAL_PATRONES = json.loads(slots[2])
+                
+                # 4. Indicadores de Impacto (45 indicadores)
+                if slots[3]:
+                    GLOBAL_INDICADORES = json.loads(slots[3])
+                
+                # 5. Memoria Colectiva
+                if slots[4]:
+                    GLOBAL_MIA_COLLECTIVE = json.loads(slots[4])
+                
+                ULTIMO_FETCH_FIREBASE = ahora
+                return
+    except Exception as e_mget:
+        print(f"| CACHE MGET WARN | Fallo en MGET Upstash: {e_mget}")
     
     # Ã°Å¸â€ºÂ¡Ã¯Â¸Â PROTECCIÃƒâ€œN CRÃƒÂTICA DE CUOTA: 
     # Incrementamos el refresco a 30 minutos (1800 segundos) para evitar agotar las 50k peticiones Spark de Firestore
@@ -3384,18 +3374,23 @@ def api_dashboard_data():
     global GLOBAL_AUDIT_LOGS, GLOBAL_SYSTEM_LOGS, GLOBAL_PATRONES, GLOBAL_MATRICES, ULTIMO_FETCH_FIREBASE
     global DASHBOARD_CACHE_DATA, DASHBOARD_CACHE_TIME
     
-    # --- 1. BYPASS ANTI-429 DIRECTO A UPSTASH REDIS ---
+    # --- 1. BYPASS ANTI-429 DIRECTO A UPSTASH REDIS VÍA MGET (1 RTT) ---
     try:
-        import requests, json
+        import requests, json, time, datetime
         up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-        r_hist = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=3)
-        r_live = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mt5", headers=up_headers, timeout=3)
-        if r_hist.status_code == 200 and r_live.status_code == 200:
-            res_h = r_hist.json().get("result")
-            res_l = r_live.json().get("result")
-            if res_h and res_l:
-                d_hist = json.loads(res_h)
-                d_live = json.loads(res_l)
+        session = requests.Session()
+        session.trust_env = False
+        
+        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_hist_mt5/cache_mt5/cache_ml_history/cache_mia_tensorflow/cache_herd_debate_latest"
+        r_all = session.get(mget_url, headers=up_headers, timeout=5)
+        if r_all.status_code == 200:
+            slots = r_all.json().get("result", [])
+            if len(slots) >= 5 and slots[0] and slots[1]:
+                d_hist = json.loads(slots[0])
+                d_live = json.loads(slots[1])
+                ml_data = json.loads(slots[2]) if slots[2] else None
+                tf_data = json.loads(slots[3]) if slots[3] else None
+                herd_data = json.loads(slots[4]) if slots[4] else None
                 
                 # Enriquecimiento dinámico de KPIs desde recent_logs (Cero lecturas a Firestore - Anti-429)
                 logs = d_hist.get("recent_logs", [])
@@ -3436,64 +3431,42 @@ def api_dashboard_data():
                     "ma_alineada": 1.2500,
                     "rsi_extremo": 1.1500
                 }
-                ml_data = None
-                try:
-                    r_ml = requests.get("https://certain-gnat-160816.upstash.io/get/cache_ml_history", headers=up_headers, timeout=2)
-                    if r_ml.status_code == 200:
-                        res_ml = r_ml.json().get("result")
-                        if res_ml:
-                            ml_data = json.loads(res_ml)
-                            for ind in ml_data.get("indicadores", []):
-                                ind_id = ind.get("id", "").lower()
-                                wr = float(ind.get("win_rate", 0))
-                                calc_w = round(max(0.20, (wr / 100.0) * 2.0 + 0.30), 4)
-                                if ind_id not in dyn_weights or calc_w > dyn_weights[ind_id]:
-                                    dyn_weights[ind_id] = calc_w
-                except Exception as e_ml_get:
-                    print(f"| DASHBOARD | Advertencia cargando cache_ml_history: {e_ml_get}")
-
-                d_hist["kpis"]["dynamic_weights"] = dyn_weights
                 if ml_data:
+                    for ind in ml_data.get("indicadores", []):
+                        ind_id = ind.get("id", "").lower()
+                        wr = float(ind.get("win_rate", 0))
+                        calc_w = round(max(0.20, (wr / 100.0) * 2.0 + 0.30), 4)
+                        if ind_id not in dyn_weights or calc_w > dyn_weights[ind_id]:
+                            dyn_weights[ind_id] = calc_w
                     d_hist["ml_cache"] = ml_data
 
-                # Cargar cache_mia_tensorflow desde Upstash
-                try:
-                    r_tf = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_tensorflow", headers=up_headers, timeout=2)
-                    if r_tf.status_code == 200:
-                        res_tf = r_tf.json().get("result")
-                        if res_tf:
-                            tf_data = json.loads(res_tf)
-                            d_hist["tensorflow_cache"] = {
-                                "version": tf_data.get("version", "v1.0"),
-                                "accuracy": round(float(tf_data.get("accuracy", 0.9787)) * 100, 2),
-                                "trades_aprendidos": tf_data.get("trades_aprendidos", 47)
-                            }
-                except Exception:
-                    pass
+                d_hist["kpis"]["dynamic_weights"] = dyn_weights
 
-                # Cargar cache_herd_debate_latest desde Upstash y Homologar a Firebase
-                try:
-                    r_herd = requests.get("https://certain-gnat-160816.upstash.io/get/cache_herd_debate_latest", headers=up_headers, timeout=2)
-                    if r_herd.status_code == 200:
-                        res_herd = r_herd.json().get("result")
-                        if res_herd:
-                            herd_data = json.loads(res_herd)
-                            d_hist["herd_debate_latest"] = herd_data
-                            
-                            # Sincronización homologada en Firebase Firestore (colección mia_herds_history y mia_swarm_rest_history)
-                            if firebase_inicializado and db is not None:
-                                herd_ts = herd_data.get("timestamp")
-                                if herd_ts and herd_ts != getattr(api_dashboard_data, "last_synced_herd_ts", None):
-                                    doc_id = herd_data.get("title", f"HERD_DEBATE_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
-                                    payload_fb = dict(herd_data)
-                                    payload_fb["origen"] = "herds_multimodal_swarm"
-                                    payload_fb["sincronizado_en"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-                                    db.collection("mia_herds_history").document(doc_id).set(payload_fb, merge=True)
-                                    db.collection("mia_swarm_rest_history").document(doc_id).set(payload_fb, merge=True)
-                                    api_dashboard_data.last_synced_herd_ts = herd_ts
-                                    print(f"| FIREBASE | Herds debate homologado en Firestore ({doc_id})")
-                except Exception as e_h_err:
-                    print(f"| DASHBOARD | Advertencia sincronizando debate Herds: {e_h_err}")
+                # TensorFlow en caché (desempaquetado directo de MGET)
+                if tf_data:
+                    d_hist["tensorflow_cache"] = {
+                        "version": tf_data.get("version", "v1.0"),
+                        "accuracy": round(float(tf_data.get("accuracy", 0.9787)) * 100, 2),
+                        "trades_aprendidos": tf_data.get("trades_aprendidos", 47)
+                    }
+
+                # Herd Debate en caché y homologación pasiva a Firebase (desempaquetado directo de MGET)
+                if herd_data:
+                    d_hist["herd_debate_latest"] = herd_data
+                    if firebase_inicializado and db is not None:
+                        herd_ts = herd_data.get("timestamp")
+                        if herd_ts and herd_ts != getattr(api_dashboard_data, "last_synced_herd_ts", None):
+                            doc_id = herd_data.get("title", f"HERD_DEBATE_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
+                            payload_fb = dict(herd_data)
+                            payload_fb["origen"] = "herds_multimodal_swarm"
+                            payload_fb["sincronizado_en"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                            try:
+                                db.collection("mia_herds_history").document(doc_id).set(payload_fb, merge=True)
+                                db.collection("mia_swarm_rest_history").document(doc_id).set(payload_fb, merge=True)
+                                api_dashboard_data.last_synced_herd_ts = herd_ts
+                                print(f"| FIREBASE | Herds debate homologado en Firestore ({doc_id})")
+                            except Exception as fb_err:
+                                print(f"| FIREBASE WARN | No se pudo guardar debate histórico: {fb_err}")
 
                 # Estrategias reales desplegadas
                 d_hist["estrategias"] = [
@@ -3580,426 +3553,6 @@ def api_herds_sync_firebase():
                     return {"status": "warning", "message": "Firebase no inicializado en este nodo local. Sincronizado en Upstash.", "data": data}
         return {"status": "error", "message": "No hay debate en Upstash"}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-    if not firebase_inicializado or db is None:
-        return {"status": "error", "message": "Firebase no inicializado"}
-
-    # Caché en RAM de 3 minutos para el bloque completo del dashboard para proteger la cuota de Firebase
-    ahora_t = time.time()
-    if DASHBOARD_CACHE_DATA and (ahora_t - DASHBOARD_CACHE_TIME) < 180.0:
-        DASHBOARD_CACHE_DATA["recent_logs"] = GLOBAL_AUDIT_LOGS
-        return {"status": "success", "data": DASHBOARD_CACHE_DATA, "cached": True}
-
-    data = {
-        "balance_base": 5000.0,
-        "balance_actual": 5000.0,
-        "equity": 5000.0,
-        "floating_pnl": 0.0,
-        "pnl_total": 0.0,
-        "kpis": {},
-        "rendimiento_activos": {},
-        "curva_equity": [],
-        "estrategias": [],
-        "killzones": [],
-        "indicadores": [],
-        "matriz_scores": {},
-        "feed": [],
-        "operaciones_activas": [],
-        "system_logs": []
-    }
-
-    try:
-        # BYPASS TOTAL: No llamamos a asegurar_cache_firebase() desde el dashboard
-        # asegurar_cache_firebase()
-
-        data["system_logs"] = GLOBAL_SYSTEM_LOGS or []
-        
-        balance_actual = None
-        equity_actual = None
-        floating_pnl = 0.0
-        
-        # Leemos de la variable en memoria de Railway (ULTIMO_BROKER_STATE) en lugar de consultar Firestore
-        global ULTIMO_BROKER_STATE
-        if 'ULTIMO_BROKER_STATE' in globals() and ULTIMO_BROKER_STATE is not None:
-            balance_actual = float(ULTIMO_BROKER_STATE.get("live_balance", 5000.0))
-            equity_actual = float(ULTIMO_BROKER_STATE.get("equity", balance_actual))
-            floating_pnl = float(ULTIMO_BROKER_STATE.get("floating_pnl", 0.0))
-        else:
-            # BYPASS TOTAL: No consultamos a Firestore si no hay broker state local
-            pass
-            
-        data["floating_pnl"] = floating_pnl
-        
-        from datetime import datetime
-        hoy_str = datetime.now().strftime("%Y-%m-%d")
-        
-        activos_stats = {}
-        todos_los_logs = []
-        todas_las_entradas = []
-        
-        tickets_cerrados = set()
-        dict_activas = {}
-        parciales_tomados = 0
-        
-        for l in GLOBAL_AUDIT_LOGS:
-            accion = l.get("accion", "")
-            ticket = l.get("ticket")
-            
-            if accion in ["CIERRE_TOTAL", "CIERRE_PARCIAL"]:
-                todos_los_logs.append(l)
-                if accion == "CIERRE_TOTAL" and ticket:
-                    tickets_cerrados.add(ticket)
-                if accion == "CIERRE_PARCIAL":
-                    parciales_tomados += 1
-                    todas_las_entradas.append(l)
-            else:
-                todas_las_entradas.append(l)
-                if ticket and accion in ["COMPRA", "VENTA"]:
-                    # Guardamos la mas reciente si hubiera duplicados
-                    if ticket not in dict_activas or l.get("timestamp", "") > dict_activas[ticket].get("timestamp", ""):
-                        dict_activas[ticket] = l
-                        
-        operaciones_activas = []
-        for t, d in dict_activas.items():
-            if t not in tickets_cerrados:
-                clean_d = dict(d)
-                det = str(clean_d.get("detalle_setup", ""))
-                if "EJECUTADA EN MT5" in det:
-                    partes = det.split("EJECUTADA EN MT5")
-                    clean_d["detalle_setup"] = partes[0].strip(" |") + " | EJECUTADA EN MT5: SÍ"
-                operaciones_activas.append(clean_d)
-                
-        data["operaciones_activas"] = operaciones_activas
-                
-        # Procesar Feed de Oportunidades (ÃƒÅ¡ltimas 500)
-        todas_las_entradas = sorted(todas_las_entradas, key=lambda x: x.get("timestamp", ""), reverse=True)[:500]
-        for e in todas_las_entradas:
-            score_val = float(e.get("score", e.get("score_confluencias", 0)))
-            detalle = e.get("detalle_setup")
-            if not detalle:
-                activo = e.get('activo', 'UNKNOWN')
-                if activo == "SYSTEM": 
-                    activo = "EURUSD"
-                
-                fecha = e.get('fecha', '')
-                sesion = "new_york"
-                if fecha:
-                    try:
-                        from datetime import datetime
-                        dt = datetime.strptime(fecha, "%Y-%m-%d %H:%M:%S")
-                        h = dt.hour
-                        if 1 <= h < 6: sesion = "london"
-                        elif 6 <= h < 16: sesion = "new_york"
-                        else: sesion = "asia"
-                    except:
-                        pass
-                
-                estrategia = e.get('estrategia', 'SMC Setup')
-                if not estrategia or estrategia.strip() == "":
-                    estrategia = "SMC Setup"
-                    
-                detalle = f"{activo} | {fecha} | {sesion} | {estrategia} | EVALUACIÃƒâ€œN | SCORE: {score_val}% | EJECUTADA EN MT5: {('SÃƒÂ' if e.get('ejecutada_mt5') else 'NO')} | MOTIVO: {e.get('motivo', '')}"
-            
-            data["feed"].append({
-                "texto": detalle,
-                "color": "#00e68a" if score_val >= 80 else "#00b4d8",
-                "timestamp": e.get("timestamp", "") or e.get("fecha", "")
-            })
-                
-        # Ordenar por timestamp
-        todos_los_logs = sorted(todos_los_logs, key=lambda x: x.get("timestamp", ""))
-
-        base_assets = ["XAUUSD", "EURUSD", "GBPJPY", "AUDUSD", "GBPUSD", "NZDCAD"]
-        activos_stats = {
-            a: {"hoy": 0, "semana": 0, "mes": 0, "trimestre": 0, "semestre": 0, "anual": 0, "trades": 0, "pnl_total": 0}
-            for a in base_assets
-        }
-        
-        from datetime import datetime, timedelta
-        now = datetime.now()
-        semana_atras = now - timedelta(days=7)
-        mes_atras = now - timedelta(days=30)
-        trim_atras = now - timedelta(days=90)
-        sem_atras = now - timedelta(days=180)
-        anio_atras = now - timedelta(days=365)
-        
-        # Calcular el balance de la curva de forma retroactiva para que el ultimo punto coincida con el balance actual real
-        pnl_sum_total = sum(l.get("pnl", 0.0) for l in todos_los_logs)
-        if balance_actual is not None:
-            balance_inicial_curva = balance_actual - pnl_sum_total
-        else:
-            balance_inicial_curva = 5000.0
-            balance_actual = balance_inicial_curva + pnl_sum_total
-            equity_actual = balance_actual + floating_pnl
-            
-        data["balance_actual"] = balance_actual
-        data["equity"] = equity_actual
-        
-        balance_curva = balance_inicial_curva
-        data["balance_base"] = balance_inicial_curva
-        
-        for l in todos_los_logs:
-            pnl = l.get("pnl", 0.0)
-            activo = l.get("activo", "UNKNOWN")
-            fecha_str = l.get("fecha", "")
-            
-            data["pnl_total"] += pnl
-            balance_curva += pnl
-            
-            data["curva_equity"].append({
-                "fecha": fecha_str,
-                "balance": balance_curva
-            })
-
-            if activo not in activos_stats:
-                activos_stats[activo] = {"hoy": 0, "semana": 0, "mes": 0, "trimestre": 0, "semestre": 0, "anual": 0, "trades": 0, "pnl_total": 0}
-            
-            activos_stats[activo]["trades"] += 1
-            activos_stats[activo]["pnl_total"] += pnl
-            if fecha_str.startswith(hoy_str):
-                activos_stats[activo]["hoy"] += pnl
-                
-            if fecha_str:
-                try:
-                    dt = datetime.strptime(fecha_str, "%Y-%m-%d %H:%M:%S")
-                    if dt >= anio_atras: activos_stats[activo]["anual"] += pnl
-                    if dt >= sem_atras: activos_stats[activo]["semestre"] += pnl
-                    if dt >= trim_atras: activos_stats[activo]["trimestre"] += pnl
-                    if dt >= mes_atras: activos_stats[activo]["mes"] += pnl
-                    if dt >= semana_atras: activos_stats[activo]["semana"] += pnl
-                except: pass
-
-        
-        for a in activos_stats:
-            for k in ["hoy", "semana", "mes", "trimestre", "semestre", "anual", "pnl_total"]:
-                activos_stats[a][k] = round(activos_stats[a][k], 2)
-        data["rendimiento_activos"] = activos_stats
-
-
-        # Calcular KPIs dinÃƒÂ¡micos con clasificaciÃƒÂ³n de cierres por ticket
-        from collections import defaultdict
-        logs_por_ticket = defaultdict(list)
-        if GLOBAL_AUDIT_LOGS:
-            for l in GLOBAL_AUDIT_LOGS:
-                t = str(l.get("ticket", ""))
-                if t and t != "0" and t != "None":
-                    logs_por_ticket[t].append(l)
-
-        total_tp = 0
-        total_sl = 0
-        total_be = 0
-        total_manual_parcial = 0
-        total_manual_directo = 0
-        
-        for t, t_logs in logs_por_ticket.items():
-            acciones = [str(l.get("accion", "")).upper() for l in t_logs]
-            pnls = [float(l.get("pnl", 0.0)) for l in t_logs]
-            comentarios = [str(l.get("estrategia", "")).upper() for l in t_logs]
-            
-            has_cierre_total = "CIERRE_TOTAL" in acciones
-            has_cierre_parcial = "CIERRE_PARCIAL" in acciones or any("PARCIAL" in c for c in comentarios)
-            
-            if not has_cierre_total:
-                continue
-                
-            if has_cierre_parcial:
-                cierre_total_log = next((l for l in t_logs if str(l.get("accion")).upper() == "CIERRE_TOTAL"), None)
-                if cierre_total_log:
-                    pnl_cierre = float(cierre_total_log.get("pnl", 0.0))
-                    # Si el PnL del cierre final es cercano a 0 (BE), lo contamos como BE
-                    if abs(pnl_cierre) <= 1.5:
-                        total_be += 1
-                    else:
-                        total_manual_parcial += 1
-                else:
-                    total_be += 1
-            else:
-                cierre_total_log = next((l for l in t_logs if str(l.get("accion")).upper() == "CIERRE_TOTAL"), None)
-                if cierre_total_log:
-                    ct_comentario = str(cierre_total_log.get("estrategia", "")).upper()
-                    pnl_cierre = float(cierre_total_log.get("pnl", 0.0))
-                    
-                    if pnl_cierre < 0:
-                        total_sl += 1
-                    elif "DESAPARICION" in ct_comentario or "MANUAL" in ct_comentario:
-                        total_manual_directo += 1
-                    else:
-                        total_tp += 1
-                else:
-                    pnl_final = sum(pnls)
-                    if pnl_final < 0:
-                        total_sl += 1
-                    else:
-                        total_tp += 1
-
-        ganados = len([l for l in todos_los_logs if l.get("pnl", 0) > 0])
-        total_cerrados = len(todos_los_logs)
-        win_rate = round((ganados / total_cerrados * 100), 2) if total_cerrados > 0 else 0
-        
-        # Identificar los verdaderos trades ejecutados (no EVALs)
-        verdaderos_trades = [t for t in todas_las_entradas if t.get("ejecutada_mt5") == True or t.get("accion") in ["COMPRA", "VENTA", "CIERRE_PARCIAL", "CIERRE_TOTAL"] or "Ejecutada por EscÃƒÂ¡ner Cloud" in str(t.get("detalle_setup", ""))]
-        total_trades = len(verdaderos_trades) + total_cerrados
-        
-        # Integrar mia_collective con KPIs calculados
-        m = GLOBAL_MIA_COLLECTIVE if GLOBAL_MIA_COLLECTIVE else {}
-        data["kpis"] = {
-            "win_rate": win_rate,
-            "total_trades": total_trades,
-            "patron_estrella": m.get("patron_estrella_ict_smc", "-"),
-            "patron_estrella_wr": m.get("patron_estrella_win_rate", 0),
-            "parciales_tomados": parciales_tomados,
-            "total_tp": total_tp,
-            "total_sl": total_sl,
-            "total_be": total_be,
-            "total_manual_parcial": total_manual_parcial,
-            "total_manual_directo": total_manual_directo,
-            "dynamic_weights": m.get("dynamic_weights", {})
-        }
-        
-        # 2. trading_matrix (Scores en vivo)
-        for m_id, score_p in GLOBAL_MATRICES.items():
-            data["matriz_scores"][m_id] = score_p
-
-        # 4. Estrategias (mia_kb/patrones_ict_smc)
-        for pdata in GLOBAL_PATRONES:
-            if pdata.get("ocurrencias", 0) > 0:
-                # Tratamos de recuperar el ID original (nombre) pero no lo tenemos en el dict a menos que lo guardemos.
-                # Como un hack, usaremos patron_estrella si coincide
-                data["estrategias"].append({
-                    "nombre": pdata.get("nombre", "PatrÃƒÂ³n"),
-                    "win_rate": pdata.get("win_rate", 0),
-                    "ocurrencias": pdata.get("ocurrencias", 0),
-                    "pnl_generado": pdata.get("pnl_generado", 0.0)
-                })
-
-        data["estrategias"] = sorted(data["estrategias"], key=lambda x: x["win_rate"], reverse=True)
-
-        # 5. Killzones DinÃƒÂ¡micas (Calculadas a partir de todos_los_logs)
-        killzone_stats = {
-            "london": {"ganados": 0, "perdidos": 0},
-            "new_york": {"ganados": 0, "perdidos": 0},
-            "asia": {"ganados": 0, "perdidos": 0}
-        }
-        
-        for l in todos_los_logs:
-            pnl = l.get("pnl", 0.0)
-            fecha = l.get("fecha", "")
-            ses = "new_york"
-            if fecha:
-                try:
-                    dt = datetime.strptime(fecha, "%Y-%m-%d %H:%M:%S")
-                    h = dt.hour
-                    if 1 <= h < 6: ses = "london"
-                    elif 6 <= h < 16: ses = "new_york"
-                    else: ses = "asia"
-                except: pass
-                
-            if pnl > 0:
-                killzone_stats[ses]["ganados"] += 1
-            else:
-                killzone_stats[ses]["perdidos"] += 1
-                
-        data["killzones"] = []
-        for kz, stats in killzone_stats.items():
-            tot = stats["ganados"] + stats["perdidos"]
-            if tot > 0:
-                data["killzones"].append({
-                    "nombre": kz,
-                    "win_rate": round(stats["ganados"] / tot * 100, 2),
-                    "trades": tot,
-                    "ganados": stats["ganados"],
-                    "perdidos": stats["perdidos"]
-                })
-        data["killzones"] = sorted(data["killzones"], key=lambda x: x["win_rate"], reverse=True)
-        data["rendimiento_sesiones"] = data["killzones"]
-
-        # 6. Indicadores/Ponderaciones (mia_kb/indicadores_impacto)
-        if GLOBAL_INDICADORES:
-            for idata in GLOBAL_INDICADORES:
-                if idata.get("trades_con_indicador", 0) > 0:
-                    data["indicadores"].append({
-                        "nombre": idata.get("nombre"),
-                        "win_rate": idata.get("win_rate_indicador", 0),
-                        "trades": idata.get("trades_con_indicador", 0)
-                    })
-
-        data["indicadores"] = sorted(data["indicadores"], key=lambda x: x["win_rate"], reverse=True)
-
-        # Actualizar la cachÃƒÂ© global
-        
-        def round_floats(obj, key_name=None):
-            if isinstance(obj, float):
-                # Preservar hasta 5 decimales para Forex (ej: EURUSD 1.08451, SL, TP, POC)
-                k_lower = str(key_name).lower() if key_name else ""
-                if any(p in k_lower for p in ["sl", "take_profit", "precio", "price", "poc", "entry", "target"]):
-                    return round(obj, 5)
-                elif 0.00001 < abs(obj) < 25.0:
-                    # Divisas Forex tipicas cotizan entre 0.5 y 25.0 (ej. EURUSD, GBPUSD, AUDUSD, NZDUSD)
-                    return round(obj, 5)
-                return round(obj, 2)
-            elif isinstance(obj, dict):
-                return {k: round_floats(v, k) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [round_floats(x, key_name) for x in obj]
-            return obj
-            
-        data = round_floats(data)
-        DASHBOARD_CACHE_DATA = data
-        DASHBOARD_CACHE_TIME = time.time()
-        print("| CACHE | Datos del dashboard actualizados y guardados en memoria")
-
-        # --- PUSH TO UPSTASH REDIS (DUAL SLOT STRATEGY) ---
-        try:
-            import requests
-            import json
-            
-            upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-            session = requests.Session()
-            session.trust_env = False
-            
-            # 1. SLOT LIVE (Para decisiones instantÃƒÂ¡neas de Enjambres)
-            data_live = {
-                "balance_actual": data.get("balance_actual", 0),
-                "equity": data.get("equity", 0),
-                "floating_pnl": data.get("floating_pnl", 0),
-                "operaciones_activas": data.get("operaciones_activas", []),
-                "feed": data.get("feed", []),
-                "matriz_scores": data.get("matriz_scores", {}),
-                "matrices_crudas": GLOBAL_MATRICES # <- RAW POC AND RSI INJECTED HERE
-            }
-            url_live = "https://certain-gnat-160816.upstash.io/set/cache_mt5"
-            session.post(url_live, headers=upstash_headers, data=json.dumps(data_live), timeout=5)
-            
-            # 2. SLOT HISTÃƒâ€œRICO (Para reportes y ML sin tocar Firebase)
-            data_hist = {
-                "balance_base": data.get("balance_base", 0),
-                "pnl_total": data.get("pnl_total", 0),
-                "kpis": data.get("kpis", {}),
-                "estrategias": data.get("estrategias", []),
-                "rendimiento_sesiones": data.get("rendimiento_sesiones", []),
-                "rendimiento_activos": data.get("rendimiento_activos", []),
-                "indicadores": data.get("indicadores", []),
-                "killzones": data.get("killzones", []),
-                "curva_equity": data.get("curva_equity", []),
-                "recent_logs": GLOBAL_AUDIT_LOGS if GLOBAL_AUDIT_LOGS else []
-            }
-            url_hist = "https://certain-gnat-160816.upstash.io/set/cache_hist_mt5"
-            session.post(url_hist, headers=upstash_headers, data=json.dumps(data_hist), timeout=5)
-            
-            print("| UPSTASH | CachÃƒÂ© dual (Live + Hist) sincronizada con Redis exitosamente")
-        except Exception as e:
-            print(f"| UPSTASH ERROR | No se pudo subir cachÃƒÂ© dual a Redis: {e}")
-
-        data["recent_logs"] = GLOBAL_AUDIT_LOGS
-        return {"status": "success", "data": data}
-
-    except Exception as e:
-        print(f"| API ERROR | Fallo al recopilar datos del dashboard: {e}")
-        # Si falla por 429 u otro error, intentar devolver la cachÃƒÂ© antigua si existe
-        if DASHBOARD_CACHE_DATA:
-            print("| CACHE FALLBACK | Sirviendo datos antiguos por fallo en Firebase")
-            return {"status": "success", "data": DASHBOARD_CACHE_DATA, "warning": str(e)}
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/open_trades")

@@ -31,80 +31,64 @@ except Exception as e:
 
 @tool("Leer Railway Cache RAM")
 def railway_cache_tool() -> str:
-    """Útil para extraer métricas, KPIs y rendimiento por estrategia desde la caché RAM (Ahora en Upstash Redis)."""
+    """Útil para extraer métricas, KPIs, rendimiento, TensorFlow y Trading Matrix desde Upstash Redis vía MGET (0 Firebase, velocidad de la luz)."""
     try:
-        url = "https://certain-gnat-160816.upstash.io/get/cache_mt5"
+        url = "https://certain-gnat-160816.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix/cache_system_memory"
         headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
         
         session = requests.Session()
         session.trust_env = False
-        response = session.get(url, headers=headers, timeout=10)
+        response = session.get(url, headers=headers, timeout=6)
         response.raise_for_status()
         
-        data = response.json()
-        if data.get("result"):
-            # Redis guarda strings, lo convertimos de vuelta a JSON
-            try:
-                parsed_data = json.loads(data["result"])
-                # MINIMIZACIÓN DE TOKENS: Extraemos solo lo vital para el Enjambre
-                data_filtrada = {
-                    "kpis": parsed_data.get("kpis", {}),
-                    "activos": parsed_data.get("rendimiento_activos", {}),
-                    "activas": parsed_data.get("operaciones_activas", []),
-                    "estrategias_vectorizadas": parsed_data.get("estrategias", []),
-                    "indicadores_ml": parsed_data.get("indicadores", []),          # Pesos de Sweeps, LUX ALGO, AMD
-                    "ml_matriz_scores": parsed_data.get("matriz_scores", {})
-                }
-                
-                # Desacoplamiento: Consultar Cerebro TensorFlow en Upstash Redis (Nuevo Slot)
-                try:
-                    tf_url = "https://certain-gnat-160816.upstash.io/get/cache_mia_tensorflow"
-                    tf_res = session.get(tf_url, headers=headers, timeout=5)
-                    if tf_res.status_code == 200:
-                        tf_data = tf_res.json().get("result")
-                        if tf_data:
-                            data_filtrada["tensorflow_ai"] = json.loads(tf_data)
-                except Exception as e_tf:
-                    data_filtrada["tensorflow_ai"] = {"status": "offline", "error": str(e_tf)}
-                
-                # Desacoplamiento: Consultar Trading Matrix en Upstash Redis (21 activos)
-                try:
-                    mat_url = "https://certain-gnat-160816.upstash.io/get/cache_trading_matrix"
-                    mat_res = session.get(mat_url, headers=headers, timeout=5)
-                    if mat_res.status_code == 200:
-                        mat_data = mat_res.json().get("result")
-                        if mat_data:
-                            m_json = json.loads(mat_data)
-                            data_filtrada["trading_matrix_scores"] = {
-                                k: {
-                                    "score": v.get("score_porcentaje", 0),
-                                    "estado": v.get("estado_ejecucion", "INACTIVO"),
-                                    "rsi": v.get("rsi", 50.0)
-                                }
-                                for k, v in m_json.items()
-                            }
-                except Exception:
-                    pass
-
-                # Desacoplamiento: Memoria Colectiva Upstash
-                try:
-                    mem_url = "https://certain-gnat-160816.upstash.io/get/cache_system_memory"
-                    mem_res = session.get(mem_url, headers=headers, timeout=5)
-                    if mem_res.status_code == 200:
-                        mem_data = mem_res.json().get("result")
-                        if mem_data:
-                            data_filtrada["system_memory"] = json.loads(mem_data)
-                except Exception:
-                    pass
-                
-                return f"Datos Minimizados (Upstash Redis):\n{json.dumps(data_filtrada, indent=2)}"
-            except Exception as e:
-                return f"Datos (Raw) desde Upstash Redis:\n{str(data.get('result'))[:1000]}... (TRUNCADO)"
-        else:
+        slots = response.json().get("result", [])
+        if not slots or not slots[0]:
             return "El caché de Redis está vacío. Esperando datos del Bot MT5."
             
+        parsed_data = json.loads(slots[0])
+        data_filtrada = {
+            "kpis": parsed_data.get("kpis", {}),
+            "activos": parsed_data.get("rendimiento_activos", {}),
+            "activas": parsed_data.get("operaciones_activas", []),
+            "estrategias_vectorizadas": parsed_data.get("estrategias", []),
+            "indicadores_ml": parsed_data.get("indicadores", []),
+            "ml_matriz_scores": parsed_data.get("matriz_scores", {})
+        }
+        
+        # 1. Cerebro TensorFlow (slot 1)
+        if len(slots) > 1 and slots[1]:
+            try:
+                data_filtrada["tensorflow_ai"] = json.loads(slots[1])
+            except Exception:
+                data_filtrada["tensorflow_ai"] = {"status": "error_parsing"}
+        else:
+            data_filtrada["tensorflow_ai"] = {"status": "offline"}
+
+        # 2. Trading Matrix 21 activos (slot 2)
+        if len(slots) > 2 and slots[2]:
+            try:
+                m_json = json.loads(slots[2])
+                data_filtrada["trading_matrix_scores"] = {
+                    k: {
+                        "score": v.get("score_porcentaje", 0),
+                        "estado": v.get("estado_ejecucion", "INACTIVO"),
+                        "rsi": v.get("rsi", 50.0)
+                    }
+                    for k, v in m_json.items()
+                }
+            except Exception:
+                pass
+
+        # 3. Memoria Colectiva (slot 3)
+        if len(slots) > 3 and slots[3]:
+            try:
+                data_filtrada["system_memory"] = json.loads(slots[3])
+            except Exception:
+                pass
+        
+        return f"Datos Minimizados (Upstash Redis):\n{json.dumps(data_filtrada, indent=2)}"
     except Exception as e:
-        return f"Error leyendo Upstash Redis Cache: {str(e)}"
+        return f"Error leyendo Upstash Redis Cache vía MGET: {str(e)}"
 
 @tool("Leer Matriz de Activos Upstash")
 def upstash_trading_matrix_tool() -> str:

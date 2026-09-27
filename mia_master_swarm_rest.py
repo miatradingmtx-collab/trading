@@ -118,37 +118,31 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
 def run_hft_cycle():
     emit_ws_event("Master", "START", "Iniciando Ciclo REST HFT (TensorFlow + Swarm Neuronal).")
     
-    # 1. Leer Sensores HFT y Upstash Redis (TIDAL & TENSORFLOW)
-    emit_ws_event("TIDAL", "SCANNING", "Sincronizando Liquidez MT5 y Cerebro TensorFlow...")
+    # 1. Leer Sensores HFT y Upstash Redis vía MGET (TIDAL, TENSORFLOW & TRADING MATRIX en 1 RTT)
+    emit_ws_event("TIDAL", "SCANNING", "Sincronizando Liquidez MT5, Cerebro TensorFlow y Matriz Institucional...")
     try:
         upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        session = requests.Session()
+        session.trust_env = False
         
-        # Obtener Liquidez y Ordenes (MT5 Cache)
-        res_mt5 = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mt5", headers=upstash_headers, timeout=5)
-        mt5_raw = res_mt5.json().get("result", {})
-        if isinstance(mt5_raw, str):
-            try:
-                mt5_json = json.loads(mt5_raw)
-            except Exception:
-                mt5_json = {}
-        elif isinstance(mt5_raw, dict):
-            mt5_json = mt5_raw
-        else:
-            mt5_json = {}
+        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix"
+        res_mget = session.get(mget_url, headers=upstash_headers, timeout=5)
+        slots = res_mget.json().get("result", []) if res_mget.status_code == 200 else []
         
-        # Obtener Cerebro TensorFlow (Matriz Profunda)
-        res_tf = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_tensorflow", headers=upstash_headers, timeout=5)
-        tf_raw = res_tf.json().get("result", {})
-        if isinstance(tf_raw, str):
-            try:
-                tf_json = json.loads(tf_raw)
-            except Exception:
-                tf_json = {}
-        elif isinstance(tf_raw, dict):
-            tf_json = tf_raw
-        else:
-            tf_json = {}
+        # 1. MT5 Cache (slot 0)
+        mt5_raw = slots[0] if len(slots) > 0 and slots[0] else {}
+        mt5_json = json.loads(mt5_raw) if isinstance(mt5_raw, str) else (mt5_raw or {})
         
+        # 2. Cerebro TensorFlow (slot 1)
+        tf_raw = slots[1] if len(slots) > 1 and slots[1] else {}
+        tf_json = json.loads(tf_raw) if isinstance(tf_raw, str) else (tf_raw or {})
+        
+        # 3. Trading Matrix (slot 2)
+        tm_raw = slots[2] if len(slots) > 2 and slots[2] else {}
+        matrices_crudas = json.loads(tm_raw) if isinstance(tm_raw, str) else (tm_raw or {})
+        if not matrices_crudas:
+            matrices_crudas = mt5_json.get("matrices_crudas", {})
+            
         # Extracción de liquidez y balance
         balance = mt5_json.get("balance_actual", 0.0)
         equity = mt5_json.get("equity", 0.0)
@@ -168,18 +162,7 @@ def run_hft_cycle():
         cache_data = f"FALLO_EN_SENSORES: {e}"
         mt5_json = {}
         tf_json = {}
-
-    # --- Extracción de Datos Reales de MT5 y Cálculos HFT (NORO / ZEPHR / LUMEN) ---
-    matrices_crudas = mt5_json.get("matrices_crudas", {})
-    if not matrices_crudas:
-        try:
-            res_tm = requests.get("https://certain-gnat-160816.upstash.io/get/cache_trading_matrix", headers=upstash_headers, timeout=3)
-            if res_tm.status_code == 200:
-                tm_raw = res_tm.json().get("result")
-                if tm_raw:
-                    matrices_crudas = json.loads(tm_raw)
-        except Exception:
-            pass
+        matrices_crudas = {}
     activos_resumen = []
     
     # Determinar activo principal para escaneo DOM
