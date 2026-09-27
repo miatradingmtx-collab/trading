@@ -5,7 +5,7 @@
 MIA CORE - ANTOPUS TERMINAL CLI (Cross-Platform: Termux, CMD, PowerShell, Bash)
 ================================================================================
 Consola de Monitoreo Inter-Agente en Tiempo Real.
-Permite visualizar la deliberaciÃ³n de los 3 Sub-Enjambres (Antopus), el Consenso
+Permite visualizar la deliberacion de los 3 Sub-Enjambres (Antopus), el Consenso
 de RUNE, la inferencia de TensorFlow y el estado del mercado directamente en
 cualquier terminal (Android Termux, Windows CMD/PowerShell, Linux, macOS).
 """
@@ -20,18 +20,18 @@ import urllib.request
 import io
 import asyncio
 
-# Asegurar codificaciÃ³n UTF-8 universal en terminales (Windows CMD, PowerShell, Termux)
+# Asegurar codificacion UTF-8 universal en terminales (Windows CMD, PowerShell, Termux)
 if sys.stdout and hasattr(sys.stdout, "buffer"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
 if sys.stderr and hasattr(sys.stderr, "buffer"):
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace", line_buffering=True)
 
-# ConfiguraciÃ³n de Endpoints
+# Configuracion de Endpoints
 WS_URL = "wss://trading-production-1fd4.up.railway.app/ws"
 UPSTASH_URL = "https://certain-gnat-160816.upstash.io"
 UPSTASH_TOKEN = "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"
 
-# CÃ³digos de Color ANSI Universales
+# Codigos de Color ANSI Universales
 C_RESET   = "\033[0m"
 C_BOLD    = "\033[1m"
 C_DIM     = "\033[2m"
@@ -45,7 +45,7 @@ C_WHITE   = "\033[97m"
 C_ORANGE  = "\033[38;5;208m"
 C_BG_DARK = "\033[40m"
 
-# Habilitar colores en Windows CMD clÃ¡sico si es necesario
+# Habilitar colores en Windows CMD clasico si es necesario
 if os.name == "nt":
     try:
         import ctypes
@@ -56,7 +56,7 @@ if os.name == "nt":
 
 
 def fetch_upstash(key: str) -> dict:
-    """Lee un slot de Upstash Redis vÃ­a REST nativo (cero dependencias externas)."""
+    """Lee un slot de Upstash Redis via REST nativo (cero dependencias externas)."""
     try:
         req = urllib.request.Request(
             f"{UPSTASH_URL}/get/{key}",
@@ -83,7 +83,7 @@ def print_banner():
  |  \/  |_ _|  /_\     /_\ | \| |_   _/ _ \| _ \ | | / __|  {C_ORANGE}🐙{C_CYAN}
  | |\/| || |  / _ \   / _ \| .` | | || (_) |  _/ |_| \__ \
  |_|  |_|___|/_/ \_\ /_/ \_\_|\_| |_| \___/|_|  \___/|___/
-{C_RESET}{C_WHITE}   >>> PROTOCOLO DE DELIBERACIÃ“N INTER-AGENTE (ANTOPUS CLI) <<<{C_RESET}
+{C_RESET}{C_WHITE}   >>> PROTOCOLO DE DELIBERACION INTER-AGENTE (ANTOPUS CLI) <<<{C_RESET}
 {C_DIM}-----------------------------------------------------------------------------{C_RESET}"""
     print(banner)
 
@@ -110,7 +110,7 @@ def print_status_bar():
         target_date = now_utc + datetime.timedelta(days=days_ahead)
         target_time = target_date.replace(hour=21, minute=0, second=0, microsecond=0)
         horas_rest = round(max(0, (target_time - now_utc).total_seconds()) / 3600, 1)
-        market_badge = f"{C_YELLOW}CRIOSUEÃ‘O ({horas_rest}h para apertura dom 21:00 UTC){C_RESET}"
+        market_badge = f"{C_YELLOW}CRIOSUENO ({horas_rest}h para apertura dom 21:00 UTC){C_RESET}"
     else:
         market_badge = f"{C_GREEN}EN VIVO (HFT OpenRouter / MT5){C_RESET}"
 
@@ -124,7 +124,7 @@ def print_status_bar():
 
 
 def format_agent_event(agent: str, action: str, data: str):
-    """Aplica formato visual con colores segÃºn el agente y manada."""
+    """Aplica formato visual con colores segun el agente y manada."""
     now_str = datetime.datetime.now().strftime("%H:%M:%S")
     agent_up = agent.upper()
     action_up = action.upper()
@@ -154,8 +154,8 @@ def format_agent_event(agent: str, action: str, data: str):
 
 
 def display_latest_debate():
-    """Muestra el Ãºltimo debate almacenado en Upstash Redis."""
-    print(f"{C_BOLD}{C_MAGENTA}>>> ÃšLTIMO DEBATE DE LAS LOS ENJAMBRES (ANTOPUS SNAPSHOT):{C_RESET}")
+    """Muestra el ultimo debate almacenado en Upstash Redis."""
+    print(f"{C_BOLD}{C_MAGENTA}>>> ULTIMO DEBATE DE LAS LOS ENJAMBRES (ANTOPUS SNAPSHOT):{C_RESET}")
     debate_payload = fetch_upstash("cache_herd_debate_latest")
     
     if not debate_payload or "content" not in debate_payload:
@@ -196,7 +196,7 @@ async def stream_live_websocket():
     while True:
         try:
             async with websockets.connect(WS_URL, ping_interval=20, ping_timeout=20) as ws:
-                print(f"{C_GREEN}[OK] ConexiÃ³n WebSocket Establecida.{C_RESET} Escuchando diÃ¡logo de los agentes...\n")
+                print(f"{C_GREEN}[OK] Conexion WebSocket Establecida.{C_RESET} Escuchando dialogo de los agentes...\n")
                 reconnect_delay = 3
                 while True:
                     raw_msg = await ws.recv()
@@ -211,16 +211,16 @@ async def stream_live_websocket():
                     except Exception:
                         print(f"{C_DIM}{raw_msg}{C_RESET}")
         except (websockets.exceptions.ConnectionClosed, websockets.exceptions.WebSocketException, OSError, TimeoutError, asyncio.TimeoutError) as e:
-            print(f"{C_YELLOW}[!] ConexiÃ³n en espera o reconectando ({e}). Reintento en {int(reconnect_delay)}s...{C_RESET}")
+            print(f"{C_YELLOW}[!] Conexion en espera o reconectando ({e}). Reintento en {int(reconnect_delay)}s...{C_RESET}")
             await asyncio.sleep(reconnect_delay)
             reconnect_delay = min(reconnect_delay * 1.5, 30)
         except Exception as e:
-            print(f"{C_RED}[X] ConexiÃ³n pausada ({e}). Reconectando en 5s...{C_RESET}")
+            print(f"{C_RED}[X] Conexion pausada ({e}). Reconectando en 5s...{C_RESET}")
             await asyncio.sleep(5)
 
 
 def poll_upstash_fallback():
-    """Modo de respaldo por sondeo en caso de que websockets no estÃ© disponible."""
+    """Modo de respaldo por sondeo en caso de que websockets no este disponible."""
     print(f"{C_YELLOW}[*] Modo Respaldo: Sondeando Upstash Redis cada 4 segundos...{C_RESET}\n")
     last_title = ""
     while True:
@@ -245,9 +245,9 @@ def poll_upstash_fallback():
 
 def main():
     parser = argparse.ArgumentParser(description="MIA Antopus Terminal CLI - Monitor Inter-Agente")
-    parser.add_argument("--once", action="store_true", help="Muestra el estado actual y Ãºltimo debate y finaliza.")
-    parser.add_argument("--status", action="store_true", help="Solo muestra el estado de mercado y mÃ©tricas de TensorFlow.")
-    parser.add_argument("--poll", action="store_true", help="Fuerza el modo sondeo vÃ­a Upstash en lugar de WebSocket.")
+    parser.add_argument("--once", action="store_true", help="Muestra el estado actual y ultimo debate y finaliza.")
+    parser.add_argument("--status", action="store_true", help="Solo muestra el estado de mercado y metricas de TensorFlow.")
+    parser.add_argument("--poll", action="store_true", help="Fuerza el modo sondeo via Upstash en lugar de WebSocket.")
     args = parser.parse_args()
 
     print_banner()
@@ -261,18 +261,18 @@ def main():
     if args.once:
         return
 
-    # Verificar si websockets estÃ¡ disponible para streaming en tiempo real
+    # Verificar si websockets esta disponible para streaming en tiempo real
     if not args.poll:
         try:
             import websockets
             import asyncio
             asyncio.run(stream_live_websocket())
         except ImportError:
-            print(f"{C_YELLOW}Nota: LibrerÃ­a 'websockets' no instalada. Usando sondeo automÃ¡tico a Upstash.{C_RESET}")
-            print(f"{C_DIM}(Para streaming ultra-rÃ¡pido ejecuta: pip install websockets){C_RESET}\n")
+            print(f"{C_YELLOW}Nota: Libreria 'websockets' no instalada. Usando sondeo automatico a Upstash.{C_RESET}")
+            print(f"{C_DIM}(Para streaming ultra-rapido ejecuta: pip install websockets){C_RESET}\n")
             poll_upstash_fallback()
         except KeyboardInterrupt:
-            print(f"\n{C_CYAN}MIA Antopus CLI desconectado con Ã©xito.{C_RESET}")
+            print(f"\n{C_CYAN}MIA Antopus CLI desconectado con exito.{C_RESET}")
     else:
         poll_upstash_fallback()
 
