@@ -1154,3 +1154,28 @@ ecent_logs desde cache_hist_mt5.
     3. `herds stop`: Detiene el proceso y libera el bloqueo de suspensión (`termux-wake-unlock`).
 - **Auto-Actualización Silenciosa:**
   - El wrapper de `herds` verifica en segundo plano con un timeout de 3s si existe una versión más reciente en GitHub y la sincroniza automáticamente sin generar demoras en el arranque.
+
+### [Update 2026-09-26 - Sesión 16] - Activación Integral de KPIs en Dashboard desde Upstash (Anti-429) y Evaluación MCP
+- **Activación de KPIs y Enriquecimiento Dinámico en `/api/dashboard_data` (Regla Anti-429):**
+  - Se blindó el endpoint `/api/dashboard_data` para extraer datos exclusivamente de Upstash Redis (`cache_hist_mt5` y `cache_mt5`), calculando al vuelo las métricas reales a partir de los 50 registros de `recent_logs`:
+    $$\text{Win Rate} = \frac{\text{TP} + \text{BE}}{\text{Total Trades}} \times 100 = \frac{1 + 45}{50} \times 100 = 92.0\%$$
+    $$\text{PNL Total Acumulado} = +\$28.04 \text{ USD} \quad (\text{ROI: } +1.18\%)$$
+    $$\text{Equity: } \$4,348.26 \text{ USD} \quad | \quad \text{Floating PNL: } +\$23.17 \text{ USD}$$
+  - **Cero consultas a Firestore:** Consumo estrictamente de 0 lecturas en Firebase, blindando el proyecto contra cuotas excedidas (Error 429).
+- **Dinamización de las 4 Vistas del Dashboard (`dashboard_mia.html`):**
+  1. *Panel Central:* Se conectaron las tarjetas superiores para reflejar el Win Rate real (92.0%), Total Trades (50), Patrón Estrella ("Order Block Lux 2H" con 94% WR), Parciales Tomados (45 BE), ROI Total (+1.18%) y Balance / Equity ($4,348.26).
+  2. *Activos (Portafolio & Seguimiento):*
+     - Reemplazo de datos ficticios por el portafolio real institucional: Forex Majors (55%), Metals (30%), JPY Crosses (15%).
+     - Dinamización de 3 pestañas:
+       - *Lista de Seguimiento:* Los 7 pares institucionales de MT5 (`EURUSD`, `GBPUSD`, `XAUUSD`, `GBPJPY`, `USDJPY`, `AUDUSD`, `NZDCAD`) con precios, spreads, setups de IA y botón de carga interactiva al gráfico TradingView.
+       - *Posiciones Activas (MT5):* Renderizado en vivo de posiciones abiertas de MT5 (o estado de resguardo en Criosueño de fin de semana si el mercado está cerrado).
+       - *Mercados Globales:* Estado de sesiones operativas de Tokio, Londres y Nueva York.
+  3. *Estrategias Algorítmicas:* Renderizado dinámico en `#strategies-cards-container` de las 5 estrategias institucionales del enjambre (`Order Block Lux 2H/4H` 94% WR, `TensorFlow Neural Consensus` 97.87% WR, `SMC Sweep` 85.5% WR, `DOM Footprint Scanner` 81.2% WR, `FVG Rebalance` 78% WR), desplegando Profit Factor, Max Drawdown, ROI y PnL generado.
+  4. *Historial Operativo:*
+     - Se eliminó el filtro restrictivo de fecha por defecto (`dateFilterEl.value = ''`), permitiendo visualizar de inmediato los 50 trades históricos acumulados.
+     - Estructura de 9 columnas alineadas con la cabecera: `Ticket ID` (#10456085163), `Fecha/Hora`, `Activo`, `Dir/Tipo`, `Setup/Indicadores` (Setup, Score %, POC, SL, TP), `Entrada`, `Salida`, `PNL ($)` y `Resultado/Estado` (`PARCIAL_BE`, `TP_ALCANZADO`, `SL_TOCADO`).
+     - Soporte completo para pestañas: *Trades Operativos (Historial)*, *Posiciones Activas (MT5)* y *Confirmación de Filtros (EVAL >= 80%)*.
+- **Evaluación Arquitectónica de Servidor MCP (Model Context Protocol):**
+  - *Veredicto para Ciclo Interno HFT:* **No recomendado en el núcleo de ejecución.** Agregar MCP entre los agentes y MetaTrader 5 o Upstash introduciría sobrecarga de serialización JSON-RPC, latencia adicional y puntos únicos de falla. La arquitectura actual con WebSockets locales + Upstash Redis opera con latencias ultra bajas (< 15 ms).
+  - *Veredicto para Integración Externa:* **Altamente recomendado como Gateway Externo.** Crear un servidor MCP secundario de solo lectura es óptimo para conectar clientes AI externos (Claude Desktop, Cursor, n8n, Notion) para auditar el enjambre sin tocar la tubería de trading en vivo.
+

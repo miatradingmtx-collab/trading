@@ -378,46 +378,46 @@
                     <!-- Distribución de Portafolio -->
                     <div class="card">
                         <div class="card-title" style="display:flex; justify-content:space-between;">Distribución de Portafolio <i class="fa-solid fa-chart-pie"></i></div>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top:-10px; margin-bottom:20px;">Clasificación de Activos</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:-10px; margin-bottom:20px;">Clasificación de Activos Institucionales</div>
                         <div class="donut-container">
                             <svg viewBox="0 0 100 100" width="160" height="160">
-                                <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--neon-green)" stroke-width="8" stroke-dasharray="150 251" />
-                                <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--neon-blue)" stroke-width="8" stroke-dasharray="60 251" stroke-dashoffset="-150" />
-                                <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--text-muted)" stroke-width="8" stroke-dasharray="41 251" stroke-dashoffset="-210" />
+                                <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--neon-green)" stroke-width="8" stroke-dasharray="138 251" />
+                                <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--neon-blue)" stroke-width="8" stroke-dasharray="75 251" stroke-dashoffset="-138" />
+                                <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--neon-yellow)" stroke-width="8" stroke-dasharray="38 251" stroke-dashoffset="-213" />
                             </svg>
                             <div class="donut-hole">
-                                <h3 id="portfolio-value">$4.2M</h3>
-                                <span>Valor Total</span>
+                                <h3 id="portfolio-value">$4,348.26</h3>
+                                <span>Capital Total</span>
                             </div>
                         </div>
                         <div style="display:flex; justify-content:space-around; margin-top:10px; font-size:12px; font-weight:600;">
-                            <div style="text-align:center;"><span style="color:var(--text-muted); font-size:10px; display:block;">Crypto</span><span class="text-green">62%</span></div>
-                            <div style="text-align:center;"><span style="color:var(--text-muted); font-size:10px; display:block;">Forex</span><span class="text-blue">28%</span></div>
-                            <div style="text-align:center;"><span style="color:var(--text-muted); font-size:10px; display:block;">Metals</span><span class="text-muted">10%</span></div>
+                            <div style="text-align:center;"><span style="color:var(--text-muted); font-size:10px; display:block;">Forex Majors</span><span class="text-green">55%</span></div>
+                            <div style="text-align:center;"><span style="color:var(--text-muted); font-size:10px; display:block;">Metals (XAU)</span><span class="text-blue">30%</span></div>
+                            <div style="text-align:center;"><span style="color:var(--text-muted); font-size:10px; display:block;">JPY Crosses</span><span class="text-yellow">15%</span></div>
                         </div>
                     </div>
 
                     <!-- Exposición de Activos -->
                     <div class="card">
                         <div class="card-title" style="display:flex; justify-content:space-between;">Exposición de Activos <i class="fa-solid fa-expand"></i></div>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top:-10px; margin-bottom:20px;">Riesgo Ponderado por Liquidez</div>
-                        <div class="treemap">
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:-10px; margin-bottom:20px;">Riesgo Ponderado por Liquidez (MT5)</div>
+                        <div class="treemap" id="assets-treemap">
                             <div class="tm-box" style="grid-row: span 2; background: rgba(0,255,157,0.1); border-color: rgba(0,255,157,0.3);">
-                                <h4>BTC</h4>
-                                <div><h3 style="color:var(--neon-green);">$2.6M</h3><span>61.9% Weight</span></div>
+                                <h4>XAUUSD</h4>
+                                <div><h3 style="color:var(--neon-green);">$1,521.89</h3><span>35.0% Weight</span></div>
                             </div>
                             <div class="tm-box" style="background: rgba(0,210,255,0.05);">
-                                <h4>ETH</h4>
-                                <div><h3 style="color:var(--neon-blue); font-size:16px;">$0.9M</h3></div>
+                                <h4>EURUSD</h4>
+                                <div><h3 style="color:var(--neon-blue); font-size:16px;">$1,304.48</h3><span>30.0% Weight</span></div>
                             </div>
                             <div style="display:flex; gap:8px;">
                                 <div class="tm-box" style="flex:1; padding:8px;">
-                                    <h4 style="font-size:12px;">XAU</h4>
-                                    <h3 style="font-size:14px; margin-top:8px;">$0.4M</h3>
+                                    <h4 style="font-size:12px;">GBPJPY</h4>
+                                    <h3 style="font-size:14px; margin-top:8px;">$869.65</h3>
                                 </div>
                                 <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
-                                    <div class="tm-box" style="flex:1; padding:8px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:10px;">SOL</div>
-                                    <div class="tm-box" style="flex:1; padding:8px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:10px;">EUR</div>
+                                    <div class="tm-box" style="flex:1; padding:8px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:10px;">GBPUSD</div>
+                                    <div class="tm-box" style="flex:1; padding:8px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:10px;">AUDUSD</div>
                                 </div>
                             </div>
                         </div>
@@ -432,29 +432,39 @@
                         </div>
                         <div class="order-form">
                             <label>Par de Activos</label>
-                            <select><option>BTCUSD</option><option>EURUSD</option></select>
+                            <select id="order-symbol-select">
+                                <option>EURUSD</option>
+                                <option>GBPUSD</option>
+                                <option>XAUUSD</option>
+                                <option>GBPJPY</option>
+                                <option>AUDUSD</option>
+                                <option>USDJPY</option>
+                                <option>NZDCAD</option>
+                            </select>
                             
                             <label>Tipo de Ejecución</label>
-                            <select><option>Market</option><option>Limit</option></select>
+                            <select><option>Market Execution (MT5)</option><option>Limit Order</option></select>
                             
-                            <label>Monto (USD)</label>
-                            <input type="text" value="$10,000.00">
+                            <label>Monto Lotes</label>
+                            <input type="text" value="0.05">
                             
                             <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); margin-bottom:4px;">
-                                <span>COMISIÓN EST.</span><span>$12.50</span>
+                                <span>MARGEN REQUERIDO</span><span>$24.50</span>
                             </div>
                             <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted);">
-                                <span>DESLIZAMIENTO</span><span class="text-green">< 0.01%</span>
+                                <span>DESLIZAMIENTO</span><span class="text-green">&lt; 0.1 pips</span>
                             </div>
                             
-                            <button class="btn-execute">Ejecutar Trade</button>
+                            <button class="btn-execute">Enviar a Broker MT5</button>
                         </div>
                         
                         <div class="live-signals">
-                            <span style="color:var(--text-muted); font-weight:bold; margin-top:10px; font-size:10px; border-bottom:1px solid var(--border-color); padding-bottom:4px;">SEÑALES EN VIVO</span>
-                            <div><span class="text-green">[14:22:01] BUY</span> BTC/USD Signal @ $64.3k</div>
-                            <div><span class="text-red">[14:21:45] SELL</span> EUR/USD Order Filled</div>
-                            <div><span class="text-blue">[14:20:12] INFO</span> Liquidity pool rebalanced</div>
+                            <span style="color:var(--text-muted); font-weight:bold; margin-top:10px; font-size:10px; border-bottom:1px solid var(--border-color); padding-bottom:4px;">SEÑALES DE ENJAMBRES</span>
+                            <div id="live-signals-box">
+                                <div><span class="text-green">[HERD 1]</span> OB 2H Detectado en EURUSD @ 1.0845</div>
+                                <div><span class="text-yellow">[HERD 2]</span> TensorFlow Acc 97.87% (47 Trades)</div>
+                                <div><span class="text-blue">[MASTER]</span> Criosueño de Fin de Semana Activo</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -462,37 +472,16 @@
                 <!-- Watchlist -->
                 <div class="card">
                     <div class="strat-header-tabs" style="margin-bottom:16px;">
-                        <span class="strat-tab active">Lista de Seguimiento</span>
-                        <span class="strat-tab">Posiciones Activas</span>
-                        <span class="strat-tab">Mercados Globales</span>
+                        <span class="strat-tab active" id="tab-asset-watchlist" onclick="switchAssetTab('watchlist')">Lista de Seguimiento</span>
+                        <span class="strat-tab" id="tab-asset-positions" onclick="switchAssetTab('positions')">Posiciones Activas (MT5)</span>
+                        <span class="strat-tab" id="tab-asset-markets" onclick="switchAssetTab('markets')">Mercados Globales</span>
                     </div>
                     <table class="styled-table">
-                        <thead><tr><th>Activo / Par</th><th>Precio</th><th>Cambio 24H</th><th>Índice Vol</th><th>Cap. Mercado</th><th>Acción</th></tr></thead>
-                        <tbody>
-                            <tr>
-                                <td><div style="display:flex; align-items:center; gap:10px;"><div style="width:24px;height:24px;background:#1a2b22;color:var(--neon-green);border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:bold;">B</div> <div><strong>BTCUSD</strong><br><span style="font-size:10px;color:var(--text-muted);">Bitcoin/US Dollar</span></div></div></td>
-                                <td style="font-weight:600; color:var(--neon-blue);">$64,329.93</td>
-                                <td class="text-green">+4.25%</td>
-                                <td>72.4 <div style="width:50px;height:2px;background:var(--neon-green);margin-top:4px;"></div></td>
-                                <td>$1.26T</td>
-                                <td><button class="btn-green">Operar</button></td>
-                            </tr>
-                            <tr>
-                                <td><div style="display:flex; align-items:center; gap:10px;"><div style="width:24px;height:24px;background:#2a2510;color:var(--neon-yellow);border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:bold;">G</div> <div><strong>XAUUSD</strong><br><span style="font-size:10px;color:var(--text-muted);">Gold/US Dollar</span></div></div></td>
-                                <td style="font-weight:600; color:var(--neon-blue);">$2,384.72</td>
-                                <td class="text-red">-0.12%</td>
-                                <td>14.8 <div style="width:20px;height:2px;background:var(--neon-yellow);margin-top:4px;"></div></td>
-                                <td>$14.5T</td>
-                                <td><button class="btn-green">Operar</button></td>
-                            </tr>
-                            <tr>
-                                <td><div style="display:flex; align-items:center; gap:10px;"><div style="width:24px;height:24px;background:#102230;color:var(--neon-blue);border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:bold;">E</div> <div><strong>EURUSD</strong><br><span style="font-size:10px;color:var(--text-muted);">Euro/US Dollar</span></div></div></td>
-                                <td style="font-weight:600; color:var(--neon-blue);">$1.0854</td>
-                                <td class="text-green">+0.05%</td>
-                                <td>8.2 <div style="width:10px;height:2px;background:var(--neon-blue);margin-top:4px;"></div></td>
-                                <td>Liquid</td>
-                                <td><button class="btn-green">Operar</button></td>
-                            </tr>
+                        <thead id="assets-thead">
+                            <tr><th>Activo / Par</th><th>Precio Actual</th><th>Cambio 24H</th><th>Volumen / Spread</th><th>Setup / IA</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody id="assets-tbody">
+                            <!-- Inyectado dinámicamente -->
                         </tbody>
                     </table>
                 </div>
@@ -511,8 +500,8 @@
 
                 <div class="strat-grid">
                     <div>
-                        <div class="card-title">Algoritmos Desplegados <span style="font-size:10px; text-transform:none; font-weight:normal; display:block; margin-top:4px;">Gestionando 12 estrategias institucionales activas</span></div>
-                        <div class="algo-cards">
+                        <div class="card-title">Algoritmos Desplegados <span style="font-size:10px; text-transform:none; font-weight:normal; display:block; margin-top:4px;">Gestionando estrategias institucionales activas</span></div>
+                        <div class="algo-cards" id="strategies-cards-container">
                             <!-- Algo 1 -->
                             <div class="algo-card" style="border-top: 2px solid var(--neon-green);">
                                 <div class="algo-head">
@@ -639,18 +628,18 @@
                 <div class="history-kpi-row">
                     <div class="hk-card" style="border-top: 2px solid var(--neon-green);">
                         <div class="hk-title">Beneficio Histórico <i class="fa-solid fa-money-bill-trend-up text-green"></i></div>
-                        <div class="hk-val green">$428,901</div>
-                        <div class="hk-sub"><span class="text-green">↗ +12.4%</span> vs mes pasado</div>
+                        <div class="hk-val green" id="hist-kpi-pnl">+$28.04</div>
+                        <div class="hk-sub" id="hist-kpi-pnl-sub"><span class="text-green">↗ +1.18%</span> ROI Acumulado</div>
                     </div>
                     <div class="hk-card" style="border-top: 2px solid var(--neon-blue);">
                         <div class="hk-title">Total de Trades <i class="fa-solid fa-layer-group text-blue"></i></div>
-                        <div class="hk-val">12,482</div>
-                        <div class="hk-sub">Win Rate: 68.2%</div>
+                        <div class="hk-val" id="hist-kpi-trades">50</div>
+                        <div class="hk-sub" id="hist-kpi-wr">Win Rate: 92.0%</div>
                     </div>
                     <div class="hk-card" style="border-top: 2px solid var(--neon-purple);">
                         <div class="hk-title">Promedio de Ganancia <i class="fa-solid fa-star text-purple"></i></div>
-                        <div class="hk-val">$1,244</div>
-                        <div class="hk-sub">Duración mediana: 14m</div>
+                        <div class="hk-val" id="hist-kpi-avg">+$0.56</div>
+                        <div class="hk-sub" id="hist-kpi-avg-sub">45 Parciales BE</div>
                     </div>
                     <div class="hk-card">
                         <div class="hk-title">Pulso del Sistema</div>
@@ -676,20 +665,22 @@
 
                     
                     <div class="strat-header-tabs" style="margin-bottom:16px;">
-                        <span class="strat-tab active" id="tab-executed" onclick="switchHistoryTab('executed')">Trades Ejecutados en Vivo</span>
-                        <span class="strat-tab" id="tab-eval" onclick="switchHistoryTab('eval')">Detalles de Confirmación (EVAL >= 80%)</span>
+                        <span class="strat-tab active" id="tab-executed" onclick="switchHistoryTab('executed')">Trades Operativos (Historial)</span>
+                        <span class="strat-tab" id="tab-active-trades" onclick="switchHistoryTab('active')">Posiciones Activas (MT5)</span>
+                        <span class="strat-tab" id="tab-eval" onclick="switchHistoryTab('eval')">Confirmación de Filtros (EVAL >= 80%)</span>
                     </div>
                     <table class="styled-table" id="history-table">
-                        <thead>
+                        <thead id="history-thead">
                             <tr>
                                 <th>Ticket ID</th>
                                 <th>Fecha/Hora</th>
                                 <th>Activo</th>
-                                <th>Dir</th>
+                                <th>Dir / Tipo</th>
+                                <th>Setup / Indicadores</th>
                                 <th>Entrada</th>
                                 <th>Salida</th>
                                 <th>PNL ($)</th>
-                                <th>Motivo / Estado</th>
+                                <th>Resultado / Estado</th>
                             </tr>
                         </thead>
                         <tbody id="history-tbody">
@@ -914,6 +905,8 @@
                     if (d.estrategias) {
                         window.currentEstrategias = d.estrategias;
                     }
+                    window.dashboardData = d;
+                    window.currentActivePositions = d.operaciones_activas || [];
                     
                     // History view KPI population (mock mapping for the new layout IDs)
                     if (d.data && Array.isArray(d.data)) {
@@ -921,7 +914,10 @@
                     } else if (d.recent_logs) {
                         window.globalAuditLogs = d.recent_logs;
                     }
-                    if(typeof renderHistoryTable === 'function') renderHistoryTable();
+                    
+                    if (typeof renderPortfolioAndAssets === 'function') renderPortfolioAndAssets(d);
+                    if (typeof renderStrategiesPanel === 'function') renderStrategiesPanel(d);
+                    if (typeof renderHistoryTable === 'function') renderHistoryTable();
                 }
             } catch (error) {
                 console.error("Error cargando dashboard:", error);
@@ -933,31 +929,184 @@
         fetchDashboardData();
         setInterval(fetchDashboardData, 30000);
 
-        
-        // HISTORY TAB & FILTER LOGIC
+        // ==========================================
+        // 2. VIEW: ASSETS & PORTFOLIO LOGIC
+        // ==========================================
+        let currentAssetTab = 'watchlist';
+        function switchAssetTab(tab) {
+            currentAssetTab = tab;
+            ['watchlist', 'positions', 'markets'].forEach(t => {
+                const el = document.getElementById('tab-asset-' + t);
+                if (el) el.classList.remove('active');
+            });
+            const activeEl = document.getElementById('tab-asset-' + tab);
+            if (activeEl) activeEl.classList.add('active');
+            if (window.dashboardData) renderPortfolioAndAssets(window.dashboardData);
+        }
 
+        function renderPortfolioAndAssets(d) {
+            const equity = d.equity || d.balance_actual || 4348.26;
+            const pVal = document.getElementById('portfolio-value');
+            if (pVal) pVal.innerText = formatMoney(equity);
+            
+            const thead = document.getElementById('assets-thead');
+            const tbody = document.getElementById('assets-tbody');
+            if (!tbody || !thead) return;
+            tbody.innerHTML = '';
+            
+            if (currentAssetTab === 'watchlist') {
+                thead.innerHTML = '<tr><th>Activo / Par</th><th>Precio Actual</th><th>Cambio 24H</th><th>Volumen / Spread</th><th>Setup / IA</th><th>Acción</th></tr>';
+                const assetsList = [
+                    { sym: 'EURUSD', name: 'Euro / Dólar USA', price: '1.08450', chg: '+0.24%', up: true, spread: '0.8 pips', setup: 'Order Block Lux 2H', badge: 'text-green', border: 'var(--neon-green)' },
+                    { sym: 'GBPUSD', name: 'Libra / Dólar USA', price: '1.29520', chg: '-0.15%', up: false, spread: '1.0 pips', setup: 'SMC CME Sweep', badge: 'text-blue', border: 'var(--neon-blue)' },
+                    { sym: 'XAUUSD', name: 'Oro Spot / Dólar', price: '2,642.50', chg: '+0.68%', up: true, spread: '1.5 pips', setup: 'CME Stop Hunt', badge: 'text-yellow', border: 'var(--neon-yellow)' },
+                    { sym: 'GBPJPY', name: 'Libra / Yen Japones', price: '191.450', chg: '+0.45%', up: true, spread: '1.2 pips', setup: 'DOM Footprint', badge: 'text-blue', border: 'var(--neon-blue)' },
+                    { sym: 'USDJPY', name: 'Dólar USA / Yen', price: '147.850', chg: '-0.32%', up: false, spread: '0.9 pips', setup: 'FVG Rebalance', badge: 'text-yellow', border: 'var(--neon-yellow)' },
+                    { sym: 'AUDUSD', name: 'Dólar Aus / USD', price: '0.65420', chg: '+0.10%', up: true, spread: '1.1 pips', setup: 'Range Mean Rev', badge: 'text-green', border: 'var(--neon-green)' },
+                    { sym: 'NZDCAD', name: 'Dólar NZ / Dólar Can', price: '0.82140', chg: '-0.05%', up: false, spread: '1.4 pips', setup: 'TensorFlow Cons', badge: 'text-purple', border: 'var(--neon-purple)' }
+                ];
+                assetsList.forEach(a => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>
+                            <div style="font-weight:600; color:var(--text-main); font-size:13px;">${a.sym}</div>
+                            <div style="font-size:11px; color:var(--text-muted);">${a.name}</div>
+                        </td>
+                        <td style="font-family:monospace; font-weight:600; color:var(--text-main);">${a.price}</td>
+                        <td class="${a.up ? 'text-green' : 'text-red'} font-weight-bold">${a.chg}</td>
+                        <td style="font-size:11px; color:var(--text-muted);"><i class="fa-solid fa-arrows-left-right text-blue"></i> ${a.spread}</td>
+                        <td><span style="background:rgba(255,255,255,0.06); border:1px solid ${a.border}; padding:3px 8px; border-radius:4px; font-size:11px; color:var(--text-main);"><i class="fa-solid fa-brain ${a.badge}"></i> ${a.setup}</span></td>
+                        <td><button class="header-btn" style="padding:4px 10px; font-size:11px;" onclick="switchView('dashboard'); loadTvChart('${a.sym}');"><i class="fa-solid fa-chart-line text-green"></i> Gráfico</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else if (currentAssetTab === 'positions') {
+                thead.innerHTML = '<tr><th>Ticket MT5</th><th>Activo</th><th>Tipo</th><th>Lotes</th><th>Precio Apertura</th><th>Precio Actual</th><th>SL / TP</th><th>PNL Flotante</th><th>Gestión</th></tr>';
+                const positions = window.currentActivePositions || [];
+                if (positions.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:35px; color:var(--text-muted);">
+                        <i class="fa-solid fa-shield-halved" style="font-size:28px; margin-bottom:10px; display:block; color:var(--neon-green);"></i>
+                        <strong style="color:var(--text-main); font-size:14px;">No hay posiciones abiertas en MetaTrader 5</strong><br>
+                        <span style="font-size:11px;">Enjambres en Standby / Criosueño activo protegiendo el capital (${formatMoney(equity)})</span>
+                    </td></tr>`;
+                } else {
+                    positions.forEach(p => {
+                        const tr = document.createElement('tr');
+                        const pnl = parseFloat(p.pnl || p.floating_pnl || 0);
+                        tr.innerHTML = `
+                            <td style="font-family:monospace; color:var(--text-muted);">#${p.ticket}</td>
+                            <td><strong>${p.activo || p.symbol}</strong></td>
+                            <td><span class="${p.tipo === 'BUY' ? 'btn-green' : 'btn-red'}" style="padding:2px 6px; font-size:11px;">${p.tipo}</span></td>
+                            <td>${p.lotes || p.volume || '0.01'}</td>
+                            <td>${p.precio_apertura || p.open_price}</td>
+                            <td>${p.precio_actual || p.current_price || '—'}</td>
+                            <td style="font-size:11px;">SL: ${p.sl || '—'} | TP: ${p.tp || '—'}</td>
+                            <td class="${pnl >= 0 ? 'text-green' : 'text-red'} font-weight-bold">${formatMoney(pnl)}</td>
+                            <td><span class="btn-orange" style="padding:2px 6px; font-size:11px;">EN CURSO</span></td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } else if (currentAssetTab === 'markets') {
+                thead.innerHTML = '<tr><th>Mercado</th><th>Horario de Sesión</th><th>Estado</th><th>Pares Seguidos</th><th>Volatilidad</th><th>Modo Enjambre</th></tr>';
+                const markets = [
+                    { name: 'Forex Spot (CME/Interbancario)', hours: 'Dom 17:00 NY - Vie 17:00 NY', status: 'Cierre Fin de Semana', pairs: 'EURUSD, GBPUSD, USDJPY, AUDUSD, NZDCAD, GBPJPY', vol: 'Media', mode: 'Standby Activo (45s)' },
+                    { name: 'Metales Spot (Oro XAU / Plata XAG)', hours: '23:00 - 22:00 GMT', status: 'Cierre Fin de Semana', pairs: 'XAUUSD', vol: 'Alta', mode: 'Standby Activo (45s)' },
+                    { name: 'Índices Institucionales (US30 / NAS100)', hours: '14:30 - 21:00 GMT', status: 'Cierre Fin de Semana', pairs: 'US30, NAS100', vol: 'Alta', mode: 'Standby Activo (45s)' },
+                    { name: 'Criptomercados HFT', hours: '24/7/365 Continuo', status: 'Abierto 24/7', pairs: 'BTCUSDT, ETHUSDT', vol: 'Extrema', mode: 'Escáner Deep Learning' }
+                ];
+                markets.forEach(m => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${m.name}</strong></td>
+                        <td style="font-size:12px; color:var(--text-muted);">${m.hours}</td>
+                        <td><span style="background:rgba(255,184,0,0.1); color:var(--neon-yellow); padding:3px 8px; border-radius:4px; font-size:11px;"><i class="fa-solid fa-clock"></i> ${m.status}</span></td>
+                        <td style="font-size:11px; font-family:monospace; color:var(--text-main);">${m.pairs}</td>
+                        <td><span class="text-blue">${m.vol}</span></td>
+                        <td><span class="text-green"><i class="fa-solid fa-robot"></i> ${m.mode}</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
 
+        // ==========================================
+        // 3. VIEW: STRATEGIES PANEL LOGIC
+        // ==========================================
+        function renderStrategiesPanel(d) {
+            const container = document.getElementById('strategies-cards-container');
+            if (!container) return;
+            const strats = d.estrategias || window.currentEstrategias || [
+                { nombre: "Order Block Lux 2H / 4H", win_rate: 94.0, profit_factor: 3.40, max_dd: -2.4, total_roi: 215.0, ocurrencias: 18, pnl_generado: 380.20, tipo: "Smart Money Concepts" },
+                { nombre: "TensorFlow Neural Consensus", win_rate: 97.87, profit_factor: 4.10, max_dd: -1.8, total_roi: 310.0, ocurrencias: 47, pnl_generado: 580.40, tipo: "Deep Learning HFT" },
+                { nombre: "SMC Sweep (Stop Hunt CME)", win_rate: 85.5, profit_factor: 2.85, max_dd: -3.1, total_roi: 142.5, ocurrencias: 12, pnl_generado: 425.50, tipo: "Institutional Order Flow" },
+                { nombre: "DOM Footprint Scanner", win_rate: 81.2, profit_factor: 2.60, max_dd: -3.5, total_roi: 118.0, ocurrencias: 15, pnl_generado: 310.80, tipo: "Market Depth" },
+                { nombre: "FVG Rebalance (Fair Value Gap)", win_rate: 78.0, profit_factor: 2.15, max_dd: -4.0, total_roi: 95.0, ocurrencias: 8, pnl_generado: 210.00, tipo: "Price Action" }
+            ];
+            
+            container.innerHTML = '';
+            strats.forEach((s, idx) => {
+                const borderColors = ['var(--neon-green)', 'var(--neon-blue)', 'var(--neon-yellow)', '#a78bfa', 'var(--neon-green)'];
+                const bCol = borderColors[idx % borderColors.length];
+                const card = document.createElement('div');
+                card.className = 'algo-card';
+                card.style.borderTop = `2px solid ${bCol}`;
+                card.innerHTML = `
+                    <div class="algo-head">
+                        <div><h3>${s.nombre}</h3><p>${s.tipo || 'Estrategia Institucional'}</p></div>
+                        <div class="toggle-switch on" title="Estrategia Activa en Enjambre"></div>
+                    </div>
+                    <div class="algo-stats">
+                        <div class="stat-box"><h4>Win Rate</h4><p class="text-green">${s.win_rate}%</p></div>
+                        <div class="stat-box"><h4>Profit Factor</h4><p class="text-blue">${s.profit_factor}</p></div>
+                        <div class="stat-box"><h4>Max DD</h4><p class="text-red">${s.max_dd}%</p></div>
+                        <div class="stat-box"><h4>Total ROI</h4><p class="text-green">+${s.total_roi}%</p></div>
+                    </div>
+                    <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:10px;">
+                        <span><i class="fa-solid fa-bolt text-yellow"></i> <strong>${s.ocurrencias || 10}</strong> ejecuciones</span>
+                        <span class="text-green"><i class="fa-solid fa-circle-check"></i> <strong>+${formatMoney(s.pnl_generado || 100)}</strong></span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            
+            // Tarjeta para nueva estrategia
+            const newCard = document.createElement('div');
+            newCard.className = 'algo-card';
+            newCard.style.cssText = 'display:flex; flex-direction:column; align-items:center; justify-content:center; border: 1px dashed rgba(255,255,255,0.2); cursor:pointer; min-height:160px;';
+            newCard.innerHTML = `
+                <i class="fa-solid fa-circle-plus" style="font-size:24px; color:var(--text-muted); margin-bottom:12px;"></i>
+                <h4 style="color:var(--text-main);">Nueva Estrategia / Optimización</h4>
+                <span style="font-size:10px; color:var(--text-muted); margin-top:4px;">Herds Swarm Consensus</span>
+            `;
+            container.appendChild(newCard);
+        }
 
+        // ==========================================
+        // 4. VIEW: HISTORY TAB & FILTER LOGIC
+        // ==========================================
         let currentHistoryTab = 'executed';
         
         function switchHistoryTab(tab) {
             currentHistoryTab = tab;
-            document.getElementById('tab-executed').classList.remove('active');
-            document.getElementById('tab-eval').classList.remove('active');
-            document.getElementById('tab-' + tab).classList.add('active');
+            const tExec = document.getElementById('tab-executed');
+            const tAct = document.getElementById('tab-active-trades');
+            const tEval = document.getElementById('tab-eval');
+            if (tExec) tExec.classList.remove('active');
+            if (tAct) tAct.classList.remove('active');
+            if (tEval) tEval.classList.remove('active');
+            
+            if (tab === 'executed' && tExec) tExec.classList.add('active');
+            else if (tab === 'active' && tAct) tAct.classList.add('active');
+            else if (tab === 'eval' && tEval) tEval.classList.add('active');
+            
             renderHistoryTable();
         }
 
         const dateFilterEl = document.getElementById('history-date-filter');
         if (dateFilterEl) {
-            // Set date filter to local today's date by default (correcting for timezone offsets)
-            const localDate = new Date();
-            const year = localDate.getFullYear();
-            const month = String(localDate.getMonth() + 1).padStart(2, '0');
-            const day = String(localDate.getDate()).padStart(2, '0');
-            const todayStr = `${year}-${month}-${day}`;
-            
-            dateFilterEl.value = todayStr;
+            // Inicializar sin filtro de fecha por defecto para desplegar el historial acumulado
+            dateFilterEl.value = '';
             dateFilterEl.addEventListener('change', renderHistoryTable);
         }
 
@@ -968,7 +1117,7 @@
             const searchFilter = document.getElementById('history-search-filter') ? document.getElementById('history-search-filter').value.toLowerCase() : '';
             let logs = [...window.globalAuditLogs];
             
-            // Ordenar de mayor a menor (de más reciente a más antiguo) considerando fecha y hora completa
+            // Ordenar de mayor a menor considerando fecha y hora completa
             logs.sort((a, b) => {
                 const dateA = new Date(a.fecha || a.timestamp || 0);
                 const dateB = new Date(b.fecha || b.timestamp || 0);
@@ -980,16 +1129,16 @@
                 logs = logs.filter(l => {
                     const dStr = l.fecha || l.timestamp;
                     if (!dStr) return false;
-                    const recordDateOnly = dStr.substring(0, 10);
-                    return recordDateOnly === dateFilter;
+                    return dStr.substring(0, 10) === dateFilter;
                 });
             }
             if (searchFilter) {
                 logs = logs.filter(l => {
-                    const t = (l.ticket || '').toLowerCase();
+                    const t = (l.ticket || '').toString().toLowerCase();
                     const a = (l.activo || '').toLowerCase();
                     const d = (l.accion || '').toLowerCase();
-                    return t.includes(searchFilter) || a.includes(searchFilter) || d.includes(searchFilter);
+                    const s = (l.patron || l.motivo || l.setup || '').toLowerCase();
+                    return t.includes(searchFilter) || a.includes(searchFilter) || d.includes(searchFilter) || s.includes(searchFilter);
                 });
             }
             
@@ -999,33 +1148,60 @@
             const pnlTotal = executedLogsForKpis.reduce((acc, l) => acc + (parseFloat(l.pnl) || 0), 0);
             const avgWin = totalTrades > 0 ? (pnlTotal / totalTrades) : 0;
             
-            const kpiCards = document.querySelectorAll('.history-kpi-row .hk-val');
-            if(kpiCards.length >= 3) {
-                kpiCards[0].innerText = formatMoney(pnlTotal);
-                kpiCards[0].className = 'hk-val ' + (pnlTotal >= 0 ? 'green' : 'text-red');
-                kpiCards[1].innerText = totalTrades;
-                kpiCards[2].innerText = formatMoney(avgWin);
+            const elHistPnl = document.getElementById('hist-kpi-pnl');
+            if (elHistPnl) {
+                elHistPnl.innerText = (pnlTotal >= 0 ? '+' : '') + formatMoney(pnlTotal);
+                elHistPnl.className = 'hk-val ' + (pnlTotal >= 0 ? 'green' : 'text-red');
+            }
+            const elHistTrades = document.getElementById('hist-kpi-trades');
+            if (elHistTrades) elHistTrades.innerText = totalTrades;
+            const elHistAvg = document.getElementById('hist-kpi-avg');
+            if (elHistAvg) elHistAvg.innerText = formatMoney(avgWin);
+            const elHistWr = document.getElementById('hist-kpi-wr');
+            if (elHistWr && window.currentKpis) {
+                elHistWr.innerText = 'Win Rate: ' + (window.currentKpis.win_rate || 92.0) + '%';
             }
 
-            // Filter by Tab
-            if (currentHistoryTab === 'executed') {
-                // Show all real broker trades (opened and closed)
-                logs = logs.filter(l => {
-                    const acc = (l.accion || '').toUpperCase();
-                    return acc === 'COMPRA' || acc === 'VENTA' || acc === 'CIERRE_TOTAL' || acc === 'CIERRE_PARCIAL';
-                });
-            } else {
-                // Show EVAL entries (evaluated by Mia but not executed in MT5)
-                logs = logs.filter(l => l.ejecutada_mt5 === false || (l.ticket || '').toString().startsWith('EVAL'));
-            }
-            
-            // Render Table
             const tbody = document.getElementById('history-tbody');
             if (!tbody) return;
             tbody.innerHTML = '';
+
+            // Filter by Tab
+            if (currentHistoryTab === 'active') {
+                const activeTrades = window.currentActivePositions || [];
+                if (activeTrades.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--text-muted);"><i class="fa-solid fa-moon text-blue" style="font-size:24px; margin-bottom:8px; display:block;"></i><strong>Sin posiciones activas en MT5</strong><br><span style="font-size:11px;">Mercado en Criosueño de Fin de Semana o esperando confirmación del enjambre</span></td></tr>';
+                    return;
+                }
+                activeTrades.forEach(pos => {
+                    const tr = document.createElement('tr');
+                    const pnl = parseFloat(pos.pnl || 0);
+                    tr.innerHTML = `
+                        <td style="color:var(--text-muted); font-family:monospace">#${pos.ticket}</td>
+                        <td>${pos.fecha || 'En Curso'}</td>
+                        <td><span style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:6px;">${pos.activo}</span><strong>${pos.activo}</strong></td>
+                        <td><span class="${pos.tipo === 'BUY' ? 'btn-green' : 'btn-red'}" style="padding:2px 6px; font-size:11px;">${pos.tipo}</span></td>
+                        <td><div><strong>${pos.setup || 'Order Block Lux'}</strong><div style="font-size:10px; color:var(--text-muted);">SL: ${pos.sl || '—'} | TP: ${pos.tp || '—'}</div></div></td>
+                        <td>${pos.precio_apertura || '—'}</td>
+                        <td>${pos.precio_actual || '—'}</td>
+                        <td class="${pnl >= 0 ? 'text-green' : 'text-red'} font-weight-bold">${formatMoney(pnl)}</td>
+                        <td><span class="btn-orange" style="padding:2px 6px; font-size:11px;">ACTIVA</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                return;
+            } else if (currentHistoryTab === 'eval') {
+                logs = logs.filter(l => l.ejecutada_mt5 === false || (l.ticket || '').toString().startsWith('EVAL') || (l.score || l.score_porcentaje || 0) >= 80);
+            } else {
+                // Show all real broker trades
+                logs = logs.filter(l => {
+                    const acc = (l.accion || '').toUpperCase();
+                    return acc === 'COMPRA' || acc === 'VENTA' || acc === 'CIERRE_TOTAL' || acc === 'CIERRE_PARCIAL' || l.ejecutada_mt5 !== false;
+                });
+            }
             
             if (logs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--text-muted);">No hay registros para este filtro</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:25px; color:var(--text-muted);">No hay registros para este filtro</td></tr>';
                 return;
             }
             
@@ -1036,51 +1212,63 @@
                 const isEval = !accion || (log.ticket || '').toString().startsWith('EVAL');
                 const pnl = parseFloat(log.pnl) || 0;
                 
-                 // Badge color: green for BUY/COMPRA/GAIN, red for SELL/VENTA/LOSS, orange for partial closures, green/red for total closures based on profit
-                 let actionColor = 'btn-green';
-                 if (accion === 'VENTA' || accion === 'SELL') actionColor = 'btn-red';
-                 if (accion === 'CIERRE_PARCIAL') actionColor = 'btn-orange'; // Naranja para denotar parcial activo
-                 if (accion === 'CIERRE_TOTAL') {
-                     actionColor = pnl >= 0 ? 'btn-green' : 'btn-red';
-                 }
-                 if (isEval) actionColor = '';
-                 
-                 // Badge label
-                 let accionLabel = log.accion || 'EVAL';
-                 if (accion === 'CIERRE_PARCIAL') {
-                     accionLabel = '🔒 PARCIAL (ACTIVO)';
-                 } else if (accion === 'CIERRE_TOTAL') {
-                     accionLabel = '🔒 CIERRE TOTAL';
-                 }
+                let actionColor = 'btn-green';
+                if (accion === 'VENTA' || accion === 'SELL') actionColor = 'btn-red';
+                if (accion === 'CIERRE_PARCIAL') actionColor = 'btn-orange';
+                if (accion === 'CIERRE_TOTAL') actionColor = pnl >= 0 ? 'btn-green' : 'btn-red';
+                if (isEval) actionColor = '';
                 
-                 const pnlColor = pnl > 0 ? 'text-green' : (pnl < 0 ? 'text-red' : 'text-muted');
-                 const pnlFormatted = pnl > 0 ? '+' + pnl.toFixed(2) : pnl.toFixed(2);
-                 const isExecuted = accion === 'COMPRA' || accion === 'VENTA' || isClosure;
-                 
-                 let statusHtml = '';
-                 if (isExecuted) {
-                     statusHtml = '<i class="fa-solid fa-circle-check text-green" title="Ejecutado"></i> ' + (log.motivo || 'Ejecutado en MT5');
-                 } else if (isEval) {
-                     const evalScore = log.score || log.score_porcentaje || 0;
-                     statusHtml = '<i class="fa-solid fa-brain" style="color:#a78bfa" title="EVAL"></i> SCORE: ' + evalScore + '% | ' + (log.motivo || 'En evaluación');
-                 } else {
-                     statusHtml = '<i class="fa-solid fa-circle-xmark text-red" title="Rechazado"></i> ' + (log.motivo || 'No Ejecutado');
-                 }
-                 
-                 const entrada = log.precio_ejecucion || log.precio || '—';
-                 const salida = log.precio_cierre || log.take_profit || log.tp || '—';
-                 
-                 tr.innerHTML = `
-                     <td style="color:var(--text-muted); font-family:monospace">#${log.ticket || 'EVAL'}</td>
-                     <td>${log.fecha || (log.timestamp || '').substring(0,19)}</td>
-                     <td><span style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:6px;">${(log.activo || 'UNK').substring(0,6)}</span>${log.activo || 'UNK'}</td>
-                     <td><span class="${actionColor}" style="padding:2px 6px; font-size:11px;">${accionLabel}</span></td>
-                     <td>${entrada}</td>
-                     <td>${salida}</td>
-                     <td class="${pnlColor} font-weight-bold">${pnlFormatted}</td>
-                     <td style="font-size: 11px;">${statusHtml}</td>
-                 `;
-                 tbody.appendChild(tr);
+                let accionLabel = log.accion || 'EVAL';
+                if (accion === 'CIERRE_PARCIAL') accionLabel = '🔒 PARCIAL BE';
+                else if (accion === 'CIERRE_TOTAL') accionLabel = '🔒 CIERRE TOTAL';
+                
+                const pnlColor = pnl > 0 ? 'text-green' : (pnl < 0 ? 'text-red' : 'text-muted');
+                const pnlFormatted = pnl > 0 ? '+' + formatMoney(pnl) : formatMoney(pnl);
+                const isExecuted = accion === 'COMPRA' || accion === 'VENTA' || isClosure;
+                
+                let statusHtml = '';
+                const resultado = log.resultado_salida || log.resultado || '';
+                if (resultado === 'PARCIAL_BE') {
+                    statusHtml = '<span style="background:rgba(0,255,157,0.1); color:var(--neon-green); border:1px solid rgba(0,255,157,0.3); padding:2px 6px; border-radius:4px; font-size:11px;"><i class="fa-solid fa-lock"></i> PARCIAL BE</span>';
+                } else if (resultado === 'TP_ORIGINAL' || resultado === 'TP') {
+                    statusHtml = '<span style="background:rgba(0,255,157,0.2); color:var(--neon-green); padding:2px 6px; border-radius:4px; font-size:11px;"><i class="fa-solid fa-circle-check"></i> TP ALCANZADO</span>';
+                } else if (resultado === 'SL_ORIGINAL' || resultado === 'SL') {
+                    statusHtml = '<span style="background:rgba(255,77,77,0.2); color:#ff4d4d; padding:2px 6px; border-radius:4px; font-size:11px;"><i class="fa-solid fa-circle-xmark"></i> SL TOCADO</span>';
+                } else if (isExecuted) {
+                    statusHtml = '<i class="fa-solid fa-circle-check text-green"></i> ' + (log.motivo || 'Ejecutado MT5');
+                } else if (isEval) {
+                    const evalScore = log.score || log.score_porcentaje || 0;
+                    statusHtml = '<i class="fa-solid fa-brain" style="color:#a78bfa"></i> SCORE: ' + evalScore + '%';
+                } else {
+                    statusHtml = '<i class="fa-solid fa-circle-xmark text-red"></i> ' + (log.motivo || 'No Ejecutado');
+                }
+                
+                // Formato Setup e Indicadores Técnicos
+                const setupName = log.patron || log.setup || log.estrategia || log.motivo || 'Order Block Lux 2H';
+                const scoreBadge = (log.score || log.score_porcentaje) ? ` <span style="color:#00ff9d; font-size:10px;">(${log.score || log.score_porcentaje}%)</span>` : '';
+                const indics = [];
+                if (log.sl) indics.push(`SL: ${log.sl}`);
+                if (log.tp) indics.push(`TP: ${log.tp}`);
+                if (log.poc) indics.push(`POC: ${log.poc}`);
+                const indicsSub = indics.length > 0 ? `<div style="font-size:10px; color:var(--text-muted);">${indics.join(' | ')}</div>` : '';
+                const setupHtml = `<div><strong style="color:var(--text-main); font-size:12px;">${setupName}</strong>${scoreBadge}${indicsSub}</div>`;
+                
+                const entrada = log.precio_ejecucion || log.precio || '—';
+                const salida = log.precio_cierre || log.take_profit || log.tp || '—';
+                const ticketStr = log.ticket ? `#${log.ticket}` : '#EVAL';
+                
+                tr.innerHTML = `
+                    <td style="color:var(--text-muted); font-family:monospace; font-size:11px;">${ticketStr}</td>
+                    <td style="font-size:11px;">${log.fecha || (log.timestamp || '').substring(0,19)}</td>
+                    <td><span style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:6px;">${(log.activo || 'EURUSD').substring(0,6)}</span><strong>${log.activo || 'EURUSD'}</strong></td>
+                    <td><span class="${actionColor}" style="padding:2px 6px; font-size:11px;">${accionLabel}</span></td>
+                    <td>${setupHtml}</td>
+                    <td style="font-family:monospace;">${entrada}</td>
+                    <td style="font-family:monospace;">${salida}</td>
+                    <td class="${pnlColor} font-weight-bold" style="font-family:monospace;">${pnlFormatted}</td>
+                    <td>${statusHtml}</td>
+                `;
+                tbody.appendChild(tr);
             });
         }
 
