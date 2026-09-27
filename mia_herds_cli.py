@@ -42,6 +42,7 @@ C_RED     = "\033[91m"
 C_MAGENTA = "\033[95m"
 C_BLUE    = "\033[94m"
 C_WHITE   = "\033[97m"
+C_ORANGE  = "\033[38;5;208m"
 C_BG_DARK = "\033[40m"
 
 # Habilitar colores en Windows CMD clÃ¡sico si es necesario
@@ -79,7 +80,7 @@ def fetch_upstash(key: str) -> dict:
 def print_banner():
     banner = rf"""{C_CYAN}{C_BOLD}
   __  __ ___    _       _   _  _ _____ ___  ___ _   _ ___ 
- |  \/  |_ _|  /_\     /_\ | \| |_   _/ _ \| _ \ | | / __|
+ |  \/  |_ _|  /_\     /_\ | \| |_   _/ _ \| _ \ | | / __|  {C_ORANGE}🐙{C_CYAN}
  | |\/| || |  / _ \   / _ \| .` | | || (_) |  _/ |_| \__ \
  |_|  |_|___|/_/ \_\ /_/ \_\_|\_| |_| \___/|_|  \___/|___/
 {C_RESET}{C_WHITE}   >>> PROTOCOLO DE DELIBERACIÃ“N INTER-AGENTE (ANTOPUS CLI) <<<{C_RESET}
