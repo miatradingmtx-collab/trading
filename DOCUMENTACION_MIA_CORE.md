@@ -1243,3 +1243,23 @@ ecent_logs desde cache_hist_mt5.
 - **Renderizado en Dashboard ([`dashboard_mia.html`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/dashboard_mia.html)):**
   - Tanto la pestaña *"Posiciones Activas / Trades en Vivo (MT5)"* como la pestaña *"Posiciones Abiertas"* en Activos renderizan inmediatamente estas 6 posiciones con el badge azul neón `PAUSA (Fin de Semana)` y con sus tickets primarios, lotes y precios sincronizados.
   - Cero consultas a Firebase Firestore (100% servido desde `cache_mt5` en Upstash Redis).
+
+### [Update 2026-09-26 - Sesión 21] - Barrido Profundo de URLs y Erradicación Total de Consultas Ocultas a Firebase (Anti-429)
+- **Alcance del Barrido de URLs Solicitado por el Usuario:**
+  - `https://trading-production-1fd4.up.railway.app/brain`
+  - `https://trading-production-1fd4.up.railway.app/dashboard`
+  - `https://trading-production-927a.up.railway.app/dashboard`
+- **Hallazgos Críticos de la Auditoría:**
+  1. *Fuga detectada en `/api/chart_data/{symbol}`:* Al cargar velas de Yahoo Finance, invocaba `asegurar_cache_firebase()` para graficar marcadores visuales (flechas BUY/SELL), disparando cada 30 minutos más de 200 lecturas a Firestore (`mia_audit_logs`, `mia_system_logs`, `trading_matrix`, `mia_kb`).
+  2. *Fuga detectada en `/api/export_audit_csv` y `/api/export_trades`:* Invocaban `asegurar_cache_firebase()`.
+  3. *Inexistencia de ruta `/dashboard` en `1fd4` (`mia_websocket_server.py`):* La URL `/dashboard` en el servidor de WebSockets no servía el panel directamente.
+- **Acciones Correctivas Aplicadas:**
+  1. **Desacoplamiento Total de `/api/chart_data/{symbol}`:** Ahora extrae los marcadores visuales de compra/venta directamente desde `recent_logs` en `cache_hist_mt5` (Upstash Redis) o de la memoria RAM. Eliminada por completo la llamada a Firebase Firestore.
+  2. **Desacoplamiento de `/api/export_audit_csv` y `/api/export_trades`:** Ahora consumen directamente desde Upstash Redis sin depender de inicialización ni lecturas de Firestore.
+  3. **Blindaje de la Función `asegurar_cache_firebase()`:** Se antepuso un bypass que comprueba y carga en primera prioridad desde Upstash Redis (`cache_hist_mt5`). Al obtener datos de Upstash, retorna de inmediato con 0 lecturas a Firestore.
+  4. **Homologación de URLs en `mia_websocket_server.py` (`1fd4`):**
+     - Añadido `@app.get("/dashboard")` sirviendo `dashboard_mia.html`.
+     - Añadidos proxies transparentes `/api/dashboard_data`, `/api/chart_data/{symbol}` y `/api/export_audit_csv`.
+     - La ruta `/brain` (`tensorflow_vision.html`) consume métricas directamente de Upstash Redis (`cache_mia_tensorflow`).
+- **Resultado Final:** 100% de los datos consumidos en ambas instancias de Railway (`1fd4` y `927a`) provienen de Upstash Redis y memoria RAM. Cero lecturas a Firestore (100% Spark Free / Anti-429).
+

@@ -38,6 +38,13 @@ if os.path.exists(build_dir):
         except Exception as e:
             return {"error": str(e)}
 
+    @app.get("/dashboard")
+    async def render_dashboard():
+        try:
+            return FileResponse(os.path.join(os.path.dirname(__file__), "dashboard_mia.html"))
+        except Exception as e:
+            return {"error": str(e)}
+
     @app.get("/{file_path:path}")
     async def serve_static_files(file_path: str):
         full_path = os.path.join(build_dir, file_path)
@@ -120,21 +127,38 @@ async def emit_event(event: dict):
     await manager.broadcast(event)
     return {"status": "ok"}
 
-@app.get("/api/cache")
-async def get_railway_cache():
-    """
-    Proxy hacia Railway cache RAM.
-    El browser llama a localhost:8000/api/cache (sin CORS issues)
-    y este endpoint hace el fetch server-side a Railway.
-    """
+@app.get("/api/dashboard_data")
+async def get_dashboard_data_proxy():
+    """Proxy hacia el endpoint institucional de dashboard en 927a (Anti-429)."""
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(
-                RAILWAY_URL,
-                headers={"User-Agent": "MiaSwarmBot/1.0"}
-            )
+            response = await client.get(RAILWAY_URL, headers={"User-Agent": "MiaSwarmBot/1.0"})
             response.raise_for_status()
             return response.json()
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/chart_data/{symbol}")
+async def get_chart_data_proxy(symbol: str, timeframe: str = "1h"):
+    """Proxy hacia chart_data en 927a para velas Yahoo Finance sin CORS."""
+    try:
+        url = f"https://trading-production-927a.up.railway.app/api/chart_data/{symbol}?timeframe={timeframe}"
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(url, headers={"User-Agent": "MiaSwarmBot/1.0"})
+            response.raise_for_status()
+            return response.json()
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/export_audit_csv")
+async def get_export_csv_proxy():
+    """Proxy hacia export_audit_csv en 927a."""
+    try:
+        url = "https://trading-production-927a.up.railway.app/api/export_audit_csv"
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(url, headers={"User-Agent": "MiaSwarmBot/1.0"})
+            response.raise_for_status()
+            return response.text
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

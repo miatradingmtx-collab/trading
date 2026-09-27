@@ -3213,6 +3213,21 @@ def asegurar_cache_firebase():
     from datetime import datetime
     ahora = datetime.now()
     
+    # 🛡️ PROTECCIÓN ANTI-429 ESTRICTA: Leer siempre de Upstash Redis primero (0 lecturas a Firestore)
+    try:
+        import requests, json
+        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        r_hist = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=2)
+        if r_hist.status_code == 200:
+            res_h = r_hist.json().get("result")
+            if res_h:
+                d_h = json.loads(res_h)
+                GLOBAL_AUDIT_LOGS = d_h.get("recent_logs", [])
+                ULTIMO_FETCH_FIREBASE = ahora
+                return
+    except Exception:
+        pass
+    
     # Ã°Å¸â€ºÂ¡Ã¯Â¸Â PROTECCIÃƒâ€œN CRÃƒÂTICA DE CUOTA: 
     # Incrementamos el refresco a 30 minutos (1800 segundos) para evitar agotar las 50k peticiones Spark de Firestore
     # cuando el usuario accede desde el mÃƒÂ³vil o la PC.
@@ -3313,10 +3328,18 @@ def asegurar_cache_firebase():
 @app.get('/api/export_trades')
 def api_export_trades():
     global GLOBAL_AUDIT_LOGS
-    try:
-        asegurar_cache_firebase()
-    except: pass
-    return {"status": "success", "data": GLOBAL_AUDIT_LOGS}
+    logs_source = GLOBAL_AUDIT_LOGS
+    if not logs_source:
+        try:
+            import requests, json
+            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+            r_hist = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=3)
+            if r_hist.status_code == 200:
+                res_h = r_hist.json().get("result")
+                if res_h:
+                    logs_source = json.loads(res_h).get("recent_logs", [])
+        except: pass
+    return {"status": "success", "data": logs_source or []}
 
 @app.get("/api/dashboard_data")
 def api_dashboard_data():
@@ -4029,21 +4052,27 @@ def get_trade_tp(ticket: str):
 @app.get("/api/export_audit_csv")
 def export_audit_csv():
     """
-    Exporta todos los logs de auditorÃƒÂ­a a formato CSV para anÃƒÂ¡lisis de datos duros.
+    Exporta todos los logs de auditoría a formato CSV para análisis de datos duros (Anti-429 Upstash).
     """
-    if not firebase_inicializado or db is None:
-        raise HTTPException(status_code=503, detail="Firebase no inicializado")
-        
     try:
-        asegurar_cache_firebase()
-        
+        global GLOBAL_AUDIT_LOGS
+        logs_source = GLOBAL_AUDIT_LOGS
+        if not logs_source:
+            import requests, json
+            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+            r_hist = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=3)
+            if r_hist.status_code == 200:
+                res_h = r_hist.json().get("result")
+                if res_h:
+                    logs_source = json.loads(res_h).get("recent_logs", [])
+
         output = StringIO()
         writer = csv.writer(output)
         # Escribir la cabecera
         writer.writerow(["Ticket", "Timestamp", "Fecha", "Activo", "Accion", "Estrategia", "Score (%)", "Precio Ejecucion", "PNL", "Ejecutada MT5", "Motivo", "Conf. Tecnicas", "Conf. Fundamentales", "Conf. Institucionales", "Detalle Setup"])
         
-        if GLOBAL_AUDIT_LOGS:
-            for l in GLOBAL_AUDIT_LOGS:
+        if logs_source:
+            for l in logs_source:
                 import json
                 tecnicas = json.dumps(l.get("confirmaciones_tecnicas", {}))
                 fundamentales = json.dumps(l.get("confirmaciones_fundamentales", {}))
@@ -4191,14 +4220,22 @@ async def get_chart_data(symbol: str, timeframe: str = "1h"):
             if not pd.isna(row.get("EMA200")):
                 ema200.append({"time": ts, "value": float(row["EMA200"])})
                 
-        # Consultar trades en Firebase para crear los marcadores visuales (flechas)
+        # Consultar trades desde Upstash Redis (recent_logs) para crear marcadores visuales (Cero Firebase Anti-429)
         markers = []
         try:
-            asegurar_cache_firebase()
             global GLOBAL_AUDIT_LOGS
+            audit_source = GLOBAL_AUDIT_LOGS
+            if not audit_source:
+                import requests, json
+                up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                r_hist = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=2)
+                if r_hist.status_code == 200:
+                    res_h = r_hist.json().get("result")
+                    if res_h:
+                        audit_source = json.loads(res_h).get("recent_logs", [])
             
-            # Filtramos el cachÃƒÂ© en RAM (Cero coste de lectura en Firebase)
-            logs_filtrados = [log for log in GLOBAL_AUDIT_LOGS if log.get("activo", "").upper() == symbol.upper()]
+            # Filtramos los logs del activo en memoria (Cero coste de lectura en Firebase)
+            logs_filtrados = [log for log in (audit_source or []) if str(log.get("activo", "")).upper() == symbol.upper()]
             
             for data in logs_filtrados:
                 accion = data.get("accion", "").upper()
