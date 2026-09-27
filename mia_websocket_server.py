@@ -41,6 +41,9 @@ if os.path.exists(build_dir):
     @app.get("/dashboard")
     async def render_dashboard():
         try:
+            # En 1fd4, /dashboard sirve el Dashboard de Enjambres (React 3D Multi-Agent Swarm)
+            if os.path.exists(build_dir):
+                return FileResponse(os.path.join(build_dir, "index.html"))
             return FileResponse(os.path.join(os.path.dirname(__file__), "dashboard_mia.html"))
         except Exception as e:
             return {"error": str(e)}
@@ -128,6 +131,18 @@ async def get_dashboard_data_proxy():
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(RAILWAY_URL, headers={"User-Agent": "MiaSwarmBot/1.0"})
+            response.raise_for_status()
+            return response.json()
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/cache_mget")
+async def get_cache_mget_proxy():
+    """Proxy hacia el slot consolidado cache_mget en 927a."""
+    try:
+        url = "https://trading-production-927a.up.railway.app/api/cache_mget"
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(url, headers={"User-Agent": "MiaSwarmBot/1.0"})
             response.raise_for_status()
             return response.json()
     except Exception as e:

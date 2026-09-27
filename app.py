@@ -3511,9 +3511,33 @@ def api_dashboard_data():
 
                 combined = dict(d_hist)
                 combined.update(d_live)
-                return {"status": "success", "data": combined, "source": "upstash_anti_429"}
+
+                # Sincronización continua del slot físico 'cache_mget' en Upstash Redis
+                try:
+                    session.post("https://certain-gnat-160816.upstash.io/set/cache_mget", headers=up_headers, data=json.dumps(combined, default=str), timeout=2)
+                except Exception:
+                    pass
+
+                return {"status": "success", "data": combined, "source": "upstash_mget_speed_of_light"}
     except Exception as e_up:
         print(f"| DASHBOARD | Fallback a memoria RAM por error Upstash: {e_up}")
+
+@app.get("/api/cache_mget")
+def get_cache_mget():
+    """Retorna el contenido del slot físico cache_mget en Upstash Redis (Consolidado MGET)."""
+    try:
+        import requests, json
+        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        session = requests.Session()
+        session.trust_env = False
+        r = session.get("https://certain-gnat-160816.upstash.io/get/cache_mget", headers=up_headers, timeout=3)
+        if r.status_code == 200:
+            res = r.json().get("result")
+            if res:
+                return {"status": "success", "data": json.loads(res), "source": "upstash_slot_cache_mget"}
+        return {"status": "error", "message": "Slot cache_mget no disponible"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.get("/api/herds/latest")
 def api_herds_latest():

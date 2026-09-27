@@ -1331,5 +1331,29 @@ ecent_logs desde cache_hist_mt5.
   - Todos los módulos (`app.py`, `crew_tools.py`, `mia_master_swarm_rest.py`, `mt5_executor_cloud.py`) compilan sin errores.
   - Ejecución de prueba de `api_dashboard_data()` retornó `status: success`, 6 operaciones activas/en vivo del broker, 50 pesos de ML, TensorFlow 97.87% y persistencia pasiva deduplicada en Firestore.
 
+### [Update 2026-09-27 - Sesión 24] - Creación del Slot Físico cache_mget en Upstash, Homologación en Firestore y Mapeo Exacto de URLs
+- **Alineación de URLs y Aplicativos del Ecosistema:**
+  1. **Dashboard de KPIs y Operativa MT5:**
+     - **URL:** `https://trading-production-927a.up.railway.app/dashboard`
+     - **Aplicativo:** `dashboard_mia.html`. Renderiza Balance ($4,325.09 USD), Equity ($4,348.26 USD), Flotante (+$23.17 USD), las 6 posiciones abiertas en pausa del broker, 50 trades históricos, 5 estrategias institucionales y los 50 pesos dinámicos de ML.
+  2. **Dashboard de Enjambres HFT Multimodales:**
+     - **URL:** `https://trading-production-1fd4.up.railway.app/dashboard` (y `/`)
+     - **Aplicativo:** `mia_3d_ui/build/index.html` (Terminal React 3D Antopus). Conexión bidireccional a WebSocket para monitorear el debate de los 3 Herds (`NORO`, `ZEPHR`, `LUMEN`, `RUNE`) en tiempo real.
+  3. **Visualizador de Red Neuronal TensorFlow:**
+     - **URL:** `https://trading-production-1fd4.up.railway.app/brain`
+     - **Aplicativo:** `tensorflow_vision.html`. Conectado al slot `cache_mia_tensorflow` para proyectar capas neuronales, precisión viva (97.87%) y trades aprendidos (47).
+- **Creación e Inyección del Slot Físico `cache_mget` en Upstash Redis:**
+  - **Ubicación en Consola Upstash:** `cache_mget`
+  - **Endpoint Directo:** `https://certain-gnat-160816.upstash.io/get/cache_mget`
+  - **Estructura del Payload:**
+    $$\text{cache\_mget} = \left\{ \text{timestamp}, \text{kpis}, \text{balance}, \text{equity}, \text{flotante}, \text{activas\_broker (6)}, \text{trades\_hist (50)}, \text{pesos\_ml (50)}, \text{tensorflow}, \text{herds}, \text{activos (21)} \right\}$$
+- **Homologación Persistente en Firebase Firestore:**
+  - **Documento Activo:** `system_memory/cache_mget`
+  - **Colección Histórica de Aprendizaje ML:** `mia_mget_history/MGET_SNAPSHOT_{timestamp}`
+  - Cada ciclo sincroniza el snapshot consolidado tanto en Upstash Redis como en Firestore de forma pasiva, garantizando que el pipeline de reentrenamiento de Machine Learning cuente con el histórico inmutable sin penalizar la cuota Spark ni la latencia.
+- **Nuevos Endpoints en Railway:**
+  - `GET /api/cache_mget` disponible en ambas instancias (`927a` y `1fd4`).
+
+
 
 
