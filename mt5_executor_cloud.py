@@ -637,6 +637,7 @@ async def reportar_rechazo(activo: str, motivo: str):
         print(f"| CLOUD ERROR | No se pudo reportar rechazo al backend: {e}")
 
 async def obtener_matriz_activo(activo: str) -> Optional[Dict]:
+    # 1. Consultar endpoint FastAPI (que lee de Upstash Redis)
     url = f"{FASTAPI_URL}/get_asset_matrix?activo={activo}"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
@@ -648,7 +649,25 @@ async def obtener_matriz_activo(activo: str) -> Optional[Dict]:
             if response.status_code == 200:
                 return response.json()
     except Exception as e:
-        print(f"| CLOUD ERROR | Error al obtener matriz para {activo}: {e}")
+        print(f"| CLOUD WARN | Error en endpoint local get_asset_matrix: {e}")
+
+    # 2. Fallback de alta resiliencia directo a Upstash Redis (0 lecturas Firebase)
+    try:
+        up_url = "https://certain-gnat-160816.upstash.io/get/cache_trading_matrix"
+        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        async with httpx.AsyncClient() as client:
+            res_up = await client.get(up_url, headers=up_headers, timeout=5)
+            if res_up.status_code == 200:
+                raw_mat = res_up.json().get("result")
+                if raw_mat:
+                    import json
+                    all_mat = json.loads(raw_mat)
+                    act_norm = activo.upper().replace("/", "").strip()
+                    if act_norm in all_mat:
+                        return all_mat[act_norm]
+    except Exception as e_up:
+        print(f"| CLOUD ERROR | Error directo a Upstash para {activo}: {e_up}")
+        
     return None
 
 # ------------------------------------------------------------------------------

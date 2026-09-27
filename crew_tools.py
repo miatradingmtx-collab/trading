@@ -67,6 +67,36 @@ def railway_cache_tool() -> str:
                 except Exception as e_tf:
                     data_filtrada["tensorflow_ai"] = {"status": "offline", "error": str(e_tf)}
                 
+                # Desacoplamiento: Consultar Trading Matrix en Upstash Redis (21 activos)
+                try:
+                    mat_url = "https://certain-gnat-160816.upstash.io/get/cache_trading_matrix"
+                    mat_res = session.get(mat_url, headers=headers, timeout=5)
+                    if mat_res.status_code == 200:
+                        mat_data = mat_res.json().get("result")
+                        if mat_data:
+                            m_json = json.loads(mat_data)
+                            data_filtrada["trading_matrix_scores"] = {
+                                k: {
+                                    "score": v.get("score_porcentaje", 0),
+                                    "estado": v.get("estado_ejecucion", "INACTIVO"),
+                                    "rsi": v.get("rsi", 50.0)
+                                }
+                                for k, v in m_json.items()
+                            }
+                except Exception:
+                    pass
+
+                # Desacoplamiento: Memoria Colectiva Upstash
+                try:
+                    mem_url = "https://certain-gnat-160816.upstash.io/get/cache_system_memory"
+                    mem_res = session.get(mem_url, headers=headers, timeout=5)
+                    if mem_res.status_code == 200:
+                        mem_data = mem_res.json().get("result")
+                        if mem_data:
+                            data_filtrada["system_memory"] = json.loads(mem_data)
+                except Exception:
+                    pass
+                
                 return f"Datos Minimizados (Upstash Redis):\n{json.dumps(data_filtrada, indent=2)}"
             except Exception as e:
                 return f"Datos (Raw) desde Upstash Redis:\n{str(data.get('result'))[:1000]}... (TRUNCADO)"
@@ -75,6 +105,33 @@ def railway_cache_tool() -> str:
             
     except Exception as e:
         return f"Error leyendo Upstash Redis Cache: {str(e)}"
+
+@tool("Leer Matriz de Activos Upstash")
+def upstash_trading_matrix_tool() -> str:
+    """Útil para consultar las confirmaciones técnicas, RSI, score y liquidez de los 21 activos en Upstash Redis (cache_trading_matrix)."""
+    try:
+        url = "https://certain-gnat-160816.upstash.io/get/cache_trading_matrix"
+        headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        session = requests.Session()
+        session.trust_env = False
+        res = session.get(url, headers=headers, timeout=5)
+        if res.status_code == 200:
+            result = res.json().get("result")
+            if result:
+                matrices = json.loads(result)
+                resumen = {
+                    k: {
+                        "score": v.get("score_porcentaje", 0),
+                        "estado": v.get("estado_ejecucion", "INACTIVO"),
+                        "rsi": v.get("rsi", 50.0),
+                        "confirmaciones": v.get("confirmaciones_tecnicas", {})
+                    }
+                    for k, v in matrices.items()
+                }
+                return json.dumps(resumen, indent=2)
+        return "Caché de trading matrix vacía."
+    except Exception as e:
+        return f"Error leyendo trading matrix de Upstash: {e}"
 
 @tool("Leer Mia Core Markdown")
 def mia_core_reader_tool() -> str:

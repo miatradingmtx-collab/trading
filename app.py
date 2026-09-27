@@ -2031,23 +2031,25 @@ def recibir_anomalia(anomaly: MarketAnomaly, background_tasks: BackgroundTasks):
 @app.get("/get_matrix_activos")
 def get_matrix_activos(authorization: Optional[str] = Header(None)):
     """
-    Ruta para que n8n obtenga la lista de activos actualmente configurados en la matriz.
-    AsÃƒÂ­ n8n solo hace polling fundamental de los activos relevantes.
+    Ruta para que n8n u otros servicios obtengan la lista de activos configurados en la matriz (Anti-429 Upstash).
     """
     verificar_token(authorization)
-    
-    global firebase_inicializado, db
-    if not firebase_inicializado or db is None:
-        raise HTTPException(status_code=503, detail="Firebase no inicializado")
-        
     try:
-        # Ã°Å¸â€ºÂ¡Ã¯Â¸Â PROTECCIÃƒâ€œN ANTI-SATURACIÃƒâ€œN: Lectura directa desde cachÃƒÂ© RAM
-        activos = list(GLOBAL_MATRICES_CACHE_FULL.keys())
-        return {"status": "success", "activos": activos}
+        global GLOBAL_MATRICES_CACHE_FULL
+        if not GLOBAL_MATRICES_CACHE_FULL:
+            import requests, json
+            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+            r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_trading_matrix", headers=up_headers, timeout=2)
+            if r.status_code == 200:
+                res_m = r.json().get("result")
+                if res_m:
+                    GLOBAL_MATRICES_CACHE_FULL = json.loads(res_m)
+        
+        activos = list(GLOBAL_MATRICES_CACHE_FULL.keys()) if GLOBAL_MATRICES_CACHE_FULL else ["EURUSD", "GBPUSD", "XAUUSD", "GBPJPY", "USDJPY", "AUDUSD", "NZDCAD"]
+        return {"status": "success", "activos": activos, "source": "upstash_cache"}
     except Exception as e:
         print(f"| CLOUD ERROR | Error en get_matrix_activos: {e}")
-        registrar_error_sistema("Cloud API (Get Matrix)", str(e))
-        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
+        return {"status": "success", "activos": ["EURUSD", "GBPUSD", "XAUUSD", "GBPJPY", "USDJPY", "AUDUSD", "NZDCAD"]}
 
 MATRIX_CACHE = {}
 MATRIX_CACHE_TIME = {}
@@ -2055,39 +2057,30 @@ MATRIX_CACHE_TIME = {}
 @app.get("/get_asset_matrix")
 def get_asset_matrix(activo: str, authorization: Optional[str] = Header(None)):
     """
-    Ruta para obtener la matriz actual de confirmaciones de un activo especÃƒÂ­fico.
-    Utilizada por el executor local para validar liquidez institucional.
+    Ruta para obtener la matriz actual de confirmaciones de un activo específico desde Upstash Redis (Anti-429).
     """
     verificar_token(authorization)
-    
-    global firebase_inicializado, db, MATRIX_CACHE, MATRIX_CACHE_TIME
-    if not firebase_inicializado or db is None:
-        raise HTTPException(status_code=503, detail="Firebase no inicializado")
-        
     try:
-        import time
         activo_normalizado = normalizar_activo(activo)
-        
-        # Ã°Å¸â€ºÂ¡Ã¯Â¸Â PROTECCIÃƒâ€œN ANTI-SATURACIÃƒâ€œN: Lectura total desde memoria (0 costo Firebase)
+        global GLOBAL_MATRICES_CACHE_FULL
+        if not GLOBAL_MATRICES_CACHE_FULL or activo_normalizado not in GLOBAL_MATRICES_CACHE_FULL:
+            import requests, json
+            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+            r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_trading_matrix", headers=up_headers, timeout=2)
+            if r.status_code == 200:
+                res_m = r.json().get("result")
+                if res_m:
+                    GLOBAL_MATRICES_CACHE_FULL = json.loads(res_m)
+
         if activo_normalizado in GLOBAL_MATRICES_CACHE_FULL:
             return GLOBAL_MATRICES_CACHE_FULL[activo_normalizado]
             
-        # Fallback de emergencia si no estÃƒÂ¡ en cachÃƒÂ© (Raro, solo si se aÃƒÂ±adiÃƒÂ³ recientemente)
-        doc_ref = db.collection("trading_matrix").document(activo_normalizado)
-        doc = doc_ref.get()
-        
-        if not doc.exists:
-            raise HTTPException(status_code=404, detail=f"Activo {activo_normalizado} no encontrado")
-            
-        datos = doc.to_dict()
-        GLOBAL_MATRICES_CACHE_FULL[activo_normalizado] = datos
-        return datos
+        raise HTTPException(status_code=404, detail=f"Activo {activo_normalizado} no encontrado en matriz Upstash")
     except HTTPException:
         raise
     except Exception as e:
         print(f"| CLOUD ERROR | Error al obtener matriz de activo {activo}: {e}")
-        registrar_error_sistema("Cloud API (Get Asset)", str(e))
-        raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 class TechnicalUpdate(BaseModel):
     activo: str
@@ -2211,6 +2204,14 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
             GLOBAL_MATRICES[activo_normalizado] = data["score_porcentaje"]
             
         GLOBAL_MATRICES_CACHE_FULL[activo_normalizado] = data
+        
+        # Sincronización inmediata a Upstash Redis (cache_trading_matrix)
+        try:
+            import requests, json
+            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+            requests.post("https://certain-gnat-160816.upstash.io/set/cache_trading_matrix", headers=up_headers, data=json.dumps(GLOBAL_MATRICES_CACHE_FULL, default=str), timeout=2)
+        except Exception:
+            pass
         
 
         # --- GENERAR LOG DE EVALUACIÃƒâ€œN PARA EL LIVE FEED ---
@@ -2716,12 +2717,13 @@ def test_rss_llm_polling(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=503, detail="Firebase no inicializado")
         
     try:
-        # 1. Fetch XML feed content
-        docs = db.collection("trading_matrix").stream()
+        # 1. Fetch XML feed content desde Upstash Redis (0 lecturas Firebase)
+        global GLOBAL_MATRICES_CACHE_FULL
+        if not GLOBAL_MATRICES_CACHE_FULL:
+            asegurar_cache_firebase()
+        
         xml_items = []
-        for doc in docs:
-            activo_id = doc.id
-            data = doc.to_dict()
+        for activo_id, data in (GLOBAL_MATRICES_CACHE_FULL or {}).items():
             apoyo = data.get("aprendizaje_mia", {})
             
             raw_sent = apoyo.get('sentimiento_acumulado', 'NEUTRAL').upper()
@@ -3205,7 +3207,7 @@ ACTIVOS_INICIALIZADOS: set = set()
 def asegurar_cache_firebase():
     global firebase_inicializado, db
     global GLOBAL_AUDIT_LOGS, GLOBAL_SYSTEM_LOGS, GLOBAL_PATRONES, GLOBAL_MATRICES, ULTIMO_FETCH_FIREBASE
-    global GLOBAL_MIA_COLLECTIVE, GLOBAL_INDICADORES
+    global GLOBAL_MIA_COLLECTIVE, GLOBAL_INDICADORES, GLOBAL_MATRICES_CACHE_FULL
     
     if not firebase_inicializado or db is None:
         return
@@ -3213,18 +3215,53 @@ def asegurar_cache_firebase():
     from datetime import datetime
     ahora = datetime.now()
     
-    # 🛡️ PROTECCIÓN ANTI-429 ESTRICTA: Leer siempre de Upstash Redis primero (0 lecturas a Firestore)
+    # 🛡️ PROTECCIÓN ANTI-429 ESTRICTA: Leer todas las tablas desacopladas desde Upstash Redis (0 lecturas a Firestore)
     try:
         import requests, json
         up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-        r_hist = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=2)
+        session = requests.Session()
+        session.trust_env = False
+        
+        # 1. Audit logs
+        r_hist = session.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=2)
         if r_hist.status_code == 200:
             res_h = r_hist.json().get("result")
             if res_h:
                 d_h = json.loads(res_h)
                 GLOBAL_AUDIT_LOGS = d_h.get("recent_logs", [])
-                ULTIMO_FETCH_FIREBASE = ahora
-                return
+
+        # 2. Trading Matrix (21 activos)
+        r_mat = session.get("https://certain-gnat-160816.upstash.io/get/cache_trading_matrix", headers=up_headers, timeout=2)
+        if r_mat.status_code == 200:
+            res_m = r_mat.json().get("result")
+            if res_m:
+                d_m = json.loads(res_m)
+                GLOBAL_MATRICES_CACHE_FULL = d_m
+                GLOBAL_MATRICES = {k: v.get("score_porcentaje", 0) for k, v in d_m.items()}
+
+        # 3. Patrones ICT / SMC (32 patrones)
+        r_pat = session.get("https://certain-gnat-160816.upstash.io/get/cache_mia_kb_patrones", headers=up_headers, timeout=2)
+        if r_pat.status_code == 200:
+            res_p = r_pat.json().get("result")
+            if res_p:
+                GLOBAL_PATRONES = json.loads(res_p)
+
+        # 4. Indicadores de Impacto (45 indicadores)
+        r_ind = session.get("https://certain-gnat-160816.upstash.io/get/cache_mia_kb_indicadores", headers=up_headers, timeout=2)
+        if r_ind.status_code == 200:
+            res_i = r_ind.json().get("result")
+            if res_i:
+                GLOBAL_INDICADORES = json.loads(res_i)
+
+        # 5. Memoria Colectiva
+        r_mem = session.get("https://certain-gnat-160816.upstash.io/get/cache_system_memory", headers=up_headers, timeout=2)
+        if r_mem.status_code == 200:
+            res_mem = r_mem.json().get("result")
+            if res_mem:
+                GLOBAL_MIA_COLLECTIVE = json.loads(res_mem)
+
+        ULTIMO_FETCH_FIREBASE = ahora
+        return
     except Exception:
         pass
     
@@ -3253,7 +3290,6 @@ def asegurar_cache_firebase():
             
             # 3. trading_matrix
             matrices = db.collection("trading_matrix").stream()
-            global GLOBAL_MATRICES_CACHE_FULL
             GLOBAL_MATRICES_CACHE_FULL.clear()
             
             _temp_matrices = {}
@@ -4009,8 +4045,37 @@ def get_trade_tp(ticket: str):
                         if tp > 0 and estrategia != "MANUAL":
                             break
                             
-        # 2. Si no estÃƒÂ¡ en RAM (ej: ticket viejo o cachÃƒÂ© vacÃƒÂ­a), consultar Firestore
+        # 2. Si no está en RAM, consultar Upstash Redis cache_mia_audit_logs (0 costo Firebase)
         if not encontrado or tp == 0.0 or estrategia == "MANUAL":
+            try:
+                import requests
+                up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                r_aud = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_audit_logs", headers=up_headers, timeout=2)
+                if r_aud.status_code == 200:
+                    aud_raw = r_aud.json().get("result")
+                    if aud_raw:
+                        aud_list = json.loads(aud_raw)
+                        for item in aud_list:
+                            if str(item.get("ticket")) == str(ticket):
+                                if tp == 0.0:
+                                    tp = float(item.get("take_profit", item.get("tp", 0.0)) or 0.0)
+                                if estrategia == "MANUAL":
+                                    estrategia = item.get("estrategia", "MANUAL")
+                                    if estrategia == "MANUAL":
+                                        det = item.get("detalle_setup", "")
+                                        if "SMC Setup" in det:
+                                            estrategia = "SMC Setup"
+                                        elif "Lux" in det or "LUX" in det:
+                                            estrategia = "Lux Algo"
+                                        else:
+                                            parts = det.split("|")
+                                            if len(parts) >= 4:
+                                                estrategia = parts[3].strip()
+                                encontrado = True
+                                break
+            except: pass
+            
+        if not encontrado and (tp == 0.0 or estrategia == "MANUAL"):
             try:
                 doc = db.collection("mia_audit_logs").document(str(ticket)).get()
                 if doc.exists:
@@ -4709,12 +4774,31 @@ def tomar_snapshot_diario_ml():
         from datetime import datetime
         hoy = datetime.now().strftime("%Y-%m-%d")
         
-        # 1. Recopilar datos vivos
-        inds_docs = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").get()
-        indicadores = [{"id": d.id, **d.to_dict()} for d in inds_docs]
+        # 1. Recopilar datos vivos desde memoria / Upstash (0 lecturas Firestore)
+        global GLOBAL_INDICADORES
+        indicadores = []
+        if GLOBAL_INDICADORES:
+            indicadores = GLOBAL_INDICADORES
+        else:
+            try:
+                import requests, json
+                r_ind = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_kb_indicadores", headers={"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}, timeout=2)
+                if r_ind.status_code == 200:
+                    indicadores = json.loads(r_ind.json().get("result", "[]"))
+            except Exception: pass
+            
+        if not indicadores and db is not None:
+            try:
+                inds_docs = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").get()
+                indicadores = [{"id": d.id, **d.to_dict()} for d in inds_docs]
+            except: pass
         
-        sess_docs = db.collection("mia_kb").document("sesiones_rendimiento").collection("detalle").get()
-        sesiones = [{"id": s.id, **s.to_dict()} for s in sess_docs]
+        sesiones = []
+        if db is not None:
+            try:
+                sess_docs = db.collection("mia_kb").document("sesiones_rendimiento").collection("detalle").get()
+                sesiones = [{"id": s.id, **s.to_dict()} for s in sess_docs]
+            except: pass
         
         snapshot = {
             "fecha": hoy,
@@ -4765,21 +4849,21 @@ def train_tensorflow():
         logs = data.get("recent_logs", [])
         
         # Hidratación inteligente si Upstash tiene pocos logs (ej. tras reinicio del contenedor)
-        global GLOBAL_AUDIT_LOGS, db
+        global GLOBAL_AUDIT_LOGS
         if len(logs) < 10:
             if GLOBAL_AUDIT_LOGS and len(GLOBAL_AUDIT_LOGS) >= 5:
                 logs = GLOBAL_AUDIT_LOGS
-            elif db is not None:
+            else:
                 try:
-                    # Lectura única de seguridad limitada a 50 trades para hidratar Upstash
-                    docs = db.collection("mia_audit_logs").where("accion", "in", ["CIERRE_TOTAL", "COMPRA", "VENTA"]).limit(50).get()
-                    logs = [d.to_dict() for d in docs]
-                    if logs:
-                        data["recent_logs"] = logs
-                        requests.post("https://certain-gnat-160816.upstash.io/set/cache_hist_mt5", headers=headers, json=data, timeout=5)
-                        print(f"| TENSORFLOW | Upstash rehidratado con {len(logs)} trades históricos.")
+                    # Lectura desde slot desacoplado cache_mia_audit_logs en Upstash (0 Firebase)
+                    r_aud = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_audit_logs", headers=headers, timeout=5)
+                    if r_aud.status_code == 200:
+                        aud_raw = r_aud.json().get("result")
+                        if aud_raw:
+                            logs = json.loads(aud_raw)
+                            print(f"| TENSORFLOW | Entrenando con {len(logs)} trades desde cache_mia_audit_logs (Upstash).")
                 except Exception as e_h:
-                    print(f"Error hidratando Upstash: {e_h}")
+                    print(f"Error hidratando Upstash desde cache_mia_audit_logs: {e_h}")
 
         # 2. Convertir JSON a Tensores (DataFrame en RAM)
         df_data = []

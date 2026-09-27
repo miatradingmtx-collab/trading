@@ -171,6 +171,15 @@ def run_hft_cycle():
 
     # --- Extracción de Datos Reales de MT5 y Cálculos HFT (NORO / ZEPHR / LUMEN) ---
     matrices_crudas = mt5_json.get("matrices_crudas", {})
+    if not matrices_crudas:
+        try:
+            res_tm = requests.get("https://certain-gnat-160816.upstash.io/get/cache_trading_matrix", headers=upstash_headers, timeout=3)
+            if res_tm.status_code == 200:
+                tm_raw = res_tm.json().get("result")
+                if tm_raw:
+                    matrices_crudas = json.loads(tm_raw)
+        except Exception:
+            pass
     activos_resumen = []
     
     # Determinar activo principal para escaneo DOM
