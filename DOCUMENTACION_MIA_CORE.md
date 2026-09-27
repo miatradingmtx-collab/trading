@@ -1134,3 +1134,11 @@ ecent_logs desde cache_hist_mt5.
 - **Lanzadores Rápidos Multiplataforma:**
   - *Termux / Linux:* `herds_termux.sh` (instalación e inicio en 1 paso: `bash herds_termux.sh`).
   - *Windows:* `herds_cmd.bat` (doble clic para abrir la consola de los agentes).
+
+### [Update 2026-09-26 - Sesión 14] - Blindaje de Reconexión Móvil en CLI (Asyncio Fix) y Heartbeat en Servidor WebSocket
+- **Corrección de Reconexión Automática (`NameError: asyncio`):**
+  - Se corrigió la ausencia de `import asyncio` a nivel global en `mia_herds_cli.py`. Al ocurrir una desconexión por inactividad o cambio de red móvil (4G/WiFi), el reintento `await asyncio.sleep(reconnect_delay)` ahora se ejecuta de forma totalmente limpia y transparente sin interrumpir el proceso.
+- **Optimización de Keepalive en Redes Móviles:**
+  - En `mia_herds_cli.py`, se configuró `ping_interval=30` y `ping_timeout=None` en el cliente WebSocket para tolerar las latencias y cortes de paquetes propios de conexiones móviles Android / Termux.
+  - En `mia_websocket_server.py`, se implementó una tarea en segundo plano (`heartbeat_loop`) que emite un pulso cada 25 segundos a todas las conexiones activas, manteniendo caliente el canal TCP e impidiendo que los operadores móviles cierren el socket por inactividad.
+  - Adicionalmente, `ConnectionManager.broadcast()` ahora purga automáticamente los sockets cerrados para evitar fugas de memoria.

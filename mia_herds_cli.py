@@ -18,6 +18,7 @@ import argparse
 import datetime
 import urllib.request
 import io
+import asyncio
 
 # Asegurar codificación UTF-8 universal en terminales (Windows CMD, PowerShell, Termux)
 if sys.stdout and hasattr(sys.stdout, "buffer"):
@@ -193,7 +194,7 @@ async def stream_live_websocket():
     reconnect_delay = 3
     while True:
         try:
-            async with websockets.connect(WS_URL, ping_interval=20, ping_timeout=10) as ws:
+            async with websockets.connect(WS_URL, ping_interval=30, ping_timeout=None) as ws:
                 print(f"{C_GREEN}[OK] Conexión WebSocket Establecida.{C_RESET} Escuchando diálogo de los agentes...\n")
                 reconnect_delay = 3
                 while True:
@@ -208,12 +209,12 @@ async def stream_live_websocket():
                         print(format_agent_event(agent, action, msg_text))
                     except Exception:
                         print(f"{C_DIM}{raw_msg}{C_RESET}")
-        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.WebSocketException, OSError) as e:
-            print(f"{C_YELLOW}[!] Conexión perdida ({e}). Reconectando en {reconnect_delay}s...{C_RESET}")
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.WebSocketException, OSError, TimeoutError, asyncio.TimeoutError) as e:
+            print(f"{C_YELLOW}[!] Conexión en espera o reconectando ({e}). Reintento en {int(reconnect_delay)}s...{C_RESET}")
             await asyncio.sleep(reconnect_delay)
             reconnect_delay = min(reconnect_delay * 1.5, 30)
         except Exception as e:
-            print(f"{C_RED}[X] Error inesperado: {e}. Reintentando en 5s...{C_RESET}")
+            print(f"{C_RED}[X] Conexión pausada ({e}). Reconectando en 5s...{C_RESET}")
             await asyncio.sleep(5)
 
 

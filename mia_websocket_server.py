@@ -58,13 +58,25 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self, message: dict):
-        for connection in self.active_connections:
+        disconnected = []
+        for connection in list(self.active_connections):
             try:
                 await connection.send_json(message)
-            except Exception as e:
-                print(f"Error sending message: {e}")
+            except Exception:
+                disconnected.append(connection)
+        for d in disconnected:
+            if d in self.active_connections:
+                self.active_connections.remove(d)
 
 manager = ConnectionManager()
+
+@app.on_event("startup")
+async def start_heartbeat():
+    async def heartbeat_loop():
+        while True:
+            await asyncio.sleep(25)
+            await manager.broadcast({"type": "HEARTBEAT"})
+    asyncio.create_task(heartbeat_loop())
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
