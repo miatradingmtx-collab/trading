@@ -50,6 +50,7 @@ from crew_tools import railway_cache_tool, mia_core_reader_tool
 from math_agent_skills import calc_area_under_curve, markov_transition_matrix
 from stat_agent_skills import calculate_expected_value, generate_execution_score
 from dom_institutional_scanner import scan_institutional_dom
+from mia_researcher_agent import atlas_researcher
 
 load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
@@ -125,7 +126,7 @@ def run_hft_cycle():
         session = requests.Session()
         session.trust_env = False
         
-        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix"
+        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix/cache_researcher_insights"
         res_mget = session.get(mget_url, headers=upstash_headers, timeout=5)
         slots = res_mget.json().get("result", []) if res_mget.status_code == 200 else []
         
@@ -142,6 +143,11 @@ def run_hft_cycle():
         matrices_crudas = json.loads(tm_raw) if isinstance(tm_raw, str) else (tm_raw or {})
         if not matrices_crudas:
             matrices_crudas = mt5_json.get("matrices_crudas", {})
+
+        # 4. Researcher Insights ATLAS (slot 3)
+        researcher_raw = slots[3] if len(slots) > 3 and slots[3] else {}
+        researcher_data = json.loads(researcher_raw) if isinstance(researcher_raw, str) else (researcher_raw or {})
+        researcher_brief = researcher_data.get("brief", "")
             
         # Extracción de liquidez y balance
         balance = mt5_json.get("balance_actual", 0.0)
@@ -239,24 +245,33 @@ def run_hft_cycle():
         )
 
     # 2. Generar el Debate y Veredicto de los Sub-Enjambres (Herds Deliberation)
+    if not researcher_brief:
+        try:
+            res_inv = atlas_researcher.investigate_symbol_microstructure(active_symbol, current_px, poc_px)
+            researcher_brief = res_inv.get("brief", "")
+        except Exception as e_res:
+            researcher_brief = f"ATLAS en Standby: {e_res}"
+
     prompt_maestro = f"""
     == DATOS DE LOS SENSORES EN TIEMPO REAL ==
+    0. INVESTIGACIÓN Y HERRAMIENTAS MCP (ATLAS): {researcher_brief}
     1. LIQUIDEZ Y CACHÉ: {cache_data}
     1b. FOOTPRINT & DOM (TIDAL/LUMEN): DOM={dom_data} | Footprint={footprint_delta} | Heatmap CME/OANDA={dom_heatmap_summary}
     2. MATEMÁTICAS NORO: {fair_value} | {markov}
     3. PROBABILIDAD ZEPHR: {expected_value} | {score}
-    4. REGLAS MIA KB: {mia_rules}
+    4. REGLAS MIA KB & BACKTEST ADAPTATIVO: {mia_rules}
     
     INSTRUCCIONES DE DELIBERACIÓN HERDS:
-    Genera el diálogo de debate, validación y consenso entre los 3 Sub-Enjambres especializados:
+    Genera el diálogo de debate, validación y consenso entre los 4 Enjambres especializados:
+    **HERD 0 - ATLAS**: Hallazgo de microestructura fresca (CVD Delta, ATR dinámico, CME resting liquidity y nuevas estrategias validadas por backtesting).
     **HERD 1 - TIDAL & NORO**: Propuesta técnica de entrada, SL y niveles clave basados en DOM y POC.
-    **HERD 2 - ZEPHR & LUMEN**: Auditoría y contrapunto basado en TensorFlow ({tf_acc*100:.1f}%) y filtro de noticias/trampas de liquidez.
+    **HERD 2 - ZEPHR & LUMEN**: Auditoría y contrapunto basado en TensorFlow ({tf_acc*100:.1f}%) y filtro de noticias/trampas de liquidez reportadas por ATLAS.
     **HERD 3 - RUNE**: Veredicto final consensuado [APROBADO o VETADO] con ajustes finales y tipo de entrada.
     
     Responde estrictamente con exactamente una intervención por Herd (máximo 3 líneas por Herd, concisas y técnicas).
     """
     
-    emit_ws_event("Master", "DELIBERATION", "Iniciando debate inter-agente entre Herds...")
+    emit_ws_event("Master", "DELIBERATION", "Iniciando debate inter-agente entre Herds (ATLAS + TIDAL/NORO + ZEPHR/LUMEN + RUNE)...")
     veredicto = llamar_openrouter_rest(prompt_maestro)
     
     if "ERROR_TIMEOUT" in veredicto or "ERROR_API" in veredicto:
@@ -264,10 +279,13 @@ def run_hft_cycle():
         return veredicto
         
     # Extraer intervenciones individuales para el WebSocket Terminal
+    h0_match = re.search(r'\*\*HERD 0[^\*]*\*\*[:\s]*([\s\S]*?)(?=\*\*HERD 1|\Z)', veredicto, re.IGNORECASE)
     h1_match = re.search(r'\*\*HERD 1[^\*]*\*\*[:\s]*([\s\S]*?)(?=\*\*HERD 2|\Z)', veredicto, re.IGNORECASE)
     h2_match = re.search(r'\*\*HERD 2[^\*]*\*\*[:\s]*([\s\S]*?)(?=\*\*HERD 3|\Z)', veredicto, re.IGNORECASE)
     h3_match = re.search(r'\*\*HERD 3[^\*]*\*\*[:\s]*([\s\S]*?)(?=\Z)', veredicto, re.IGNORECASE)
 
+    if h0_match:
+        emit_ws_event("HERD 0 (ATLAS)", "RESEARCH", h0_match.group(1).strip())
     if h1_match:
         emit_ws_event("HERD 1 (TIDAL/NORO)", "PROPOSAL", h1_match.group(1).strip())
     if h2_match:
@@ -289,6 +307,7 @@ def run_hft_cycle():
             "title": safe_title,
             "content": veredicto,
             "debate": {
+                "herd_0_researcher": h0_match.group(1).strip() if h0_match else (researcher_brief or "N/A"),
                 "herd_1_macro": h1_match.group(1).strip() if h1_match else "N/A",
                 "herd_2_stats": h2_match.group(1).strip() if h2_match else "N/A",
                 "herd_3_consensus": h3_match.group(1).strip() if h3_match else veredicto,

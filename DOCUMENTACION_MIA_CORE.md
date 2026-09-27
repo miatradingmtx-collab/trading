@@ -1357,8 +1357,50 @@ ecent_logs desde cache_hist_mt5.
 
 
 
+### [Update 2026-09-27 - Sesión 25] - Nueva Arquitectura con Servidor MCP y Agente Investigador Cuantitativo ATLAS
+- **Arquitectura de Interoperabilidad con Servidor MCP (`mia_mcp_server.py`):**
+  - Implementación de un Servidor nativo bajo la especificación **Model Context Protocol (MCP)** y API REST (`/mcp` y `/api/mcp/...`).
+  - Estandarización de herramientas cuantitativas para erradicar conexiones punto a punto ad-hoc y facilitar la integración con agentes, clientes de IA y contenedores Docker sin fricción.
+  - **Catálogo de 6 Herramientas Cuantitativas Expuestas en MCP:**
+    1. **`scan_footprint_delta`**: Escaneo de Order Flow, Cumulative Volume Delta (CVD) e Imbalances de agresores compradores/vendedores.
+    2. **`calc_dynamic_atr`**: Cálculo de volatilidad instantánea con Average True Range normalizado, detección de regímenes (Compresión vs Expansión) y dimensionamiento de SL/TP dinámicos.
+    3. **`scan_orderbook_depth`**: Profundidad del Libro de Órdenes institucional (DOM), futuros CME equivalentes (6E, 6B, 6J, 6A, GC) y mapas de trampas de liquidez (*resting Buy/Sell Stops*).
+    4. **`market_sentiment_news`**: Sentimiento macroeconómico, posicionamiento institucional COT y filtro de bloqueo de noticias de alto impacto (15m pre y 8m post).
+    5. **`run_strategy_backtest`**: Motor de backtesting adaptativo ultrarrápido que evalúa hipótesis frente a datos históricos en Upstash (`cache_hist_mt5`).
+    6. **`sync_insight_to_kb`**: Sincronización atómica hacia Upstash Redis (`cache_researcher_insights`) y persistencia pasiva a Firestore (`mia_researcher_history`).
+
+- **Nuevo Agente Especializado: ATLAS (El Investigador Cuantitativo - `mia_researcher_agent.py`):**
+  - **Identidad:** **ATLAS** (Swarm Market Intelligence & Strategy Discovery Agent).
+  - **Misión Operativa:** Monitorear permanentemente la microestructura de mercado, detectar anomalías y divergencias precio-delta, formular hipótesis adaptativas, ejecutar backtesting rápido y retroalimentar a la manada (*Herds*) y a la base de conocimientos (`mia_kb`).
+  - **Protocolo de Deliberación Cuantitativa en Herds (4 Sub-Enjambres):**
+    $$\text{Pipeline Herds} \colon \text{HERD 0 (ATLAS)} \longrightarrow \text{HERD 1 (TIDAL/NORO)} \longrightarrow \text{HERD 2 (ZEPHR/LUMEN)} \longrightarrow \text{HERD 3 (RUNE)}$$
+    - **HERD 0 - ATLAS (El Investigador):** Inyecta el *Researcher Brief* con CVD Delta, régimen de ATR, trampas DOM y estrategias adaptativas probadas.
+    - **HERD 1 - TIDAL & NORO:** Formula niveles técnicos de entrada, POC y SL/TP adaptativos según el régimen de volatilidad sugerido por ATLAS.
+    - **HERD 2 - ZEPHR & LUMEN:** Audita probabilísticamente con la Red Neuronal TensorFlow (97.87%) y filtra trampas de liquidez y noticias advertidas por ATLAS.
+    - **HERD 3 - RUNE:** Emite el veredicto final consensuado [APROBADO o VETADO] con parámetros de ejecución institucional.
+
+- **Modelados Matemáticos Integrados:**
+  1. *Cumulative Volume Delta (CVD) e Imbalances de Microestructura:*
+     $$\text{CVD}_t = \sum_{k=1}^{t} (V_{\text{bid}, k} - V_{\text{ask}, k}) = \text{CVD}_{t-1} + \Delta V_t$$
+  2. *Divergencias de Absorción Institucional:*
+     $$\text{Absorción Bajista} \colon (P_t > P_{t-1}) \land (\text{CVD}_t < \text{CVD}_{t-1}) \implies \text{Riesgo Trampa de Toros (Venta Pasiva)}$$
+     $$\text{Absorción Alcista} \colon (P_t < P_{t-1}) \land (\text{CVD}_t > \text{CVD}_{t-1}) \implies \text{Oportunidad Trampa de Osos (Compra Pasiva)}$$
+  3. *Average True Range Dinámico (ATR normalizado y dimensionamiento SL/TP):*
+     $$\text{TR}_t = \max(H_t - L_t, |H_t - C_{t-1}|, |L_t - C_{t-1}|)$$
+     $$\text{ATR}_t = \frac{\text{ATR}_{t-1} \times (n-1) + \text{TR}_t}{n}$$
+     $$\text{SL}_{\text{dinámico}} = \text{Factor}_{\text{régimen}} \times \text{ATR}_t, \quad \text{TP}_{\text{dinámico}} = (R:R) \times \text{SL}_{\text{dinámico}}$$
+  4. *Esperanza Matemática Bayesiana para Aprobación en KB:*
+     $$\text{EV}_{\text{Bayes}} = \left( \frac{\text{WR}}{100} \times (R:R \times L) \right) - \left( \frac{100 - \text{WR}}{100} \times L \right) > 0 \quad \land \quad \text{WR} \ge 75\%$$
+
+- **Desacoplamiento Total Anti-429 y Canales de Comunicación:**
+  - **Slot Físico en Upstash Redis:** `cache_researcher_insights` (latencia < 50ms).
+  - **Consumo MGET Unificado:** Integrado en el pipeline MGET de `mia_master_swarm_rest.py`:
+    `/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix/cache_researcher_insights`
+  - **Persistencia Histórica Pasiva:** `mia_researcher_history` en Firebase Firestore sin lecturas en tiempo real.
+  - **Eventos WebSocket en Tiempo Real:** Emisión de eventos `INVESTIGATING`, `STRATEGY_DISCOVERED` y `RESEARCH` a la Terminal 3D y Dashboards.
 
 ---
+
 name: deprecacion_crewai_langchain
 description: Regla para migrar de CrewAI/Langchain al nuevo framework moderno.
 trigger: always_on

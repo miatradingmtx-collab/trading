@@ -3579,6 +3579,30 @@ def api_herds_sync_firebase():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# --- Montar Servidor MCP y Agente Investigador ATLAS ---
+try:
+    from mia_mcp_server import mcp_router, api_mcp_router
+    app.include_router(mcp_router)
+    app.include_router(api_mcp_router)
+except Exception as e_mcp:
+    print(f"| MCP | Error montando MCP en app.py: {e_mcp}")
+
+@app.get("/api/researcher/latest")
+def api_researcher_latest():
+    """Retorna el último reporte del investigador ATLAS desde Upstash Redis (Anti-429)."""
+    try:
+        import requests, json
+        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_researcher_insights", headers=up_headers, timeout=3)
+        if r.status_code == 200:
+            res = r.json().get("result")
+            if res:
+                return {"status": "success", "data": json.loads(res)}
+        return {"status": "empty", "data": None}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 @app.get("/api/open_trades")
 def api_open_trades():
     """

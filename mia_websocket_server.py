@@ -172,6 +172,45 @@ async def get_export_csv_proxy():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# --- Montar Servidor MCP y Agente Investigador ATLAS ---
+try:
+    from mia_mcp_server import mcp_router, api_mcp_router
+    app.include_router(mcp_router)
+    app.include_router(api_mcp_router)
+    
+    from mia_researcher_agent import atlas_researcher
+    
+    @app.post("/api/researcher/investigate")
+    async def api_trigger_investigation(payload: dict = None):
+        """Dispara un ciclo de investigación cuantitativa on-demand de ATLAS"""
+        try:
+            args = payload or {}
+            sym = args.get("symbol", "EURUSD")
+            px = float(args.get("current_price", 1.0850))
+            poc = float(args.get("poc_price", 1.0842))
+            res = atlas_researcher.investigate_symbol_microstructure(sym, px, poc)
+            return {"status": "success", "result": res}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+            
+    @app.get("/api/researcher/brief")
+    async def api_get_researcher_brief():
+        """Obtiene el último brief de inteligencia de ATLAS directamente desde Upstash Redis"""
+        try:
+            import requests, json
+            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+            r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_researcher_insights", headers=up_headers, timeout=4)
+            if r.status_code == 200:
+                raw = r.json().get("result")
+                data = json.loads(raw) if raw and isinstance(raw, str) else (raw or {})
+                return {"status": "success", "data": data}
+            return {"status": "empty", "data": None}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+except Exception as e_mcp:
+    print(f"Error montando MCP en websocket server: {e_mcp}")
+
+
 # Catch-all estático para React (SPA fallback)
 if os.path.exists(build_dir):
     @app.get("/{file_path:path}")
