@@ -1199,4 +1199,18 @@ ecent_logs desde cache_hist_mt5.
   - Se añadieron los endpoints `/api/herds/latest` y `/api/herds/sync_firebase` para consulta y sincronización programática.
   - En `dashboard_mia.html`, el panel `#live-signals-box` ahora proyecta los argumentos y consensos en vivo de los 3 Herds.
 
+### [Update 2026-09-26 - Sesión 18] - Reactivación Integral de Yahoo Finance para Velas y Estado Activo del Mercado en Dashboard
+- **Reactivación y Expansión Universal de Yahoo Finance (`/api/chart_data/{symbol}`):**
+  - Se corrigió el mapeo de activos en `app.py`. Los pares Forex (`NZDCAD`, `USDJPY`, `AUDUSD`) fallaban previamente con error 404 al no contar con el sufijo `=X` en Yahoo Finance.
+  - Se incorporó la regla de resolución automática:
+    $$\text{sym\_clean} \in \Sigma^6 \implies \text{yf\_symbol} = \text{sym\_clean} + \text{"=X"}$$
+  - Soporte universal de los 7 activos de MetaTrader 5: `EURUSD=X`, `GBPUSD=X`, `USDJPY=X`, `AUDUSD=X`, `NZDCAD=X`, `GBPJPY=X`, y `XAUUSD` (`GC=F` / `XAUUSD=X`).
+  - Se amplió el periodo de descarga a 30 días para `1h`, obteniendo entre 548 y 714 velas OHLC históricas completas con EMAs 50/200 por activo.
+- **Activación Dinámica del Estado del Mercado (`#system-status`):**
+  - Se conectó el indicador superior de estado (`.status-pill`) con el reloj interbancario de Forex (Cierre: Viernes 21:00 UTC / Apertura: Domingo 21:00 UTC):
+    - *Mercado Abierto:* Refleja `Mercado: ACTIVO (Escaneo HFT En Vivo)` con pulso verde neón (`var(--neon-green)`).
+    - *Mercado Cerrado:* Refleja `Mercado: Criosueño de Fin de Semana (En Guardia)` con pulso azul neón (`var(--neon-blue)`).
+  - Se expandieron los botones de acceso rápido sobre el gráfico interactivo para alternar entre los 7 pares de Forex y Metales con resaltado activo.
+
+
 

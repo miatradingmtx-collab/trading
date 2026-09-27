@@ -4050,39 +4050,76 @@ async def get_chart_data(symbol: str, timeframe: str = "1h"):
     try:
         import yfinance as yf
         import pandas as pd
-        # Mapeo de sÃƒÂ­mbolos de Mia a Yahoo Finance
+        sym_clean = symbol.upper().replace("/", "").replace("_", "").replace("-", "").strip()
+        # Mapeo universal de símbolos de Mia a Yahoo Finance
         mapa = {
             "EURUSD": "EURUSD=X",
             "GBPUSD": "GBPUSD=X",
             "GBPJPY": "GBPJPY=X",
+            "USDJPY": "USDJPY=X",
+            "AUDUSD": "AUDUSD=X",
+            "NZDCAD": "NZDCAD=X",
+            "USDCAD": "USDCAD=X",
+            "USDCHF": "USDCHF=X",
+            "EURJPY": "EURJPY=X",
+            "EURGBP": "EURGBP=X",
             "XAUUSD": "GC=F",
+            "GOLD": "GC=F",
             "NASDAQ100": "NQ=F",
+            "NAS100": "NQ=F",
+            "US100": "NQ=F",
             "BTCUSD": "BTC-USD",
+            "BTCUSDT": "BTC-USD",
+            "ETHUSD": "ETH-USD",
+            "ETHUSDT": "ETH-USD",
             "US30": "YM=F",
             "SP500": "ES=F"
         }
         
-        yf_symbol = mapa.get(symbol.upper(), symbol.upper())
+        yf_symbol = mapa.get(sym_clean)
+        if not yf_symbol:
+            if len(sym_clean) == 6 and sym_clean.isalpha():
+                yf_symbol = f"{sym_clean}=X"
+            else:
+                yf_symbol = sym_clean
         
         # Mapear temporalidades a periodos y tipos de intervalo correctos en yfinance
-        # 1h -> interval "1h" (period 7d)
-        # 2h -> interval "2h" (period 60d)
-        # 3h -> interval "1h" resampled to 3h
-        # 4h -> interval "1h" resampled to 4h
-        # 8h -> interval "1h" resampled to 8h
+        tf_lower = timeframe.lower()
         interval_yf = "1h"
-        period_yf = "30d" if timeframe in ["2h", "3h", "4h", "8h"] else "7d"
-        if timeframe == "2h":
+        period_yf = "30d"
+        if tf_lower in ["1m", "5m"]:
+            interval_yf = "5m"
+            period_yf = "5d"
+        elif tf_lower in ["15m"]:
+            interval_yf = "15m"
+            period_yf = "14d"
+        elif tf_lower in ["30m"]:
+            interval_yf = "30m"
+            period_yf = "30d"
+        elif tf_lower in ["1h"]:
+            interval_yf = "1h"
+            period_yf = "30d"
+        elif tf_lower in ["2h"]:
             interval_yf = "2h"
             period_yf = "60d"
+        elif tf_lower in ["3h", "4h", "8h"]:
+            interval_yf = "1h"
+            period_yf = "60d"
+        elif tf_lower in ["1d", "d"]:
+            interval_yf = "1d"
+            period_yf = "1y"
             
         ticker = yf.Ticker(yf_symbol)
         df = ticker.history(period=period_yf, interval=interval_yf)
         
         if df.empty:
-            # Reintentar con sÃƒÂ­mbolo spot si es oro o un futuro
+            # Reintentar con símbolo alternativo si es oro o divisa
             if yf_symbol == "GC=F":
                 df = yf.Ticker("XAUUSD=X").history(period=period_yf, interval=interval_yf)
+            elif yf_symbol.endswith("=X"):
+                df = yf.Ticker(yf_symbol.replace("=X", "")).history(period=period_yf, interval=interval_yf)
+            elif not yf_symbol.endswith("=X") and len(yf_symbol) == 6:
+                df = yf.Ticker(f"{yf_symbol}=X").history(period=period_yf, interval=interval_yf)
             if df.empty:
                 return {"status": "error", "message": f"No se encontraron datos para {yf_symbol}"}
                 

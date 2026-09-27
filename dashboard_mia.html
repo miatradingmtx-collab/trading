@@ -343,9 +343,12 @@
                             
                             <!-- Activos rápidos -->
                             <button class="btn-green" onclick="loadTvChart('EURUSD')" style="font-size:11px; padding:6px 12px;">EURUSD</button>
-                            <button class="header-btn" onclick="loadTvChart('XAUUSD')" style="padding:6px 12px; font-size:11px;">XAUUSD</button>
-                            <button class="header-btn" onclick="loadTvChart('GBPJPY')" style="padding:6px 12px; font-size:11px;">GBPJPY</button>
+                            <button class="header-btn" onclick="loadTvChart('GBPUSD')" style="padding:6px 12px; font-size:11px;">GBPUSD</button>
+                            <button class="header-btn" onclick="loadTvChart('USDJPY')" style="padding:6px 12px; font-size:11px;">USDJPY</button>
+                            <button class="header-btn" onclick="loadTvChart('AUDUSD')" style="padding:6px 12px; font-size:11px;">AUDUSD</button>
                             <button class="header-btn" onclick="loadTvChart('NZDCAD')" style="padding:6px 12px; font-size:11px;">NZDCAD</button>
+                            <button class="header-btn" onclick="loadTvChart('GBPJPY')" style="padding:6px 12px; font-size:11px;">GBPJPY</button>
+                            <button class="header-btn" onclick="loadTvChart('XAUUSD')" style="padding:6px 12px; font-size:11px;">XAUUSD</button>
                         </div>
                     </div>
                     
@@ -935,11 +938,43 @@
                     if (typeof renderPortfolioAndAssets === 'function') renderPortfolioAndAssets(d);
                     if (typeof renderStrategiesPanel === 'function') renderStrategiesPanel(d);
                     if (typeof renderHistoryTable === 'function') renderHistoryTable();
+
+                    // Estado del Mercado y Salud del Enjambre
+                    const nowUtc = new Date();
+                    const dayUtc = nowUtc.getUTCDay();
+                    const hourUtc = nowUtc.getUTCHours();
+                    const isWeekend = (dayUtc === 5 && hourUtc >= 21) || (dayUtc === 6) || (dayUtc === 0 && hourUtc < 21);
+                    
+                    const statusEl = $el('system-status');
+                    const dotEl = document.querySelector('.status-pill .dot');
+                    
+                    if (isWeekend) {
+                        statusEl.innerText = "Mercado: Criosueño de Fin de Semana (En Guardia)";
+                        statusEl.style.color = "var(--neon-blue)";
+                        statusEl.style.fontWeight = "600";
+                        if (dotEl) {
+                            dotEl.style.background = "var(--neon-blue)";
+                            dotEl.style.boxShadow = "0 0 10px var(--neon-blue)";
+                        }
+                    } else {
+                        statusEl.innerText = "Mercado: ACTIVO (Escaneo HFT En Vivo)";
+                        statusEl.style.color = "var(--neon-green)";
+                        statusEl.style.fontWeight = "600";
+                        if (dotEl) {
+                            dotEl.style.background = "var(--neon-green)";
+                            dotEl.style.boxShadow = "0 0 10px var(--neon-green)";
+                        }
+                    }
                 }
             } catch (error) {
                 console.error("Error cargando dashboard:", error);
-                $el('system-status').innerText = "Market Status: Offline";
+                $el('system-status').innerText = "Mercado: Desconectado";
                 $el('system-status').style.color = "#ff4d4d";
+                const dotEl = document.querySelector('.status-pill .dot');
+                if (dotEl) {
+                    dotEl.style.background = "#ff4d4d";
+                    dotEl.style.boxShadow = "0 0 10px #ff4d4d";
+                }
             }
         }
 
@@ -1369,12 +1404,14 @@
             if(titleEl) titleEl.innerHTML = `<i class="fa-solid fa-chart-simple text-green"></i> GRÁFICO INTERACTIVO: ${symbol} (${tf.toUpperCase()})`;
             
             // Actualizar clase activa en botones rápidos
+            const allSymbols = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'NZDCAD', 'GBPJPY', 'XAUUSD'];
             document.querySelectorAll('.tv-card button').forEach(btn => {
-                if (btn.innerText === symbol) {
+                const btnText = btn.innerText.trim();
+                if (btnText === symbol) {
                     btn.className = 'btn-green';
-                } else if (btn.innerText !== 'EURUSD' && btn.innerText !== 'XAUUSD' && btn.innerText !== 'GBPJPY' && btn.innerText !== 'NZDCAD') {
-                    // Omitir otros botones no relacionados
-                } else {
+                    btn.style.padding = '6px 12px';
+                    btn.style.fontSize = '11px';
+                } else if (allSymbols.includes(btnText)) {
                     btn.className = 'header-btn';
                     btn.style.padding = '6px 12px';
                     btn.style.fontSize = '11px';
