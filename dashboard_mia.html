@@ -1057,7 +1057,16 @@
                         const pnl = parseFloat(p.pnl || p.floating_pnl || 0);
                         const ticketStr = (p.ticket || '').toString().replace('#', '');
                         const isParcial = p.estado === 'PARCIAL_BE' || p.resultado_salida === 'PARCIAL_BE';
+                        const isPausa = p.estado === 'PAUSA_FIN_DE_SEMANA' || (p.estado_display && p.estado_display.includes('PAUSA'));
                         const tipo = (p.tipo || (p.accion === 'VENTA' ? 'SELL' : 'BUY')).toUpperCase();
+                        let badgeAsset = '';
+                        if (isPausa) {
+                            badgeAsset = '<span style="background:rgba(0,180,255,0.15); color:var(--neon-blue); border:1px solid rgba(0,180,255,0.35); padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;"><i class="fa-solid fa-pause"></i> PAUSA</span>';
+                        } else if (isParcial) {
+                            badgeAsset = '<span style="background:rgba(0,255,157,0.12); color:var(--neon-green); border:1px solid rgba(0,255,157,0.3); padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;"><i class="fa-solid fa-lock"></i> PARCIAL BE</span>';
+                        } else {
+                            badgeAsset = '<span style="background:rgba(255,123,0,0.15); color:var(--neon-yellow); border:1px solid rgba(255,123,0,0.3); padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;"><i class="fa-solid fa-bolt"></i> EN VIVO</span>';
+                        }
                         tr.innerHTML = `
                             <td style="font-family:monospace; color:var(--neon-blue); font-weight:bold;">#${ticketStr}</td>
                             <td><span style="background:rgba(255,255,255,0.08); padding:2px 6px; border-radius:4px; font-size:11px; margin-right:4px; font-weight:bold;">${p.activo || p.symbol}</span></td>
@@ -1067,7 +1076,7 @@
                             <td style="font-family:monospace;">${p.precio_actual || p.tp || p.current_price || '—'}</td>
                             <td style="font-size:11px; color:var(--text-muted); font-family:monospace;">SL: ${p.sl || '—'} | TP: ${p.tp || '—'}</td>
                             <td class="${pnl >= 0 ? 'text-green' : 'text-red'} font-weight-bold" style="font-family:monospace;">${pnl > 0 ? '+' : ''}${formatMoney(pnl)}</td>
-                            <td><span style="background:rgba(0,255,157,0.12); color:var(--neon-green); border:1px solid rgba(0,255,157,0.3); padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;"><i class="fa-solid ${isParcial ? 'fa-lock' : 'fa-bolt'}"></i> ${isParcial ? 'PARCIAL BE' : 'EN VIVO'}</span></td>
+                            <td>${badgeAsset}</td>
                         `;
                         tbody.appendChild(tr);
                     });
@@ -1284,10 +1293,14 @@
                     const pnl = parseFloat(pos.pnl || 0);
                     const ticketStr = (pos.ticket || '').toString().replace('#', '');
                     const isParcial = pos.estado === 'PARCIAL_BE' || pos.resultado_salida === 'PARCIAL_BE';
+                    const isPausa = pos.estado === 'PAUSA_FIN_DE_SEMANA' || (pos.estado_display && pos.estado_display.includes('PAUSA'));
                     const tipo = (pos.tipo || (pos.accion === 'VENTA' ? 'SELL' : 'BUY')).toUpperCase();
+                    const lotesStr = pos.lotes ? `${pos.lotes}` : '';
                     
                     let badgeEstado = '';
-                    if (isParcial) {
+                    if (isPausa) {
+                        badgeEstado = '<span style="background:rgba(0,180,255,0.15); color:var(--neon-blue); border:1px solid rgba(0,180,255,0.35); padding:3px 8px; border-radius:4px; font-size:11px; font-weight:600;"><i class="fa-solid fa-pause"></i> PAUSA (Fin de Semana)</span>';
+                    } else if (isParcial) {
                         badgeEstado = '<span style="background:rgba(0,255,157,0.15); color:var(--neon-green); border:1px solid rgba(0,255,157,0.4); padding:3px 8px; border-radius:4px; font-size:11px; font-weight:600;"><i class="fa-solid fa-lock"></i> PARCIAL BE</span>';
                     } else if (pos.resultado_salida === 'TP_ORIGINAL' || pos.resultado_salida === 'TP') {
                         badgeEstado = '<span style="background:rgba(0,255,157,0.2); color:var(--neon-green); padding:3px 8px; border-radius:4px; font-size:11px;"><i class="fa-solid fa-circle-check"></i> TP ALCANZADO</span>';
@@ -1311,7 +1324,7 @@
                                 ${pos.activo}
                             </span>
                         </td>
-                        <td><span class="${tipo === 'BUY' ? 'btn-green' : 'btn-red'}" style="padding:2px 6px; font-size:11px; font-weight:bold;">${tipo}</span></td>
+                        <td><span class="${tipo === 'BUY' ? 'btn-green' : 'btn-red'}" style="padding:2px 6px; font-size:11px; font-weight:bold;">${tipo} ${lotesStr}</span></td>
                         <td>
                             <div>
                                 <strong style="color:var(--text-main); font-size:12px;">${pos.setup || pos.estrategia || pos.patron || 'Order Block Lux 2H'}</strong>

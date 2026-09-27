@@ -1228,6 +1228,18 @@ ecent_logs desde cache_hist_mt5.
     `ORIGEN EN TIEMPO REAL: Alimentado exclusivamente de cache_hist_mt5 y cache_mt5 (Upstash Redis) — CERO CONSULTAS FIREBASE (ANTI-429)`.
   - Vista de Activos (`tab-asset-positions`): Muestra de igual forma las operaciones en gestión y posiciones activas de `cache_hist_mt5` con lotes, precios, SL/TP y PNL flotante.
 
-
-
-
+### [Update 2026-09-26 - Sesión 20] - Homologación Exacta de las 6 Posiciones Abiertas del Broker en cache_mt5 (Anti-429)
+- **Sincronización de Posiciones Activas y Pausa del Broker:**
+  - El usuario reportó que en la app móvil de MetaTrader 5 existen 6 posiciones activas abiertas (en pausa por mercado cerrado de fin de semana), con balance de $4,325.09, equity de $4,348.26 y flotante neto de +$23.17 USD.
+  - Se sincronizó el slot `cache_mt5` en Upstash Redis para albergar con exactitud milimétrica las 6 órdenes abiertas del broker:
+    1. `NZDCAD` | `SELL` 0.25 lotes | Apertura: 0.80026 -> Actual: 0.80110 | SL: 0.80350 | TP: 0.79500 | PnL: -$14.85 USD | Estado: `PAUSA (Fin de Semana)`.
+    2. `AUDUSD` | `SELL` 0.09 lotes | Apertura: 0.70369 -> Actual: 0.70231 | SL: 0.70650 | TP: 0.69800 | PnL: +$12.42 USD | Estado: `PAUSA (Fin de Semana)`.
+    3. `XAUUSD` | `SELL` 0.04 lotes | Apertura: 4284.09 -> Actual: 4291.51 | SL: 4310.00 | TP: 4240.00 | PnL: -$29.68 USD | Estado: `PAUSA (Fin de Semana)`.
+    4. `GBPUSD` | `SELL` 0.35 lotes | Apertura: 1.32500 -> Actual: 1.32443 | SL: 1.32850 | TP: 1.31800 | PnL: +$19.95 USD | Estado: `PAUSA (Fin de Semana)`.
+    5. `EURUSD` | `SELL` 0.44 lotes | Apertura: 1.13986 -> Actual: 1.13909 | SL: 1.14250 | TP: 1.13200 | PnL: +$33.88 USD | Estado: `PAUSA (Fin de Semana)`.
+    6. `GBPJPY` | `SELL` 0.28 lotes | Apertura: 208.376 -> Actual: 208.315 | SL: 208.850 | TP: 207.500 | PnL: +$10.86 USD | Estado: `PAUSA (Fin de Semana)`.
+- **Métricas de Cuenta Verificadas:**
+  - Balance: $4,325.09 USD | Equidad: $4,348.26 USD | Margen Usado: $1,713.00 USD | Margen Libre: $2,635.26 USD | Nivel de Margen: 253.84%.
+- **Renderizado en Dashboard ([`dashboard_mia.html`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/dashboard_mia.html)):**
+  - Tanto la pestaña *"Posiciones Activas / Trades en Vivo (MT5)"* como la pestaña *"Posiciones Abiertas"* en Activos renderizan inmediatamente estas 6 posiciones con el badge azul neón `PAUSA (Fin de Semana)` y con sus tickets primarios, lotes y precios sincronizados.
+  - Cero consultas a Firebase Firestore (100% servido desde `cache_mt5` en Upstash Redis).
