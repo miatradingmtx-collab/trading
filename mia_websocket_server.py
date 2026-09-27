@@ -48,6 +48,20 @@ if os.path.exists(build_dir):
         except Exception as e:
             return {"error": str(e)}
 
+    @app.get("/diagramas/malla-shadow")
+    async def render_diagram_malla_shadow():
+        try:
+            return FileResponse(os.path.join(os.path.dirname(__file__), "diagrama_malla_shadow_bifurcacion.html"))
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.get("/diagramas/atlas-mcp")
+    async def render_diagram_atlas_mcp():
+        try:
+            return FileResponse(os.path.join(os.path.dirname(__file__), "diagrama_atlas_mcp_externo.html"))
+        except Exception as e:
+            return {"error": str(e)}
+
     # Las rutas de API y WebSocket se registran primero; el catch-all estático al final
 
 class ConnectionManager:

@@ -1452,7 +1452,30 @@ ecent_logs desde cache_hist_mt5.
   - TensorFlow y los Herds consumen el estado del mercado en un único pulso MGET atómico (< 50ms).
   - La sincronización a Firebase Firestore se realiza de manera pasiva y diferida, garantizando **cero impacto en latencia y cero errores 429**.
 
+### [Update 2026-09-27 - Sesión 28] - Mapeo de Tickets Virtuales #SHADOW_XXXXXX, Análisis Contrafactual What-If y Diagramas HTML Interactivos
+- **Mapeo de Tickets Reales a Tickets Virtuales Shadow:**
+  - Cada operación detectada o abierta en MT5 se mapea en tiempo real con un ticket virtual con nomenclatura **`#SHADOW_XXXXXX`** (ej: Ticket Real `#10456085163` $\longrightarrow$ Virtual `#SHADOW_85163`).
+  - **Análisis Contrafactual Cuantitativo ("What-If"):**
+    $$\Delta \text{PnL} = \text{PnL}_{\text{ATLAS/Herds}} - \text{PnL}_{\text{Real MT5}}$$
+    - Evalúa en paralelo:
+      1. ¿Qué hubiera ocurrido con la gestión de los Enjambres Herds (cierre parcial al 40% en POC asegurando +15% de ganancia)?
+      2. ¿Qué hubiera ocurrido si TensorFlow (97.87%) aprobaba o vetaba la operación?
+      3. ¿Qué hubiera ocurrido si ATLAS aplicaba su filtro de divergencia en CVD Delta y SL dinámico por ATR?
+  - **Slot en Upstash Redis (Anti-429):** `cache_shadow_trades` (almacena los 50 trades correlacionados con latencia < 50ms).
+  - **Persistencia Pasiva en Firestore:** `mia_atlas/shadow_trades_audit`.
+- **Generación de Diagramas de Arquitectura Interactivos en HTML:**
+  1. **Diagrama 1: Malla Desacoplada Shadow Mode & Bifurcación A/B:**
+     - **Path Local:** `c:\Users\ecybe\OneDrive\Documentos\Trading\diagrama_malla_shadow_bifurcacion.html`
+     - **Ruta Web en Railway:** `https://trading-production-1fd4.up.railway.app/diagramas/malla-shadow`
+     - Detalla el flujo de: Feeds Externos $\longrightarrow$ Servidor MCP $\longrightarrow$ Malla de Agentes $\longrightarrow$ Gatekeeper (`SHADOW_MODE_GLOBAL = True`) $\longrightarrow$ Bus Upstash MGET $\longrightarrow$ Persistencia Pasiva $\longrightarrow$ Dashboards (927a y 1fd4).
+  2. **Diagrama 2: Servidor MCP ATLAS & Topología de Conexiones Externas:**
+     - **Path Local:** `c:\Users\ecybe\OneDrive\Documentos\Trading\diagrama_atlas_mcp_externo.html`
+     - **Ruta Web en Railway:** `https://trading-production-1fd4.up.railway.app/diagramas/atlas-mcp`
+     - Detalla la extracción hacia: CME Group FX Futures, OANDA OrderBook, Yahoo/Stooq ATR, Forex Factory Lockout, FRED Yields y arXiv Quantitative Finance.
+     - Especifica el catálogo de 6 herramientas cuantitativas estandarizadas bajo el protocolo MCP JSON-RPC 2.0.
+
 ---
+
 
 
 

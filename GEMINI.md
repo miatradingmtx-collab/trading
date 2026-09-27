@@ -53,3 +53,15 @@ trigger: always_on
 # 🚫 REGLA ESTRICTA: MIGRACIÓN DE CREWAI / LANGCHAIN
 Como Inteligencia Artificial, tienes PROHIBIDO sugerir, instanciar o construir arquitecturas nuevas utilizando crewai o langchain. 
 Estas librerías son consideradas LEGACY (Antiguas). A partir de ahora, todo el sistema de agentes, herramientas y orquestación debe construirse exclusivamente utilizando el nuevo framework moderno ("Penriye Reset" / Pydantic AI / PraisonAI). Asegúrate de validar la sintaxis correcta del nuevo framework al refactorizar o crear nuevos agentes.
+
+---
+name: modo_shadow_bloqueo_mt5
+description: Regla de operabilidad en Modo Shadow (Paper Trading) con bloqueo estricto de MetaTrader 5 y asignación de tickets virtuales.
+trigger: always_on
+---
+
+# 🛡️ REGLA: MODO SHADOW GLOBAL Y TICKETS VIRTUALES (#SHADOW_XXXXXX)
+1. **Bloqueo Estricto de MetaTrader 5:** Durante la ventana de calibración de 1 a 2 semanas, la ejecución real en MetaQuotes está BLOQUEADA (`SHADOW_MODE_GLOBAL = True`). Queda estrictamente prohibido enviar órdenes con dinero real.
+2. **Asignación de Tickets Virtuales:** Cada trade analizado o simulado por los Enjambres Herds, TensorFlow o ATLAS debe asignarse a un ticket virtual con formato `#SHADOW_XXXXXX` correlacionado con el ticket real.
+3. **Análisis Contrafactual ("What-If"):** Toda comparación entre la Rama Champion (Herds tradicionales) y la Rama Challenger (ATLAS con CVD Delta + ATR + DOM) se almacena en los slots `cache_shadow_trades` y `cache_mia_atlas` de Upstash Redis para no contaminar el historial productivo ni generar errores 429 en Firebase.
+
