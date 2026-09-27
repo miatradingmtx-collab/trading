@@ -1,11 +1,11 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 ================================================================================
-MIA CORE - HERDS TERMINAL CLI (Cross-Platform: Termux, CMD, PowerShell, Bash)
+MIA CORE - ANTOPUS TERMINAL CLI (Cross-Platform: Termux, CMD, PowerShell, Bash)
 ================================================================================
 Consola de Monitoreo Inter-Agente en Tiempo Real.
-Permite visualizar la deliberaciÃ³n de los 3 Sub-Enjambres (Herds), el Consenso
+Permite visualizar la deliberaciÃ³n de los 3 Sub-Enjambres (Antopus), el Consenso
 de RUNE, la inferencia de TensorFlow y el estado del mercado directamente en
 cualquier terminal (Android Termux, Windows CMD/PowerShell, Linux, macOS).
 """
@@ -78,11 +78,11 @@ def fetch_upstash(key: str) -> dict:
 
 def print_banner():
     banner = rf"""{C_CYAN}{C_BOLD}
-  __  __ ___    _      _  _ ___ ___ ___  ___    ___ _    ___ 
- |  \/  |_ _|  /_\    | || | __| _ \   \/ __|  / __| |  |_ _|
- | |\/| || |  / _ \   | __ | _||   / |) \__ \ | (__| |__ | | 
- |_|  |_|___|/_/ \_\  |_||_|___|_|_\___/|___/  \___|____|___|
-{C_RESET}{C_WHITE}   >>> PROTOCOLO DE DELIBERACIÃ“N INTER-AGENTE (HERDS CLI) <<<{C_RESET}
+  __  __ ___    _       _   _  _ _____ ___  ___ _   _ ___ 
+ |  \/  |_ _|  /_\     /_\ | \| |_   _/ _ \| _ \ | | / __|
+ | |\/| || |  / _ \   / _ \| .` | | || (_) |  _/ |_| \__ \
+ |_|  |_|___|/_/ \_\ /_/ \_\_|\_| |_| \___/|_|  \___/|___/
+{C_RESET}{C_WHITE}   >>> PROTOCOLO DE DELIBERACIÃ“N INTER-AGENTE (ANTOPUS CLI) <<<{C_RESET}
 {C_DIM}-----------------------------------------------------------------------------{C_RESET}"""
     print(banner)
 
@@ -154,7 +154,7 @@ def format_agent_event(agent: str, action: str, data: str):
 
 def display_latest_debate():
     """Muestra el Ãºltimo debate almacenado en Upstash Redis."""
-    print(f"{C_BOLD}{C_MAGENTA}>>> ÃšLTIMO DEBATE DE LAS MANADAS (HERDS SNAPSHOT):{C_RESET}")
+    print(f"{C_BOLD}{C_MAGENTA}>>> ÃšLTIMO DEBATE DE LAS LOS ENJAMBRES (ANTOPUS SNAPSHOT):{C_RESET}")
     debate_payload = fetch_upstash("cache_herd_debate_latest")
     
     if not debate_payload or "content" not in debate_payload:
@@ -228,7 +228,7 @@ def poll_upstash_fallback():
             title = data.get("title", "")
             if title and title != last_title:
                 last_title = title
-                print(f"{C_BOLD}{C_GREEN}[>] NUEVO DEBATE HERDS DETECTADO ({title}):{C_RESET}")
+                print(f"{C_BOLD}{C_GREEN}[>] NUEVO DEBATE ANTOPUS DETECTADO ({title}):{C_RESET}")
                 content = data.get("content", "")
                 for line in content.split("\n"):
                     if line.strip():
@@ -243,7 +243,7 @@ def poll_upstash_fallback():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MIA Herds Terminal CLI - Monitor Inter-Agente")
+    parser = argparse.ArgumentParser(description="MIA Antopus Terminal CLI - Monitor Inter-Agente")
     parser.add_argument("--once", action="store_true", help="Muestra el estado actual y Ãºltimo debate y finaliza.")
     parser.add_argument("--status", action="store_true", help="Solo muestra el estado de mercado y mÃ©tricas de TensorFlow.")
     parser.add_argument("--poll", action="store_true", help="Fuerza el modo sondeo vÃ­a Upstash en lugar de WebSocket.")
@@ -271,7 +271,7 @@ def main():
             print(f"{C_DIM}(Para streaming ultra-rÃ¡pido ejecuta: pip install websockets){C_RESET}\n")
             poll_upstash_fallback()
         except KeyboardInterrupt:
-            print(f"\n{C_CYAN}MIA Herds CLI desconectado con Ã©xito.{C_RESET}")
+            print(f"\n{C_CYAN}MIA Antopus CLI desconectado con Ã©xito.{C_RESET}")
     else:
         poll_upstash_fallback()
 
