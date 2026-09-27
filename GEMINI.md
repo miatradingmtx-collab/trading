@@ -43,3 +43,13 @@ trigger: always_on
 2. **TensorFlow Deep Learning:** El cerebro de Mia migró a un Modelo Secuencial (Capas Densas, ReLU, Dropout, Sigmoid).
 3. **Desacoplamiento (Anti-429):** TensorFlow entrena leyendo de cache_hist_mt5 (Upstash) y guarda el cerebro en cache_mia_tensorflow (Upstash).
 4. **Swarm HFT:** Los Enjambres consultan la probabilidad neuronal directamente desde Upstash, consumiendo cero cuota de Firebase.
+
+---
+name: deprecacion_crewai_langchain
+description: Regla para migrar de CrewAI/Langchain al nuevo framework moderno.
+trigger: always_on
+---
+
+# 🚫 REGLA ESTRICTA: MIGRACIÓN DE CREWAI / LANGCHAIN
+Como Inteligencia Artificial, tienes PROHIBIDO sugerir, instanciar o construir arquitecturas nuevas utilizando crewai o langchain. 
+Estas librerías son consideradas LEGACY (Antiguas). A partir de ahora, todo el sistema de agentes, herramientas y orquestación debe construirse exclusivamente utilizando el nuevo framework moderno ("Penriye Reset" / Pydantic AI / PraisonAI). Asegúrate de validar la sintaxis correcta del nuevo framework al refactorizar o crear nuevos agentes.
