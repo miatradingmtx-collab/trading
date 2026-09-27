@@ -49,6 +49,10 @@ BASE_BALANCE_MENSUAL = 5000.0
 OBJETIVO_MENSUAL_PCT = 10.0
 RIESGO_RESIDUAL_MAX_PCT = 25.0  # Porcentaje máximo del colchón residual a arriesgar por trade
 
+# MODO SHADOW GLOBAL (1 A 2 SEMANAS DE OBSERVABILIDAD Y CALIBRACIÓN PURA)
+# MetaTrader 5 BLOQUEADO: 0 órdenes con dinero real. Aprendizaje en bifurcaciones paralelas.
+SHADOW_MODE_GLOBAL = os.getenv("SHADOW_MODE_GLOBAL", "true").lower() == "true"
+
 # Diccionario global para trackear posiciones y detectar aperturas, parciales y cierres en bucle
 POSICIONES_ACTIVAS = {}
 TICKETS_SINCRONIZADOS = set()
@@ -1137,10 +1141,16 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
             'magic': 20260616
         }
 
-        print(f"| TRADING RIESGO | Enviando {accion} en {simbolo_broker} (Balance: ${balance:.2f} | Riesgo {riesgo_pct}% | SL: {sl:.4f} | LOTE: {lote})")
+        print(f"| TRADING RIESGO | Evaluando {accion} en {simbolo_broker} (Balance: ${balance:.2f} | Riesgo {riesgo_pct}% | SL: {sl:.4f} | LOTE: {lote})")
+        
+        # INTERCEPTOR MODO SHADOW GLOBAL (1-2 SEMANAS DE SIMULACIÓN PURA)
+        if SHADOW_MODE_GLOBAL:
+            simulated_ticket = f"SHADOW_{random.randint(100000, 999999)}"
+            print(f"| SHADOW MODE (1-2 SEMANAS) | [MT5 BLOQUEADO] {accion} simulada con éxito en {simbolo_broker}. Ticket Simulado: #{simulated_ticket}. CERO dinero en riesgo.")
+            return True
+
         if es_buy:
             result = await connection.create_market_buy_order(simbolo_broker, lote, sl, tp, options)
-
         else:
             result = await connection.create_market_sell_order(simbolo_broker, lote, sl, tp, options)
 

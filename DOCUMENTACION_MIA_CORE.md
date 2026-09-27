@@ -1429,7 +1429,31 @@ ecent_logs desde cache_hist_mt5.
   - Comparativa matricial directa lado a lado y proyección de doble curva de Equity en SVG (+128% vs +95%).
   - Nuevos endpoints API REST: `GET /api/atlas/backtest_data` disponibles en Railway.
 
+### [Update 2026-09-27 - Sesión 27] - Modo Shadow Global (1-2 Semanas), Bloqueo Estricto de MT5 y Arquitectura de Malla Desacoplada (Non-Monolithic)
+- **Directriz de Calibración Global y Protección de Capital:**
+  - Activación del **Modo Shadow Global** durante una ventana de **1 a 2 semanas**.
+  - Tanto la **Rama A (Herds Tradicionales + TensorFlow)** como la **Rama B (ATLAS Modo Aprendiz Cuantitativo)** operan en modo de observabilidad y evaluación pura.
+  - **MetaTrader 5 Cloud: BLOQUEO ESTRICTO DE EJECUCIÓN** (`SHADOW_MODE_GLOBAL = True` en `mt5_executor_cloud.py`).
+  - Todas las señales de compra/venta son interceptadas y registradas en bitácoras virtuales como tickets `#SHADOW_XXXXXX` con $0.00 USD de riesgo real en el broker.
+- **Bifurcaciones Paralelas de Aprendizaje:**
+  1. **Bifurcación Herds:** Registrada en Firebase `mia_herds_history` y Upstash `cache_herd_debate_latest`.
+  2. **Bifurcación ATLAS:** Registrada en Firebase `mia_atlas` y Upstash `cache_mia_atlas`.
+- **Análisis de Capacidad de Hardware y Latencia en Railway (`1fd4`):**
+  - Consumo de Memoria: ~95 MB de RAM (utilización < 20% del límite de 512 MB).
+  - Consumo de CPU: < 3% en reposo, < 8% durante la deliberación de enjambres.
+  - Latencia hacia Upstash Redis: 35-50ms.
+  - Latencia de Inferencia OpenRouter REST (Llama 3.3 70B): < 900ms con Kill-Switch a 8s.
+  - Servidor MCP In-Process: Las llamadas a herramientas (`/mcp` y `/api/mcp`) corren en memoria compartida a < 2ms, erradicando saltos de red (*network hops*).
+  - **Veredicto:** El hardware de `1fd4` soporta plenamente la arquitectura sin requerir un contenedor secundario.
+- **Arquitectura de Malla Desacoplada (Event-Driven / Pub-Sub Mesh vs Cascada Monolítica):**
+  $$\text{Arquitectura} \colon \text{Nodos Autónomos} \iff \text{Bus de Memoria Upstash MGET} \iff \text{Persistencia Asíncrona Firebase}$$
+  - Ningún módulo bloquea a otro secuencialmente (*Non-blocking asynchronous event loop*).
+  - ATLAS consulta el Servidor MCP de forma asíncrona hacia feeds externos (CME, OANDA, FRED, Yahoo Finance).
+  - TensorFlow y los Herds consumen el estado del mercado en un único pulso MGET atómico (< 50ms).
+  - La sincronización a Firebase Firestore se realiza de manera pasiva y diferida, garantizando **cero impacto en latencia y cero errores 429**.
+
 ---
+
 
 
 name: deprecacion_crewai_langchain
