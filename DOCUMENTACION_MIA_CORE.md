@@ -1142,3 +1142,15 @@ ecent_logs desde cache_hist_mt5.
   - En `mia_herds_cli.py`, se configuró `ping_interval=30` y `ping_timeout=None` en el cliente WebSocket para tolerar las latencias y cortes de paquetes propios de conexiones móviles Android / Termux.
   - En `mia_websocket_server.py`, se implementó una tarea en segundo plano (`heartbeat_loop`) que emite un pulso cada 25 segundos a todas las conexiones activas, manteniendo caliente el canal TCP e impidiendo que los operadores móviles cierren el socket por inactividad.
   - Adicionalmente, `ConnectionManager.broadcast()` ahora purga automáticamente los sockets cerrados para evitar fugas de memoria.
+
+### [Update 2026-09-26 - Sesión 15] - Aprovisionamiento Automático (`herds`) y Modo Daemon Residente para Redes Móviles
+- **Aprovisionamiento Global en Un Paso (`install_herds.sh`):**
+  - Se creó el script de aprovisionamiento universal ejecutable mediante `curl -sL https://raw.githubusercontent.com/.../install_herds.sh | bash`.
+  - Instala el comando global `herds` en `$PREFIX/bin` (Termux) o `/usr/local/bin` (Linux), permitiendo invocar la terminal inter-agente escribiendo únicamente `herds` desde cualquier directorio.
+- **Persistencia en Segundo Plano (Daemon con Wake-Lock):**
+  - Para evitar que la administración de energía de Android o los timeouts de NAT del APN móvil suspendan el proceso al apagar la pantalla, se implementó:
+    1. `herds bg`: Ejecuta el monitor en segundo plano (`nohup`) y activa automáticamente `termux-wake-lock`.
+    2. `herds logs`: Transmite en vivo el archivo de registro `herds.log`.
+    3. `herds stop`: Detiene el proceso y libera el bloqueo de suspensión (`termux-wake-unlock`).
+- **Auto-Actualización Silenciosa:**
+  - El wrapper de `herds` verifica en segundo plano con un timeout de 3s si existe una versión más reciente en GitHub y la sincroniza automáticamente sin generar demoras en el arranque.
