@@ -272,9 +272,9 @@ def run_hft_cycle():
         return veredicto
         
     # Extraer intervenciones individuales para el WebSocket Terminal
-    h1_match = re.search(r'HERD 1[^\n:]*:\s*(.*?)(?=\n\s*\*\*HERD|\Z)', veredicto, re.DOTALL | re.IGNORECASE)
-    h2_match = re.search(r'HERD 2[^\n:]*:\s*(.*?)(?=\n\s*\*\*HERD|\Z)', veredicto, re.DOTALL | re.IGNORECASE)
-    h3_match = re.search(r'HERD 3[^\n:]*:\s*(.*?)(?=\n\s*\*\*HERD|\Z)', veredicto, re.DOTALL | re.IGNORECASE)
+    h1_match = re.search(r'\*\*HERD 1[^\*]*\*\*[:\s]*([\s\S]*?)(?=\*\*HERD 2|\Z)', veredicto, re.IGNORECASE)
+    h2_match = re.search(r'\*\*HERD 2[^\*]*\*\*[:\s]*([\s\S]*?)(?=\*\*HERD 3|\Z)', veredicto, re.IGNORECASE)
+    h3_match = re.search(r'\*\*HERD 3[^\*]*\*\*[:\s]*([\s\S]*?)(?=\Z)', veredicto, re.IGNORECASE)
 
     if h1_match:
         emit_ws_event("HERD 1 (TIDAL/NORO)", "PROPOSAL", h1_match.group(1).strip())
@@ -305,10 +305,11 @@ def run_hft_cycle():
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
         
-        # Guardado en Firebase (mia_swarm_rest_history)
+        # Guardado en Firebase (mia_herds_history y mia_swarm_rest_history)
         if db is not None:
+            db.collection("mia_herds_history").document(safe_title).set(payload)
             db.collection("mia_swarm_rest_history").document(safe_title).set(payload)
-            emit_ws_event("Master", "INFO", "Debate Herds registrado en Firebase.")
+            emit_ws_event("Master", "INFO", "Debate Herds registrado y homologado en Firebase (mia_herds_history).")
             
         # Guardado en Upstash Redis (cache_herd_debate_latest y cache_mia_swarm_rest_latest)
         upstash_url = "https://certain-gnat-160816.upstash.io/set/cache_mia_swarm_rest_latest"

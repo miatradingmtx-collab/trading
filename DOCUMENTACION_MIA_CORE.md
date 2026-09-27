@@ -1179,3 +1179,24 @@ ecent_logs desde cache_hist_mt5.
   - *Veredicto para Ciclo Interno HFT:* **No recomendado en el núcleo de ejecución.** Agregar MCP entre los agentes y MetaTrader 5 o Upstash introduciría sobrecarga de serialización JSON-RPC, latencia adicional y puntos únicos de falla. La arquitectura actual con WebSockets locales + Upstash Redis opera con latencias ultra bajas (< 15 ms).
   - *Veredicto para Integración Externa:* **Altamente recomendado como Gateway Externo.** Crear un servidor MCP secundario de solo lectura es óptimo para conectar clientes AI externos (Claude Desktop, Cursor, n8n, Notion) para auditar el enjambre sin tocar la tubería de trading en vivo.
 
+### [Update 2026-09-26 - Sesión 17] - Integración de Caché Mia ML en Dashboard y Homologación de Herds en Firebase Firestore
+- **Integración de Memoria ML en el Dashboard (`cache_ml_history` & `cache_mia_tensorflow`):**
+  - Se vinculó el endpoint `/api/dashboard_data` a las cachés de Machine Learning en Upstash Redis (`cache_ml_history` con 45 indicadores y `cache_mia_tensorflow` con 97.87% de precisión).
+  - Se calculan y transmiten 50 pesos dinámicos ponderados mediante la fórmula:
+    $$W_{\text{ind}} = \max\left(0.20, \frac{\text{WinRate}}{100} \times 2.0 + 0.30\right)$$
+  - Se optimizó la función `showMLWeights()` en `dashboard_mia.html` para desplegar la ventana modal institucional con:
+    1. Cabecera con estado de TensorFlow (97.87% accuracy | 47 trades) y total de indicadores analizados (45).
+    2. Columna 1: Pesos dinámicos en tiempo real con factor multiplicador (`1.9787x`, `1.9400x`, `1.8550x`, etc.).
+    3. Columnas 2 y 3: Top Estrategias Ganadoras y Perdedoras.
+  - Con esto se resuelve la advertencia de *"Aún no hay pesos dinámicos calculados"* mostrada anteriormente.
+- **Homologación de Debates y Veredictos de Herds en Firebase Cloud Firestore:**
+  - Se homologó el almacenamiento del debate inter-agente hacia la colección permanente `mia_herds_history` (y `mia_swarm_rest_history`) en Cloud Firestore.
+  - Se refinó la expresión regular en `mia_master_swarm_rest.py` para la partición limpia de los 3 sub-enjambres:
+    - `HERD 1 (TIDAL & NORO)`: Propuesta microestructural (DOM, POC, entradas institucionales).
+    - `HERD 2 (ZEPHR & LUMEN)`: Auditoría de riesgo, trampas CME y validación con TensorFlow Deep Learning.
+    - `HERD 3 (RUNE)`: Veredicto de consenso final (`APROBADO ✅` o `VETADO ⛔`), trailing stop y escalonamiento.
+  - Se implementó sincronización automática en `app.py` con filtro de marca de tiempo (`last_synced_herd_ts`), escribiendo en Firestore solo al recibir un nuevo debate (cero lecturas -> 100% Anti-429).
+  - Se añadieron los endpoints `/api/herds/latest` y `/api/herds/sync_firebase` para consulta y sincronización programática.
+  - En `dashboard_mia.html`, el panel `#live-signals-box` ahora proyecta los argumentos y consensos en vivo de los 3 Herds.
+
+
