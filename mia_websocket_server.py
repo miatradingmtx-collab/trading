@@ -45,12 +45,7 @@ if os.path.exists(build_dir):
         except Exception as e:
             return {"error": str(e)}
 
-    @app.get("/{file_path:path}")
-    async def serve_static_files(file_path: str):
-        full_path = os.path.join(build_dir, file_path)
-        if os.path.exists(full_path) and os.path.isfile(full_path):
-            return FileResponse(full_path)
-        return FileResponse(os.path.join(build_dir, "index.html"))
+    # Las rutas de API y WebSocket se registran primero; el catch-all estático al final
 
 class ConnectionManager:
     def __init__(self):
@@ -161,6 +156,15 @@ async def get_export_csv_proxy():
             return response.text
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+# Catch-all estático para React (SPA fallback)
+if os.path.exists(build_dir):
+    @app.get("/{file_path:path}")
+    async def serve_static_files(file_path: str):
+        full_path = os.path.join(build_dir, file_path)
+        if os.path.exists(full_path) and os.path.isfile(full_path):
+            return FileResponse(full_path)
+        return FileResponse(os.path.join(build_dir, "index.html"))
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
