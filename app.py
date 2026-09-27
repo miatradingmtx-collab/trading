@@ -3445,6 +3445,38 @@ def api_dashboard_data():
                     {"nombre": "FVG Rebalance (Fair Value Gap)", "win_rate": 78.0, "profit_factor": 2.15, "max_dd": -4.0, "total_roi": 95.0, "ocurrencias": 8, "pnl_generado": 210.00, "tipo": "Price Action"}
                 ]
 
+                # Mapear trades en vivo y en gestión desde recent_logs de cache_hist_mt5 (Anti-429 Upstash)
+                live_trades = d_live.get("operaciones_activas", [])
+                if not live_trades or len(live_trades) == 0:
+                    live_trades = []
+                    for l in logs:
+                        if l.get("ejecutada_mt5") is not False:
+                            acc = str(l.get("accion", "")).upper()
+                            p_open = float(l.get("precio_ejecucion") or l.get("precio_apertura") or 0.0)
+                            p_sl = float(l.get("sl") or l.get("stop_loss") or 0.0)
+                            p_tp = float(l.get("tp") or l.get("take_profit") or 0.0)
+                            tipo = "BUY" if ("COMPRA" in acc or "BUY" in acc or (p_sl > 0 and p_open > p_sl)) else "SELL"
+                            res_salida = l.get("resultado_salida", "")
+                            
+                            live_trades.append({
+                                "ticket": str(l.get("ticket", "N/A")),
+                                "fecha": l.get("fecha") or l.get("timestamp") or "Reciente",
+                                "activo": l.get("activo", "EURUSD"),
+                                "tipo": tipo,
+                                "lotes": float(l.get("lotes", 0.01)),
+                                "precio_apertura": p_open if p_open > 0 else "—",
+                                "precio_actual": p_open if p_open > 0 else "—",
+                                "sl": p_sl if p_sl > 0 else "—",
+                                "tp": p_tp if p_tp > 0 else "—",
+                                "pnl": float(l.get("pnl", 0.0)),
+                                "setup": l.get("estrategia") or l.get("patron") or "Order Block Lux 2H",
+                                "estado": "PARCIAL_BE" if res_salida == "PARCIAL_BE" else ("TP" if res_salida == "TP_ORIGINAL" else "EJECUTADO_MT5"),
+                                "origen": "cache_hist_mt5"
+                            })
+                
+                d_live["operaciones_activas"] = live_trades
+                d_hist["operaciones_en_vivo_mt5"] = live_trades
+
                 combined = dict(d_hist)
                 combined.update(d_live)
                 return {"status": "success", "data": combined, "source": "upstash_anti_429"}

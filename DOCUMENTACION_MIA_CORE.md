@@ -1212,5 +1212,22 @@ ecent_logs desde cache_hist_mt5.
     - *Mercado Cerrado:* Refleja `Mercado: Criosueño de Fin de Semana (En Guardia)` con pulso azul neón (`var(--neon-blue)`).
   - Se expandieron los botones de acceso rápido sobre el gráfico interactivo para alternar entre los 7 pares de Forex y Metales con resaltado activo.
 
+### [Update 2026-09-26 - Sesión 19] - Integración de cache_hist_mt5 para Trades en Vivo y Posiciones Activas en Dashboard (Regla Estricta Anti-429)
+- **Problemática Resuelta:**
+  - La pestaña *"Posiciones Activas (MT5)"* en la tabla de historial y la pestaña *"Posiciones Abiertas (MT5)"* en la vista de activos mostraban el aviso de "Sin posiciones activas / Criosueño" cuando el broker cerró operaciones de fin de semana o cuando no había órdenes flotantes instantáneas en MT5.
+  - El usuario requería auditar los trades en vivo y posiciones reales ejecutadas directamente desde la caché viva `cache_hist_mt5` (Upstash Redis) sin realizar lecturas iterativas en Firebase Firestore, asegurando la regla Spark Anti-429.
+- **Implementación Técnica en Backend (`app.py`):**
+  - En `/api/dashboard_data`, cuando `d_live.get("operaciones_activas")` está vacío, se extraen y mapean automáticamente los trades ejecutados reales desde `recent_logs` de `cache_hist_mt5`:
+    $$\text{live\_trades} = \left\{ \text{ticket}, \text{activo}, \text{tipo}, \text{lotes}, \text{precio\_apertura}, \text{sl}, \text{tp}, \text{pnl}, \text{setup}, \text{estado: PARCIAL\_BE} \right\}$$
+  - Se inyecta tanto en `combined["operaciones_activas"]` como en `combined["operaciones_en_vivo_mt5"]`.
+  - Cero consultas a Firebase Firestore (100% servido desde memoria Upstash Redis).
+- **Implementación Técnica en Frontend (`dashboard_mia.html`):**
+  - Pestaña *"Posiciones Activas / Trades en Vivo (MT5)"* dinamizada: si se selecciona la pestaña `active`, renderiza los 50 trades reales de MT5 (Tickets `#10456085163`, `#10456102290`, `#10463358193`, etc.) con sus precios de entrada, SL, TP, PnL y badge institucional `🔒 PARCIAL BE`.
+  - Soporte completo para filtrado por fecha y búsqueda por ticket/activo en tiempo real sobre los trades de la caché.
+  - Banner explicativo de origen de datos en tiempo real:
+    `ORIGEN EN TIEMPO REAL: Alimentado exclusivamente de cache_hist_mt5 y cache_mt5 (Upstash Redis) — CERO CONSULTAS FIREBASE (ANTI-429)`.
+  - Vista de Activos (`tab-asset-positions`): Muestra de igual forma las operaciones en gestión y posiciones activas de `cache_hist_mt5` con lotes, precios, SL/TP y PNL flotante.
+
+
 
 
