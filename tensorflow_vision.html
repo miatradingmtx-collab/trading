@@ -2,22 +2,26 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>MIA - Matriz Profunda (TensorFlow)</title>
+    <title>MIA - Matriz Profunda (TensorFlow Core & 7 Herds)</title>
     <style>
         body { margin: 0; padding: 0; background-color: #040609; color: #fff; font-family: "Courier New", Courier, monospace; overflow: hidden; }
         #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; padding: 20px; box-sizing: border-box; }
-        .hud-box { background: rgba(10, 15, 25, 0.8); border: 1px solid rgba(0, 255, 163, 0.3); padding: 15px; border-radius: 8px; backdrop-filter: blur(5px); }
-        h1 { color: #00ffa3; font-size: 24px; margin: 0 0 10px 0; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 10px rgba(0, 255, 163, 0.5); }
-        .stats { font-size: 12px; color: #8892b0; line-height: 1.8; }
+        .hud-box { background: rgba(10, 15, 25, 0.85); border: 1px solid rgba(0, 255, 163, 0.3); padding: 15px; border-radius: 8px; backdrop-filter: blur(8px); box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+        h1 { color: #00ffa3; font-size: 22px; margin: 0 0 10px 0; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 10px rgba(0, 255, 163, 0.5); }
+        .stats { font-size: 11.5px; color: #8892b0; line-height: 1.8; }
         .stat-value { color: #e6f1ff; font-weight: bold; }
-        .log-container { position: absolute; bottom: 20px; left: 20px; width: 400px; height: 150px; overflow-y: hidden; }
-        .log-entry { font-size: 11px; margin-bottom: 5px; opacity: 0.8; }
+        .badge-herd { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; margin-right: 4px; }
+        .log-container { position: absolute; bottom: 20px; left: 20px; width: 440px; height: 180px; overflow-y: hidden; }
+        .log-entry { font-size: 11px; margin-bottom: 6px; opacity: 0.9; line-height: 1.4; word-break: break-word; }
         .log-entry.TIDAL { color: #00ffa3; }
-        .log-entry.LUMEN { color: #fbbf24; }
-        .log-entry.ZEPHR { color: #34d399; }
         .log-entry.NORO { color: #ff6a00; }
+        .log-entry.ZEPHR { color: #38bdf8; }
+        .log-entry.LUMEN { color: #fbbf24; }
         .log-entry.RUNE { color: #ef4444; }
+        .log-entry.TENSORFLOW { color: #c084fc; }
+        .log-entry.ATLAS { color: #2dd4bf; }
+        .log-entry.MASTER { color: #ffffff; font-weight: bold; text-shadow: 0 0 6px rgba(255,255,255,0.7); }
     </style>
 </head>
 <body>
@@ -25,19 +29,22 @@
     <canvas id="netCanvas"></canvas>
 </div>
 <div id="ui-layer">
-    <div class="hud-box" style="width: 320px;">
+    <div class="hud-box" style="width: 380px;">
         <h1>TENSORFLOW CORE</h1>
         <div class="stats">
             <div>STATUS: <span class="stat-value" id="tf-status" style="color:#00ffa3">EN LÍNEA (SHADOW TRADING)</span></div>
-            <div>MODELO: <span class="stat-value">Sequential (Keras)</span></div>
+            <div>ARQUITECTURA: <span class="stat-value" style="color:#38bdf8">7 Herds Desacoplados + Master</span></div>
+            <div>MODELO: <span class="stat-value">Sequential (Keras Deep Learning)</span></div>
             <div>PRECISIÓN (ACC): <span class="stat-value" id="tf-acc" style="color:#00ffa3">97.87%</span></div>
             <div>TRADES APRENDIDOS: <span class="stat-value" id="tf-trades">47</span></div>
-            <div>CAPAS OCULTAS: <span class="stat-value">Dense (8), Dropout, Sigmoid</span></div>
-            <div>ÚLTIMA PREDICCIÓN: <span class="stat-value" id="tf-pred">ESPERANDO TICK...</span></div>
+            <div>CAPAS: <span class="stat-value">Input (7 Herds), Dense (10, 8), Sigmoid (2)</span></div>
+            <div>QUÓRUM CONSENSO: <span class="stat-value" id="tf-pred" style="color:#fbbf24">ESPERANDO DELIBERACIÓN...</span></div>
         </div>
     </div>
     <div class="hud-box log-container" id="logBox">
-        <div style="font-size: 10px; color: #ff6a00; margin-bottom: 8px;">> TERMINAL DE NEURONAS</div>
+        <div style="font-size: 10px; color: #ff6a00; margin-bottom: 8px; font-weight: bold;">
+            > TERMINAL DE NEURONAS // MALLA 7 HERDS + MASTER
+        </div>
     </div>
 </div>
 <script>
@@ -45,69 +52,165 @@
     const ctx = canvas.getContext("2d");
     function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     window.addEventListener("resize", resize); resize();
-    const layers = [6, 8, 8, 4];
+
+    // 7 Entradas (1 por cada Herd desacoplado) -> 10 Ocultas -> 8 Ocultas -> 2 Salidas (Consenso Buy/Sell)
+    const layers = [7, 10, 8, 2];
+    const inputLabels = [
+        "H1: TIDAL (Macro)",
+        "H2: NORO (Quant)",
+        "H3: ZEPHR (Stats)",
+        "H4: LUMEN (SMC)",
+        "H5: RUNE (Risk)",
+        "H6: TF (Neural)",
+        "H7: ATLAS (DOM/MCP)"
+    ];
+
     const nodes = [];
     const links = [];
-    const startX = window.innerWidth * 0.2;
-    const endX = window.innerWidth * 0.8;
+    const startX = window.innerWidth * 0.22;
+    const endX = window.innerWidth * 0.82;
     const gapX = (endX - startX) / (layers.length - 1);
     const centerY = window.innerHeight / 2;
+
     layers.forEach((count, layerIndex) => {
-        const gapY = window.innerHeight * 0.6 / count;
+        const gapY = window.innerHeight * 0.65 / count;
         const startY = centerY - (count * gapY) / 2 + gapY / 2;
         for (let i = 0; i < count; i++) {
-            nodes.push({ x: startX + layerIndex * gapX, y: startY + i * gapY, layer: layerIndex, activation: Math.random(), targetActivation: Math.random() });
+            nodes.push({ 
+                x: startX + layerIndex * gapX, 
+                y: startY + i * gapY, 
+                layer: layerIndex, 
+                indexInLayer: i,
+                activation: Math.random(), 
+                targetActivation: Math.random() 
+            });
         }
     });
+
     for (let l = 0; l < layers.length - 1; l++) {
         const currentLayerNodes = nodes.filter(n => n.layer === l);
         const nextLayerNodes = nodes.filter(n => n.layer === l + 1);
-        currentLayerNodes.forEach(n1 => { nextLayerNodes.forEach(n2 => { links.push({ source: n1, target: n2, weight: Math.random() * 2 - 1, active: false }); }); });
+        currentLayerNodes.forEach(n1 => { 
+            nextLayerNodes.forEach(n2 => { 
+                links.push({ source: n1, target: n2, weight: Math.random() * 2 - 1, active: false }); 
+            }); 
+        });
     }
+
     function draw() {
-        ctx.fillStyle = "#040609"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        nodes.forEach(n => { n.activation += (n.targetActivation - n.activation) * 0.05; if (Math.random() < 0.01) n.targetActivation = Math.random(); });
+        ctx.fillStyle = "#040609"; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Actualizar activaciones
+        nodes.forEach(n => { 
+            n.activation += (n.targetActivation - n.activation) * 0.05; 
+            if (Math.random() < 0.015) n.targetActivation = Math.random(); 
+        });
+
+        // Dibujar Enlaces (Sinapsis)
         links.forEach(l => {
-            ctx.beginPath(); ctx.moveTo(l.source.x, l.source.y); ctx.lineTo(l.target.x, l.target.y);
-            let alpha = 0.2 + Math.abs(l.weight) * 0.4; if (l.active) alpha = 1.0;
+            ctx.beginPath(); 
+            ctx.moveTo(l.source.x, l.source.y); 
+            ctx.lineTo(l.target.x, l.target.y);
+            let alpha = 0.15 + Math.abs(l.weight) * 0.45; 
+            if (l.active) alpha = 1.0;
             if (l.weight > 0) ctx.strokeStyle = "rgba(180, 0, 255, " + alpha + ")";
             else ctx.strokeStyle = "rgba(239, 68, 68, " + alpha + ")";
-            ctx.lineWidth = l.active ? 3 : 1.0; ctx.stroke();
+            ctx.lineWidth = l.active ? 2.5 : 0.8; 
+            ctx.stroke();
             if (l.active && Math.random() < 0.1) l.active = false;
         });
+
+        // Dibujar Neuronas
         nodes.forEach(n => {
-            ctx.beginPath(); ctx.arc(n.x, n.y, 4 + n.activation * 3, 0, Math.PI * 2);
-            const r = Math.floor(n.activation * 180); const g = Math.floor(n.activation * 0); const b = Math.floor(n.activation * 255);
+            ctx.beginPath(); 
+            ctx.arc(n.x, n.y, 4 + n.activation * 3.5, 0, Math.PI * 2);
+            const r = Math.floor(n.activation * 160); 
+            const g = Math.floor(n.activation * 40); 
+            const b = Math.floor(n.activation * 255);
             ctx.fillStyle = "rgb(" + r + ", " + g + ", " + b + ")";
-            ctx.shadowBlur = 15 * n.activation; ctx.shadowColor = ctx.fillStyle; ctx.fill(); ctx.shadowBlur = 0;
+            ctx.shadowBlur = 14 * n.activation; 
+            ctx.shadowColor = ctx.fillStyle; 
+            ctx.fill(); 
+            ctx.shadowBlur = 0;
+
+            // Etiquetas de los 7 Herds en la capa de entrada (Layer 0)
+            if (n.layer === 0 && inputLabels[n.indexInLayer]) {
+                ctx.fillStyle = "#8892b0";
+                ctx.font = "10px monospace";
+                ctx.textAlign = "right";
+                ctx.fillText(inputLabels[n.indexInLayer], n.x - 14, n.y + 3);
+            }
         });
+
         requestAnimationFrame(draw);
     }
     draw();
-    function triggerPulse(isBullish) {
-        links.forEach(l => { if (Math.random() < 0.3) { l.active = true; l.weight = isBullish ? Math.abs(l.weight) : -Math.abs(l.weight); } });
-        nodes.forEach(n => n.targetActivation = 1.0);
+
+    function triggerPulse(isBullish, herdIndex = -1) {
+        links.forEach(l => { 
+            if (herdIndex >= 0 && l.source.layer === 0 && l.source.indexInLayer === herdIndex) {
+                l.active = true;
+                l.weight = isBullish ? Math.abs(l.weight) : -Math.abs(l.weight);
+            } else if (Math.random() < 0.25) { 
+                l.active = true; 
+                l.weight = isBullish ? Math.abs(l.weight) : -Math.abs(l.weight); 
+            } 
+        });
+        if (herdIndex >= 0) {
+            const targetNode = nodes.find(n => n.layer === 0 && n.indexInLayer === herdIndex);
+            if (targetNode) targetNode.targetActivation = 1.0;
+        } else {
+            nodes.forEach(n => n.targetActivation = 1.0);
+        }
     }
+
     const wsUrl = (window.location.protocol === "https:" ? "wss:" : "ws:") + "//" + window.location.host + "/ws";
     const ws = new WebSocket(wsUrl);
     const logBox = document.getElementById("logBox");
+
     ws.onmessage = (event) => {
         try {
             const data = JSON.parse(event.data);
             if (data.type === "HEARTBEAT") return;
-            const agent = data.agent || "SYSTEM"; const msg = data.msg || data.data || data.texto;
-            triggerPulse(msg.includes("Alcista") || Math.random() > 0.5);
-            if (agent === "ZEPHR") document.getElementById("tf-pred").innerText = "PROCESANDO PROBABILIDAD...";
-            else if (agent === "RUNE") document.getElementById("tf-pred").innerText = msg.includes("APROBADO") ? "ALTA (LONG)" : "BAJA (VETO)";
+
+            const agent = data.agent || "SYSTEM"; 
+            const msg = data.msg || data.data || data.texto || "";
+            const isBullish = msg.includes("Alcista") || msg.includes("LONG") || msg.includes("APROBADO") || Math.random() > 0.5;
+
+            // Mapear agentes a los 7 Herds
+            let herdIdx = -1;
+            let cssClass = "MASTER";
+
+            if (agent.includes("TIDAL") || agent.includes("HERD 1")) { herdIdx = 0; cssClass = "TIDAL"; }
+            else if (agent.includes("NORO") || agent.includes("HERD 2")) { herdIdx = 1; cssClass = "NORO"; }
+            else if (agent.includes("ZEPHR") || agent.includes("HERD 3")) { herdIdx = 2; cssClass = "ZEPHR"; }
+            else if (agent.includes("LUMEN") || agent.includes("HERD 4")) { herdIdx = 3; cssClass = "LUMEN"; }
+            else if (agent.includes("RUNE") || agent.includes("HERD 5")) { herdIdx = 4; cssClass = "RUNE"; }
+            else if (agent.includes("TENSORFLOW") || agent.includes("HERD 6")) { herdIdx = 5; cssClass = "TENSORFLOW"; }
+            else if (agent.includes("ATLAS") || agent.includes("HERD 7")) { herdIdx = 6; cssClass = "ATLAS"; }
+            else if (agent.includes("MASTER")) { cssClass = "MASTER"; }
+
+            triggerPulse(isBullish, herdIdx);
+
+            if (agent.includes("MASTER") || agent.includes("RUNE")) {
+                document.getElementById("tf-pred").innerText = msg.includes("VETADO") || msg.includes("VETO") ? "VETADO (BAJA CONFIANZA)" : "APROBADO (ALTA CONFIANZA)";
+                document.getElementById("tf-pred").style.color = msg.includes("VETADO") ? "#ef4444" : "#00ffa3";
+            }
+
             const entry = document.createElement("div");
-            entry.className = "log-entry " + agent;
+            entry.className = "log-entry " + cssClass;
             entry.innerText = "[" + agent + "] " + msg;
             logBox.appendChild(entry);
-            if (logBox.children.length > 8) logBox.removeChild(logBox.children[1]);
+            if (logBox.children.length > 9) logBox.removeChild(logBox.children[1]);
         } catch (e) { console.error("Error WS:", e); }
     };
+
     ws.onopen = () => { console.log("Cerebro TensorFlow Conectado."); };
-    ws.onclose = () => { document.getElementById("tf-status").innerText = "DESCONECTADO - REINTENTANDO..."; document.getElementById("tf-status").style.color = "red"; };
+    ws.onclose = () => { 
+        document.getElementById("tf-status").innerText = "DESCONECTADO - REINTENTANDO..."; 
+        document.getElementById("tf-status").style.color = "red"; 
+    };
 
     // Cargar métricas reales de TensorFlow desde Upstash Redis
     async function loadTensorFlowMetrics() {
@@ -125,7 +228,6 @@
                 if (parsed.trades_aprendidos !== undefined) {
                     document.getElementById("tf-trades").innerText = parsed.trades_aprendidos;
                 }
-                console.log("| TF METRICS LOADED |", parsed.accuracy, parsed.trades_aprendidos);
             }
         } catch (e) {
             console.warn("No se pudo cargar métricas de Upstash:", e);

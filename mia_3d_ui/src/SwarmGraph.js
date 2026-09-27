@@ -97,15 +97,16 @@ const AntopusDashboard = () => {
   }, [logs]);
 
   // Posiciones aseguradas dentro del contenedor de 100% de alto y ancho (Ellipse instead of perfect circle to fit landscape screens)
+  // 7 Herds Desacoplados + Master Orchestrator (Posicion orbital eliptica equilibrada)
   const agents = [
-    { id: 'NORO', name: 'NORO', desc: 'PRICING', color: 'text-[#ff6a00]', border: 'border-[#ff6a00]', icon: <Calculator size={18}/>, pos: { top: '10%', left: '50%' } },
-    { id: 'LUMEN', name: 'LUMEN', desc: 'SENTIMENT', color: 'text-yellow-400', border: 'border-yellow-400', icon: <Eye size={18}/>, pos: { top: '25%', left: '80%' } },
-    { id: 'TIDAL', name: 'TIDAL', desc: 'SCANNER', color: 'text-[#00ffa3]', border: 'border-[#00ffa3]', icon: <Activity size={18}/>, pos: { top: '50%', left: '90%' } },
-    { id: 'ZEPHR', name: 'ZEPHR', desc: 'LIQUIDITY', color: 'text-emerald-400', border: 'border-emerald-400', icon: <Map size={18}/>, pos: { top: '75%', left: '80%' } },
-    { id: 'MARIN', name: 'MARIN', desc: 'SETTLEMENT', color: 'text-purple-400', border: 'border-purple-400', icon: <Briefcase size={18}/>, pos: { top: '90%', left: '50%' } },
-    { id: 'OKAPI', name: 'OKAPI', desc: 'HEDGING', color: 'text-orange-400', border: 'border-orange-400', icon: <ShieldCheck size={18}/>, pos: { top: '75%', left: '20%' } },
-    { id: 'RUNE', name: 'RUNE', desc: 'RISK', color: 'text-red-500', border: 'border-red-500', icon: <Shield size={18}/>, pos: { top: '50%', left: '10%' } },
-    { id: 'VESKA', name: 'VESKA', desc: 'EXECUTION', color: 'text-blue-400', border: 'border-blue-400', icon: <Zap size={18}/>, pos: { top: '25%', left: '20%' } }
+    { id: 'TIDAL', name: 'HERD 1 (TIDAL)', desc: 'MACRO SCANNER', color: 'text-[#00ffa3]', border: 'border-[#00ffa3]', icon: <Activity size={18}/>, pos: { top: '15%', left: '82%' } },
+    { id: 'NORO', name: 'HERD 2 (NORO)', desc: 'QUANT & MARKOV', color: 'text-[#ff6a00]', border: 'border-[#ff6a00]', icon: <Calculator size={18}/>, pos: { top: '8%', left: '50%' } },
+    { id: 'ZEPHR', name: 'HERD 3 (ZEPHR)', desc: 'BAYES & STATS', color: 'text-sky-400', border: 'border-sky-400', icon: <Map size={18}/>, pos: { top: '38%', left: '88%' } },
+    { id: 'LUMEN', name: 'HERD 4 (LUMEN)', desc: 'SMC & ORDER BLOCKS', color: 'text-yellow-400', border: 'border-yellow-400', icon: <Eye size={18}/>, pos: { top: '68%', left: '82%' } },
+    { id: 'RUNE', name: 'HERD 5 (RUNE)', desc: 'DEFENSIVE RISK', color: 'text-red-500', border: 'border-red-500', icon: <Shield size={18}/>, pos: { top: '90%', left: '50%' } },
+    { id: 'TENSORFLOW', name: 'HERD 6 (TF)', desc: 'NEURAL CORE (97.8%)', color: 'text-purple-400', border: 'border-purple-400', icon: <Zap size={18}/>, pos: { top: '68%', left: '18%' } },
+    { id: 'ATLAS', name: 'HERD 7 (ATLAS)', desc: 'DOM, CVD & MCP', color: 'text-[#38bdf8]', border: 'border-[#38bdf8]', icon: <Briefcase size={18}/>, pos: { top: '38%', left: '12%' } },
+    { id: 'MASTER', name: 'MASTER GATEKEEPER', desc: 'QUORUM CONSENSUS (>=70%)', color: 'text-emerald-400', border: 'border-emerald-400', icon: <ShieldCheck size={18}/>, pos: { top: '15%', left: '18%' } }
   ];
 
   return (
@@ -121,7 +122,7 @@ const AntopusDashboard = () => {
               MIA IA
             </h2>
             <p className="text-[10px] md:text-xs text-slate-500 uppercase tracking-widest mt-1">
-              MODO: SHADOW TRADING (TESTING)
+              MODO: SHADOW TRADING (7 HERDS DESACOPLADOS + MASTER)
           </p>
         </div>
         <div className="text-center md:text-right flex flex-col items-center md:items-end">
@@ -148,7 +149,10 @@ const AntopusDashboard = () => {
         <div className="absolute inset-0 z-10 pointer-events-none mt-20 md:mt-10">
           <div className="relative w-full h-full max-w-5xl mx-auto">
             {agents.map((ag) => {
-              const isActive = activeAgent === ag.name;
+              const isActive = activeAgent && (
+                activeAgent.toUpperCase().includes(ag.id) || 
+                activeAgent.toUpperCase().includes(ag.name.toUpperCase())
+              );
               return (
                 <div 
                   key={ag.id} 

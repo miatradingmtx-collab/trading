@@ -1507,6 +1507,26 @@ ecent_logs desde cache_hist_mt5.
     - Arrastre táctil y con cursor (`click & drag pan`) con estilo visual `grab` / `grabbing`.
     - Renderizado con `flowchart: { useMaxWidth: false }` para preservar la resolución vectorial nativa y la nitidez tipográfica en cualquier nivel de ampliación.
 
+### [Update 2026-09-27 - Sesión 30] - Homologación de los 7 Herds Desacoplados en Dashboard React 3D, Consolas CLI (BAT & Termux) y Matriz TensorFlow
+- **Dashboard 3D Antopus (`mia_3d_ui` en `/dashboard`):**
+  - Se eliminaron las etiquetas y agentes legados (MARIN, OKAPI, VESKA).
+  - Se implementó la distribución orbital de los **7 Herds Especializados + Master Gatekeeper**:
+    - `HERD 1 (TIDAL)`: Macro Scanner.
+    - `HERD 2 (NORO)`: Quant & Markov.
+    - `HERD 3 (ZEPHR)`: Bayes & Expected Value.
+    - `HERD 4 (LUMEN)`: SMC & Order Blocks.
+    - `HERD 5 (RUNE)`: Defensive Risk.
+    - `HERD 6 (TF)`: Neural Core (97.8%).
+    - `HERD 7 (ATLAS)`: DOM, CVD & MCP Research.
+    - `MASTER GATEKEEPER`: Quorum Consensus (>= 70%).
+  - Recompilado exitosamente con `npm run build` en `mia_3d_ui/build`.
+- **Consola CLI Multiplataforma (`mia_herds_cli.py`, `Abrir_Herds_CLI.bat` y `herds` en Termux):**
+  - Actualización del renderizador de eventos para colorear e identificar a cada uno de los 7 Herds de forma independiente.
+  - Ejecución de ciclo HFT atómico para inyectar en Upstash Redis (`cache_herd_debate_latest`) el primer snapshot oficial con los 7 Herds y veredicto del Master.
+- **Visualizador Neuronal TensorFlow (`tensorflow_vision.html` en `/brain`):**
+  - Rediseño de la topología de red neuronal en Canvas: Capa de entrada adaptada a 7 neuronas (`layers = [7, 10, 8, 2]`), cada una rotulada con su Herd correspondiente.
+  - Activación sináptica reactiva por Herd y terminal de neuronas con paleta cyberpunk homologada.
+
 ---
 
 

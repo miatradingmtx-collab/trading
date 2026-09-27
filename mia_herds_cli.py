@@ -124,27 +124,43 @@ def print_status_bar():
 
 
 def format_agent_event(agent: str, action: str, data: str):
-    """Aplica formato visual con colores segun el agente y manada."""
+    """Aplica formato visual con colores segun el agente y su Herd (1 al 7 + Master)."""
     now_str = datetime.datetime.now().strftime("%H:%M:%S")
     agent_up = agent.upper()
     action_up = action.upper()
 
-    if "HERD 1" in agent_up or "TIDAL" in agent_up or "NORO" in agent_up:
-        badge = f"{C_CYAN}{C_BOLD}[{agent_up}]{C_RESET}"
+    if "HERD 1" in agent_up or "TIDAL" in agent_up:
+        badge = f"{C_CYAN}{C_BOLD}[HERD 1 (TIDAL)]{C_RESET}"
         content_color = C_CYAN
-    elif "HERD 2" in agent_up or "ZEPHR" in agent_up or "LUMEN" in agent_up:
-        badge = f"{C_YELLOW}{C_BOLD}[{agent_up}]{C_RESET}"
+    elif "HERD 2" in agent_up or "NORO" in agent_up:
+        badge = f"{C_ORANGE}{C_BOLD}[HERD 2 (NORO)]{C_RESET}"
+        content_color = C_ORANGE
+    elif "HERD 3" in agent_up or "ZEPHR" in agent_up:
+        badge = f"{C_BLUE}{C_BOLD}[HERD 3 (ZEPHR)]{C_RESET}"
+        content_color = C_BLUE
+    elif "HERD 4" in agent_up or "LUMEN" in agent_up:
+        badge = f"{C_YELLOW}{C_BOLD}[HERD 4 (LUMEN)]{C_RESET}"
         content_color = C_YELLOW
-    elif "HERD 3" in agent_up or "RUNE" in agent_up:
+    elif "HERD 5" in agent_up or "RUNE" in agent_up:
         if "VETO" in data.upper() or "VETADO" in data.upper() or "ERROR" in action_up:
-            badge = f"{C_RED}{C_BOLD}[{agent_up}]{C_RESET}"
+            badge = f"{C_RED}{C_BOLD}[HERD 5 (RUNE)]{C_RESET}"
             content_color = C_RED
         else:
-            badge = f"{C_GREEN}{C_BOLD}[{agent_up}]{C_RESET}"
+            badge = f"{C_GREEN}{C_BOLD}[HERD 5 (RUNE)]{C_RESET}"
             content_color = C_GREEN
+    elif "HERD 6" in agent_up or "TENSORFLOW" in agent_up or "TF" in agent_up:
+        badge = f"{C_MAGENTA}{C_BOLD}[HERD 6 (TF)]{C_RESET}"
+        content_color = C_MAGENTA
+    elif "HERD 7" in agent_up or "ATLAS" in agent_up:
+        badge = f"{C_CYAN}{C_BOLD}[HERD 7 (ATLAS)]{C_RESET}"
+        content_color = C_CYAN
     elif "MASTER" in agent_up:
-        badge = f"{C_WHITE}{C_BOLD}[MASTER]{C_RESET}"
-        content_color = C_WHITE
+        if "VETO" in data.upper() or "VETADO" in data.upper():
+            badge = f"{C_RED}{C_BOLD}[MASTER QUORUM]{C_RESET}"
+            content_color = C_RED
+        else:
+            badge = f"{C_GREEN}{C_BOLD}[MASTER QUORUM]{C_RESET}"
+            content_color = C_WHITE
     else:
         badge = f"{C_MAGENTA}{C_BOLD}[{agent_up}]{C_RESET}"
         content_color = C_WHITE
@@ -154,8 +170,8 @@ def format_agent_event(agent: str, action: str, data: str):
 
 
 def display_latest_debate():
-    """Muestra el ultimo debate almacenado en Upstash Redis."""
-    print(f"{C_BOLD}{C_MAGENTA}>>> ULTIMO DEBATE DE LAS LOS ENJAMBRES (ANTOPUS SNAPSHOT):{C_RESET}")
+    """Muestra el ultimo debate almacenado en Upstash Redis con soporte para 7 Herds Desacoplados."""
+    print(f"{C_BOLD}{C_MAGENTA}>>> ULTIMO DEBATE DE LAS MANADAS (7 HERDS DESACOPLADOS + MASTER):{C_RESET}")
     debate_payload = fetch_upstash("cache_herd_debate_latest")
     
     if not debate_payload or "content" not in debate_payload:
@@ -173,11 +189,24 @@ def display_latest_debate():
         line_clean = line.strip()
         if not line_clean:
             continue
-        if "HERD 1" in line_clean.upper():
+        if "HERD 1" in line_clean.upper() or "TIDAL" in line_clean.upper():
             print(f"  {C_CYAN}{C_BOLD}{line_clean}{C_RESET}")
-        elif "HERD 2" in line_clean.upper():
+        elif "HERD 2" in line_clean.upper() or "NORO" in line_clean.upper():
+            print(f"  {C_ORANGE}{C_BOLD}{line_clean}{C_RESET}")
+        elif "HERD 3" in line_clean.upper() or "ZEPHR" in line_clean.upper():
+            print(f"  {C_BLUE}{C_BOLD}{line_clean}{C_RESET}")
+        elif "HERD 4" in line_clean.upper() or "LUMEN" in line_clean.upper():
             print(f"  {C_YELLOW}{C_BOLD}{line_clean}{C_RESET}")
-        elif "HERD 3" in line_clean.upper() or "RUNE" in line_clean.upper():
+        elif "HERD 5" in line_clean.upper() or "RUNE" in line_clean.upper():
+            if "VETO" in line_clean.upper() or "VETADO" in line_clean.upper():
+                print(f"  {C_RED}{C_BOLD}{line_clean}{C_RESET}")
+            else:
+                print(f"  {C_GREEN}{C_BOLD}{line_clean}{C_RESET}")
+        elif "HERD 6" in line_clean.upper() or "TENSORFLOW" in line_clean.upper():
+            print(f"  {C_MAGENTA}{C_BOLD}{line_clean}{C_RESET}")
+        elif "HERD 7" in line_clean.upper() or "ATLAS" in line_clean.upper():
+            print(f"  {C_CYAN}{C_BOLD}{line_clean}{C_RESET}")
+        elif "MASTER" in line_clean.upper():
             if "VETO" in line_clean.upper() or "VETADO" in line_clean.upper():
                 print(f"  {C_RED}{C_BOLD}{line_clean}{C_RESET}")
             else:
