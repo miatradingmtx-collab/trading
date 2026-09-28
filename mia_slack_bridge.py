@@ -16,13 +16,16 @@ import os
 import json
 import requests
 from typing import Dict, Any, Optional
+from dotenv import load_dotenv
+
+load_dotenv()
 
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "")
 
 class MiaSlackBridge:
     def __init__(self, webhook_url: Optional[str] = None):
-        self.webhook_url = webhook_url or SLACK_WEBHOOK_URL
+        self.webhook_url = webhook_url or os.getenv("SLACK_WEBHOOK_URL", "")
 
     def send_raw_message(self, text: str) -> bool:
         if not self.webhook_url:
