@@ -4463,9 +4463,50 @@ def system_ops_audit():
     """
     try:
         from mia_system_ops_swarm import system_ops_supervisor
-        return system_ops_supervisor.run_swarm_audit()
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.post("/api/slack/interactions")
+async def handle_slack_interaction(request: Request):
+    """
+    Maneja las interacciones de botones en Slack (Aprobar / Rechazar).
+    Human-in-the-Loop para el Watchdog Supervisor.
+    """
+    try:
+        from mia_system_ops_swarm import system_ops_supervisor
+        form_data = await request.form()
+        payload_str = form_data.get("payload")
+        if payload_str:
+            data = json.loads(payload_str)
+            actions = data.get("actions", [])
+            user_name = data.get("user", {}).get("name", "Operador")
+            if actions:
+                action_id = actions[0].get("action_id")
+                val = actions[0].get("value", "")
+                if "approve" in val:
+                    # Ejecutar auditoría y sincronización forzada
+                    res = system_ops_supervisor.run_swarm_audit()
+                    return {"response_type": "in_channel", "text": f"✅ *Acción Aprobada por @{user_name}*. Watchdog ejecutó la sincronización con éxito: {res.get('system_health')}"}
+                else:
+                    return {"response_type": "in_channel", "text": f"⛔ *Acción Cancelada por @{user_name}*. Se mantiene el estado actual."}
+        return {"text": "Payload recibido"}
+    except Exception as e:
+        return {"text": f"Error procesando interacción: {e}"}
+
+@app.post("/api/slack/command")
+async def handle_slack_command(request: Request):
+    """Maneja Slash Commands de Slack (/mia-status, /mia-audit)"""
+    try:
+        from mia_system_ops_swarm import system_ops_supervisor
+        res = system_ops_supervisor.run_swarm_audit()
+        h = res.get("herds_results", {})
+        t1 = h.get("herd_t1_db_sync", {})
+        return {
+            "response_type": "in_channel",
+            "text": f"🛡️ *MIA SYSTEM OPS STATUS*: {res.get('system_health')}\n• Posiciones MT5: {t1.get('posiciones_activas')}\n• Flotante Neto: ${t1.get('flotante_neto', 0.0):+.2f} USD\n• Equidad: ${t1.get('equity', 0.0):.2f} USD\n• Latencia: {h.get('herd_t4_devops_health', {}).get('upstash_latency_ms')} ms"
+        }
+    except Exception as e:
+        return {"text": f"Error en comando: {e}"}
 
 @app.get("/api/cron/train_tensorflow")
 def train_tensorflow():

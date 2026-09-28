@@ -1613,6 +1613,20 @@ ecent_logs desde cache_hist_mt5.
     - Ingesta de los 5 slots en un único viaje de red HTTP (Round-Trip Time $< 35\text{ms}$):
       $$\text{URL} = \text{/mget/cache\_mt5/cache\_mia\_tensorflow/cache\_trading\_matrix/cache\_researcher\_insights/cache\_regla\_de\_3}$$
     - Reducción del $100\%$ de redundancia: los Enjambres Herds ahora consumen la 'Regla de 3' viva directamente del slot 4 de este MGET sin realizar lecturas de disco ni consultas a Firestore.
+### [Update 2026-09-28 - Sesión 35] - ChatOps de Back-Office: Terminal CLI de Operaciones, Slack Bridge y Botones Interactivos de Aprobación
+- **Consola CLI Dedicada para Back-Office (`mia_ops_cli.py` y `Abrir_Ops_CLI.bat`):**
+  - Permite visualizar en terminal local o remota el diálogo y las acciones técnicas de los 4 Herds de Infraestructura:
+    - `HERD T1 (DB_SYNC)`: Sincronización MT5 y depuración de órdenes fantasma.
+    - `HERD T2 (KB_ENGINE)`: Recalibración perpetua de la Regla de 3 y fechas vivas.
+    - `HERD T3 (KPI_ANALYTICS)`: Sanitización numérica a 2 decimales.
+    - `HERD T4 (DEVOPS_HEALTH)`: Latencia de Upstash y salud de red.
+    - `WATCHDOG SUPERVISOR`: Veredicto de integridad del sistema.
+- **Integración ChatOps & Human-in-the-Loop vía Slack (`mia_slack_bridge.py`):**
+  - **Aprobación Humana con Botones Interactivos:** El Watchdog Supervisor puede enviar tarjetas con botones `[ APROBAR ACCIÓN ✅ ]` y `[ RECHAZAR / CANCELAR ⛔ ]`. Al presionar el botón en Slack desde el móvil o PC, Railway recibe el webhook en `/api/slack/interactions` y ejecuta la orden al instante.
+  - **Comandos Slash:** Soporte para `/mia-status`, `/mia-sync` y `/mia-audit` mediante `/api/slack/command`.
+  - **Segmentación de Canales (Cero Ruido):**
+    - `#mia-trading-herds`: Deliberación HFT de mercado (7 Herds).
+    - `#mia-ops-watchdog`: Auditoría de base de datos, salud de contenedores y aprobaciones críticas.
 
 ---
 
