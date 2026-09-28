@@ -295,6 +295,8 @@ def main():
     if args.once:
         return
 
+    print(f"{C_DIM}💡 Presiona [CTRL + C] para salir y volver a la terminal bash.{C_RESET}")
+
     # Verificar si websockets esta disponible para streaming en tiempo real
     if not args.poll:
         try:

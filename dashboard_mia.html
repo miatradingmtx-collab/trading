@@ -1069,9 +1069,10 @@
                     positions.slice(0, 50).forEach(p => {
                         const tr = document.createElement('tr');
                         const pnl = parseFloat(p.pnl || p.floating_pnl || 0);
-                        const ticketStr = (p.ticket || '').toString().replace('#', '');
-                        const isParcial = p.estado === 'PARCIAL_BE' || p.resultado_salida === 'PARCIAL_BE';
-                        const isPausa = p.estado === 'PAUSA_FIN_DE_SEMANA' || (p.estado_display && p.estado_display.includes('PAUSA'));
+                        const nowUtc = new Date();
+                        const isMarketClosed = (nowUtc.getUTCDay() === 5 && nowUtc.getUTCHours() >= 21) || (nowUtc.getUTCDay() === 6) || (nowUtc.getUTCDay() === 0 && nowUtc.getUTCHours() < 21);
+                        const isParcial = p.estado === 'PARCIAL_BE' || p.resultado_salida === 'PARCIAL_BE' || (p.motivo && p.motivo.includes('PARCIAL'));
+                        const isPausa = isMarketClosed && (p.estado === 'PAUSA_FIN_DE_SEMANA' || (p.estado_display && p.estado_display.includes('PAUSA')));
                         const tipo = (p.tipo || (p.accion === 'VENTA' ? 'SELL' : 'BUY')).toUpperCase();
                         let badgeAsset = '';
                         if (isPausa) {
@@ -1306,8 +1307,10 @@
                     const tr = document.createElement('tr');
                     const pnl = parseFloat(pos.pnl || 0);
                     const ticketStr = (pos.ticket || '').toString().replace('#', '');
-                    const isParcial = pos.estado === 'PARCIAL_BE' || pos.resultado_salida === 'PARCIAL_BE';
-                    const isPausa = pos.estado === 'PAUSA_FIN_DE_SEMANA' || (pos.estado_display && pos.estado_display.includes('PAUSA'));
+                    const nowUtc = new Date();
+                    const isMarketClosed = (nowUtc.getUTCDay() === 5 && nowUtc.getUTCHours() >= 21) || (nowUtc.getUTCDay() === 6) || (nowUtc.getUTCDay() === 0 && nowUtc.getUTCHours() < 21);
+                    const isParcial = pos.estado === 'PARCIAL_BE' || pos.resultado_salida === 'PARCIAL_BE' || (pos.motivo && pos.motivo.includes('PARCIAL'));
+                    const isPausa = isMarketClosed && (pos.estado === 'PAUSA_FIN_DE_SEMANA' || (pos.estado_display && pos.estado_display.includes('PAUSA')));
                     const tipo = (pos.tipo || (pos.accion === 'VENTA' ? 'SELL' : 'BUY')).toUpperCase();
                     const lotesStr = pos.lotes ? `${pos.lotes}` : '';
                     

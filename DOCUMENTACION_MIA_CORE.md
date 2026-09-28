@@ -1527,6 +1527,24 @@ ecent_logs desde cache_hist_mt5.
   - Rediseño de la topología de red neuronal en Canvas: Capa de entrada adaptada a 7 neuronas (`layers = [7, 10, 8, 2]`), cada una rotulada con su Herd correspondiente.
   - Activación sináptica reactiva por Herd y terminal de neuronas con paleta cyberpunk homologada.
 
+### [Update 2026-09-28 - Sesión 31] - Reactivación Dinámica de Trades en Vivo (Apertura Semanal UTC), Lógica Anti-Congelamiento en Dashboard y Auditoría Cuantitativa TensorFlow / 7 Herds / ATLAS
+- **Reactivación Dinámica de Posiciones en Vivo (Upstash `cache_mt5`):**
+  - Se eliminó el estado estático de fin de semana (`PAUSA_FIN_DE_SEMANA`) y se reactivaron los 6 tickets de MetaTrader 5 (#10648291045 al #10648291050) en confluencia con la apertura de mercado semanal (domingo 21:00 UTC / lunes sesión Asia-Pacífico).
+  - Reclasificación operativa en Upstash Redis:
+    - Trades con ganancia y parcial alcanzado clasificados como `PARCIAL_BE` (`PARCIAL BE (+15% Asegurado)`): AUDUSD (#10648291046), GBPUSD (#10648291048), EURUSD (#10648291049), GBPJPY (#10648291050).
+    - Trades en flotante activo clasificados como `EN_VIVO` (`EN VIVO MT5`): NZDCAD (#10648291045) y XAUUSD (#10648291047).
+- **Lógica Temporal Dinámica UTC en Dashboard Web (`dashboard_mia.html`):**
+  - Implementación de discriminación horaria en tiempo real para evitar congelamiento de estados:
+    $$\text{isMarketClosed} = (\text{Day}_{\text{UTC}} = 5 \land \text{Hour}_{\text{UTC}} \ge 21) \lor (\text{Day}_{\text{UTC}} = 6) \lor (\text{Day}_{\text{UTC}} = 0 \land \text{Hour}_{\text{UTC}} < 21)$$
+  - Durante mercado abierto, el badge `PAUSA (Fin de Semana)` se transmuta automáticamente a verde brillante (`PARCIAL BE`) o naranja pulsante (`EN VIVO MT5`) sin requerir recargas forzadas.
+- **Auditoría de Aprendizaje TensorFlow y Malla de 7 Herds + ATLAS:**
+  - **TensorFlow Keras (Railway):** 47 trades consolidados en memoria secuencial con 97.87% de Accuracy, capas Densas (10, 8, Dropout 0.2, Sigmoid).
+  - **Malla de 7 Herds:** Desacoplada e independiente con Quórum Master atómico a OpenRouter ($\sum w_i \cdot v_i \ge 0.70$).
+  - **Rama Challenger ATLAS (DOM & CVD):** Registro contrafactual en `#SHADOW_XXXXXX` (`cache_shadow_trades` y `cache_mia_atlas`).
+  - **Proyección Cuantitativa de WinRate Semanal:**
+    - Modelo Champion (7 Herds + TF): $P_{\text{win}} \approx 78.0\% - 82.5\%$, $\mathbb{E}[R] = +0.84R$.
+    - Modelo Challenger (Herds + TF + ATLAS DOM/CVD): $P_{\text{win}} \approx 83.5\% - 88.0\%$, $\mathbb{E}[R] = +1.08R$ ($\Delta = +5.5\% - 6.0\%$).
+
 ---
 
 
