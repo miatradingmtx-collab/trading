@@ -4439,6 +4439,19 @@ def tomar_snapshot_diario_ml():
         return {"status": "success", "fecha": hoy, "message": "Snapshot y espejo creados"}
     except Exception as e:
         print(f"| ML HISTORY ERROR | Fallo al crear snapshot: {e}")
+@app.get("/api/supervisor/audit")
+def supervisor_audit():
+    """
+    Endpoint del Agente Supervisor MIA Core:
+    1. Homologa posiciones vivas en cache_mt5 sin órdenes fantasma.
+    2. Recalibra dinámicamente Top 1-3 y fecha en regla_de_3.
+    3. Redondea a 2 decimales métricas simuladas de Shadow Trading.
+    """
+    try:
+        from mia_supervisor_agent import supervisor_agent
+        res = supervisor_agent.run_full_supervision()
+        return res
+    except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/cron/train_tensorflow")

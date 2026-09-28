@@ -385,13 +385,16 @@ class AtlasResearcherAgent:
                 pnl_atlas = pnl_real
                 resultado_atlas = "PERDIDA_CONTROLADA"
 
+            pnl_herds = round(pnl_herds, 2)
+            pnl_atlas = round(pnl_atlas, 2)
+
             correlated_trades.append({
                 "ticket_real_mt5": f"#{ticket_real}",
                 "ticket_virtual_shadow": ticket_virtual,
                 "activo": trade.get("activo", "EURUSD"),
                 "accion": trade.get("accion", "COMPRA"),
-                "precio_entrada": trade.get("precio", 0.0),
-                "pnl_real_broker": pnl_real,
+                "precio_entrada": round(float(trade.get("precio", 0.0) or 0.0), 5),
+                "pnl_real_broker": round(pnl_real, 2),
                 "resultado_real": trade.get("resultado", "N/A"),
                 "what_if_herds": {
                     "pnl_simulado": pnl_herds,

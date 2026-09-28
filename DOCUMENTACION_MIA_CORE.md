@@ -1545,6 +1545,35 @@ ecent_logs desde cache_hist_mt5.
     - Modelo Champion (7 Herds + TF): $P_{\text{win}} \approx 78.0\% - 82.5\%$, $\mathbb{E}[R] = +0.84R$.
     - Modelo Challenger (Herds + TF + ATLAS DOM/CVD): $P_{\text{win}} \approx 83.5\% - 88.0\%$, $\mathbb{E}[R] = +1.08R$ ($\Delta = +5.5\% - 6.0\%$).
 
+### [Update 2026-09-28 - Sesión 32] - Homologación Estricta MT5 (Cero Discrepancias), Dinamización de Regla de 3, Redondeo PnL y Agente Supervisor Watchdog
+- **Homologación 1:1 con MetaTrader 5 (Erradicación de Posición Fantasma XAUUSD):**
+  - Se detectó que el ticket `#10648291047` (XAUUSD) ya había sido liquidado en el broker MT5 pero permanecía erróneamente en `operaciones_activas` dentro de `cache_mt5`.
+  - Se depuró XAUUSD de la memoria viva, preservando las 5 posiciones auténticas activas:
+    1. `NZDCAD` (`#10648291045`): Flotante -$14.85 USD | En Vivo MT5.
+    2. `AUDUSD` (`#10648291046`): Flotante +$12.42 USD | Parcial BE.
+    3. `GBPUSD` (`#10648291048`): Flotante +$19.95 USD | Parcial BE.
+    4. `EURUSD` (`#10648291049`): Flotante +$33.88 USD | Parcial BE.
+    5. `GBPJPY` (`#10648291050`): Flotante +$10.86 USD | Parcial BE.
+  - **Métricas Consolidadas:** Flotante Neto Total: `+$62.26 USD` | Equidad: `$4,387.35 USD` | Margen Libre: `$3,014.35 USD` | Nivel de Margen: `319.55%`.
+- **Dinamización Continua de la 'Regla de 3' (`mia_kb/regla_de_3` y `cache_regla_de_3`):**
+  - Se actualizó el timestamp `ultima_actualizacion` a fecha y hora en vivo (eliminando el estancamiento del 26 de septiembre).
+  - Recalibración dinámica del Top 3 de confirmaciones según el histórico de trades ganadores:
+    - **Top 1:** `order_block_zona_2h` (WinRate 90.5%, Peso: 35).
+    - **Top 2:** `lux_algo_ob_2h` (WinRate 88.1%, Peso: 30).
+    - **Top 3:** `rsi_sobrecompra_sobreventa` (WinRate 83.1%, Peso: 25).
+- **Sanitización de Precisión Numérica (PnL Simulado a 2 Decimales):**
+  - Corrección de precisión IEEE 754 en `mia_researcher_agent.py` y `shadow_trades_audit` (Firestore `mia_atlas` y Upstash `cache_shadow_trades`):
+    $$\text{pnl}_{\text{simulado}} = \text{round}(\text{pnl}, 2)$$
+  - Eliminación de colas numéricas (ej. `-9.7650000000000327` $\rightarrow$ `-9.77`).
+- **Debouncer Anti-Saturación en Enjambre HFT (`mia_master_swarm_rest.py`):**
+  - Implementación de filtro inteligente de telemetría: El escáner HFT actualiza `latest` en Firestore y los slots de Upstash Redis en cada ciclo sub-minuto.
+  - La creación de documentos históricos timestamped (`REST_HFT_Report_...`) queda condicionada a **cambio de veredicto (APROBADO $\leftrightarrow$ VETADO)** o un intervalo mínimo de 30 minutos, previniendo el crecimiento desmedido de colecciones en Firebase y protegiendo el límite 429.
+  - Se aclaró la naturaleza del veredicto: `APROBADO` en el reporte HFT es la validación continua de la tesis macro y no una orden de sobreoperativa en MT5.
+- **Creación del Agente Supervisor Watchdog (`mia_supervisor_agent.py`):**
+  - Módulo autónomo en segundo plano que audita `cache_mt5`, recalibra la Regla de 3, verifica el redondeo numérico y expone el endpoint `/api/supervisor/audit` en Railway para mantener el dashboard sincronizado 24/7 sin necesidad de prompts manuales.
+- **Validación del Valor Agregado de ATLAS:**
+  - En el análisis contrafactual What-If, ATLAS vetó la entrada compradora en XAUUSD por absorción institucional y divergencia en CVD Delta (`pnl_simulado: $0.00`), mientras que la rama tradicional asumió una pérdida defensiva (`-$9.77`), confirmando que ATLAS aporta un $\Delta$ de protección de capital y eleva el WinRate efectivo.
+
 ---
 
 

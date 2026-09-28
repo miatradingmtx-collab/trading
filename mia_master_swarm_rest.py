@@ -54,6 +54,8 @@ from mia_researcher_agent import atlas_researcher
 
 load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+LAST_SAVED_STATE = None
+LAST_SAVED_TIME = 0
 
 def emit_ws_event(agent_name, action, data):
     """Envía un evento al WebSocket server vía HTTP interno"""
@@ -350,12 +352,24 @@ def run_hft_cycle():
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
         
-        # Guardado en Firebase (mia_herds_history, mia_swarm_rest_history y mia_atlas)
+        # Guardado en Firebase con Filtro Anti-Saturación / Anti-429:
+        # Siempre actualiza 'latest' en Firebase y los slots en Upstash Redis.
+        # Solo crea un documento histórico con timestamp si cambió el estado o pasaron >= 30 minutos.
+        global LAST_SAVED_STATE, LAST_SAVED_TIME
+        now_ts = time.time()
+        debe_archivar = (LAST_SAVED_STATE != estado) or (now_ts - LAST_SAVED_TIME >= 1800)
+
         if db is not None:
-            db.collection("mia_herds_history").document(safe_title).set(payload)
-            db.collection("mia_swarm_rest_history").document(safe_title).set(payload)
+            db.collection("mia_herds_history").document("latest").set(payload)
             db.collection("mia_atlas").document("latest_debate_ab").set(payload)
-            emit_ws_event("Master", "INFO", "Debate Herds y Bifurcación A/B registrados en Firebase (mia_herds_history & mia_atlas).")
+            if debe_archivar:
+                db.collection("mia_herds_history").document(safe_title).set(payload)
+                db.collection("mia_swarm_rest_history").document(safe_title).set(payload)
+                LAST_SAVED_STATE = estado
+                LAST_SAVED_TIME = now_ts
+                emit_ws_event("Master", "INFO", f"Nuevo hito de debate archivado en Firebase: {safe_title}")
+            else:
+                emit_ws_event("Master", "INFO", "Debate homologado en latest (sin duplicar documento en histórico).")
 
             
         # Guardado en Upstash Redis (cache_herd_debate_latest y cache_mia_swarm_rest_latest)

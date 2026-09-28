@@ -83,4 +83,26 @@ trigger: always_on
    - `MASTER ORCHESTRATOR`: Gatekeeper de Quórum Calificado Ponderado ($\sum w_i \cdot v_i \ge 0.70$).
 2. **Prevención Anti-429 y Anti-404:** Toda la deliberación inter-agente debe ejecutarse en un solo ciclo atómico a OpenRouter con triple failover (`meta-llama/llama-3.3-70b-instruct` -> `deepseek/deepseek-chat` -> `meta-llama/llama-3.1-70b-instruct`). Cero tokens de LLM para cómputo determinista (TF, NORO y ATLAS MCP corren en C++/Python nativo).
 
+---
+name: homologacion_estricta_mt5_dashboard
+description: Regla de paridad absoluta entre la cuenta real de MetaTrader 5 y el Dashboard Web (Anti-Discrepancia).
+trigger: always_on
+---
+
+# 🎯 REGLA: HOMOLOGACIÓN ESTRICTA MT5 VS DASHBOARD (CERO DISCREPANCIA)
+1. **Paridad Total con Broker:** Las posiciones mostradas en el Dashboard (`Posiciones Activas / Trades en Vivo (MT5)`) y en el slot `cache_mt5` deben coincidir exactamente con las órdenes abiertas reales en MetaTrader 5.
+2. **Prohibición de Órdenes Fantasma:** Si una orden cierra o se liquida en MT5 (ej. XAUUSD), queda estrictamente prohibido mantenerla en `operaciones_activas`. Debe ser depurada de inmediato de la memoria viva y archivada en `cache_hist_mt5`.
+3. **Precisión Matemática y Redondeo:** El flotante neto, balance, equidad y márgenes deben recalcularse dinámicamente y con estricto redondeo a 2 decimales (`round(val, 2)`), homologados con la moneda de la cuenta de trading.
+
+---
+name: dinamismo_regla_de_3_y_supervisor
+description: Regla para la actualización perpetua de la Regla de 3 y el rol del Agente Supervisor Watchdog.
+trigger: always_on
+---
+
+# 👁️ REGLA: REGLA DE 3 DINÁMICA Y AGENTE SUPERVISOR WATCHDOG
+1. **Regla de 3 Dinámica:** La colección `mia_kb/regla_de_3` y el slot `cache_regla_de_3` no pueden permanecer con fechas estáticas. El Top 1, Top 2 y Top 3 deben recalibrarse automáticamente según el WinRate real de `indicadores_impacto`, actualizando el timestamp `ultima_actualizacion` en tiempo real.
+2. **MIA Supervisor Watchdog (`mia_supervisor_agent.py`):** Un agente autónomo en segundo plano monitorea la integridad de los datos, previene ráfagas masivas duplicadas de reportes HFT en Firestore y mantiene sincronizado el Dashboard sin necesidad de intervención manual o nuevos prompts.
+
+
 
