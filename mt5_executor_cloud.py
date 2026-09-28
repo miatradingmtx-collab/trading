@@ -1,12 +1,12 @@
-# ==============================================================================
+﻿# ==============================================================================
 #           METATRADER 5 CLOUD AUTOMATED EXECUTOR (METAAPI CLOUD)
 # ==============================================================================
 # Este script se ejecuta en segundo plano en Render/Nube.
 # Se encarga de:
-# 1. Conectarse a MetaAPI Cloud de forma asíncrona.
-# 2. Analizar técnicamente los 8 activos descargando velas vía MetaAPI.
+# 1. Conectarse a MetaAPI Cloud de forma asÃ­ncrona.
+# 2. Analizar tÃ©cnicamente los 8 activos descargando velas vÃ­a MetaAPI.
 # 3. Detectar Order Blocks, FVG, iFVG y Breaker Blocks.
-# 4. Sincronizar las confirmaciones técnicas con el servidor en la nube (FastAPI/Firebase).
+# 4. Sincronizar las confirmaciones tÃ©cnicas con el servidor en la nube (FastAPI/Firebase).
 # 5. Ejecutar operaciones en la nube usando la API de trading de MetaAPI.
 # ==============================================================================
 
@@ -34,7 +34,7 @@ def print(*args, **kwargs):
         builtins.print(safe_msg, **kwargs)
 
 
-# --- CONFIGURACIÓN ---
+# --- CONFIGURACIÃ“N ---
 FASTAPI_URL = os.getenv("FASTAPI_URL", "http://localhost:8080")
 
 ACCESS_TOKEN = os.getenv("BRIDGE_ACCESS_TOKEN", "tu-token-seguro-de-acceso")
@@ -44,13 +44,13 @@ MT5_LOGIN = os.getenv("MT5_LOGIN", "112472341")
 MT5_PASSWORD = os.getenv("MT5_PASSWORD", "*uR8HmJh")
 MT5_SERVER = os.getenv("MT5_SERVER", "MetaQuotes-Demo")
 
-# Parámetros de la Matriz de Riesgo Residual (Inteligencia de Negocio)
+# ParÃ¡metros de la Matriz de Riesgo Residual (Inteligencia de Negocio)
 BASE_BALANCE_MENSUAL = 5000.0
 OBJETIVO_MENSUAL_PCT = 10.0
-RIESGO_RESIDUAL_MAX_PCT = 25.0  # Porcentaje máximo del colchón residual a arriesgar por trade
+RIESGO_RESIDUAL_MAX_PCT = 25.0  # Porcentaje mÃ¡ximo del colchÃ³n residual a arriesgar por trade
 
-# MODO SHADOW GLOBAL (1 A 2 SEMANAS DE OBSERVABILIDAD Y CALIBRACIÓN PURA)
-# MetaTrader 5 BLOQUEADO: 0 órdenes con dinero real. Aprendizaje en bifurcaciones paralelas.
+# MODO SHADOW GLOBAL (1 A 2 SEMANAS DE OBSERVABILIDAD Y CALIBRACIÃ“N PURA)
+# MetaTrader 5 BLOQUEADO: 0 Ã³rdenes con dinero real. Aprendizaje en bifurcaciones paralelas.
 SHADOW_MODE_GLOBAL = os.getenv("SHADOW_MODE_GLOBAL", "true").lower() == "true"
 
 # Diccionario global para trackear posiciones y detectar aperturas, parciales y cierres en bucle
@@ -59,7 +59,7 @@ TICKETS_SINCRONIZADOS = set()
 
 ACTIVOS = ["EURUSD", "GBPUSD", "XAUUSD", "GBPJPY", "US30", "SP500", "AUDUSD", "NZDCAD"]
 
-# Mapeo de nombres de activos locales a símbolos del Broker
+# Mapeo de nombres de activos locales a sÃ­mbolos del Broker
 MAPEO_BROKER = {
     "NASDAQ100": "USTEC",
     "SP500": "US500",
@@ -75,21 +75,21 @@ MAPEO_BROKER = {
 }
 
 # ------------------------------------------------------------------------------
-# 1. CONEXIÓN CON METAAPI
+# 1. CONEXIÃ“N CON METAAPI
 # ------------------------------------------------------------------------------
 async def conectar_metaapi():
-    """Inicializa la API, busca la cuenta demo y retorna el objeto de cuenta y conexión RPC."""
+    """Inicializa la API, busca la cuenta demo y retorna el objeto de cuenta y conexiÃ³n RPC."""
     try:
         from metaapi_cloud_sdk import MetaApi
     except ImportError:
-        print("❌ Error: Se requiere la librería 'metaapi-cloud-sdk'.")
+        print("âŒ Error: Se requiere la librerÃ­a 'metaapi-cloud-sdk'.")
         return None, None
 
     if not METAAPI_TOKEN:
-        print("❌ Error: Falta METAAPI_TOKEN en el entorno.")
+        print("âŒ Error: Falta METAAPI_TOKEN en el entorno.")
         return None, None
 
-    print("🔌 Conectando a MetaAPI Cloud...")
+    print("ðŸ”Œ Conectando a MetaAPI Cloud...")
     api = MetaApi(METAAPI_TOKEN)
 
     try:
@@ -99,7 +99,7 @@ async def conectar_metaapi():
         account = next((a for a in accounts if a.login == MT5_LOGIN), None)
 
         if not account:
-            print(f"📝 Registrando cuenta demo {MT5_LOGIN} en MetaAPI...")
+            print(f"ðŸ“ Registrando cuenta demo {MT5_LOGIN} en MetaAPI...")
             account = await api.metatrader_account_api.create_account({
                 'name': 'Mia Demo Account',
                 'type': 'cloud',
@@ -109,32 +109,32 @@ async def conectar_metaapi():
                 'platform': 'mt5',
                 'magic': 20260616
             })
-            print(f"✅ Cuenta creada en MetaAPI. ID: {account.id}")
+            print(f"âœ… Cuenta creada en MetaAPI. ID: {account.id}")
         else:
-            print(f"✅ Cuenta encontrada en MetaAPI. ID: {account.id}")
+            print(f"âœ… Cuenta encontrada en MetaAPI. ID: {account.id}")
 
-        # Recargar la cuenta para asegurar que tenemos el estado más reciente
+        # Recargar la cuenta para asegurar que tenemos el estado mÃ¡s reciente
         await account.reload()
         print(f"Estado de la cuenta: {account.state}")
 
-        # Desplegar la cuenta si está desconectada
+        # Desplegar la cuenta si estÃ¡ desconectada
         if account.state != 'DEPLOYED':
-            print("🚀 Desplegando cuenta de trading demo en MetaAPI...")
+            print("ðŸš€ Desplegando cuenta de trading demo en MetaAPI...")
             await account.deploy()
         
         await account.wait_connected()
-        print("✅ Cuenta conectada al Broker.")
+        print("âœ… Cuenta conectada al Broker.")
 
-        # Obtener conexión RPC
+        # Obtener conexiÃ³n RPC
         connection = account.get_rpc_connection()
         await connection.connect()
         await connection.wait_synchronized()
-        print("✅ Conexión RPC sincronizada.")
+        print("âœ… ConexiÃ³n RPC sincronizada.")
 
         return account, connection
 
     except Exception as e:
-        print(f"❌ Error en la conexión a MetaAPI: {e}")
+        print(f"âŒ Error en la conexiÃ³n a MetaAPI: {e}")
         return None, None
 
 async def obtener_balance(connection) -> tuple:
@@ -147,14 +147,14 @@ async def obtener_balance(connection) -> tuple:
         return 0.0, 0.0
 
 def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: float, sl_price: float, simbolo: str, presupuesto_restante: float = 150.0) -> float:
-    """Calcula el lote basado en riesgo % y distancia del SL, respetando límites diarios y mensuales."""
+    """Calcula el lote basado en riesgo % y distancia del SL, respetando lÃ­mites diarios y mensuales."""
     if balance <= 0 or sl_price == 0 or entry_price == 0 or entry_price == sl_price:
         return 0.04 # Fallback
         
     riesgo_dinero = 0.0
     
-    # --- LÓGICA DE HOUSE MONEY Y OBJETIVOS MENSUALES ---
-    # Calculamos la meta dinámicamente sobre la base mensual actual.
+    # --- LÃ“GICA DE HOUSE MONEY Y OBJETIVOS MENSUALES ---
+    # Calculamos la meta dinÃ¡micamente sobre la base mensual actual.
     if balance <= 4600:
         base_mensual = 4200.0
     elif balance <= 5600:
@@ -167,27 +167,27 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
 
     if balance < 4200.0:
         # ESCUDO DE DRAWDOWN (balance < 4200)
-        # Se reduce matemáticamente el lotaje a la mitad (0.5%)
+        # Se reduce matemÃ¡ticamente el lotaje a la mitad (0.5%)
         riesgo_defensivo = 0.50
         riesgo_dinero = balance * (riesgo_defensivo / 100.0)
         print(f"| GESTOR RIESGO WARN | Drawdown Activo (Balance < 4200). Riesgo reducido a {riesgo_defensivo}%.")
     elif remanente > 0:
-        # MODO AGRESIVO CON REMANENTE: Se alcanzó el +8% / +10% de la base.
+        # MODO AGRESIVO CON REMANENTE: Se alcanzÃ³ el +8% / +10% de la base.
         # Operamos el remanente a favor sin sobrepasar lo ya ganado en la cuenta principal.
         riesgo_dinero = balance * (riesgo_pct / 100.0) * 1.5
-        # Regla estricta: Nunca afectar la cuenta más allá del remanente ganado
+        # Regla estricta: Nunca afectar la cuenta mÃ¡s allÃ¡ del remanente ganado
         if riesgo_dinero > (remanente * 0.35):
             riesgo_dinero = remanente * 0.35
-        print(f"| GESTOR RIESGO | 🔥 MODO AGRESIVO (Remanente). Objetivo 8-10% superado. Remanente a favor: ${remanente:.2f}.")
+        print(f"| GESTOR RIESGO | ðŸ”¥ MODO AGRESIVO (Remanente). Objetivo 8-10% superado. Remanente a favor: ${remanente:.2f}.")
     else:
-        # ZONA DE RECUPERACIÓN / CRECIMIENTO (>= 4200)
+        # ZONA DE RECUPERACIÃ“N / CRECIMIENTO (>= 4200)
         # Entradas con el 1%, 2%, 3% conforme aumenta la cuenta
         riesgo_dinero = balance * (riesgo_pct / 100.0)
-        print(f"| GESTOR RIESGO | Zona de Recuperación/Crecimiento (Balance: ${balance:.2f}). Riesgo normal: {riesgo_pct}%.")
+        print(f"| GESTOR RIESGO | Zona de RecuperaciÃ³n/Crecimiento (Balance: ${balance:.2f}). Riesgo normal: {riesgo_pct}%.")
 
     # ----- REGLA ESTRICTA DE DRAWDOWN DIARIO -----
     if riesgo_dinero > presupuesto_restante and presupuesto_restante > 0:
-        print(f"| GESTOR RIESGO ALERTA | Recortando riesgo del trade de ${riesgo_dinero:.2f} a ${presupuesto_restante:.2f} para cuadrar exacto con el límite diario.")
+        print(f"| GESTOR RIESGO ALERTA | Recortando riesgo del trade de ${riesgo_dinero:.2f} a ${presupuesto_restante:.2f} para cuadrar exacto con el lÃ­mite diario.")
         riesgo_dinero = presupuesto_restante
     # ---------------------------------------------
 
@@ -221,7 +221,7 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
     return lotes
 
 async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: float = 3.0) -> Tuple[bool, float]:
-    """Consulta el backend para ver si el PNL de hoy supera la pérdida máxima permitida dinámica en %."""
+    """Consulta el backend para ver si el PNL de hoy supera la pÃ©rdida mÃ¡xima permitida dinÃ¡mica en %."""
     url = f"{FASTAPI_URL}/api/pnl_hoy"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
     pnl_hoy = 0.0
@@ -234,7 +234,7 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
     except Exception as e:
         print(f"| GESTOR RIESGO EXCEPTION | No se pudo verificar PNL diario: {e}")
         
-    # El balance al abrir el día es el balance actual menos lo que ya se cerró (ganancia o pérdida)
+    # El balance al abrir el dÃ­a es el balance actual menos lo que ya se cerrÃ³ (ganancia o pÃ©rdida)
     balance_inicio_dia = balance - pnl_hoy
     limite_usd = balance_inicio_dia * (limite_pct / 100.0)
     
@@ -243,13 +243,13 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
     presupuesto_restante = limite_usd + pnl_total_dia
     
     if pnl_total_dia <= -limite_usd:
-        print(f"| GESTOR RIESGO ALERTA | ⛔ DRAWDOWN DIARIO ALCANZADO: PNL Total ${pnl_total_dia:.2f} <= Límite -${limite_usd:.2f} ({limite_pct}% de ${balance_inicio_dia:.2f}). Entradas bloqueadas.")
+        print(f"| GESTOR RIESGO ALERTA | â›” DRAWDOWN DIARIO ALCANZADO: PNL Total ${pnl_total_dia:.2f} <= LÃ­mite -${limite_usd:.2f} ({limite_pct}% de ${balance_inicio_dia:.2f}). Entradas bloqueadas.")
         return True, 0.0
         
     return False, presupuesto_restante
 
 async def obtener_velas_cloud(account, simbolo: str, temporalidad: str, cantidad: int = 100) -> Optional[pd.DataFrame]:
-    """Descarga las últimas velas para un símbolo usando la API de MetaAPI"""
+    """Descarga las Ãºltimas velas para un sÃ­mbolo usando la API de MetaAPI"""
     try:
         # temporalidad en MetaAPI: '1h', '4h', etc.
         candles = await account.get_historical_candles(simbolo, temporalidad, datetime.datetime.now(datetime.timezone.utc), cantidad)
@@ -257,7 +257,7 @@ async def obtener_velas_cloud(account, simbolo: str, temporalidad: str, cantidad
             return None
             
         df = pd.DataFrame(candles)
-        # Asegurar columnas correctas y formato esperado por el escáner
+        # Asegurar columnas correctas y formato esperado por el escÃ¡ner
         df['time'] = pd.to_datetime(df['time'])
         df['open'] = df['open'].astype(float)
         df['high'] = df['high'].astype(float)
@@ -271,7 +271,7 @@ async def obtener_velas_cloud(account, simbolo: str, temporalidad: str, cantidad
 
 
 # ------------------------------------------------------------------------------
-# 2. CÁLCULO DE INDICADORES TÉCNICOS
+# 2. CÃLCULO DE INDICADORES TÃ‰CNICOS
 # ------------------------------------------------------------------------------
 def calcular_volume_profile_poc(df: pd.DataFrame, num_bins: int = 50) -> float:
     """
@@ -416,7 +416,7 @@ def actualizar_memoria_obs_liquidez(activo: str, dfs: dict, precio_actual: float
     return resultado
 
 # ------------------------------------------------------------------------------
-# 3. DETECCIÓN DE PATRONES SMC / ICT
+# 3. DETECCIÃ“N DE PATRONES SMC / ICT
 # ------------------------------------------------------------------------------
 def analizar_smc_ict(df: pd.DataFrame) -> Dict[str, bool]:
     confirmaciones = {
@@ -437,8 +437,8 @@ def analizar_smc_ict(df: pd.DataFrame) -> Dict[str, bool]:
     elif df['high'].iloc[i] < df['low'].iloc[i-2]:
         confirmaciones["fvg_detectado"] = True
 
-    # Detección de Barrido de Liquidez (Sweep Liquidity) real
-    # Buscamos si el precio actual o de la vela anterior barrió mínimos/máximos pasados (pools de liquidez) y regresó
+    # DetecciÃ³n de Barrido de Liquidez (Sweep Liquidity) real
+    # Buscamos si el precio actual o de la vela anterior barriÃ³ mÃ­nimos/mÃ¡ximos pasados (pools de liquidez) y regresÃ³
     if i >= 15:
         minimo_previo = df['low'].iloc[i-15:i-2].min()
         maximo_previo = df['high'].iloc[i-15:i-2].max()
@@ -466,7 +466,7 @@ def analizar_smc_ict(df: pd.DataFrame) -> Dict[str, bool]:
     return confirmaciones
 
 # ------------------------------------------------------------------------------
-# 4. COMUNICACIÓN CON FASTAPI (Nube)
+# 4. COMUNICACIÃ“N CON FASTAPI (Nube)
 # ------------------------------------------------------------------------------
 async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool], rsi_val: float, ma_alineada: bool, soporte_activo: bool, killzone_activa: bool = True, poc_price: float = 0.0):
     url = f"{FASTAPI_URL}/webhook_technical_update"
@@ -483,7 +483,7 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
     if confirmaciones.get("sweep_liquidez_detectado"): smc_codes.append(4) # AMD / Sweep
     if confirmaciones.get("ifvg_detectado"): smc_codes.append(5) # iFVG
     
-    # Análisis Técnico Clásico
+    # AnÃ¡lisis TÃ©cnico ClÃ¡sico
     if ma_alineada: smc_codes.append(6)
     if rsi_val >= 80 or rsi_val <= 20: smc_codes.append(7)
     if soporte_activo: smc_codes.append(8)
@@ -527,15 +527,15 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
         async with httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json=payload, timeout=5)
             if response.status_code == 200:
-                print(f"| CLOUD | Confirmaciones para {activo} actualizadas con éxito.")
+                print(f"| CLOUD | Confirmaciones para {activo} actualizadas con Ã©xito.")
                 return response.json()
             else:
                 error_msg = f"HTTP {response.status_code}: {response.text}"
                 print(f"| CLOUD ERROR | No se pudo actualizar matriz en la nube: {error_msg}")
-                await reportar_error_nube("Sincronización Webhook (429/500)", error_msg)
+                await reportar_error_nube("SincronizaciÃ³n Webhook (429/500)", error_msg)
     except Exception as e:
         print(f"| CLOUD EXCEPTION | Error al conectar con FastAPI en sincronizar: {e}")
-        await reportar_error_nube("Sincronización FastAPI", str(e))
+        await reportar_error_nube("SincronizaciÃ³n FastAPI", str(e))
     return None
 
 async def reportar_error_nube(componente: str, mensaje: str):
@@ -573,7 +573,7 @@ async def solicitar_autorizacion_trade(activo: str, accion: str, precio: float) 
             if response.status_code == 200:
                 return response.json()
     except Exception as e:
-        print(f"| CLOUD EXCEPTION | Error al solicitar autorización de trade: {e}")
+        print(f"| CLOUD EXCEPTION | Error al solicitar autorizaciÃ³n de trade: {e}")
     return None
 
 async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, evento: str, precio: float, sl: float, tp: float, pnl: float = 0.0, comentario: str = "", estrategia_original: str = "MANUAL", open_time: str = "", lotaje: float = 0.0):
@@ -592,8 +592,8 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
         accion = "PROTECCION_BE"
     elif evento == "TRAILING_STOP":
         accion = "TRAILING_STOP"
-    elif evento == "REANUDACIÓN":
-        accion = "REANUDACIÓN"
+    elif evento == "REANUDACIÃ“N":
+        accion = "REANUDACIÃ“N"
     else:
         accion = "CIERRE_TOTAL"
         
@@ -623,7 +623,7 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
         async with httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json=payload, timeout=5)
             if response.status_code == 200:
-                print(f"| CLOUD SUCCESS | Evento {evento} registrado con éxito en Notion y Bitacora Excel.")
+                print(f"| CLOUD SUCCESS | Evento {evento} registrado con Ã©xito en Notion y Bitacora Excel.")
             else:
                 print(f"| CLOUD ERROR | No se pudo registrar el evento: {response.text}")
     except Exception as e:
@@ -675,7 +675,7 @@ async def obtener_matriz_activo(activo: str) -> Optional[Dict]:
     return None
 
 # ------------------------------------------------------------------------------
-# 5. GESTIÓN DE POSICIONES ACTIVAS (MetaAPI)
+# 5. GESTIÃ“N DE POSICIONES ACTIVAS (MetaAPI)
 # ------------------------------------------------------------------------------
 ULTIMA_SINC_FB = 0
 FB_OPEN_CACHE = []
@@ -684,7 +684,7 @@ ES_PRIMERA_EJECUCION = True
 async def gestionar_posiciones_activas(account, connection, balance: float):
     global POSICIONES_ACTIVAS, ULTIMA_SINC_FB, FB_OPEN_CACHE, ES_PRIMERA_EJECUCION
     
-    # 0. Obtener tickets abiertos en Firebase para validación cruzada y autocuración
+    # 0. Obtener tickets abiertos en Firebase para validaciÃ³n cruzada y autocuraciÃ³n
     from time import time
     ahora = time()
     if ahora - ULTIMA_SINC_FB >= 900:  # Consultar la nube solo cada 15 min (900s)
@@ -715,7 +715,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
         client_id = pos.get('clientId', '')
         magic = pos.get('magic', 0)
         
-        # Validar si es una operación de Mia (por Magic Number, Client ID o si está activa en Firebase)
+        # Validar si es una operaciÃ³n de Mia (por Magic Number, Client ID o si estÃ¡ activa en Firebase)
         is_mia = (magic == 20260616) or (isinstance(client_id, str) and client_id.startswith('L_')) or (ticket in fb_open)
         es_activo_oficial = any(MAPEO_BROKER.get(act) == pos.get('symbol') for act in ACTIVOS)
         
@@ -724,13 +724,13 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
 
         tickets_actuales.add(ticket)
         
-        # 1. SI ES UNA NUEVA POSICIÓN: Registrar e informar de APERTURA
+        # 1. SI ES UNA NUEVA POSICIÃ“N: Registrar e informar de APERTURA
         if ticket not in POSICIONES_ACTIVAS:
             tp_original = pos.get('takeProfit', 0.0)
             parcial_ya_tomado = False
             estrategia_original = "MANUAL"
             
-            # Autocuración: Intentar recuperar estrategia y TP de Firebase
+            # AutocuraciÃ³n: Intentar recuperar estrategia y TP de Firebase
             try:
                 async with httpx.AsyncClient() as client:
                     r = await client.get(f"{FASTAPI_URL}/api/get_trade_tp/{ticket}", timeout=5)
@@ -740,14 +740,14 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                             estrategia_original = res_data.get("estrategia", "MANUAL")
                             if tp_original == 0.0 and res_data.get("tp", 0.0) > 0.0:
                                 tp_original = res_data["tp"]
-                                print(f"| AUTOCURACIÓN | Ticket {ticket} sin TP detectado. Restaurando TP original: {tp_original}")
+                                print(f"| AUTOCURACIÃ“N | Ticket {ticket} sin TP detectado. Restaurando TP original: {tp_original}")
                                 try:
                                     await connection.modify_position(ticket, stop_loss=pos.get('stopLoss', 0.0), take_profit=tp_original)
                                 except Exception as modify_err:
-                                    print(f"| AUTOCURACIÓN ERROR | No se pudo inyectar TP en MT5: {modify_err}")
+                                    print(f"| AUTOCURACIÃ“N ERROR | No se pudo inyectar TP en MT5: {modify_err}")
                             parcial_ya_tomado = res_data.get("parcial_tomado", False)
             except Exception as auto_e:
-                print(f"| AUTOCURACIÓN WARN | Fallo al buscar TP/Estrategia en Firebase: {auto_e}")
+                print(f"| AUTOCURACIÃ“N WARN | Fallo al buscar TP/Estrategia en Firebase: {auto_e}")
             
             POSICIONES_ACTIVAS[ticket] = {
                 "volume": pos.get('volume', 0.0),
@@ -758,17 +758,17 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 "tp": tp_original,
                 "sl": pos.get('stopLoss', 0.0),
                 "nivel_parcial": 1 if parcial_ya_tomado else 0,
-                "price_max_favor": pos.get('openPrice', 0.0), # Guarda el precio máximo en ganancias alcanzado en el ciclo
+                "price_max_favor": pos.get('openPrice', 0.0), # Guarda el precio mÃ¡ximo en ganancias alcanzado en el ciclo
                 "estrategia": estrategia_original,
                 "open_time": str(pos.get('time', ''))
             }
-            print(f"| SEGUIMIENTO | Nueva posición detectada. Ticket: {ticket} | Lote: {pos.get('volume')} | Estrategia: {estrategia_original}")
+            print(f"| SEGUIMIENTO | Nueva posiciÃ³n detectada. Ticket: {ticket} | Lote: {pos.get('volume')} | Estrategia: {estrategia_original}")
             if not ES_PRIMERA_EJECUCION:
                 tp_original = tp_original if tp_original > 0 else (pos.get('openPrice', 0.0) + 0.00100)
                 await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=str(pos.get('time', '')), lotaje=pos.get('volume', 0.0))
             else:
-                print(f"| REANUDACIÓN | Adoptando posición existente (Ticket: {ticket}). Enviando notificación de Reanudación.")
-                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "REANUDACIÓN", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=str(pos.get('time', '')), lotaje=pos.get('volume', 0.0))
+                print(f"| REANUDACIÃ“N | Adoptando posiciÃ³n existente (Ticket: {ticket}). Enviando notificaciÃ³n de ReanudaciÃ³n.")
+                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "REANUDACIÃ“N", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=str(pos.get('time', '')), lotaje=pos.get('volume', 0.0))
             
         activo = next((act for act in ACTIVOS if MAPEO_BROKER.get(act) == pos.get('symbol')), None)
         if not activo:
@@ -797,7 +797,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             
             toca_parcial = 0
             if en_ganancia:
-                # Damos respiro (oxígeno) al trade: 
+                # Damos respiro (oxÃ­geno) al trade: 
                 # Antes: Parcial en 25%, ahora: Parcial 1 en 40%, Parcial 2 en 65%, Trail en 85%
                 if distancia_total > 0 and porcentaje_recorrido >= 0.85 and nivel_parcial < 3:
                     toca_parcial = 3
@@ -841,7 +841,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 
                 # --- AJUSTE INTELIGENTE DE VOLUMEN ---
                 if lote_a_cerrar < min_volume:
-                    # Si el cálculo da menos del mínimo, intentamos forzar al menos el mínimo
+                    # Si el cÃ¡lculo da menos del mÃ­nimo, intentamos forzar al menos el mÃ­nimo
                     if volume - min_volume >= min_volume:
                         lote_a_cerrar = min_volume
                     else:
@@ -878,11 +878,11 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                             
                         await asyncio.sleep(1) # Breve pausa antes de modificar SL
                     except Exception as e:
-                        print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial para {ticket}: {e}")
+                        print(f"| GESTOR PARCIALES ERROR | FallÃ³ cierre parcial para {ticket}: {e}")
                         # No actualizamos nivel_parcial para que intente de nuevo en el siguiente ciclo
                         continue
                 else:
-                    print(f"| GESTOR PARCIALES INFO | Volumen muy pequeño para partir ({volume}). Se asegurará con SL.")
+                    print(f"| GESTOR PARCIALES INFO | Volumen muy pequeÃ±o para partir ({volume}). Se asegurarÃ¡ con SL.")
                     cobro_exitoso = True # Lo damos por exitoso para que avance a mover el SL
                     
                 # --- 2. MOVER STOP LOSS SIEMPRE ---
@@ -905,7 +905,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                         nuevo_sl = (entry_price + distancia_tp2) if es_buy else (entry_price - distancia_tp2)
                         desc_sl = "Nivel Seguro TP2 (65%)"
                         
-                    # Verificar si el SL ya está en la posición deseada (ej. por el Trailing Stop del 15%)
+                    # Verificar si el SL ya estÃ¡ en la posiciÃ³n deseada (ej. por el Trailing Stop del 15%)
                     sl_actual = POSICIONES_ACTIVAS[ticket].get("sl", 0.0)
                     if abs(sl_actual - nuevo_sl) < 0.00001:
                         print(f"| GESTOR RIESGO | SL ya estaba en {desc_sl} para {ticket}. Omitiendo modify_position.")
@@ -922,10 +922,10 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                             if "NO_CHANGES" in str(sl_e) or "No changes" in str(sl_e):
                                 POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
                             elif lote_a_cerrar > 0:
-                                # Si se cobró dinero pero falló el SL, igual marcamos el nivel para no volver a cobrar
+                                # Si se cobrÃ³ dinero pero fallÃ³ el SL, igual marcamos el nivel para no volver a cobrar
                                 POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
                             else:
-                                # Si no se cobró nada y falló el SL por otra razón, que vuelva a intentar todo luego
+                                # Si no se cobrÃ³ nada y fallÃ³ el SL por otra razÃ³n, que vuelva a intentar todo luego
                                 continue
                             
                     # --- 3. NOTIFICAR EN TELEGRAM ---
@@ -933,13 +933,13 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                         comentario_tg = f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP" if lote_a_cerrar > 0 else f"Protegido en {desc_sl} (lote intocable)"
                         await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=comentario_tg, estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""), lotaje=pos.get('volume', 0.0))
                     except Exception as t_e:
-                        print(f"| TELEGRAM WARN | No se envió notificación parcial: {t_e}")                    
+                        print(f"| TELEGRAM WARN | No se enviÃ³ notificaciÃ³n parcial: {t_e}")                    
                     
-        # B. (Eliminado: Trailing Stop Dinámico continuo sustituido por Escalonado de 3 Fases en bloque A)
+        # B. (Eliminado: Trailing Stop DinÃ¡mico continuo sustituido por Escalonado de 3 Fases en bloque A)
 
-        # C. Gestión de Break-Even dinámico relativo a Liquidez Institucional (Para órdenes que aún no toman parciales)
+        # C. GestiÃ³n de Break-Even dinÃ¡mico relativo a Liquidez Institucional (Para Ã³rdenes que aÃºn no toman parciales)
         if POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0) == 0:
-            # Actualizar el precio máximo a favor alcanzado históricamente en la sesión por este ticket
+            # Actualizar el precio mÃ¡ximo a favor alcanzado histÃ³ricamente en la sesiÃ³n por este ticket
             price_max_historico = POSICIONES_ACTIVAS[ticket].get("price_max_favor", entry_price)
             if es_buy:
                 if current_price > price_max_historico:
@@ -952,7 +952,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     
             # El trade debe haber estado en ganancia (al menos un 25% del recorrido hacia el TP) 
             # antes de evaluar colocar Break-Even cuando regrese a la zona de entrada.
-            # Esto evita que si entra en pérdida de inmediato y luego recupera a la entrada, se cierre prematuramente.
+            # Esto evita que si entra en pÃ©rdida de inmediato y luego recupera a la entrada, se cierre prematuramente.
             distancia_total_tp = abs(tp - entry_price)
             recorrido_maximo_favor = 0.0
             if es_buy:
@@ -975,7 +975,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 
             if esta_en_zona_entrada:
                 # Consultar base de datos en la nube para volumen institucional (Firestore)
-                # Envolvemos en try/except para que si Firebase está en 429 Quota Exceeded, no reviente el script
+                # Envolvemos en try/except para que si Firebase estÃ¡ en 429 Quota Exceeded, no reviente el script
                 liq_institucional = False
                 try:
                     matrix = await obtener_matriz_activo(activo)
@@ -993,7 +993,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 else:
                     print(f"| GESTOR BE | {activo} regresando a entrada sin soporte institucional. Colocando Break-Even.")
                     try:
-                        # Modificar SL a Break-Even + pequeño resguardo
+                        # Modificar SL a Break-Even + pequeÃ±o resguardo
                         buffer_be = 0.0001 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.01
                         nuevo_sl = entry_price + buffer_be if es_buy else entry_price - buffer_be
                         await connection.modify_position(ticket, stop_loss=nuevo_sl, take_profit=tp)
@@ -1014,7 +1014,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                             comentario_emergencia = "Protegido en Break Even (Salvamento por Retroceso)"
                             await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "PROTECCION_BE", current_price, nuevo_sl, tp, pnl=pnl_flotante, comentario=comentario_emergencia, estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""), lotaje=pos.get('volume', 0.0))
                         except Exception as t_e:
-                            print(f"| TELEGRAM WARN | No se envió notificación de BE Salvamento: {t_e}")
+                            print(f"| TELEGRAM WARN | No se enviÃ³ notificaciÃ³n de BE Salvamento: {t_e}")
                             
                     except Exception as e:
                         print(f"| GESTOR BE ERROR | No se pudo modificar ticket {ticket} a BE: {e}")
@@ -1028,13 +1028,13 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             
     for ticket in tickets_cerrados:
         info = POSICIONES_ACTIVAS[ticket]
-        print(f"| SEGUIMIENTO | Posición cerrada detectada. Ticket: {ticket}")
+        print(f"| SEGUIMIENTO | PosiciÃ³n cerrada detectada. Ticket: {ticket}")
         
-        # Intentamos obtener la ganancia real del deal desde el historial del broker vía MetaAPI
+        # Intentamos obtener la ganancia real del deal desde el historial del broker vÃ­a MetaAPI
         pnl_final = 0.0
         precio_cierre = info["price_open"]
         try:
-            # Traer deals de las últimas 24 horas para encontrar el deal de cierre de este ticket
+            # Traer deals de las Ãºltimas 24 horas para encontrar el deal de cierre de este ticket
             desde = datetime.datetime.now() - datetime.timedelta(days=1)
             deals_resp = await connection.get_deals_by_ticket(str(ticket))
             deals = []
@@ -1046,13 +1046,13 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             if deals:
                 # Filtrar el deal de salida o acumular PnL de los deals asociados al ticket
                 pnl_final = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in deals)
-                # Tomar el precio de ejecución del último deal
+                # Tomar el precio de ejecuciÃ³n del Ãºltimo deal
                 precio_cierre = float(deals[-1].get('price', info["price_open"]))
                 print(f"| GESTOR COBROS | PnL real obtenido del Broker para Ticket {ticket}: ${pnl_final:.2f} (Precio salida: {precio_cierre})")
             else:
                 raise ValueError("No deals found")
         except Exception:
-            # Fallback a estimación manual exacta
+            # Fallback a estimaciÃ³n manual exacta
             try:
                 price = await connection.get_symbol_price(info["symbol"])
                 precio_cierre = price.get('bid' if info["type"] == 'POSITION_TYPE_BUY' else 'ask', info["price_open"])
@@ -1063,14 +1063,14 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             if info["type"] == 'POSITION_TYPE_SELL' or info["type"] == '1':
                 distancia = -distancia
                 
-            # Forex convencional = 100,000 unidades por lote, JPY = 100,000 unidades (pero cotización en centenas /100), Oro = 100 oz.
+            # Forex convencional = 100,000 unidades por lote, JPY = 100,000 unidades (pero cotizaciÃ³n en centenas /100), Oro = 100 oz.
             sym = info["symbol"].upper()
             if "JPY" in sym:
                 pnl_final = distancia * info["volume"] * 100000 / precio_cierre  # Ajuste de divisa JPY a USD aprox
             elif "XAU" in sym or "GOLD" in sym:
-                pnl_final = distancia * info["volume"] * 100 # $100 por dólar de movimiento por lote
+                pnl_final = distancia * info["volume"] * 100 # $100 por dÃ³lar de movimiento por lote
             else:
-                pnl_final = distancia * info["volume"] * 100000  # $10 por pip en Forex estándar
+                pnl_final = distancia * info["volume"] * 100000  # $10 por pip en Forex estÃ¡ndar
                 
             print(f"| GESTOR COBROS WARNING | Usando PnL estimado para Ticket {ticket}: ${pnl_final:.2f}")
             
@@ -1080,7 +1080,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
     for t in fb_open:
         if str(t) not in POSICIONES_ACTIVAS and str(t) not in tickets_actuales and str(t) not in TICKETS_SINCRONIZADOS:
             print(f"| GESTOR RIESGO | Sincronizando cierre faltante para ticket {t}")
-            # Intentamos recuperar el PnL del deal histórico antes de poner 0.0
+            # Intentamos recuperar el PnL del deal histÃ³rico antes de poner 0.0
             pnl_sinc = 0.0
             try:
                 deals_resp = await connection.get_deals_by_ticket(str(t))
@@ -1105,12 +1105,12 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                         est_sinc = rr.json().get("estrategia", "MANUAL")
             except: pass
             
-            await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=pnl_sinc, comentario="Sincronizado por desaparición en MT5", estrategia_original=est_sinc, lotaje=0.0)
+            await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=pnl_sinc, comentario="Sincronizado por desapariciÃ³n en MT5", estrategia_original=est_sinc, lotaje=0.0)
             TICKETS_SINCRONIZADOS.add(str(t))
 
     ES_PRIMERA_EJECUCION = False
 # ------------------------------------------------------------------------------
-# 6. GESTOR DE OPERACIONES (Apertura de Órdenes)
+# 6. GESTOR DE OPERACIONES (Apertura de Ã“rdenes)
 # ------------------------------------------------------------------------------
 async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: float, decision: Dict, balance: float, presupuesto_restante: float = 150.0) -> bool:
     simbolo_broker = MAPEO_BROKER.get(activo, activo)
@@ -1132,7 +1132,7 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
         lote = calcular_lotaje_dinamico(balance, riesgo_pct, precio_ejecucion, sl, simbolo_broker, presupuesto_restante)
         decision["lote"] = lote
 
-        # Generar un clientId único que siga el patrón requerido y no supere la longitud
+        # Generar un clientId Ãºnico que siga el patrÃ³n requerido y no supere la longitud
         short_sym = simbolo_broker.replace("/", "").replace("-", "")[:6]
         client_id = f"L_{short_sym}_{random.randint(1000, 9999)}"
         options = {
@@ -1143,10 +1143,10 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
 
         print(f"| TRADING RIESGO | Evaluando {accion} en {simbolo_broker} (Balance: ${balance:.2f} | Riesgo {riesgo_pct}% | SL: {sl:.4f} | LOTE: {lote})")
         
-        # INTERCEPTOR MODO SHADOW GLOBAL (1-2 SEMANAS DE SIMULACIÓN PURA)
+        # INTERCEPTOR MODO SHADOW GLOBAL (1-2 SEMANAS DE SIMULACIÃ“N PURA)
         if SHADOW_MODE_GLOBAL:
             simulated_ticket = f"SHADOW_{random.randint(100000, 999999)}"
-            print(f"| SHADOW MODE (1-2 SEMANAS) | [MT5 BLOQUEADO] {accion} simulada con éxito en {simbolo_broker}. Ticket Simulado: #{simulated_ticket}. CERO dinero en riesgo.")
+            print(f"| SHADOW MODE (1-2 SEMANAS) | [MT5 BLOQUEADO] {accion} simulada con Ã©xito en {simbolo_broker}. Ticket Simulado: #{simulated_ticket}. CERO dinero en riesgo.")
             return True
 
         if es_buy:
@@ -1155,9 +1155,9 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
             result = await connection.create_market_sell_order(simbolo_broker, lote, sl, tp, options)
 
         order_id = result.get("orderId", "N/A")
-        print(f"| METAAPI SUCCESS | Orden colocada con éxito en {simbolo_broker}. Ticket ID: {order_id}")
+        print(f"| METAAPI SUCCESS | Orden colocada con Ã©xito en {simbolo_broker}. Ticket ID: {order_id}")
         
-        # Avisar al backend que ya se ejecutó para que apague el semáforo y evite doble ejecución
+        # Avisar al backend que ya se ejecutÃ³ para que apague el semÃ¡foro y evite doble ejecuciÃ³n
         try:
             url = f"{FASTAPI_URL}/webhook_marcar_ejecutado"
             headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
@@ -1192,7 +1192,7 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
 # 7. HORARIO DE KILLZONES
 # ------------------------------------------------------------------------------
 def obtener_nombre_killzone() -> Optional[str]:
-    """Verifica si la hora actual local de México (GMT-6) está dentro de una Killzone."""
+    """Verifica si la hora actual local de MÃ©xico (GMT-6) estÃ¡ dentro de una Killzone."""
     LONDRES_INICIO = 2.0
     LONDRES_FIN = 5.0
     NY_INICIO = 7.0
@@ -1200,7 +1200,7 @@ def obtener_nombre_killzone() -> Optional[str]:
     ASIA_INICIO = 18.0
     ASIA_FIN = 22.0
     
-    # Forzar hora de México (GMT-6) en cualquier servidor (Render corre en UTC)
+    # Forzar hora de MÃ©xico (GMT-6) en cualquier servidor (Render corre en UTC)
     gmt_minus_6 = datetime.timezone(datetime.timedelta(hours=-6))
     ahora = datetime.datetime.now(gmt_minus_6)
     hora_decimal = ahora.hour + ahora.minute / 60.0
@@ -1232,10 +1232,10 @@ def es_ventana_operativa() -> bool:
     return False
 
 # ------------------------------------------------------------------------------
-# 7.1 VERIFICACIÓN DE MERCADO ABIERTO
+# 7.1 VERIFICACIÃ“N DE MERCADO ABIERTO
 # ------------------------------------------------------------------------------
 def es_mercado_abierto(activo: str) -> bool:
-    """Verifica si el mercado del activo está abierto (Hora de México GMT-6)."""
+    """Verifica si el mercado del activo estÃ¡ abierto (Hora de MÃ©xico GMT-6)."""
     # Criptomonedas operan 24/7
     if "BTC" in activo.upper() or "CRYPTO" in activo.upper():
         return True
@@ -1250,13 +1250,13 @@ def es_mercado_abierto(activo: str) -> bool:
     if dia == 5: return False
     if dia == 6 and hora < 15: return False
     
-    # NOTA: Por instrucción directa, se remueve el receso diario de 15:00 a 16:00.
-    # El escáner continuará operando de lunes a jueves sin interrupción en esa hora.
+    # NOTA: Por instrucciÃ³n directa, se remueve el receso diario de 15:00 a 16:00.
+    # El escÃ¡ner continuarÃ¡ operando de lunes a jueves sin interrupciÃ³n en esa hora.
     
     return True
 
 # ------------------------------------------------------------------------------
-# 8. BUCLE PRINCIPAL DE ANÁLISIS EN LA NUBE
+# 8. BUCLE PRINCIPAL DE ANÃLISIS EN LA NUBE
 # ------------------------------------------------------------------------------
 async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
     # 1. Obtener balance y validar Drawdown Diario
@@ -1275,15 +1275,15 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         try:
             await gestionar_posiciones_activas(account, connection, balance)
         except Exception as e:
-            print(f"| GESTOR POSICIONES ERROR | Falló gestión de posiciones en la nube: {e}")
+            print(f"| GESTOR POSICIONES ERROR | FallÃ³ gestiÃ³n de posiciones en la nube: {e}")
         
     if en_drawdown:
-        print("| ESCANER CLOUD | ⛔ Deteniendo escaneo de nuevas entradas por Drawdown Diario (-3%).")
+        print("| ESCANER CLOUD | â›” Deteniendo escaneo de nuevas entradas por Drawdown Diario (-3%).")
         return # Skip scanning
         
     killzone_activa = obtener_nombre_killzone()
     if killzone_activa:
-        print(f"| ESCANER CLOUD | Sesión activa: {killzone_activa} | Escaneando {len(ACTIVOS)} activos en H1...")
+        print(f"| ESCANER CLOUD | SesiÃ³n activa: {killzone_activa} | Escaneando {len(ACTIVOS)} activos en H1...")
     else:
         print("| ESCANER CLOUD | Fuera de horario de Killzones. Sincronizando pero entradas desactivadas.")
         
@@ -1292,8 +1292,8 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         simbolos_abiertos = [pos.get('symbol') for pos in posiciones_activas]
     except Exception as e:
         print(f"| ESCANER ERROR FATAL | No se pudieron obtener las posiciones activas desde MetaAPI: {e}")
-        print("| PROTECCIÓN ACTIVADA | Evitando abrir nuevas operaciones para no duplicar trades (Falla de lectura).")
-        return  # Aborta el ciclo completo hasta el próximo tick
+        print("| PROTECCIÃ“N ACTIVADA | Evitando abrir nuevas operaciones para no duplicar trades (Falla de lectura).")
+        return  # Aborta el ciclo completo hasta el prÃ³ximo tick
         
     for activo in ACTIVOS:
         if not es_mercado_abierto(activo):
@@ -1305,7 +1305,7 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         num_abiertos = simbolos_abiertos.count(simbolo)
         ya_abierto = num_abiertos >= 1
             
-        # Análisis Multi-Temporal (MTF): 1H y 4H
+        # AnÃ¡lisis Multi-Temporal (MTF): 1H y 4H
         df_1h = await obtener_velas_cloud(account, simbolo, '1h', 100)
         df_4h = await obtener_velas_cloud(account, simbolo, '4h', 300)
         
@@ -1345,7 +1345,7 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
                 soporte_activo = True
                 break
                 
-        # 2. SMC Institucional Fusión (1H + 4H)
+        # 2. SMC Institucional FusiÃ³n (1H + 4H)
         conf_1h = analizar_smc_ict(df_1h)
         conf_4h = analizar_smc_ict(df_4h)
         
@@ -1363,10 +1363,10 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         # Mezclar las claves multi-temporales de Lux
         confirmaciones.update(memoria_inst)
         
-        # 1. Sincronizar confirmaciones con la matriz en Firestore (vía webhook)
+        # 1. Sincronizar confirmaciones con la matriz en Firestore (vÃ­a webhook)
         webhook_response = await sincronizar_matriz_tecnica(activo, confirmaciones, rsi_actual, ma_alineada, soporte_activo, bool(killzone_activa), poc_price)
         
-        # 2. Validar si el backend (Firebase) autorizó el gatillo (Score >= 80%)
+        # 2. Validar si el backend (Firebase) autorizÃ³ el gatillo (Score >= 80%)
         gatillo_autorizado = webhook_response and webhook_response.get("gatillo_entrada") is True
         
         tiene_lux = any(confirmaciones.get(f"lux_algo_ob_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
@@ -1375,24 +1375,24 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         tiene_retail = confirmaciones.get("smc_order_block", False) or bool(soporte_activo)
         es_escenario_6 = tiene_lux and not tiene_fvg and not tiene_retail
 
-        # REGLA ESTRICTA DE 1 TRADE MÁXIMO POR ACTIVO
+        # REGLA ESTRICTA DE 1 TRADE MÃXIMO POR ACTIVO
         if num_abiertos >= 1:
-            print(f"| REGLA DE RIESGO | Ya existe {num_abiertos} posición activa para {activo}. Omitiendo para evitar doble trade.")
+            print(f"| REGLA DE RIESGO | Ya existe {num_abiertos} posiciÃ³n activa para {activo}. Omitiendo para evitar doble trade.")
             continue
         
-        # Validar dirección de la posición actual para evitar Hedging (Ya no ocurrirá porque cortamos arriba)
+        # Validar direcciÃ³n de la posiciÃ³n actual para evitar Hedging (Ya no ocurrirÃ¡ porque cortamos arriba)
         direccion_abierta = None
 
         if gatillo_autorizado:
-            # 🛡️ El filtro Anti-Stop Hunt (Sweep) ahora está vectorizado matemáticamente en app.py (Score = 45).
-            # Ya no requerimos un if manual aquí. El backend solo aprobará (Score >= 80) si las matemáticas lo avalan.
+            # ðŸ›¡ï¸ El filtro Anti-Stop Hunt (Sweep) ahora estÃ¡ vectorizado matemÃ¡ticamente en app.py (Score = 45).
+            # Ya no requerimos un if manual aquÃ­. El backend solo aprobarÃ¡ (Score >= 80) si las matemÃ¡ticas lo avalan.
             
-            # 🛡️ HIPÓTESIS DEL USUARIO: Entrar antes de la apertura si el Score >= 80% 
+            # ðŸ›¡ï¸ HIPÃ“TESIS DEL USUARIO: Entrar antes de la apertura si el Score >= 80% 
             # previene entrar a destiempo y ser barrido por la volatilidad inicial.
             
             
                         # REGLA ESTRICTA DE TENDENCIA (EMA 50/200) + AMD + RSI 80/20
-            # Tendencia macro define la dirección base
+            # Tendencia macro define la direcciÃ³n base
             tendencia_alcista = precio_actual > ema_50 and precio_actual > ema_200
             tendencia_bajista = precio_actual < ema_50 and precio_actual < ema_200
             
@@ -1405,40 +1405,40 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             elif tendencia_bajista:
                 accion = "VENTA"
             else:
-                # Si el precio está consolidando entre las EMAs, usamos las señales SMC
+                # Si el precio estÃ¡ consolidando entre las EMAs, usamos las seÃ±ales SMC
                 accion = "COMPRA" if es_alcista else "VENTA"
 
             
-            # Solicitar autorización al cerebro (Mia)
+            # Solicitar autorizaciÃ³n al cerebro (Mia)
             decision = await solicitar_autorizacion_trade(activo, accion, precio_actual)
             
             if decision and decision.get("authorized") is True:
-                print(f"| LEONA DE LA LIQUIDEZ CLOUD | ¡Gatillo Cruzado Exitoso! Entrando al mercado...")
+                print(f"| LEONA DE LA LIQUIDEZ CLOUD | Â¡Gatillo Cruzado Exitoso! Entrando al mercado...")
                 exito = await ejecutar_orden_cloud(connection, activo, accion, precio_actual, decision, balance, presupuesto_restante)
                 if not exito:
-                    print(f"| GATILLO RECHAZADO | Falló la ejecución en el broker.")
+                    print(f"| GATILLO RECHAZADO | FallÃ³ la ejecuciÃ³n en el broker.")
             else:
-                reason = decision.get("reason", "Razón desconocida") if decision else "No hubo respuesta del cerebro"
-                print(f"| GATILLO RECHAZADO | El cerebro (Mia) denegó la ejecución: {reason}")
-                await reportar_rechazo(activo, f"Mia Denegó: {reason}")
+                reason = decision.get("reason", "RazÃ³n desconocida") if decision else "No hubo respuesta del cerebro"
+                print(f"| GATILLO RECHAZADO | El cerebro (Mia) denegÃ³ la ejecuciÃ³n: {reason}")
+                await reportar_rechazo(activo, f"Mia DenegÃ³: {reason}")
                 
         await asyncio.sleep(2)
 
 async def run_escaner_loop():
-    """Bucle infinito del escáner en segundo plano diseñado para integrarse con FastAPI."""
-    print("🤖 Iniciando escáner e ejecutor asíncrono de MetaAPI en la nube...")
+    """Bucle infinito del escÃ¡ner en segundo plano diseÃ±ado para integrarse con FastAPI."""
+    print("ðŸ¤– Iniciando escÃ¡ner e ejecutor asÃ­ncrono de MetaAPI en la nube...")
     
-    # Bucle de conexión hasta tener éxito
+    # Bucle de conexiÃ³n hasta tener Ã©xito
     account, connection = None, None
     while not account or not connection:
         account, connection = await conectar_metaapi()
         if not account or not connection:
-            print("⏳ Reintentando conexión a MetaAPI en 15 segundos...")
-            await asyncio.sleep(15)
+            print("â³ Reintentando conexiÃ³n a MetaAPI en 15 segundos...")
+            await asyncio.sleep(300) # [MODIFICADO] Pausado 5 minutos para evitar baneo de IP por MetaAPI
             
-    print("🚀 Escáner de trading asíncrono iniciado correctamente.")
+    print("ðŸš€ EscÃ¡ner de trading asÃ­ncrono iniciado correctamente.")
     
-    # Temporizador para el escáner pesado (cada 15 min)
+    # Temporizador para el escÃ¡ner pesado (cada 15 min)
     ultima_ejecucion_escaner = 0
     
     while True:
@@ -1449,8 +1449,8 @@ async def run_escaner_loop():
             # Obtener balance SIEMPRE (el Gestor de Riesgo lo necesita cada 30s)
             balance, equity = await obtener_balance(connection)
             
-            # 🛡️ MONITOREO 24/7 ACTIVADO: Se quitó el bloqueo de es_ventana_operativa 
-            # ya que el Firebase Cache Bug fue resuelto y la API está a salvo.
+            # ðŸ›¡ï¸ MONITOREO 24/7 ACTIVADO: Se quitÃ³ el bloqueo de es_ventana_operativa 
+            # ya que el Firebase Cache Bug fue resuelto y la API estÃ¡ a salvo.
             if FASTAPI_URL and balance > 0:
                 try:
 
@@ -1459,7 +1459,7 @@ async def run_escaner_loop():
                 except Exception as e:
                     pass
                     
-            # Ejecutar Escáner de Mercado cada 15 Minutos (900s)
+            # Ejecutar EscÃ¡ner de Mercado cada 15 Minutos (900s)
             if ahora - ultima_ejecucion_escaner >= 900:
                 await ejecutar_escaner_cloud(account, connection, skip_risk=True)
                 ultima_ejecucion_escaner = ahora
@@ -1470,13 +1470,13 @@ async def run_escaner_loop():
                 print(f"| GESTOR POSICIONES ERROR | {e}")
                 
         except Exception as e:
-            print(f"| RUNNER CLOUD ERROR | Ocurrió un fallo en el escáner: {e}")
-            await reportar_error_nube("Escáner Core", str(e))
+            print(f"| RUNNER CLOUD ERROR | OcurriÃ³ un fallo en el escÃ¡ner: {e}")
+            await reportar_error_nube("EscÃ¡ner Core", str(e))
             
         await asyncio.sleep(60) # Loop base optimizado a 60 segundos para evitar 429
 
 async def abrir_posicion_test(simbolo: str, lote: float) -> str:
-    """Función de prueba para abrir una posición directamente en MetaAPI."""
+    """FunciÃ³n de prueba para abrir una posiciÃ³n directamente en MetaAPI."""
     try:
         from metaapi_cloud_sdk import MetaApi
     except ImportError:
@@ -1500,7 +1500,7 @@ async def abrir_posicion_test(simbolo: str, lote: float) -> str:
         await connection.connect()
         await connection.wait_synchronized()
         
-        # Obtener símbolo del broker
+        # Obtener sÃ­mbolo del broker
         simbolo_broker = MAPEO_BROKER.get(simbolo, simbolo)
         
         # Generar clientId
@@ -1530,8 +1530,9 @@ async def abrir_posicion_test(simbolo: str, lote: float) -> str:
         print(f"| TEST TRADE | Enviando compra al broker para {simbolo_broker} (Precio: {precio_ej}, SL: {sl}, TP: {tp})")
         result = await connection.create_market_buy_order(simbolo_broker, lote, sl, tp, options)
         order_id = result.get("orderId", "N/A")
-        print(f"| TEST TRADE SUCCESS | Posición abierta con éxito. Ticket ID: {order_id}")
+        print(f"| TEST TRADE SUCCESS | PosiciÃ³n abierta con Ã©xito. Ticket ID: {order_id}")
         return f"Exito: Orden colocada. Ticket ID: {order_id}"
     except Exception as e:
         print(f"| TEST TRADE ERROR | Fallo la orden de prueba: {e}")
         return f"Error: {e}"
+
