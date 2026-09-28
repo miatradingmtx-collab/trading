@@ -1434,7 +1434,7 @@ async def run_escaner_loop():
         account, connection = await conectar_metaapi()
         if not account or not connection:
             print("â³ Reintentando conexiÃ³n a MetaAPI en 15 segundos...")
-            await asyncio.sleep(300) # [MODIFICADO] Pausado 5 minutos para evitar baneo de IP por MetaAPI
+            await asyncio.sleep(15)
             
     print("ðŸš€ EscÃ¡ner de trading asÃ­ncrono iniciado correctamente.")
     
@@ -1535,4 +1535,5 @@ async def abrir_posicion_test(simbolo: str, lote: float) -> str:
     except Exception as e:
         print(f"| TEST TRADE ERROR | Fallo la orden de prueba: {e}")
         return f"Error: {e}"
+
 
