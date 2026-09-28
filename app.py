@@ -3579,13 +3579,18 @@ def api_herds_sync_firebase():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# --- Montar Servidor MCP y Agente Investigador ATLAS ---
+# --- Montar Servidores MCP (Trading y Back-Office Ops Desacoplados) ---
 try:
     from mia_mcp_server import mcp_router, api_mcp_router
     app.include_router(mcp_router)
     app.include_router(api_mcp_router)
+    
+    from mia_ops_mcp_server import ops_mcp_router, api_ops_mcp_router
+    app.include_router(ops_mcp_router)
+    app.include_router(api_ops_mcp_router)
+    print("| MCP | Routers de Trading (/mcp) y Back-Office Ops (/mcp/ops) montados con éxito.")
 except Exception as e_mcp:
-    print(f"| MCP | Error montando MCP en app.py: {e_mcp}")
+    print(f"| MCP | Error montando servidores MCP en app.py: {e_mcp}")
 
 @app.get("/api/researcher/latest")
 def api_researcher_latest():

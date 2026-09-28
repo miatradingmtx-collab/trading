@@ -1627,6 +1627,18 @@ ecent_logs desde cache_hist_mt5.
   - **Segmentación de Canales (Cero Ruido):**
     - `#mia-trading-herds`: Deliberación HFT de mercado (7 Herds).
     - `#mia-ops-watchdog`: Auditoría de base de datos, salud de contenedores y aprobaciones críticas.
+### [Update 2026-09-28 - Sesión 36] - Arquitectura Modular MCP Segregada: Servidor MCP de Trading vs Servidor MCP de Back-Office (Least Privilege)
+- **Veredicto de Mejores Prácticas: ¿Mezclar o Segregar Servidores MCP?:**
+  - **Segregación Estricta por Dominio:** Prohibido mezclar herramientas de infraestructura (base de datos, Slack, reinicios) dentro del servidor MCP de trading.
+  - **Riesgo Mitigado:** Evita que agentes de mercado (ATLAS o LLMs externos) tengan privilegios para alterar la base de datos o ejecutar acciones destructivas, y ahorra tokens de contexto al no contaminar los schemas de trading.
+- **Topología de los 2 Servidores MCP en Railway:**
+  1. **Servidor MCP de Trading (`mia_mcp_server.py` en `/mcp` y `/api/mcp`):**
+     - Herramientas: `mcp_scan_footprint_delta`, `mcp_calc_dynamic_atr`, `mcp_scan_orderbook_depth`, `mcp_market_sentiment_news`, `mcp_run_strategy_backtest`.
+     - Consumidores: HERD 7 (ATLAS), TIDAL, NORO y Enjambres de Mercado.
+  2. **Servidor MCP de Back-Office & Ops (`mia_ops_mcp_server.py` en `/mcp/ops` y `/api/mcp/ops`):**
+     - Herramientas: `mcp_ops_sync_mt5_cache`, `mcp_ops_recalibrate_regla_de_3`, `mcp_ops_sanitize_pnl_decimals`, `mcp_ops_get_system_health`, `mcp_ops_dispatch_slack_approval`, `mcp_ops_run_full_audit`.
+     - Consumidores: Watchdog Supervisor, Slack Bridge y Agentes de Mantenimiento.
+  - **Compatibilidad Dual:** Ambos servidores exponen soporte para JSON-RPC 2.0 (MCP Specification estándar) y endpoints REST para máxima interoperabilidad.
 
 ---
 
