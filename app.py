@@ -4454,6 +4454,19 @@ def supervisor_audit():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/system_ops/audit")
+def system_ops_audit():
+    """
+    Endpoint del Enjambre de Infraestructura y Operaciones (MIA System Ops Swarm):
+    Ejecuta la auditoría desacoplada de los 4 Herds Técnicos + Watchdog Supervisor.
+    Cero consumo de tokens LLM en OpenRouter.
+    """
+    try:
+        from mia_system_ops_swarm import system_ops_supervisor
+        return system_ops_supervisor.run_swarm_audit()
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.get("/api/cron/train_tensorflow")
 def train_tensorflow():
     """

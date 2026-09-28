@@ -104,5 +104,18 @@ trigger: always_on
 1. **Regla de 3 Dinámica:** La colección `mia_kb/regla_de_3` y el slot `cache_regla_de_3` no pueden permanecer con fechas estáticas. El Top 1, Top 2 y Top 3 deben recalibrarse automáticamente según el WinRate real de `indicadores_impacto`, actualizando el timestamp `ultima_actualizacion` en tiempo real.
 2. **MIA Supervisor Watchdog (`mia_supervisor_agent.py`):** Un agente autónomo en segundo plano monitorea la integridad de los datos, previene ráfagas masivas duplicadas de reportes HFT en Firestore y mantiene sincronizado el Dashboard sin necesidad de intervención manual o nuevos prompts.
 
+---
+name: arquitectura_dual_swarms_desacoplados
+description: Regla de desacoplamiento estricto entre Enjambre de Trading y Enjambre de Infraestructura / Ops.
+trigger: always_on
+---
+
+# ⚡ REGLA: ARQUITECTURA DUAL DE ENJAMBRES (TRADING VS SYSTEM OPS)
+1. **Desacoplamiento Front-Office / Back-Office:** Queda estrictamente prohibido mezclar tareas de infraestructura, sanitización de base de datos o cómputo de métricas de UI dentro del Enjambre de Trading de Mercado (`mia_master_swarm_rest.py`).
+2. **Enjambre de Trading (`MIA_MARKET_TRADING_SWARM`):** 7 Herds Especializados (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS) + MASTER Gatekeeper enfocados exclusivamente en la lectura de mercado, SMC, DOM, CVD Delta y deliberación a OpenRouter.
+3. **Enjambre de Operaciones (`MIA_SYSTEM_OPS_SWARM`):** 4 Herds Técnicos (HERD T1 DB_SYNC, HERD T2 KB_ENGINE, HERD T3 KPI_ANALYTICS, HERD T4 DEVOPS_HEALTH) bajo el mando del `WATCHDOG SUPERVISOR`.
+4. **Cero Tokens LLM en Infraestructura:** El Enjambre de Operaciones corre en Python nativo determinista, consumiendo cero tokens de LLM y cero cuota de Firebase mediante Upstash Redis.
+
+
 
 
