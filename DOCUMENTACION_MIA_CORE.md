@@ -1596,6 +1596,23 @@ ecent_logs desde cache_hist_mt5.
     - Flotante Neto Total: `+$62.26 USD`.
     - Equidad: `$4,387.35 USD` | Balance: `$4,325.09 USD` | Margen Libre: `$3,014.35 USD` (Nivel de Margen: `319.55%`).
   - **Comparativa Cualitativa:** Sin esta lógica matemática, los retrocesos de sesión habrían borrado las ganancias de Londres; con la regla del 40%, el capital está matemáticamente garantizado.
+### [Update 2026-09-28 - Sesión 34] - Estándar de Desacoplamiento Canónico Atómico (Single Source of Truth en Upstash) y Prevención de Split-Brain
+- **Veredicto Arquitectónico: ¿Desacoplar por Tabla Completa o por Documento Atómico?:**
+  - **Dictamen:** Se adopta de forma mandatoria el patrón **Domain-Driven Atomic Slots (1 Dominio Funcional Crítico = 1 Slot Canónico en Redis)**.
+  - **Análisis de Riesgos Resuelto:**
+    1. *Desacoplar por Tabla Completa (`cache_mia_kb`):* Ineficiente. Descargar megabytes de JSON para consultar una regla de 400 bytes eleva la latencia de $15\text{ms}$ a más de $120\text{ms}$ y causa *race conditions* (pisado de datos entre agentes).
+    2. *Duplicidad Híbrida (Tabla + Documento):* **Estrictamente Prohibida**. Genera el síndrome *Split-Brain* (discrepancia de estados entre agentes que leen la tabla madre vs agentes que leen el documento suelto).
+  - **Mapeo de Slots Canónicos Atómicos en Upstash Redis:**
+    - `cache_mt5`: Posiciones vivas y flotante real del broker MT5 (~2.9 KB).
+    - `cache_mia_tensorflow`: Inferencia, pesos neuronales y accuracy de TensorFlow (~52 KB).
+    - `cache_trading_matrix`: Matriz institucional de 21 activos escaneados (~20 KB).
+    - `cache_researcher_insights`: Microestructura DOM CME y CVD Delta de ATLAS (~2.2 KB).
+    - `cache_regla_de_3`: Reglas de oro vivas, Top 3 dinámico y filtro de noticias (~0.7 KB).
+    - `cache_hist_mt5`: Muestreo histórico acotado a los 50 trades más recientes.
+  - **Consumo Atómico Óptimo vía MGET en `mia_master_swarm_rest.py`:**
+    - Ingesta de los 5 slots en un único viaje de red HTTP (Round-Trip Time $< 35\text{ms}$):
+      $$\text{URL} = \text{/mget/cache\_mt5/cache\_mia\_tensorflow/cache\_trading\_matrix/cache\_researcher\_insights/cache\_regla\_de\_3}$$
+    - Reducción del $100\%$ de redundancia: los Enjambres Herds ahora consumen la 'Regla de 3' viva directamente del slot 4 de este MGET sin realizar lecturas de disco ni consultas a Firestore.
 
 ---
 

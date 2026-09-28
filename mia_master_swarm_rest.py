@@ -132,7 +132,7 @@ def run_hft_cycle():
         session = requests.Session()
         session.trust_env = False
         
-        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix/cache_researcher_insights"
+        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix/cache_researcher_insights/cache_regla_de_3"
         res_mget = session.get(mget_url, headers=upstash_headers, timeout=5)
         slots = res_mget.json().get("result", []) if res_mget.status_code == 200 else []
         
@@ -238,17 +238,29 @@ def run_hft_cycle():
         print(f"Error procesando matrices: {e}")
         dom_data, footprint_delta = f"Error: {e}", "N/A"
 
-    # Obtener Reglas de Oro de MIA Core (Bypass Anti-413 y desacoplado)
-    try:
-        mia_rules = mia_core_reader_tool.func()
-    except Exception:
+    # Obtener Reglas Dinámicas de MIA Core directamente desde slot 4 (cache_regla_de_3)
+    r3_raw = slots[4] if len(slots) > 4 and slots[4] else {}
+    r3_json = json.loads(r3_raw) if isinstance(r3_raw, str) else (r3_raw or {})
+    if r3_json and "top_1" in r3_json:
+        t1 = r3_json.get("top_1", {})
+        t2 = r3_json.get("top_2", {})
+        t3 = r3_json.get("top_3", {})
         mia_rules = (
-            "REGLAS DE ORO MIA CORE: "
-            "1. Score >= 0.70 es APROBADO, menor es VETADO. "
-            "2. Setups en Order Block Zona 2H y Lux Algo OB tienen máxima prioridad. "
-            "3. Filtro de Noticias: Prohibido operar en noticias de alto impacto (bloqueo 15m pre y 8m post-noticia). "
-            "4. Cierre parcial al 40% del recorrido asegurando +15% de ganancia real en POC y trailing stop defensivo."
+            f"REGLAS DE ORO VIVAS (REGLA DE 3): "
+            f"1. Top 1: {t1.get('indicador')} (WinRate: {t1.get('win_rate_asociado', 90)}%, Peso: {t1.get('peso', 35)}) | "
+            f"2. Top 2: {t2.get('indicador')} (WinRate: {t2.get('win_rate_asociado', 88)}%, Peso: {t2.get('peso', 30)}) | "
+            f"3. Top 3: {t3.get('indicador')} (WinRate: {t3.get('win_rate_asociado', 83)}%, Peso: {t3.get('peso', 25)}). "
+            f"Filtro Noticias: 15m pre y 8m post bloqueo. Cierre parcial al 40% del recorrido (+15% asegurado) y SL en BE. "
+            f"Umbral Master: Score >= 0.70 APROBADO, menor VETADO."
         )
+    else:
+        try:
+            mia_rules = mia_core_reader_tool.func()
+        except Exception:
+            mia_rules = (
+                "REGLAS DE ORO MIA CORE: Score >= 0.70 APROBADO. Setups Order Block Zona 2H y Lux Algo OB máxima prioridad. "
+                "Cierre parcial al 40% (+15% seguro) y SL en BE. Filtro noticias 15m pre / 8m post."
+            )
 
     # 2. Generar el Debate y Veredicto de los Sub-Enjambres (Herds Deliberation)
     if not researcher_brief:

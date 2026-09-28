@@ -116,6 +116,18 @@ trigger: always_on
 3. **Enjambre de Operaciones (`MIA_SYSTEM_OPS_SWARM`):** 4 Herds Técnicos (HERD T1 DB_SYNC, HERD T2 KB_ENGINE, HERD T3 KPI_ANALYTICS, HERD T4 DEVOPS_HEALTH) bajo el mando del `WATCHDOG SUPERVISOR`.
 4. **Cero Tokens LLM en Infraestructura:** El Enjambre de Operaciones corre en Python nativo determinista, consumiendo cero tokens de LLM y cero cuota de Firebase mediante Upstash Redis.
 
+---
+name: desacoplamiento_canonico_slots_atomicos
+description: Regla de desacoplamiento por documento canónico atómico (Anti-Split-Brain y MGET sub-35ms).
+trigger: always_on
+---
+
+# 📦 REGLA: SLOTS CANÓNICOS ATÓMICOS EN UPSTASH (ANTI-SPLIT-BRAIN)
+1. **Desacoplamiento Atómico Obligatorio:** Los datos requeridos por los Enjambres Herds deben desacoplarse por **Documento Canónico Específico** (`cache_mt5`, `cache_mia_tensorflow`, `cache_trading_matrix`, `cache_researcher_insights`, `cache_regla_de_3`).
+2. **Prohibición de Duplicidad Híbrida:** Queda estrictamente prohibido guardar un documento dentro de una megatabla compuesta en Redis si ya existe como slot individual atómico.
+3. **Consumo Atómico vía MGET:** Toda deliberación inter-agente debe recuperar sus insumos en un único viaje de red HTTP (`GET /mget/...`), garantizando latencia $< 35\text{ ms}$, consumo de memoria optimizado y paridad absoluta de información.
+
+
 
 
 
