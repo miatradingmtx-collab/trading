@@ -2889,7 +2889,7 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
 
         audit_data_dict = {
             "ticket": ejecucion.ticket,
-            "estrategia": estrategia_real,
+            "estrategia": estrategia_limpia,
             "activo": ejecucion.activo,
             "accion": ejecucion.accion,
             "score": ejecucion.score,
@@ -4688,6 +4688,7 @@ def get_swarm_history():
     except Exception as e:
         print(f"| SWARM HISTORY ERROR | {e}")
         return {"status": "error", "message": str(e)}
+
 
 
 
