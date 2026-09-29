@@ -457,7 +457,17 @@ class OpsLearningKnowledgeBase:
             r = requests.get(f"{UPSTASH_URL}/get/{self.SLOT_KEY}", headers=UPSTASH_HEADERS, timeout=4)
             if r.status_code == 200 and r.json().get("result"):
                 raw = r.json().get("result")
-                return json.loads(raw) if isinstance(raw, str) else (raw or {})
+                loaded_kb = json.loads(raw) if isinstance(raw, str) else (raw or {})
+                if self.db is not None and loaded_kb:
+                    try:
+                        self.db.collection("system_memory").document(self.SLOT_KEY).set(loaded_kb, merge=True)
+                        for c in loaded_kb.get("casos_aprendizaje", []):
+                            cid = c.get("case_id")
+                            if cid:
+                                self.db.collection("mia_ops_learning_history").document(cid).set(c, merge=True)
+                    except Exception:
+                        pass
+                return loaded_kb
         except Exception:
             pass
 

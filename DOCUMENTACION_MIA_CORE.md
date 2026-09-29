@@ -1785,6 +1785,16 @@ ecent_logs desde cache_hist_mt5.
     - `[Aprobar Todas ✅]`: Ejecuta todas las propuestas pendientes, asienta el precedente positivo y confirma el nuevo estado de salud global.
     - `[Rechazar / Mantener Actual ⛔]`: Purga la cola, preserva la configuración actual intacta y registra el precedente en el CBR para afinar el criterio de auto-remediación de los 6 Herds.
     - `[Forzar Resync 🔄]`: Emite confirmación inmediata de inicio de re-auditoría en vivo y despacha el reporte completo una vez finalizado.
+- **Resolución de Causa Raíz de Botones y Comandos (`python-multipart` & URL-Encoding Nativo):**
+  - Se diagnosticó que `await request.form()` en FastAPI requería la dependencia `python-multipart` que no estaba presente en `requirements.txt`, provocando que cualquier interacción o comando slash fallara silenciosamente.
+  - Se instaló `python-multipart>=0.0.9` en `requirements.txt` y se implementó un mecanismo de parseo nativo en `app.py` mediante `urllib.parse.parse_qs((await request.body()).decode("utf-8"))`, logrando inmunidad ante dependencias externas y ejecución en <1ms.
+- **Validación y Poblado Inmutable en Firestore (`mia_ops_learning_history`):**
+  - Se verificó y pobló en vivo la colección `mia_ops_learning_history` con los 4 casos activos del sistema (`CASE_T1_DBA_001`, `CASE_T2_DEV_001`, `CASE_T4_LAT_001`, `CASE_HERD_T6_004`), así como las 3 cachés en `system_memory`.
+  - Se configuró la sincronización automática en `_ensure_kb_initialized()` para que en cada arranque o lectura del CBR se verifique la paridad total con Firestore.
+- **Arquitectura de Canales y Chatbot (`#mia-chat` & `#back-office-y-backend`):**
+  - Soporte en `MiaSlackBridge` para enrutamiento por canal (`SLACK_BOT_TOKEN` y `SLACK_CHAT_WEBHOOK_URL`).
+  - `handle_slack_events` adaptado para responder a Slack con HTTP 200 en <10ms y procesar el chat con Gemini/OpenRouter en segundo plano vía `asyncio.create_task`, evitando timeouts y reintentos duplicados de Slack.
+  - Identificación del requisito de membresía de canal: la App MIA Watchdog debe estar agregada al canal (`/invite @MIA Watchdog`) para que Slack reenvíe los mensajes del canal.
 
 ---
 

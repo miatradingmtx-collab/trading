@@ -18,6 +18,7 @@ from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Header, Re
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 import csv
+import urllib.parse
 from io import StringIO
 from typing import Optional
 import requests
@@ -4539,8 +4540,22 @@ async def handle_slack_interaction(request: Request):
     """
     try:
         from mia_system_ops_swarm import system_ops_supervisor
-        form_data = await request.form()
-        payload_str = form_data.get("payload")
+        payload_str = None
+        try:
+            body_bytes = await request.body()
+            body_str = body_bytes.decode("utf-8")
+            parsed = urllib.parse.parse_qs(body_str)
+            payload_str = parsed.get("payload", [""])[0]
+        except Exception:
+            pass
+
+        if not payload_str:
+            try:
+                form_data = await request.form()
+                payload_str = form_data.get("payload")
+            except Exception:
+                pass
+
         if not payload_str:
             return Response(content="Payload missing", media_type="text/plain", status_code=200)
 
@@ -5046,29 +5061,53 @@ async def handle_slack_events(request: Request):
         event_type = event.get("type")
         text = event.get("text", "")
         bot_id = event.get("bot_id")
+        subtype = event.get("subtype")
 
-        if bot_id or not text:
-            return {"status": "ignored"}
+        # Evitar auto-respuestas o loops de mensajes generados por bots
+        if bot_id or subtype in ["bot_message", "message_changed", "message_deleted"] or not text:
+            return Response(content="ignored", media_type="text/plain", status_code=200)
 
         if event_type in ["app_mention", "message"]:
             channel_id = event.get("channel")
-            from mia_supervisor_chat import chat_with_mia
-            reply = chat_with_mia(text)
-            from mia_slack_bridge import slack_bridge
-            slack_bridge.send_channel_message(f"👑 *MIA Supervisor:*\n{reply}", channel=channel_id)
-            return {"status": "replied"}
+            
+            async def async_chat_reply():
+                try:
+                    from mia_supervisor_chat import chat_with_mia
+                    reply = chat_with_mia(text)
+                    from mia_slack_bridge import slack_bridge
+                    slack_bridge.send_channel_message(f"👑 *MIA Supervisor:*\n{reply}", channel=channel_id)
+                except Exception as e_reply:
+                    print(f"| SLACK CHAT EVENT ERROR | {e_reply}")
 
-        return {"status": "ok"}
+            asyncio.create_task(async_chat_reply())
+            return Response(content="ok", media_type="text/plain", status_code=200)
+
+        return Response(content="ok", media_type="text/plain", status_code=200)
     except Exception as e:
-        return {"status": "error", "error": str(e)}
+        return Response(content=f"error: {e}", media_type="text/plain", status_code=200)
 
 @app.post("/api/slack/command")
 async def handle_slack_command(request: Request):
     """Maneja Slash Commands de Slack (/mia, /mia-chat, /mia-status, /mia-audit)"""
     try:
-        form = await request.form()
-        command = form.get("command", "")
-        text = (form.get("text") or "").strip()
+        command = ""
+        text = ""
+        try:
+            body_bytes = await request.body()
+            body_str = body_bytes.decode("utf-8")
+            parsed = urllib.parse.parse_qs(body_str)
+            command = parsed.get("command", [""])[0]
+            text = parsed.get("text", [""])[0].strip()
+        except Exception:
+            pass
+
+        if not command:
+            try:
+                form = await request.form()
+                command = form.get("command", "")
+                text = (form.get("text") or "").strip()
+            except Exception:
+                pass
 
         # Diálogo conversacional con Mia (/mia o si saluda 'Hola Mia')
         if command in ["/mia", "/mia-chat", "/chat"] or "hola mia" in text.lower():
