@@ -106,9 +106,31 @@ OPS_TOOLS_REGISTRY = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "message": {"type": "string", "description": "Mensaje o consulta del usuario"}
+                "message": {"type": "string", "description": "Mensaje o consulta del usuario"},
+                "channel": {"type": "string", "description": "Canal de origen opcional (ej: 'mia-chat' o 'back-office-y-backend')"}
             },
             "required": ["message"]
+        }
+    },
+    {
+        "name": "mcp_ops_send_slack_message",
+        "description": "CHATOPS SLACK: Envía un mensaje formateado a cualquier canal de Slack (#mia-chat, #back-office-y-backend) usando SLACK_BOT_TOKEN o Webhook.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "message": {"type": "string", "description": "Texto formateado en Markdown para Slack"},
+                "channel": {"type": "string", "description": "Nombre o ID del canal destino (ej: '#mia-chat', '#back-office-y-backend')"}
+            },
+            "required": ["message"]
+        }
+    },
+    {
+        "name": "mcp_ops_get_slack_status",
+        "description": "CHATOPS SLACK: Verifica la conectividad, credenciales (Bot Token xoxb, Webhook) y canales activos de Slack.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "required": []
         }
     }
 ]
@@ -140,8 +162,29 @@ def execute_ops_tool(tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any
     elif tool_name == "mcp_ops_chat_with_mia":
         from mia_supervisor_chat import chat_with_mia
         msg = arguments.get("message", "Hola Mia")
-        reply = chat_with_mia(msg)
-        return {"status": "SUCCESS", "reply": reply}
+        ch = arguments.get("channel")
+        engine = "gemini" if ch and "chat" in str(ch).lower() else None
+        reply = chat_with_mia(msg, force_engine=engine)
+        return {"status": "SUCCESS", "reply": reply, "engine": engine or "auto_detected"}
+
+    elif tool_name == "mcp_ops_send_slack_message":
+        msg = arguments.get("message", "")
+        ch = arguments.get("channel")
+        sent = slack_bridge.send_channel_message(msg, channel=ch)
+        return {"status": "SUCCESS" if sent else "ERROR", "delivered": sent, "channel": ch or "default_webhook"}
+
+    elif tool_name == "mcp_ops_get_slack_status":
+        has_token = bool(slack_bridge.bot_token)
+        has_webhook = bool(slack_bridge.webhook_url)
+        token_prefix = slack_bridge.bot_token[:9] + "..." if has_token else "NOT_SET"
+        return {
+            "status": "OPERATIONAL" if (has_token or has_webhook) else "DISCONNECTED",
+            "bot_user_oauth_token_active": has_token,
+            "bot_token_prefix": token_prefix,
+            "incoming_webhook_active": has_webhook,
+            "supported_channels": ["#back-office-y-backend", "#mia-chat"],
+            "direct_api_enabled": has_token
+        }
 
     else:
         raise ValueError(f"Herramienta MCP Ops desconocida: '{tool_name}'")

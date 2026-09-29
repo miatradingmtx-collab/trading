@@ -1110,6 +1110,20 @@ ecent_logs desde cache_hist_mt5.
   - Se implement persistencia en Redis del mapeo `slack_channel_{channel_id}` para identificar con certeza si el evento procede de `#mia-chat` o `#back-office-y-backend`.
   - Se determin el requisito arquitectnico del `Bot User OAuth Token` (`SLACK_BOT_TOKEN`, prefijo `xoxb-...`): mientras los Slash Commands proveen `response_url` efmero, los Event Subscriptions (chat libre sin `/`) requieren obligatoriamente invocar `chat.postMessage` para publicar dinmicamente en los canales correspondientes.
 
+### [Update 2026-09-29 - Sesin 46] - Integracin del Bot User OAuth Token (SLACK_BOT_TOKEN) en Railway y Registro en MCP Ops Server
+- **Inyeccin de Credenciales en Railway (`rare-creation` 927a y `rare-enthusiasm` 1fd4):**
+  - Se inyectaron exitosamente las variables de entorno `SLACK_BOT_TOKEN=xoxb-REDACTED-TOKEN` y `SLACK_WEBHOOK_URL` en ambos proyectos de Railway va Railway CLI (`railway variables --set`), as como en el archivo local `.env`.
+- **Registro de Herramientas de ChatOps en el MCP Ops Server (`mia_ops_mcp_server.py`):**
+  - Se incorporaron dos nuevas herramientas oficiales en el registro del MCP Ops Server para que los agentes y subagentes de Fases 2 y 3 interacten nativamente con Slack:
+    1. `mcp_ops_send_slack_message`: Despacho de mensajes formateados en Markdown a `#mia-chat` o `#back-office-y-backend` usando la API directa de Slack (`chat.postMessage`) o Webhook de respaldo.
+    2. `mcp_ops_get_slack_status`: Auditora de conectividad y estado operativo de credenciales (OAuth token activo `xoxb-REDACTED-TOKEN...`, Incoming Webhook, y canales soportados).
+  - Ambos endpoints de MCP fueron verificados en vivo con despacho confirmado en ambos canales (`SUCCESS`).
+- **Veredicto Arquitectnico de Despliegue (927a vs 1fd4):**
+  - **Core Gateway (`trading-production-927a.up.railway.app` / `rare-creation`):** Mantiene la centralizacin de ChatOps, MT5 Broker, Triage y Supervisor Watchdog con lecturas <15ms en Upstash Redis (`MGET`).
+  - **Cluster TensorFlow (`trading-production-1fd4.up.railway.app` / `rare-enthusiasm`):** Mantiene la carga de red neuronal profunda 3D aislada para evitar contencin de recursos. Ambas instancias mantienen credenciales de Slack idnticas para redundancia.
+- **Soporte de Chat Libre en Texto Plano:**
+  - El sistema cuenta con soporte para conversacin libre sin comandos de barra diagonal (`/`) gracias al mtodo nativo `chat.postMessage` de `SLACK_BOT_TOKEN`, enrutando automticamente a Gemini Pro en `#mia-chat` y a OpenRouter Quant en `#back-office-y-backend`.
+
 ---
 
 name: deprecacion_crewai_langchain
