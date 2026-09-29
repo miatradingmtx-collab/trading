@@ -1640,7 +1640,30 @@ ecent_logs desde cache_hist_mt5.
      - Consumidores: Watchdog Supervisor, Slack Bridge y Agentes de Mantenimiento.
   - **Compatibilidad Dual:** Ambos servidores exponen soporte para JSON-RPC 2.0 (MCP Specification estándar) y endpoints REST para máxima interoperabilidad.
 
+### [Update 2026-09-28 - Sesión 37] - Malla de 6 Herds Técnicos de Operaciones, Triage Senior del Watchdog, Homologación Antigravity vs Cloud y Estándar Plotly
+- **Evolución a Malla de 6 Herds Especializados (Back-Office):**
+  - Se estructuró el Enjambre de Operaciones (`mia_system_ops_swarm.py`) bajo 6 dominios técnicos autónomos:
+    1. **HERD T1 (DBA_SENTINEL):** Integridad de base de datos Firestore y Upstash Redis. Sanitización en caliente de valores `null`/`NaN` y depuración de órdenes fantasma.
+    2. **HERD T2 (SENIOR_CODE_AUDITOR):** Análisis sintáctico profundo con AST (`ast.parse`), depuración de caracteres no imprimibles (BOM UTF-8 en `app.py`), imports y prevención de librerías deprecadas.
+    3. **HERD T3 (OBSERVABILITY_SRE):** Monitoreo activo de endpoints de producción en Railway (`1fd4` y `927a`), OpenRouter, Servidores MCP (`/mcp` y `/mcp/ops`), Upstash Redis Gateway y GitHub.
+    4. **HERD T4 (CACHE_LATENCY_SPECIALIST):** Desacoplamiento canónico atómico por documento, garantía de latencia MGET $< 35\text{ms}$ y sincronización perpetua de `cache_regla_de_3`.
+    5. **HERD T5 (FINOPS_BILLING_CONTROLLER):** Control presupuestario en modo Spark (Railway, OpenRouter, MetaAPI, límite 50k de Firebase Spark), con monitoreo preventivo de alertas de pago a 48 horas con montos exactos y enlaces directos.
+    6. **HERD T6 (UIUX_DASHBOARD_DESIGNER):** Auditoría visual y funcional de los 3 dashboards en vivo:
+       - `/brain`: Visualizador Canvas de la Red Neuronal TensorFlow (7-10-8-2).
+       - `/`: Enjambres 3D Orbitales (React Three Fiber / Antopus Orbit).
+       - `/dashboard`: KPIs financieros y trades de MT5 bajo la estética y dinamismo de **Plotly Quant Dark Theme** (`https://plotly.com/`), preservando intactos el menú lateral, balance, equidad, margen, floating PnL, regla de 3 y tabla de posiciones.
+- **Triage Senior del Supervisor Watchdog Master:**
+  - El Watchdog centraliza los resultados y los clasifica de forma categórica:
+    - `[AUTO-CORREGIDO EN CALIENTE ✅]`: Tareas resueltas inmediatamente en tiempo de ejecución (ej. saneamiento de campos, depuración de órdenes fantasma, BOM stripping).
+    - `[REQUIERE APROBACIÓN HUMANA ⚠️]`: Acciones de fondo (pagos de servicios cloud, propuestas de rediseño visual Plotly, migraciones de esquema) enviadas a Slack (`#back-office-y-backend`) con Block Kit interactivo y botones `[Aprobar Cambio ✅]` y `[Rechazar / Cancelar ⛔]`.
+- **Homologación Antigravity (Local) vs OpenRouter (Railway Cloud):**
+  - **Dictamen:** Se garantiza paridad absoluta entre las instrucciones que ejecuta el usuario localmente en Antigravity y la ejecución autónoma en Railway.
+  - **Patrón Híbrido:** Las comprobaciones rutinarias corren en Python nativo a costo \$0.00 USD (0 tokens); si surge una excepción de código compleja en la nube, el sistema invoca de forma quirúrgica a OpenRouter (`Claude 3.5 Sonnet`, `DeepSeek V3` o `Llama 3.3 70B`) para diagnóstico y hot-fix con el mismo nivel cognitivo que Antigravity.
+- **Consola CLI Multiplataforma (`mia_ops_cli.py` y `Abrir_Ops_CLI.bat`):**
+  - Actualizado para renderizar a todo color en terminal los 6 Herds, métricas de red, slots de Upstash y el bloque de Triage Senior en vivo.
+
 ---
+
 
 
 

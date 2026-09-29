@@ -1,122 +1,155 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-MIA OPS CLI - TERMINAL DE COMUNICACIÓN EN VIVO (BACK-OFFICE SWARM)
-==================================================================
-Interfaz de consola para monitorear en tiempo real la deliberación,
-acciones técnicas y auditorías del Enjambre de Operaciones (MIA System Ops Swarm).
-Muestra en vivo a:
-- HERD T1 (DB_SYNC / CACHE_GUARD)
-- HERD T2 (KB_ENGINE / REGLA_DE_3)
-- HERD T3 (KPI_FINANCIAL_ANALYTICS)
-- HERD T4 (DEVOPS_RAILWAY_HEALTH)
-- WATCHDOG SUPERVISOR MASTER
+================================================================================
+MIA SYSTEM OPS CLI - CONSOLA DE MONITOREO DEL ENJAMBRE DE OPERACIONES
+================================================================================
+Visualizador en tiempo real de la Malla de 6 Herds de Infraestructura y el
+Supervisor General (MIA Watchdog Master).
 """
 
-import os
 import sys
+import os
 import time
 import json
 import datetime
-import requests
+import io
 
-# Colores ANSI Cyberpunk para Terminal
-C_CYAN = "\033[96m"
-C_GREEN = "\033[92m"
-C_YELLOW = "\033[93m"
+# Asegurar codificación UTF-8 universal en terminales (Windows CMD, PowerShell, Termux)
+if sys.stdout and hasattr(sys.stdout, "buffer"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+if sys.stderr and hasattr(sys.stderr, "buffer"):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+
+# Códigos de Color ANSI
+C_RESET   = "\033[0m"
+C_BOLD    = "\033[1m"
+C_DIM     = "\033[2m"
+C_CYAN    = "\033[96m"
+C_YELLOW  = "\033[93m"
+C_GREEN   = "\033[92m"
+C_RED     = "\033[91m"
 C_MAGENTA = "\033[95m"
-C_BLUE = "\033[94m"
-C_RED = "\033[91m"
-C_BOLD = "\033[1m"
-C_DIM = "\033[2m"
-C_RESET = "\033[0m"
+C_BLUE    = "\033[94m"
+C_WHITE   = "\033[97m"
 
-UPSTASH_URL = os.getenv("UPSTASH_REDIS_REST_URL", "https://certain-gnat-160816.upstash.io")
-UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
-UPSTASH_HEADERS = {"Authorization": f"Bearer {UPSTASH_TOKEN}"}
-
-def clear_screen():
-    os.system('cls' if os.name == 'nt' else 'clear')
+if os.name == "nt":
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+    except Exception:
+        pass
 
 def print_banner():
-    clear_screen()
+    os.system("cls" if os.name == "nt" else "clear")
     print(f"{C_BOLD}{C_MAGENTA}╔══════════════════════════════════════════════════════════════════════════╗{C_RESET}")
-    print(f"{C_BOLD}{C_MAGENTA}║      MIA SYSTEM OPS SWARM - TERMINAL DE BACK-OFFICE & WATCHDOG           ║{C_RESET}")
-    print(f"{C_BOLD}{C_MAGENTA}║     Monitoreo Autónomo de Infraestructura, Integridad de Datos & KPIs    ║{C_RESET}")
+    print(f"{C_BOLD}{C_MAGENTA}║      MIA SYSTEM OPS SWARM - CONSOLA DE OPERACIONES (6 HERDS SRE)         ║{C_RESET}")
+    print(f"{C_BOLD}{C_MAGENTA}║      Front-Office: Trading Herds | Back-Office: System Ops & Watchdog     ║{C_RESET}")
     print(f"{C_BOLD}{C_MAGENTA}╚══════════════════════════════════════════════════════════════════════════╝{C_RESET}\n")
 
 def render_ops_cycle(audit_data: dict):
-    ts = audit_data.get("timestamp", datetime.datetime.now().isoformat())
+    ts = audit_data.get("timestamp", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     herds = audit_data.get("herds_results", {})
-    supervisor = audit_data.get("supervisor", "WATCHDOG_MASTER")
+    triage = audit_data.get("triage", {})
     exec_ms = audit_data.get("total_execution_ms", 0.0)
 
     print(f"{C_DIM}──────────────────────────────────────────────────────────────────────────{C_RESET}")
-    print(f"{C_BOLD}{C_BLUE}[{ts}] CICLO DE AUDITORÍA EJECUTADO EN {exec_ms}ms{C_RESET}\n")
+    print(f"{C_BOLD}{C_BLUE}[{ts}] CICLO SRE EJECUTADO EN {exec_ms}ms | ESTADO: {audit_data.get('estado_general')}{C_RESET}\n")
 
-    # HERD T1
-    t1 = herds.get("herd_t1_db_sync", {})
+    # HERD T1 (DBA)
+    t1 = herds.get("herd_t1_dba", {})
     t1_status = t1.get("status", "OK")
     t1_color = C_GREEN if t1_status == "OK" else C_RED
-    print(f"{C_BOLD}{C_CYAN}  ► [HERD T1: DB_SYNC / CACHE_GUARD]{C_RESET}")
-    print(f"    {C_DIM}Rol:{C_RESET} Sincronización MT5 y depuración de órdenes fantasma.")
-    print(f"    {C_DIM}Estado:{C_RESET} {t1_color}{t1_status}{C_RESET} | Posiciones Activas: {C_BOLD}{t1.get('posiciones_activas', 'N/A')}{C_RESET}")
-    print(f"    {C_DIM}Flotante Neto:{C_RESET} ${t1.get('flotante_neto', 0.0):+.2f} USD | Equity: ${t1.get('equity', 0.0):.2f} USD")
-    eliminadas = t1.get('ordenes_fantasma_depuradas', [])
-    if eliminadas:
-        print(f"    {C_YELLOW}⚠ Órdenes Fantasma Purgadas:{C_RESET} {eliminadas}")
+    print(f"{C_BOLD}{C_CYAN}  ► [HERD T1: DBA_SENTINEL]{C_RESET}")
+    print(f"    {C_DIM}Rol:{C_RESET} Integridad Firestore/Upstash, normalización y anti-null.")
+    print(f"    {C_DIM}Estado:{C_RESET} {t1_color}{t1_status}{C_RESET} | {t1.get('resumen', '')}")
     print()
 
-    # HERD T2
-    t2 = herds.get("herd_t2_kb_engine", {})
+    # HERD T2 (Senior Dev)
+    t2 = herds.get("herd_t2_senior_dev", {})
     t2_status = t2.get("status", "OK")
-    print(f"{C_BOLD}{C_YELLOW}  ► [HERD T2: KB_ENGINE / REGLA_DE_3]{C_RESET}")
-    print(f"    {C_DIM}Rol:{C_RESET} Recalibración perpetua de Top 1-3 y fechas vivas en Upstash/Firebase.")
-    print(f"    {C_DIM}Última Actualización:{C_RESET} {t2.get('ultima_actualizacion', 'N/A')}")
-    top1 = t2.get('top_1', {})
-    top2 = t2.get('top_2', {})
-    top3 = t2.get('top_3', {})
-    print(f"    {C_BOLD}Top 1:{C_RESET} {top1.get('indicador')} ({top1.get('win_rate_asociado')}%) | {C_BOLD}Top 2:{C_RESET} {top2.get('indicador')} ({top2.get('win_rate_asociado')}%) | {C_BOLD}Top 3:{C_RESET} {top3.get('indicador')} ({top3.get('win_rate_asociado')}%)")
+    t2_color = C_GREEN if t2_status == "OK" else C_RED
+    print(f"{C_BOLD}{C_YELLOW}  ► [HERD T2: SENIOR_CODE_AUDITOR]{C_RESET}")
+    print(f"    {C_DIM}Rol:{C_RESET} Auditoría sintáctica AST, variables, codificación UTF-8 y antipatrones.")
+    print(f"    {C_DIM}Estado:{C_RESET} {t2_color}{t2_status}{C_RESET} | Módulos Auditados: {t2.get('archivos_auditados', 0)}")
+    if t2.get("errores_sintaxis"):
+        print(f"    {C_RED}⚠ Fallos AST:{C_RESET} {t2.get('errores_sintaxis')}")
     print()
 
-    # HERD T3
-    t3 = herds.get("herd_t3_kpi_analytics", {})
-    print(f"{C_BOLD}{C_GREEN}  ► [HERD T3: KPI_FINANCIAL_ANALYTICS]{C_RESET}")
-    print(f"    {C_DIM}Rol:{C_RESET} Sanitización numérica estricta a 2 decimales y métricas contrafactuales.")
-    print(f"    {C_DIM}Trades Auditados:{C_RESET} {t3.get('trades_auditados', 0)} | Valores con colas corregidos: {t3.get('valores_sanitizados', 0)}")
+    # HERD T3 (Observability SRE)
+    t3 = herds.get("herd_t3_observability_sre", {})
+    t3_status = t3.get("status", "HEALTHY")
+    t3_color = C_GREEN if t3_status == "HEALTHY" else C_YELLOW
+    print(f"{C_BOLD}{C_GREEN}  ► [HERD T3: OBSERVABILITY_SRE]{C_RESET}")
+    print(f"    {C_DIM}Rol:{C_RESET} Monitoreo activo de endpoints de Railway, OpenRouter, MCPs y Upstash.")
+    print(f"    {C_DIM}Estado:{C_RESET} {t3_color}{t3_status}{C_RESET} | Servicios: {t3.get('servicios_auditados', 0)} online")
+    for srv in t3.get("telemetria", [])[:4]:
+        st = C_GREEN + srv['estado'] + C_RESET if srv['estado'] == "ONLINE" else C_RED + srv['estado'] + C_RESET
+        print(f"    {C_DIM}• {srv['nombre']}:{C_RESET} {st} ({srv.get('latencia_ms', 0)}ms)")
     print()
 
-    # HERD T4
-    t4 = herds.get("herd_t4_devops_health", {})
-    lat = t4.get("upstash_latency_ms", 0.0)
-    lat_color = C_GREEN if lat < 100 else (C_YELLOW if lat < 300 else C_RED)
-    print(f"{C_BOLD}{C_BLUE}  ► [HERD T4: DEVOPS_RAILWAY_HEALTH]{C_RESET}")
-    print(f"    {C_DIM}Rol:{C_RESET} Monitoreo de latencia, red Upstash y debouncing HFT.")
-    print(f"    {C_DIM}Latencia Upstash:{C_RESET} {lat_color}{lat} ms{C_RESET} | Stream HFT Activo: {t4.get('debate_stream_active')} | Guard Anti-429: {t4.get('anti_429_guard')}")
+    # HERD T4 (Cache Latency)
+    t4 = herds.get("herd_t4_cache_latency", {})
+    print(f"{C_BOLD}{C_BLUE}  ► [HERD T4: CACHE_LATENCY_SPECIALIST]{C_RESET}")
+    print(f"    {C_DIM}Rol:{C_RESET} Desacoplamiento canónico atómico y latencia sub-35ms.")
+    print(f"    {C_DIM}Estado:{C_RESET} {t4.get('status')} | Latencia MGET: {t4.get('mget_latency_ms')}ms | Slots: {t4.get('slots_disponibles')}")
+    print(f"    {C_DIM}Última Regla de 3:{C_RESET} {t4.get('ultima_sincronizacion_regla_3')}")
     print()
 
-    # WATCHDOG MASTER
-    print(f"{C_BOLD}{C_MAGENTA}  👑 [WATCHDOG SUPERVISOR GENERAL]{C_RESET}")
-    print(f"    {C_BOLD}Veredicto de Integridad:{C_RESET} {C_GREEN}OPTIMAL_DATA_INTEGRITY (100% Homologado){C_RESET}")
-    print(f"    {C_DIM}Canales Notificados:{C_RESET} Upstash Redis (cache_system_ops_status) | Slack Bridge Ready")
+    # HERD T5 (FinOps)
+    t5 = herds.get("herd_t5_finops_billing", {})
+    print(f"{C_BOLD}{C_WHITE}  ► [HERD T5: FINOPS_BILLING_CONTROLLER]{C_RESET}")
+    print(f"    {C_DIM}Rol:{C_RESET} Control de presupuesto, pagos cloud anticipados y alertas a 48h.")
+    print(f"    {C_DIM}Estado:{C_RESET} {C_GREEN}{t5.get('status')}{C_RESET} | {t5.get('firebase_spark_margin')}")
+    for serv in t5.get("servicios", []):
+        print(f"    {C_DIM}• {serv['plataforma']}:{C_RESET} {serv['costo_estimado_mensual']} ({serv['estado']} - Corte: {serv['dias_para_corte']}d)")
+    print()
+
+    # HERD T6 (UI/UX)
+    t6 = herds.get("herd_t6_ui_ux_designer", {})
+    print(f"{C_BOLD}{C_CYAN}  ► [HERD T6: UIUX_DASHBOARD_DESIGNER]{C_RESET}")
+    print(f"    {C_DIM}Rol:{C_RESET} Auditoría de /brain, / y /dashboard (estilo Plotly institucional).")
+    print(f"    {C_DIM}Estado:{C_RESET} {C_GREEN}{t6.get('status')}{C_RESET} | Rutas Auditadas: {len(t6.get('rutas_auditadas', []))}")
+    print(f"    {C_DIM}Propuesta Visual:{C_RESET} Modernización Plotly Dark Theme (0 pérdida de campos)")
+    print()
+
+    # WATCHDOG MASTER TRIAGE
+    print(f"{C_BOLD}{C_MAGENTA}  👑 [MIA WATCHDOG MASTER - TRIAGE SENIOR]{C_RESET}")
+    autos = triage.get("auto_corregidos_en_caliente", [])
+    if autos:
+        for a in autos:
+            print(f"    {C_GREEN}⚡ [AUTO-CORREGIDO]:{C_RESET} {a}")
+    else:
+        print(f"    {C_GREEN}⚡ [AUTO-CORREGIDO]:{C_RESET} Cero fallos. Datos íntegros.")
+
+    pas = triage.get("requiere_aprobacion_humana", [])
+    if pas:
+        for p in pas:
+            print(f"    {C_YELLOW}📋 [POR APROBAR EN SLACK]:{C_RESET} {p.get('accion')} -> {p.get('detalle', p.get('propuesta', ''))[:80]}...")
+    else:
+        print(f"    {C_DIM}📋 [POR APROBAR]:{C_RESET} Cero acciones pendientes.")
+
     print(f"{C_DIM}──────────────────────────────────────────────────────────────────────────{C_RESET}\n")
 
 def main():
     print_banner()
-    print(f"{C_CYAN}Iniciando escucha continua del Enjambre de Operaciones...{C_RESET}")
-    print(f"{C_DIM}💡 Presiona [CTRL + C] para salir y volver a la terminal.{C_RESET}\n")
+    print(f"{C_CYAN}Iniciando escucha continua del Enjambre de Operaciones (6 Herds + Watchdog)...{C_RESET}")
+    print(f"{C_DIM}💡 Presiona [CTRL + C] para salir.{C_RESET}\n")
 
     while True:
         try:
             from mia_system_ops_swarm import system_ops_supervisor
-            report = system_ops_supervisor.run_swarm_audit()
+            report = system_ops_supervisor.run_swarm_audit(notify_slack=False)
             print_banner()
             render_ops_cycle(report)
-            time.sleep(10)
+            time.sleep(15)
         except KeyboardInterrupt:
             print(f"\n{C_YELLOW}Cerrando monitor de Back-Office. Swarm sigue activo en background.{C_RESET}")
             break
         except Exception as e:
-            print(f"{C_RED}Error en ciclo de supervisión: {e}{C_RESET}")
-            time.sleep(5)
+            print(f"{C_RED}Error en ciclo de auditoría: {e}{C_RESET}")
+            time.sleep(10)
 
 if __name__ == "__main__":
     main()

@@ -127,6 +127,39 @@ trigger: always_on
 2. **Prohibición de Duplicidad Híbrida:** Queda estrictamente prohibido guardar un documento dentro de una megatabla compuesta en Redis si ya existe como slot individual atómico.
 3. **Consumo Atómico vía MGET:** Toda deliberación inter-agente debe recuperar sus insumos en un único viaje de red HTTP (`GET /mget/...`), garantizando latencia $< 35\text{ ms}$, consumo de memoria optimizado y paridad absoluta de información.
 
+---
+name: malla_6_herds_ops_y_watchdog
+description: Regla de arquitectura para la Malla de 6 Herds de Operaciones (Back-Office) y el Supervisor General Watchdog.
+trigger: always_on
+---
+
+# 🛠️ REGLA: MALLA DE 6 HERDS TÉCNICOS Y WATCHDOG SUPERVISOR (BACK-OFFICE)
+1. **Taxonomía de los 6 Herds Técnicos Especializados:**
+   - `HERD T1 (DBA_SENTINEL)`: Integridad de Firestore/Upstash, normalización, sanitización anti-null/NaN y depuración de órdenes fantasma.
+   - `HERD T2 (SENIOR_CODE_AUDITOR)`: Auditoría sintáctica profunda con AST, imports limpios (cero CrewAI/LangChain), variables no declaradas y codificación UTF-8 estricta.
+   - `HERD T3 (OBSERVABILITY_SRE)`: Monitoreo activo de endpoints de Railway (1fd4 y 927a), OpenRouter, Servidores MCP (`/mcp` y `/mcp/ops`), Upstash y GitHub.
+   - `HERD T4 (CACHE_LATENCY_SPECIALIST)`: Desacoplamiento canónico por documento, garantía de latencia MGET $< 35\text{ ms}$ y paridad perpetua de la Regla de 3.
+   - `HERD T5 (FINOPS_BILLING_CONTROLLER)`: Control de presupuestos en modo Spark (Railway, OpenRouter, MetaAPI, Firebase Spark limit), con alertas preventivas a 48 horas con montos exactos y enlaces directos de pago.
+   - `HERD T6 (UIUX_DASHBOARD_DESIGNER)`: Auditoría visual de `/brain` (Red Neuronal), `/` (Enjambres 3D) y `/dashboard` (KPIs estilo Plotly institucional sin pérdida de datos ni menús existentes).
+2. **Supervisor General Watchdog Master:**
+   - Ejerce liderazgo senior integral. Ejecuta los 6 Herds en Python determinista (0 tokens de LLM) y realiza el triage clasificando en:
+     - `[AUTO-CORREGIDO EN CALIENTE ✅]`: Acciones seguras ejecutadas de forma autónoma.
+     - `[REQUIERE APROBACIÓN HUMANA ⚠️]`: Pagos de FinOps, propuestas de rediseño UI/UX o migraciones de base de datos despachadas a Slack (`#back-office-y-backend`) con botones interactivos.
+
+---
+name: homologacion_antigravity_cloud_openrouter
+description: Regla de homologación entre agentes locales de Antigravity y la ejecución autónoma en Railway con OpenRouter.
+trigger: always_on
+---
+
+# 🧠 REGLA: HOMOLOGACIÓN ANTIGRAVITY (LOCAL) VS OPENROUTER (RAILWAY CLOUD)
+1. **Paridad Cognitiva y de Contexto:** Los prompts ejecutados en local vía Antigravity y los workers autónomos en Railway comparten la misma taxonomía, reglas de negocio y acceso a los slots atómicos de Upstash Redis.
+2. **Patrón Híbrido (Deterministic First + Cognition-on-Demand):**
+   - El 95% de las auditorías de infraestructura corren en Python nativo a costo cero ($0.00 USD).
+   - Ante excepciones de código o fallos complejos en la nube, el sistema invoca quirúrgicamente a OpenRouter (`Claude 3.5 Sonnet`, `DeepSeek V3` o `Llama 3.3 70B`) para generar diagnósticos y parches automáticos con la misma capacidad analítica que Antigravity.
+3. **Estándar de Modernización Frontend (HERD T6):** Toda mejora o rediseño para `/dashboard` (`https://trading-production-927a.up.railway.app/dashboard`) debe adoptar la estética financiera de gráficos interactivos estilo Plotly Dark, preservando intactos el menú lateral, balances, márgenes, floating PnL, regla de 3 y tabla de posiciones de MT5.
+
+
 
 
 

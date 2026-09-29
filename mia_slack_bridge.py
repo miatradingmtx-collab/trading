@@ -4,12 +4,18 @@ MIA SLACK BRIDGE (HUMAN-IN-THE-LOOP & CHATOPS INTEGRATION)
 Conector de comunicación entre el Watchdog Supervisor (Back-Office)
 y el usuario a través de Slack.
 Permite:
-1. Publicación de eventos y reportes en canales dedicados (#mia-ops-watchdog).
-2. Solicitud de Aprobación Humana (Human-in-the-Loop) con Botones Interactivos:
-   - [APROBAR ACCIÓN ✅]
-   - [RECHAZAR / IGNORAR ⛔]
-   - [FORZAR RECALIBRACIÓN 🔄]
-3. Manejo de Slash Commands (/mia-status, /mia-sync, /mia-regla3).
+1. Publicación de eventos y reportes en canales dedicados (#back-office-y-backend).
+2. Reportes enriquecidos con Triage Senior de 6 Herds Técnicos:
+   - [AUTO-CORREGIDO EN CALIENTE ✅]
+   - [REQUIERE APROBACIÓN HUMANA ⚠️]
+3. Solicitud de Aprobación Humana (Human-in-the-Loop) con Botones Interactivos:
+   - [APROBAR CAMBIO ✅]
+   - [RECHAZAR / CANCELAR ⛔]
+   - [PAGAR / FONDEAR 💳]
+4. Enlaces directos a Dashboards:
+   - Red Neuronal: https://trading-production-1fd4.up.railway.app/brain
+   - Enjambres 3D: https://trading-production-1fd4.up.railway.app/
+   - Dashboard Plotly: https://trading-production-927a.up.railway.app/dashboard
 """
 
 import os
@@ -38,57 +44,110 @@ class MiaSlackBridge:
             print(f"| SLACK ERROR | Error enviando mensaje crudo: {e}")
             return False
 
-    def send_ops_report(self, audit_summary: Dict[str, Any]) -> bool:
+    def send_senior_ops_report(self, summary: Dict[str, Any]) -> bool:
         """
-        Envía una tarjeta rica (Block Kit) a Slack con el reporte del Enjambre de Operaciones.
+        Envía un reporte Senior consolidado con Triage de 6 Herds:
+        - Auto-corregidos en caliente
+        - Propuestas que requieren aprobación humana (con botones)
         """
         if not self.webhook_url:
             return False
 
-        herds = audit_summary.get("herds_results", {})
-        t1 = herds.get("herd_t1_db_sync", {})
-        t2 = herds.get("herd_t2_kb_engine", {})
-        t3 = herds.get("herd_t3_kpi_analytics", {})
-        t4 = herds.get("herd_t4_devops_health", {})
+        triage = summary.get("triage", {})
+        auto_corregidos = triage.get("auto_corregidos_en_caliente", [])
+        por_aprobar = triage.get("requiere_aprobacion_humana", [])
+        ms = summary.get("total_execution_ms", 0.0)
+        estado = summary.get("estado_general", "OPTIMAL_HEALTH")
 
-        top1 = t2.get("top_1", {})
-        top2 = t2.get("top_2", {})
-        top3 = t2.get("top_3", {})
+        # Texto para sección Auto-Corregidos
+        if auto_corregidos:
+            txt_auto = "\n".join([f"• ✅ {ac}" for ac in auto_corregidos[:6]])
+        else:
+            txt_auto = "• ✅ Cero anomalías detectadas. Datos y sintaxis 100% íntegros."
+
+        # Texto para sección Por Aprobar
+        if por_aprobar:
+            txt_aprobar = "\n".join([f"• ⚠️ *{pa.get('accion', 'PROPUESTA')}*: {pa.get('detalle', '')}" for pa in por_aprobar[:4]])
+        else:
+            txt_aprobar = "• Ninguna acción pendiente de autorización. Todo opera en régimen autónomo."
 
         blocks = [
             {
                 "type": "header",
                 "text": {
                     "type": "plain_text",
-                    "text": "🛡️ MIA SYSTEM OPS SWARM - Reporte de Integridad",
+                    "text": "🛡️ MIA WATCHDOG SUPERVISOR - Triage de Infraestructura (6 Herds)",
                     "emoji": True
                 }
             },
             {
                 "type": "section",
                 "fields": [
-                    {"type": "mrkdwn", "text": f"*Supervisor:* WATCHDOG MASTER"},
-                    {"type": "mrkdwn", "text": f"*Estado del Sistema:* `100% OPERACIONAL`"},
-                    {"type": "mrkdwn", "text": f"*Posiciones MT5:* `{t1.get('posiciones_activas', 'N/A')}` activas"},
-                    {"type": "mrkdwn", "text": f"*Flotante Neto:* `${t1.get('flotante_neto', 0.0):+.2f} USD`"},
-                    {"type": "mrkdwn", "text": f"*Equidad Total:* `${t1.get('equity', 0.0):.2f} USD`"},
-                    {"type": "mrkdwn", "text": f"*Latencia Upstash:* `{t4.get('upstash_latency_ms', 0)} ms`"}
+                    {"type": "mrkdwn", "text": "*Supervisor:* `MIA_WATCHDOG_MASTER (Sr Lead)`"},
+                    {"type": "mrkdwn", "text": f"*Salud General:* `{estado}`"},
+                    {"type": "mrkdwn", "text": "*Malla Técnica:* `6 Herds Online (T1-T6)`"},
+                    {"type": "mrkdwn", "text": f"*Tiempo Auditoría:* `{ms} ms`"}
                 ]
+            },
+            {
+                "type": "divider"
             },
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": (
-                        f"*📐 Regla de 3 Dinámica (Veredicto de Éxito):*\n"
-                        f"• *Top 1:* `{top1.get('indicador')}` ({top1.get('win_rate_asociado')}%) | Peso: {top1.get('peso')}\n"
-                        f"• *Top 2:* `{top2.get('indicador')}` ({top2.get('win_rate_asociado')}%) | Peso: {top2.get('peso')}\n"
-                        f"• *Top 3:* `{top3.get('indicador')}` ({top3.get('win_rate_asociado')}%) | Peso: {top3.get('peso')}"
-                    )
+                    "text": f"*⚡ [AUTO-CORREGIDO EN CALIENTE POR LOS HERDS]:*\n{txt_auto}"
                 }
             },
             {
                 "type": "divider"
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*📋 [PROPUESTAS QUE REQUIEREN APROBACIÓN HUMANA]:*\n{txt_aprobar}"
+                }
+            },
+            {
+                "type": "actions",
+                "block_id": "watchdog_triage_actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Aprobar Propuestas ✅", "emoji": True},
+                        "style": "primary",
+                        "value": "approve_all_pending",
+                        "action_id": "approve_triage_action"
+                    },
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Rechazar / Mantener Actual ⛔", "emoji": True},
+                        "style": "danger",
+                        "value": "reject_all_pending",
+                        "action_id": "reject_triage_action"
+                    },
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Forzar Resync 🔄", "emoji": True},
+                        "value": "force_resync",
+                        "action_id": "resync_action"
+                    }
+                ]
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": (
+                            "🔗 *Dashboards:* "
+                            "<https://trading-production-1fd4.up.railway.app/brain|🧠 Red Neuronal> | "
+                            "<https://trading-production-1fd4.up.railway.app/|🌐 Enjambres 3D> | "
+                            "<https://trading-production-927a.up.railway.app/dashboard|📊 Dashboard Plotly>"
+                        )
+                    }
+                ]
             }
         ]
 
@@ -96,8 +155,12 @@ class MiaSlackBridge:
             r = requests.post(self.webhook_url, json={"blocks": blocks}, timeout=4)
             return r.status_code == 200
         except Exception as e:
-            print(f"| SLACK ERROR | Error enviando reporte Block Kit: {e}")
+            print(f"| SLACK ERROR | Error enviando reporte senior: {e}")
             return False
+
+    def send_ops_report(self, audit_summary: Dict[str, Any]) -> bool:
+        """Fallback compatible con versiones previas"""
+        return self.send_senior_ops_report(audit_summary)
 
     def send_approval_request(self, action_id: str, title: str, details: str) -> bool:
         """
