@@ -1143,11 +1143,7 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
 
         print(f"| TRADING RIESGO | Evaluando {accion} en {simbolo_broker} (Balance: ${balance:.2f} | Riesgo {riesgo_pct}% | SL: {sl:.4f} | LOTE: {lote})")
         
-        # INTERCEPTOR MODO SHADOW GLOBAL (1-2 SEMANAS DE SIMULACIÃ“N PURA)
-        if SHADOW_MODE_GLOBAL:
-            simulated_ticket = f"SHADOW_{random.randint(100000, 999999)}"
-            print(f"| SHADOW MODE (1-2 SEMANAS) | [MT5 BLOQUEADO] {accion} simulada con Ã©xito en {simbolo_broker}. Ticket Simulado: #{simulated_ticket}. CERO dinero en riesgo.")
-            return True
+
 
         if es_buy:
             result = await connection.create_market_buy_order(simbolo_broker, lote, sl, tp, options)
@@ -1535,5 +1531,6 @@ async def abrir_posicion_test(simbolo: str, lote: float) -> str:
     except Exception as e:
         print(f"| TEST TRADE ERROR | Fallo la orden de prueba: {e}")
         return f"Error: {e}"
+
 
 
