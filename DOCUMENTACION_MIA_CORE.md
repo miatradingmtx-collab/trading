@@ -1760,6 +1760,19 @@ ecent_logs desde cache_hist_mt5.
   - Demuestra de forma transparente que el menú lateral, balance ($4,325.09), equidad ($4,387.35), flotante neto (+62.26) y Regla de 3 se mantienen 100% íntegros.
   - Se inyectó el enlace directo `👉 Ver Previsualización Interactiva (Antes vs Después)` en la tarjeta de Slack.
 
+### [Update 2026-09-28 - Sesión 43] - Ratificación del Dashboard Central como "Gold Standard" y Adopción de Google Stitch UI
+- **Ratificación del Dashboard Central Canónico (Cero Degradación):**
+  - Tras la inspección visual comparativa, el Padre y el equipo validaron que el **Panel Central actual de Mia AI** (con selector multi-par, capas algorítmicas de SMC, Liquidity Pools de 64.8K/145.2K, POC de 76.5K y medias móviles) es infinitamente superior y maduro frente a maquetas genéricas.
+  - Se descartó la propuesta de reemplazo genérico en `HERD T6 (UIUX_DASHBOARD_DESIGNER)`.
+  - La cola de pendientes en Upstash Redis (`cache_pending_ops_approvals`) fue purgada a cero: `• ✅ Cero cambios pendientes de autorización. Todo opera en óptimas condiciones.`
+- **Flujo de Trabajo Institucional con Google Stitch:**
+  - Se estableció el protocolo oficial para futuros módulos y vistas secundarias (*Activos*, *Estrategias*, *Historial*):
+    1. **Modelado en Google Stitch:** Diseñar los prototipos interactivos en Stitch respetando la paleta oscura institucional de Mia AI.
+    2. **Extracción Limpia de Código:** Extraer los componentes limpios generados por Google Stitch (HTML5, CSS3, Tailwind, JS).
+    3. **Integración Quirúrgica por HERD T6:** El agente de diseño inyecta el código en los endpoints correspondientes de Railway asegurando paridad con MT5 y Upstash sin alterar el Panel Central.
+- **Aprendizaje Continuo Consolidado:**
+  - El precedente de rechazo a la plantilla genérica y la ratificación del diseño canónico quedaron asentados en `cache_ops_learning_kb` con score 1.00 para gobernar las decisiones en las Fases 2 y 3.
+
 ---
 
 

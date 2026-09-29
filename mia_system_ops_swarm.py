@@ -410,35 +410,25 @@ class HerdUIDesigner:
                 "seccion": "KPIs Financieros & Trades en Vivo (MT5)",
                 "url": "https://trading-production-927a.up.railway.app/dashboard",
                 "slot_fuente": "cache_mt5",
-                "estilo_visual": "Plotly Quant Dark Theme (Financiero Institucional)",
-                "estado_visual": "EN REVISIÓN DE MODERNIZACIÓN"
+                "estilo_visual": "Mia AI Institutional Dark (SMC, Liquidez & POC Multi-TF)",
+                "estado_visual": "GOLD STANDARD CANÓNICO (Validado por el Padre)"
             }
         ]
 
-        # Propuesta de modernización Plotly para el Dashboard
-        # Conserva estrictamente: Menú, flotante, equidad, historial, rule of 3, etc.
-        propuesta_plotly = {
-            "modulo": "Dashboard Web /dashboard",
-            "inspiracion": "https://plotly.com/python/candlestick-charts/",
-            "propuesta": (
-                "Incorporar gráficos de velas y microestructura con curvas de densidad estilo Plotly Dark. "
-                "CERO pérdida de campos existentes: el menú lateral, balance, margen, floating PnL, "
-                "regla de 3 y tabla MT5 se mantienen 100% intactos con layout ultra-responsivo."
-            ),
-            "accion": "APROBAR_BOSQUEJO_PLOTLY_DASHBOARD"
-        }
-        
-        # Notificar al Supervisor como propuesta por aprobar
-        por_aprobar.append(propuesta_plotly)
+        # El Dashboard Central actual es superior y cuenta con la aprobación del Padre.
+        # HERD T6 se enfoca ahora en la extracción e integración de código desde Google Stitch
+        # para enriquecer vistas secundarias (Activos, Estrategias, Historial) sin tocar el Panel Central.
+        auto_corregidos.append("Dashboard Central Mia AI ratificado como estándar de oro institucional.")
 
         return {
             "herd": self.name,
-            "status": "UI_OK",
+            "status": "UI_OPTIMAL",
             "rutas_auditadas": rutas_dashboard,
-            "propuestas_diseno": [propuesta_plotly],
+            "framework_diseno": "Google Stitch UI Ready (Extracción de componentes para vistas secundarias)",
+            "propuestas_diseno": [],
             "auto_corregidos": auto_corregidos,
-            "por_aprobar": por_aprobar,
-            "resumen": "3 dashboards inspeccionados. Propuesta de modernización Plotly preparada para aprobación humana."
+            "por_aprobar": [],
+            "resumen": "3 dashboards validados. Dashboard Central consolidado como Gold Standard. Listo para modelos Google Stitch."
         }
 
 
