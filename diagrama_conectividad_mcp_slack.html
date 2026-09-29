@@ -116,19 +116,19 @@
       <div class="space-y-2 text-xs">
         <div class="flex items-center gap-2.5">
           <span class="w-3.5 h-3.5 rounded bg-blue-500/30 border border-blue-400 inline-block"></span>
-          <span class="text-slate-300"><strong>Canal #mia-chat:</strong> Gemini Pro + Clima wttr.in</span>
+          <span class="text-slate-300"><strong>1. #mia-chat:</strong> Gemini Pro (Cotidiano, Clima, Noticias, CERO Trading/Infra)</span>
         </div>
         <div class="flex items-center gap-2.5">
           <span class="w-3.5 h-3.5 rounded bg-orange-500/30 border border-orange-400 inline-block"></span>
-          <span class="text-slate-300"><strong>Canal #back-office:</strong> OpenRouter + Herds T1-T6 + MT5</span>
+          <span class="text-slate-300"><strong>2. #back-office-y-backend:</strong> OpenRouter (Supervisor + Herds T1-T6 + Botones)</span>
         </div>
         <div class="flex items-center gap-2.5">
           <span class="w-3.5 h-3.5 rounded bg-emerald-500/30 border border-emerald-400 inline-block"></span>
-          <span class="text-slate-300"><strong>Servidores MCP:</strong> FastMCP Ops & Trading Protocol</span>
+          <span class="text-slate-300"><strong>3. A Futuro (#mia-trading-reportes):</strong> Reportes de Bolsa MT5 (PnL, BE, SL/TP)</span>
         </div>
         <div class="flex items-center gap-2.5">
           <span class="w-3.5 h-3.5 rounded bg-purple-500/30 border border-purple-400 inline-block"></span>
-          <span class="text-slate-300"><strong>Gateway:</strong> Railway 927a (Anti-429 & Deduplicador)</span>
+          <span class="text-slate-300"><strong>Servidores MCP:</strong> Ops (/mcp/ops) & Trading Protocol (/mcp)</span>
         </div>
       </div>
     </div>
@@ -137,24 +137,26 @@
     <div id="mermaid-wrapper" class="w-full h-full flex items-center justify-center p-8">
       <div class="mermaid opacity-0 transition-opacity duration-500">
 flowchart TD
-    subgraph Slack_Workspace ["💬 Slack Workspace (Frontend de Usuario)"]
+    subgraph Slack_Workspace ["💬 Slack Workspace (Canales Diferenciados)"]
         User(["👤 Padre (Usuario)"])
-        ChMia["#mia-chat\n(Canal ID: C0C4QCZPTPH)"]
-        ChBack["#back-office-y-backend\n(Canal de Infraestructura)"]
+        ChMia["#mia-chat\n(Canal ID: C0C4QCZPTPH)\n• Cotidiano, Noticias, Clima\n• CERO Trading / Infra"]
+        ChBack["#back-office-y-backend\n(Infraestructura Técnica)\n• 6 Herds T1-T6 + Supervisor\n• Triage & Botones de Aprobación"]
+        ChTradingFuturo["[A FUTURO] #mia-trading-reportes\n• Bolsa MT5, PnL, BE, SL/TP"]
         
-        User -->|Pregunta casual, clima, noticias| ChMia
-        User -->|Consulta técnica, estado Herds, MT5| ChBack
+        User -->|1. Charla casual, noticias, clima| ChMia
+        User -->|2. Estado de infraestructura, mejoras, errores| ChBack
+        User -.->|3. Consultas de mercado y balance (Fase 3)| ChTradingFuturo
     end
 
     subgraph Slack_Event_Gateway ["⚙️ Slack Event Gateway & Webhooks"]
         EvSub["Event Subscriptions\n(message.channels)"]
-        SlackPostAPI["Slack Web API\n(chat.postMessage vía xoxb Token)"]
+        SlackPostAPI["Slack Web API\n(chat.postMessage vía Token xoxb)"]
         SlackWebhookOps["Incoming Webhook Ops\n(SLACK_WEBHOOK_URL)"]
         
         ChMia --> EvSub
         ChBack --> EvSub
-        SlackPostAPI -->|Entrega Directa Aislada| ChMia
-        SlackPostAPI -->|Entrega Directa Aislada| ChBack
+        SlackPostAPI -->|Entrega Directa Exclusiva| ChMia
+        SlackPostAPI -->|Entrega Directa Exclusiva| ChBack
         SlackWebhookOps -->|Alertas Back-Office| ChBack
     end
 
@@ -165,19 +167,19 @@ flowchart TD
         Deduplicator{"¿Evento Duplicado?\n(_is_duplicate_slack_event)"}
         EvRouter --> Deduplicator
         Deduplicator -- Sí --> Drop["Descartar (200 OK)"]
-        Deduplicator -- No --> ChannelFilter{"Bifurcador de Canales"}
+        Deduplicator -- No --> ChannelFilter{"Enrutador Estricto"}
     end
 
-    subgraph Cognitive_Engines ["🧠 Motores Cognitivos Duales"]
-        subgraph Motor_Casual ["Motor Casual / Cotidiano"]
-            Gemini["✨ Google Gemini Pro"]
+    subgraph Cognitive_Engines ["🧠 Motores Cognitivos Duales (Aislados)"]
+        subgraph Motor_Casual ["Motor 1: Cotidiano / General"]
+            Gemini["✨ Google Gemini Pro\n• Empatía filial\n• Noticias & Cultura\n• Aislamiento: NO toca Trading"]
             WeatherAPI["🛰️ API Satelital wttr.in\n(Clima en Tiempo Real Veracruz)"]
             WeatherAPI -.->|Temperatura & Humedad| Gemini
         end
 
-        subgraph Motor_Quant ["Motor Técnico / Infraestructura"]
+        subgraph Motor_Quant ["Motor 2: Supervisión & Herds Técnicos"]
+            Supervisor["👑 MIA Watchdog Supervisor\n(Senior Lead Architect)"]
             OpenRouter["🧠 OpenRouter Quant\n(Llama 3.3 70B / DeepSeek)"]
-            Supervisor["👑 Mia Watchdog Supervisor"]
             Supervisor --> OpenRouter
         end
     end
@@ -186,22 +188,44 @@ flowchart TD
     ChannelFilter -->|Canal == '#back-office-y-backend'| OpenRouter
 
     Gemini -->|Badge: ✨ Google Gemini| SlackPostAPI
-    OpenRouter -->|Badge: 🧠 OpenRouter Quant / Herds T1-T6| SlackPostAPI
+    OpenRouter -->|Badge: 🛡️ MIA Watchdog / Herds T1-T6| SlackPostAPI
 
-    subgraph MCP_Infrastructure ["🔌 Servidores MCP (Model Context Protocol)"]
-        subgraph MCP_Ops ["🛠️ MCP Back-Office Ops (/mcp/ops)"]
+    subgraph BackOffice_Herds ["🛠️ Infraestructura de los 6 Herds T1-T6"]
+        HT1["T1: DBA_SENTINEL\n(Integridad DB & Órdenes Fantasma)"]
+        HT2["T2: SENIOR_CODE_AUDITOR\n(Sintaxis AST, Imports, UTF-8)"]
+        HT3["T3: OBSERVABILITY_SRE\n(Healthcheck Railway & Endpoints)"]
+        HT4["T4: CACHE_LATENCY\n(Upstash MGET sub-15ms)"]
+        HT5["T5: FINOPS_BILLING\n(Presupuesto Nube & Cuotas API)"]
+        HT6["T6: UIUX_DESIGNER\n(Dashboards, Visual Diff Antes/Después)"]
+        
+        Supervisor --- HT1 & HT2 & HT3 & HT4 & HT5 & HT6
+    end
+
+    subgraph Human_In_The_Loop ["🛡️ Triage & Aprobación Humana (Slack Actions)"]
+        Checkboxes["☑️ Checkboxes Selección de Propuestas"]
+        BtnApproveSel["[Aprobar Seleccionadas ☑️]"]
+        BtnApproveAll["[Aprobar Todas ✅]"]
+        BtnReject["[Rechazar / Mantener Actual ⛔]"]
+        BtnResync["[Forzar Resync 🔄]"]
+        VisualPreview["🎨 Preview Antes vs Después\n(/dashboard/preview)"]
+        
+        Supervisor --> Checkboxes & BtnApproveSel & BtnApproveAll & BtnReject & BtnResync & VisualPreview
+    end
+
+    subgraph MCP_Infrastructure ["🔌 Servidores MCP Oficiales"]
+        subgraph MCP_Ops ["🛠️ MCP Back-Office Ops (/mcp/ops) - 9 Tools"]
             OpsRouter["Router: /api/mcp/ops/execute/*"]
             T_Audit["mcp_ops_run_full_audit"]
-            T_Sync["mcp_ops_sync_mt5_cache (Herd T1)"]
-            T_R3["mcp_ops_recalibrate_regla_de_3 (Herd T2)"]
-            T_Health["mcp_ops_get_system_health (Herd T4)"]
+            T_Sync["mcp_ops_sync_mt5_cache"]
+            T_R3["mcp_ops_recalibrate_regla_de_3"]
+            T_Health["mcp_ops_get_system_health"]
             T_SlackSend["mcp_ops_send_slack_message"]
             T_SlackStatus["mcp_ops_get_slack_status"]
             
             OpsRouter --> T_Audit & T_Sync & T_R3 & T_Health & T_SlackSend & T_SlackStatus
         end
 
-        subgraph MCP_Trading ["📈 MCP Trading & Research (/mcp)"]
+        subgraph MCP_Trading ["📈 MCP Trading & Research (/mcp) - 6 Tools"]
             TradingRouter["Router: /api/mcp/execute/*"]
             T_Delta["scan_footprint_delta"]
             T_ATR["calc_dynamic_atr"]
@@ -213,34 +237,27 @@ flowchart TD
         end
     end
 
-    Supervisor <-->|Invocación de Triage & Health| MCP_Ops
-    OpenRouter <-->|Invocación de Datos de Mercado| MCP_Trading
+    Supervisor <-->|Herramientas de Salud & Triage| MCP_Ops
+    ChTradingFuturo -.->|A Futuro| MCP_Trading
 
-    subgraph Data_And_External_APIs ["💾 Capa de Persistencia y APIs Externas"]
-        RedisUpstash[("⚡ Upstash Redis (<15ms MGET)\n• cache_mt5\n• cache_system_ops_status\n• cache_ops_learning_kb\n• cache_market_regime")]
-        FirestoreDB[("🔥 Firebase Firestore\n• mia_ops_learning_history\n• mia_ops_audit_history\n• system_memory")]
-        MT5_Broker["💹 MetaTrader 5 Broker\n(Terminal Directa Cuenta Real)"]
-        TensorFlowCluster["🌐 Cluster 3D TensorFlow\n(trading-production-1fd4)"]
+    subgraph Data_Storage ["💾 Persistencia de Datos"]
+        RedisUpstash[("⚡ Upstash Redis (<15ms MGET)\n• cache_system_ops_status\n• cache_pending_ops_approvals\n• cache_ops_learning_kb")]
+        FirestoreDB[("🔥 Firebase Firestore\n• mia_ops_learning_history\n• mia_ops_audit_history")]
     end
 
     T_SlackSend --> SlackPostAPI
-    T_SlackStatus -.-> SlackPostAPI
-    T_Sync <--> MT5_Broker
-    T_Sync <--> RedisUpstash
-    T_R3 <--> RedisUpstash
     T_Health <--> RedisUpstash
     T_Audit --> FirestoreDB
-
-    T_Delta & T_DOM & T_ATR <--> MT5_Broker
-    T_Delta & T_DOM <--> RedisUpstash
-    TradingRouter <--> TensorFlowCluster
+    T_Audit <--> RedisUpstash
 
     classDef canalChat fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#eff6ff;
     classDef canalOps fill:#7c2d12,stroke:#f97316,stroke-width:2px,color:#fff7ed;
+    classDef canalFuturo fill:#1e293b,stroke:#64748b,stroke-dasharray: 5 5,stroke-width:2px,color:#94a3b8;
     classDef mcpStyle fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#ecfdf5;
     classDef core fill:#3b0764,stroke:#a855f7,stroke-width:2px,color:#faf5ff;
     class ChMia,Motor_Casual canalChat;
-    class ChBack,Motor_Quant canalOps;
+    class ChBack,Motor_Quant,BackOffice_Herds canalOps;
+    class ChTradingFuturo canalFuturo;
     class MCP_Infrastructure,MCP_Ops,MCP_Trading mcpStyle;
     class Railway_Core,Slack_Event_Gateway core;
       </div>
