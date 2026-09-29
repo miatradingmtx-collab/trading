@@ -1676,3 +1676,16 @@ trigger: always_on
 # ðŸš« REGLA ESTRICTA: MIGRACIÃ“N DE CREWAI / LANGCHAIN
 Como Inteligencia Artificial, tienes PROHIBIDO sugerir, instanciar o construir arquitecturas nuevas utilizando crewai o langchain. 
 Estas librerÃ­as son consideradas LEGACY (Antiguas). A partir de ahora, todo el sistema de agentes, herramientas y orquestaciÃ³n debe construirse exclusivamente utilizando el nuevo framework moderno ("Penriye Reset" / Pydantic AI / PraisonAI). AsegÃºrate de validar la sintaxis correcta del nuevo framework al refactorizar o crear nuevos agentes.
+
+---
+name: estricta_separacion_shadow_y_filtro_noticias
+description: Regla para evitar la contaminacion cruzada de metricas Shadow a Produccion y gobernar el Filtro de Noticias.
+trigger: always_on
+---
+
+# ?? REGLA: SEPARACIÓN STRICTA SHADOW MODE Y FILTRO DE NOTICIAS
+1. **Contaminación Cero a Producción:** Queda ESTRICTAMENTE PROHIBIDO que el Agente Supervisor o cualquier script automático inyecte pesos, métricas o indicadores provenientes de TensorFlow, ATLAS o Enjambres HFT (Herds) hacia las tablas de producción (ej. mia_kb/regla_de_3) mientras se encuentren en periodo de "Shadow Mode" o calibración.
+2. **Tablas Aisladas:** El aprendizaje en la sombra debe escribirse EXCLUSIVAMENTE en sus colecciones y cachés dedicadas (cache_mia_atlas, cache_mia_tensorflow, cache_shadow_trades, cache_herd_debate_latest).
+3. **Filtro de Noticias Trampa:** El nodo iltro_trampa_noticias (que rige los 15 minutos previos y 5 posteriores a una noticia) es una regla estructural y estática de seguridad. **NO debe ser alterada dinámicamente por Machine Learning**. Si los Enjambres desean probar diferentes tiempos de bloqueo pre-noticia, lo harán simulando en sus propias tablas, sin afectar la producción.
+4. **Consulta Anti-429 Integral:** El iltro_trampa_noticias y la egla_de_3 deben ser consultados 100% mediante Upstash Redis (cache_regla_de_3). Cero consultas directas a Firebase Firestore al momento de ejecutar un trade.
+5. **Protocolo de Migración (Slack):** Cuando termine la ventana de calibración (1-2 semanas), la decisión de pasar a TensorFlow/ATLAS a Producción (hacer el "Switch") es clasificada como [REQUIERE APROBACIÓN HUMANA ??]. El Supervisor debe solicitar autorización obligatoria en Slack antes de tocar la base de datos principal de Firebase.
