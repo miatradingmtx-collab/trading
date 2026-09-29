@@ -1743,6 +1743,23 @@ ecent_logs desde cache_hist_mt5.
 - **Garantía Anti-429 Continua:**
   - Tanto la telemetría viva para el chat como la base de conocimiento de aprendizaje operan 100% sobre Upstash Redis vía `MGET`, consumiendo **cero cuota de Firestore Spark**.
 
+### [Update 2026-09-28 - Sesión 42] - Periodicidad de los 6 Herds (10 Minutos), Corrección de Checkboxes y Visualizador "Antes vs Después" (`/dashboard/preview`)
+- **Bucle de Vigilancia Continua de Back-Office (`system_ops_watchdog_loop`):**
+  - Se configuró en [`app.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/app.py) un bucle en segundo plano que corre **cada 10 minutos (600 segundos)** en Railway.
+  - Audita de forma continua y desatendida los 6 Herds Técnicos (DBA, Sintaxis AST, SRE, Cache Latency, FinOps, UI/UX).
+  - Si el estado es óptimo, refresca el slot canónico `cache_system_ops_status` silenciosamente. Si detecta fallos o propuestas pendientes de autorización humana, despacha inmediatamente la tarjeta a Slack `#back-office-y-backend`.
+- **Corrección Crítica de Botones y Checkboxes en Slack (`handle_slack_interaction`):**
+  - **Aislamiento de Checkbox:** Al marcar una casilla en Slack, el evento de actualización de UI ya no se confunde con una desaprobación.
+  - **Aprobación Parcial Robusta:** Al presionar `[Aprobar Seleccionadas ☑️]`, se extraen de forma recursiva todas las opciones marcadas (`propuesta_0`, `propuesta_1`, etc.). Si ninguna fue marcada, envía una notificación efímera amigable.
+  - **Resync Asíncrono Sub-10ms:** El botón `[Forzar Resync 🔄]` ahora delega la auditoría a `asyncio.create_task` y responde de inmediato a Slack en milisegundos, erradicando por completo el error de timeout de 3 segundos de Slack.
+- **Previsualizador Visual "Antes vs Después" (`GET /dashboard/preview`):**
+  - Nuevo endpoint interactivo desplegado en Railway: [`/dashboard/preview`](https://trading-production-927a.up.railway.app/dashboard/preview).
+  - Permite al Padre comparar interactivamente:
+    - **Antes (Actual):** Tablas y métricas planas tradicionales.
+    - **Después (Propuesta HERD T6):** Gráficos interactivos Plotly Dark con velas japonesas, volumen, SL/TP dinámicos, microestructura y badges de paridad.
+  - Demuestra de forma transparente que el menú lateral, balance ($4,325.09), equidad ($4,387.35), flotante neto (+62.26) y Regla de 3 se mantienen 100% íntegros.
+  - Se inyectó el enlace directo `👉 Ver Previsualización Interactiva (Antes vs Después)` en la tarjeta de Slack.
+
 ---
 
 

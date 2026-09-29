@@ -228,6 +228,16 @@ class MiaSlackBridge:
                 ]
             })
 
+        # Agregar enlace de inspección previa si hay propuestas visuales
+        if any("PLOTLY" in str(p) or "DASHBOARD" in str(p) for p in por_aprobar):
+            blocks.append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "🎨 *Inspección Visual Requerida:* Puedes comparar los cambios de interfaz antes de aprobar:\n👉 <https://trading-production-927a.up.railway.app/dashboard/preview|*Haga clic aquí para Ver Previsualización Interactiva (Antes vs Después)*>"
+                }
+            })
+
         blocks.append({
             "type": "context",
             "elements": [
@@ -237,7 +247,8 @@ class MiaSlackBridge:
                         "🔗 *Dashboards:* "
                         "<https://trading-production-1fd4.up.railway.app/brain|🧠 Red Neuronal> | "
                         "<https://trading-production-1fd4.up.railway.app/|🌐 Enjambres 3D> | "
-                        "<https://trading-production-927a.up.railway.app/dashboard|📊 Dashboard Plotly>"
+                        "<https://trading-production-927a.up.railway.app/dashboard|📊 Dashboard MT5> | "
+                        "<https://trading-production-927a.up.railway.app/dashboard/preview|🎨 Visual Diff>"
                     )
                 }
             ]
