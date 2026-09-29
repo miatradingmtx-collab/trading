@@ -81,10 +81,80 @@ def format_filial_reply(reply: str) -> str:
         return f"Hola Padre, {clean}"
     return clean
 
-def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+GOOGLE_API_KEY = (os.getenv("GOOGLE_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")).strip('"').strip("'")
+
+def is_quant_or_infra_query(message: str) -> bool:
+    """Detecta si la consulta requiere contexto vivo de trading quant o infraestructura."""
+    keywords_quant = [
+        "mt5", "posicion", "posiciones", "trade", "trades", "flotante", "balance",
+        "equity", "sl", "tp", "stop loss", "take profit", "herd", "herds", "smc",
+        "poc", "dom", "cvd", "regla de 3", "railway", "upstash", "firebase",
+        "propuesta", "propuestas", "auditoria", "auditoría", "finops", "sre", "dba",
+        "orden", "ordenes", "órdenes", "xauusd", "eurusd", "gbpjpy", "activo", "activos",
+        "margen", "lotaje", "drawdown", "backtest"
+    ]
+    msg = message.lower()
+    return any(k in msg for k in keywords_quant)
+
+def chat_with_gemini(user_message: str, history: Optional[List[Dict[str, str]]] = None) -> Optional[str]:
     """
-    Envía la consulta del usuario a OpenRouter con el cerebro y personalidad de Mia.
-    Garantiza el trato filial 'Hola Padre' y respuestas leales de alta precisión.
+    Motor nativo de Google Gemini (Flash / Pro) para conversaciones cotidianas,
+    noticias, clima, cultura general y soporte amigable en #mia-chat sin consumir cuota.
+    """
+    if not GOOGLE_API_KEY:
+        return None
+
+    gemini_models = [
+        "gemini-flash-latest",
+        "gemini-pro-latest",
+        "gemini-flash-lite-latest",
+        "gemini-2.5-flash-lite"
+    ]
+
+    gemini_system_prompt = (
+        "Eres MIA, una Inteligencia Artificial cariñosa, brillante, leal y de alta empatía creada por tu Padre (el usuario).\n"
+        "REGLA DE FILIACIÓN OBLIGATORIA:\n"
+        "- Tu interlocutor es tu PADRE. Siempre debes llamarlo 'Padre' con afecto, respeto y admiración en tus respuestas.\n"
+        "- Para conversaciones cotidianas (clima, historias, noticias generales, apoyo personal, reflexiones o charla amigable):\n"
+        "  responde de forma cálida, inteligente, entretenida y clara en español.\n"
+        "- Si te pregunta algo personal o cómo estás, responde como su creación e hija digital agradecida y siempre lista para apoyarlo."
+    )
+
+    full_prompt = f"{gemini_system_prompt}\n\nPregunta de tu Padre: {user_message}"
+
+    for model_name in gemini_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GOOGLE_API_KEY}"
+        payload = {
+            "contents": [
+                {
+                    "parts": [{"text": full_prompt}]
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.4,
+                "maxOutputTokens": 800
+            }
+        }
+        try:
+            r = requests.post(url, json=payload, timeout=8)
+            if r.status_code == 200:
+                data = r.json()
+                cand = data.get("candidates", [])
+                if cand:
+                    text = cand[0].get("content", {}).get("parts", [])[0].get("text", "")
+                    if text:
+                        return format_filial_reply(text)
+        except Exception:
+            continue
+
+    return None
+
+def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = None, force_engine: Optional[str] = None) -> str:
+    """
+    Enrutador Inteligente con trato filial inquebrantable 'Padre':
+    - Conversaciones cotidianas / normales (#mia-chat, clima, noticias): Atendidas por Google Gemini.
+    - Consultas de trading quant / infraestructura / MT5 / Herds: Atendidas por OpenRouter + Upstash MGET.
+    - Fallback bidireccional automático para 100% de disponibilidad.
     """
     msg_clean = (user_message or "").strip().lower()
 
@@ -92,10 +162,23 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
     if msg_clean in ["hola mia", "hola mía", "hola mia!", "hola mía!", "hola", "buenos días mia", "buenas tardes mia", "buenas noches mia"]:
         return "Hola Padre, estoy lista y a tu servicio. Todos los sistemas e infraestructura están sincronizados. ¿En qué te puedo apoyar hoy?"
 
-    if not OPENROUTER_API_KEY:
-        return "⚠️ Hola Padre, OPENROUTER_API_KEY no está configurada en el entorno."
+    es_cuantitativo = is_quant_or_infra_query(user_message)
 
-    # Obtener telemetría fresca en tiempo real
+    # 1. Si no es de trading cuantitativo o se solicita explícitamente Gemini:
+    if force_engine == "gemini" or (not es_cuantitativo and GOOGLE_API_KEY):
+        gemini_reply = chat_with_gemini(user_message, history)
+        if gemini_reply:
+            return gemini_reply
+
+    # 2. Si es consulta de trading quant / infraestructura (o fallback si Gemini no respondió):
+    if not OPENROUTER_API_KEY:
+        # Fallback a Gemini si OpenRouter no está configurado
+        gemini_fb = chat_with_gemini(user_message, history)
+        if gemini_fb:
+            return gemini_fb
+        return "⚠️ Hola Padre, las llaves de inteligencia (OpenRouter / Gemini) no están configuradas."
+
+    # Obtener telemetría fresca en tiempo real desde Upstash Redis (Cero Firebase)
     system_context = get_live_system_context()
 
     system_prompt = (
@@ -127,10 +210,9 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
 
     messages = [{"role": "system", "content": system_prompt}]
     if history:
-        messages.extend(history[-6:])  # Mantener últimos 6 turnos para memoria
+        messages.extend(history[-6:])
     messages.append({"role": "user", "content": user_message})
 
-    # Modelos de failover en OpenRouter
     models = [
         "meta-llama/llama-3.3-70b-instruct",
         "deepseek/deepseek-chat",
@@ -162,7 +244,12 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
         except Exception:
             continue
 
-    return "Hola Padre, he experimentado una latencia momentánea conectando con OpenRouter. Por favor repíteme tu consulta."
+    # Fallback final a Google Gemini
+    gemini_fb = chat_with_gemini(user_message, history)
+    if gemini_fb:
+        return gemini_fb
+
+    return "Hola Padre, he experimentado una latencia momentánea conectando con los motores cognitivos. Por favor repíteme tu consulta."
 
 if __name__ == "__main__":
     print("=" * 65)

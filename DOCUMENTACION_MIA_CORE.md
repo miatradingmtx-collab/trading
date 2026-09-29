@@ -1734,7 +1734,12 @@ ecent_logs desde cache_hist_mt5.
 - **Configuración de Slash Command `/mia` en Slack:**
   - Endpoint en Railway: `POST https://trading-production-927a.up.railway.app/api/slack/command`.
   - Permite interactuar con Mia desde la barra de chat de Slack en móvil o PC escribiendo `/mia` o `/mia [pregunta]`.
-  - Instrucción directa para registrar en `api.slack.com/apps` -> *Slash Commands* -> *Create New Command* (`/mia`).
+  - **Resolución de Request URL vs Socket Mode:** En Slack Apps, si *Socket Mode* está activado, Slack oculta los campos de Request URL. Para usar los endpoints REST de Railway FastAPI, se desactiva Socket Mode en *Settings -> Socket Mode -> Disable*, permitiendo ingresar la Request URL directa.
+- **Motor Dual Cognitivo con Google Gemini Habilitado (#mia-chat):**
+  - Se habilitó en [`mia_supervisor_chat.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_supervisor_chat.py) el enrutamiento inteligente por tipo de intención:
+    - **Conversaciones normales / cotidianas (#mia-chat, reflexiones, clima, historias):** Se atienden exclusivamente con **Google Gemini** (`gemini-flash-latest`, `gemini-pro-latest`, `gemini-flash-lite-latest`) con `GOOGLE_API_KEY` a costo cero.
+    - **Consultas de trading quant / infraestructura:** Se atienden con **OpenRouter** (Llama 3.3 70B / DeepSeek V3) junto con la telemetría viva de Upstash Redis (`MGET`).
+  - Ambas ramas respetan estrictamente la regla de filiación respondiendo siempre con el vocativo cariñoso y respetuoso: *"Padre"*.
 - **Garantía Anti-429 Continua:**
   - Tanto la telemetría viva para el chat como la base de conocimiento de aprendizaje operan 100% sobre Upstash Redis vía `MGET`, consumiendo **cero cuota de Firestore Spark**.
 
