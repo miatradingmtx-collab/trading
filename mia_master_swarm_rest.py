@@ -375,7 +375,10 @@ def run_hft_cycle():
             db.collection("mia_herds_history").document("latest").set(payload)
             db.collection("mia_atlas").document("latest_debate_ab").set(payload)
             if debe_archivar:
-                db.collection("mia_herds_history").document(safe_title).set(payload)
+                
+                fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
+                db.collection("mia_herds_history").document(fecha_hoy).collection("reportes").document(safe_title).set(payload)
+
                 
                 fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
                 db.collection("mia_swarm_rest_history").document(fecha_hoy).collection("reportes").document(safe_title).set(payload)
