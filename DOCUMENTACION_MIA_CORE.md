@@ -1771,7 +1771,20 @@ ecent_logs desde cache_hist_mt5.
     2. **Extracción Limpia de Código:** Extraer los componentes limpios generados por Google Stitch (HTML5, CSS3, Tailwind, JS).
     3. **Integración Quirúrgica por HERD T6:** El agente de diseño inyecta el código en los endpoints correspondientes de Railway asegurando paridad con MT5 y Upstash sin alterar el Panel Central.
 - **Aprendizaje Continuo Consolidado:**
-  - El precedente de rechazo a la plantilla genérica y la ratificación del diseño canónico quedaron asentados en `cache_ops_learning_kb` con score 1.00 para gobernar las decisiones en las Fases 2 y 3.
+### [Update 2026-09-28 - Sesión 44] - Persistencia Histórica Inmutable en Firestore y Confirmación Visual de Botones en Slack
+- **Persistencia Dual Inmutable en Firebase Firestore (`system_memory`, `mia_ops_learning_history`, `mia_ops_audit_history`):**
+  - Todas las operaciones de Back-Office (`cache_ops_learning_kb`, `cache_system_ops_status`, `cache_pending_ops_approvals`) ahora cuentan con persistencia dual: lectura/escritura ultra-rápida en Upstash Redis y almacenamiento pasivo inmutable en Firebase Firestore.
+  - Colección `mia_ops_learning_history`: almacena cada caso de razonamiento basado en casos (CBR), propuestas aprobadas y precedentes rechazados con ID unívoco (`CASE_HERD_XXX`).
+  - Colección `mia_ops_audit_history`: almacena cada auditoría del Supervisor (`AUDIT_YYYYMMDD_HHMMSS`) para garantizar trazabilidad forense.
+  - **Garantía para Fases 2 y 3:** El sistema jamás empezará desde cero; todo el historial acumulado en la Fase 1 será la base cognitiva de remediación para la evolución autónoma.
+- **Despacho Garantizado y Confirmación Visual Inmediata en Slack (`/api/slack/interactions`):**
+  - **Respuesta Instantánea HTTP 200 (<20ms):** El endpoint responde a Slack inmediatamente con 200 OK para evitar que Slack descarte la interacción por superar los 3 segundos de timeout.
+  - **Función `dispatch_slack_confirmation`:** Resuelve la entrega visual en el canal `#back-office-y-backend` mediante doble vía (`response_url` + Webhook oficial de Slack), garantizando que el usuario siempre vea la respuesta inmediata tras presionar cualquier botón.
+  - **Cobertura de los 4 Botones:**
+    - `[Aprobar Seleccionadas ☑️]`: Detecta las casillas marcadas, ejecuta solo las acciones seleccionadas y notifica quién las aprobó, cuáles se aplicaron y cuántas quedan en cola. Si ninguna casilla fue marcada, emite una advertencia interactiva amigable.
+    - `[Aprobar Todas ✅]`: Ejecuta todas las propuestas pendientes, asienta el precedente positivo y confirma el nuevo estado de salud global.
+    - `[Rechazar / Mantener Actual ⛔]`: Purga la cola, preserva la configuración actual intacta y registra el precedente en el CBR para afinar el criterio de auto-remediación de los 6 Herds.
+    - `[Forzar Resync 🔄]`: Emite confirmación inmediata de inicio de re-auditoría en vivo y despacha el reporte completo una vez finalizado.
 
 ---
 

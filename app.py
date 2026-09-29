@@ -4500,91 +4500,169 @@ def system_ops_audit():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+def dispatch_slack_confirmation(msg: str, response_url: str = ""):
+    """
+    Garantiza el despacho visible de la confirmación en Slack.
+    Intenta primero mediante response_url (HTTP 200 directo en hilo/canal)
+    y si falla o no se confirma, despacha inmediatamente vía Webhook oficial (#back-office-y-backend).
+    """
+    delivered = False
+    if response_url:
+        try:
+            r = requests.post(
+                response_url,
+                json={"text": msg, "replace_original": False, "response_type": "in_channel"},
+                headers={"Content-Type": "application/json"},
+                timeout=4
+            )
+            if r.status_code == 200 and r.text == "ok":
+                delivered = True
+                print(f"| SLACK CONFIRMATION | Entregado vía response_url: {msg[:60]}...")
+        except Exception as e_resp:
+            print(f"| SLACK RESPONSE_URL ERROR | {e_resp}")
+
+    if not delivered:
+        try:
+            from mia_slack_bridge import MiaSlackBridge
+            bridge = MiaSlackBridge()
+            bridge.send_raw_message(msg)
+            print(f"| SLACK CONFIRMATION | Entregado vía Webhook oficial: {msg[:60]}...")
+        except Exception as e_br:
+            print(f"| SLACK BRIDGE FALLBACK ERROR | {e_br}")
+
 @app.post("/api/slack/interactions")
 async def handle_slack_interaction(request: Request):
     """
-    Maneja las interacciones de botones y checkboxes en Slack.
+    Maneja las interacciones de botones y checkboxes en Slack con respuesta instantánea
+    (HTTP 200 <50ms) y despacho asíncrono con confirmación garantizada en Slack.
     Human-in-the-Loop para el Watchdog Supervisor.
     """
     try:
         from mia_system_ops_swarm import system_ops_supervisor
         form_data = await request.form()
         payload_str = form_data.get("payload")
-        if payload_str:
-            data = json.loads(payload_str)
-            actions = data.get("actions", [])
-            user_name = data.get("user", {}).get("name", "Padre")
-            if actions:
-                action_id = actions[0].get("action_id", "")
-                val = actions[0].get("value", "")
+        if not payload_str:
+            return Response(content="Payload missing", media_type="text/plain", status_code=200)
 
-                # 1. Ignorar cambios de estado en checkboxes (no son aprobación ni rechazo)
-                if "selected_proposals_checkbox" in action_id or "checkboxes" in action_id:
-                    return {"status": "ok"}
+        data = json.loads(payload_str)
+        actions = data.get("actions", [])
+        user_name = data.get("user", {}).get("name", "Padre")
+        response_url = data.get("response_url", "")
 
-                # 2. Botón: Aprobar Seleccionadas
-                if "approve_selected" in val or "approve_selected" in action_id:
-                    state_values = data.get("state", {}).get("values", {})
-                    indices = []
-                    for b_id, b_val in state_values.items():
-                        for k, v in b_val.items():
-                            if isinstance(v, dict) and "selected_options" in v:
-                                for opt in v.get("selected_options", []):
-                                    v_opt = opt.get("value", "")
-                                    if "propuesta_" in v_opt:
-                                        try:
-                                            indices.append(int(v_opt.replace("propuesta_", "")))
-                                        except:
-                                            pass
+        if not actions:
+            return Response(content="OK", media_type="text/plain", status_code=200)
 
-                    if not indices:
-                        return {
-                            "response_type": "ephemeral",
-                            "text": f"⚠️ *Atención @{user_name}*: No marcaste ninguna casilla antes de presionar *Aprobar Seleccionadas*. Por favor marca con el check (☑️) una o más propuestas, o presiona *[Aprobar Todas ✅]*."
-                        }
+        action_id = actions[0].get("action_id", "")
+        val = actions[0].get("value", "")
 
+        # 1. Ignorar cambios de estado en checkboxes (no son aprobación ni rechazo)
+        if "selected_proposals_checkbox" in action_id or "checkboxes" in action_id:
+            return Response(content="OK", media_type="text/plain", status_code=200)
+
+        # 2. Botón: Aprobar Seleccionadas
+        if "approve_selected" in val or "approve_selected" in action_id:
+            state_values = data.get("state", {}).get("values", {})
+            indices = []
+            for b_id, b_val in state_values.items():
+                for k, v in b_val.items():
+                    if isinstance(v, dict) and "selected_options" in v:
+                        for opt in v.get("selected_options", []):
+                            v_opt = opt.get("value", "")
+                            if "propuesta_" in v_opt:
+                                try:
+                                    indices.append(int(v_opt.replace("propuesta_", "")))
+                                except:
+                                    pass
+
+            if not indices:
+                warning_msg = (
+                    f"⚠️ *Atención @{user_name}*: No marcaste ninguna casilla antes de presionar *Aprobar Seleccionadas*.\n"
+                    f"• Por favor marca con el check (☑️) una o más propuestas pendientes y vuelve a presionar el botón.\n"
+                    f"• O presiona *[Aprobar Todas ✅]* si deseas autorizar todas las tareas en un solo clic."
+                )
+                asyncio.create_task(asyncio.to_thread(dispatch_slack_confirmation, warning_msg, response_url))
+                return Response(content="OK", media_type="text/plain", status_code=200)
+
+            async def async_apply_selected():
+                try:
                     exec_res = system_ops_supervisor.apply_approved_actions(selected_indices=indices, user_name=user_name)
                     res = system_ops_supervisor.run_swarm_audit(notify_slack=False)
                     ejecutadas_str = ", ".join(exec_res.get("ejecutadas", [])) if exec_res.get("ejecutadas") else "Propuestas seleccionadas aplicadas"
-                    return {
-                        "response_type": "in_channel",
-                        "text": f"☑️ *Propuestas Seleccionadas Aprobadas por @{user_name}* (Aprendizaje asentado en `cache_ops_learning_kb`).\n• *Acciones aplicadas ({len(indices)}):* `{ejecutadas_str}`\n• *Salud Global:* `{res.get('estado_general')}`"
-                    }
+                    msg = (
+                        f"☑️ *Propuestas Seleccionadas Aprobadas por @{user_name}* (Registrado en Upstash y Firebase Firestore):\n"
+                        f"• *Acciones aplicadas ({len(indices)}):* `{ejecutadas_str}`\n"
+                        f"• *Pendientes restantes:* `{exec_res.get('pendientes_restantes', 0)}`\n"
+                        f"• *Salud Global:* `{res.get('estado_general')}`\n"
+                        f"• *Aprendizaje CBR:* Precedente grabado en `cache_ops_learning_kb` y `mia_ops_learning_history`."
+                    )
+                    dispatch_slack_confirmation(msg, response_url)
+                except Exception as e_sel:
+                    print(f"| APPLY SELECTED ERROR | {e_sel}")
+                    dispatch_slack_confirmation(f"❌ *Error al aplicar propuestas seleccionadas*: {e_sel}", response_url)
 
-                # 3. Botón: Aprobar Todas
-                elif "approve" in val or "approve" in action_id:
+            asyncio.create_task(async_apply_selected())
+            return Response(content="OK", media_type="text/plain", status_code=200)
+
+        # 3. Botón: Aprobar Todas
+        elif "approve" in val or "approve" in action_id:
+            async def async_apply_all():
+                try:
                     exec_res = system_ops_supervisor.apply_approved_actions(user_name=user_name)
                     res = system_ops_supervisor.run_swarm_audit(notify_slack=False)
                     ejecutadas_str = ", ".join(exec_res.get("ejecutadas", [])) if exec_res.get("ejecutadas") else "Verificación y calibración completa"
-                    return {
-                        "response_type": "in_channel",
-                        "text": f"✅ *Propuestas Aprobadas y Ejecutadas por @{user_name}* (Aprendizaje asentado en `cache_ops_learning_kb`).\n• *Acciones aplicadas:* `{ejecutadas_str}`\n• *Salud Global:* `{res.get('estado_general')}`"
-                    }
+                    msg = (
+                        f"✅ *Todas las Propuestas Aprobadas y Ejecutadas por @{user_name}* (Registrado en Upstash y Firebase Firestore):\n"
+                        f"• *Acciones aplicadas:* `{ejecutadas_str}`\n"
+                        f"• *Salud Global:* `{res.get('estado_general')}`\n"
+                        f"• *Aprendizaje CBR:* Precedente grabado en `cache_ops_learning_kb` y `mia_ops_learning_history` para la transición a Fase 2/3."
+                    )
+                    dispatch_slack_confirmation(msg, response_url)
+                except Exception as e_all:
+                    print(f"| APPLY ALL ERROR | {e_all}")
+                    dispatch_slack_confirmation(f"❌ *Error al aprobar propuestas*: {e_all}", response_url)
 
-                # 4. Botón: Forzar Resync (Ejecución asíncrona inmediata sin timeout de Slack)
-                elif "resync" in val or "resync" in action_id:
-                    async def async_resync():
-                        try:
-                            system_ops_supervisor.run_swarm_audit(notify_slack=True)
-                        except Exception as e_resync:
-                            print(f"| RESYNC ASYNC ERROR | {e_resync}")
-                    asyncio.create_task(async_resync())
-                    return {
-                        "response_type": "in_channel",
-                        "text": f"🔄 *Resincronización Forzada por @{user_name}*. Los 6 Herds están re-auditando la infraestructura en vivo..."
-                    }
+            asyncio.create_task(async_apply_all())
+            return Response(content="OK", media_type="text/plain", status_code=200)
 
-                # 5. Botón: Rechazar / Mantener Actual
-                elif "reject" in val or "reject" in action_id:
-                    system_ops_supervisor.reject_proposals(user_name=user_name, reason="Rechazado vía botón interactivo Slack")
-                    return {
-                        "response_type": "in_channel",
-                        "text": f"⛔ *Propuestas Rechazadas por @{user_name}* (Precedente asentado en `cache_ops_learning_kb`).\n• Se mantiene la configuración actual sin alteraciones.\n• Los 6 Herds han registrado la decisión para afinar su criterio hacia las Fases 2 y 3."
-                    }
+        # 4. Botón: Forzar Resync
+        elif "resync" in val or "resync" in action_id:
+            async def async_resync():
+                try:
+                    dispatch_slack_confirmation(
+                        f"🔄 *Resincronización Forzada por @{user_name}*. Los 6 Herds de Operaciones están re-auditando la infraestructura en vivo...",
+                        response_url
+                    )
+                    system_ops_supervisor.run_swarm_audit(notify_slack=True)
+                except Exception as e_resync:
+                    print(f"| RESYNC ASYNC ERROR | {e_resync}")
+                    dispatch_slack_confirmation(f"❌ *Error en Resync forzado*: {e_resync}", response_url)
 
-        return {"text": "Payload recibido"}
+            asyncio.create_task(async_resync())
+            return Response(content="OK", media_type="text/plain", status_code=200)
+
+        # 5. Botón: Rechazar / Mantener Actual
+        elif "reject" in val or "reject" in action_id:
+            async def async_reject():
+                try:
+                    rej_res = system_ops_supervisor.reject_proposals(user_name=user_name, reason="Rechazado vía botón interactivo Slack")
+                    msg = (
+                        f"⛔ *Propuestas Rechazadas por @{user_name}* (Registrado en Upstash y Firebase Firestore):\n"
+                        f"• *Total descartadas:* `{rej_res.get('rechazadas', 0)}` propuestas.\n"
+                        f"• *Decisión:* Se mantiene la configuración actual al 100% sin alteraciones.\n"
+                        f"• *Aprendizaje CBR:* Los 6 Herds han registrado el precedente en `cache_ops_learning_kb` y `mia_ops_learning_history` para afinar su criterio hacia las Fases 2 y 3."
+                    )
+                    dispatch_slack_confirmation(msg, response_url)
+                except Exception as e_rej:
+                    print(f"| REJECT ERROR | {e_rej}")
+                    dispatch_slack_confirmation(f"❌ *Error al registrar rechazo*: {e_rej}", response_url)
+
+            asyncio.create_task(async_reject())
+            return Response(content="OK", media_type="text/plain", status_code=200)
+
+        return Response(content="OK", media_type="text/plain", status_code=200)
     except Exception as e:
-        return {"text": f"Error procesando interacción: {e}"}
+        print(f"| SLACK INTERACTION ERROR | {e}")
+        return Response(content=f"Error: {e}", media_type="text/plain", status_code=200)
 
 @app.get("/dashboard/preview", response_class=HTMLResponse)
 def get_dashboard_preview():

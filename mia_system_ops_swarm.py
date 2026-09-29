@@ -444,8 +444,12 @@ class OpsLearningKnowledgeBase:
     """
     SLOT_KEY = "cache_ops_learning_kb"
 
-    def __init__(self):
+    def __init__(self, db=None):
+        self.db = db
         self._ensure_kb_initialized()
+
+    def set_db(self, db):
+        self.db = db
 
     def _ensure_kb_initialized(self) -> Dict[str, Any]:
         """Carga la KB de Upstash o la inicializa con los patrones base probados."""
@@ -558,6 +562,15 @@ class OpsLearningKnowledgeBase:
             requests.post(f"{UPSTASH_URL}/set/{self.SLOT_KEY}", headers=UPSTASH_HEADERS, json=kb, timeout=4)
         except Exception:
             pass
+
+        # Persistencia pasiva inmutable en Firebase Firestore (Anti-429)
+        if self.db is not None:
+            try:
+                self.db.collection("system_memory").document(self.SLOT_KEY).set(kb, merge=True)
+                self.db.collection("mia_ops_learning_history").document(new_id).set(nuevo_caso, merge=True)
+            except Exception as e_fb:
+                print(f"| FIREBASE OPS KB ERROR | {e_fb}")
+
         return kb
 
     def record_human_approval(self, approved_actions: List[Any], user_name: str = "Padre") -> None:
@@ -620,7 +633,7 @@ class WatchdogSupervisor:
     def __init__(self):
         self.db = None
         self._init_firebase()
-        self.learning_kb = OpsLearningKnowledgeBase()
+        self.learning_kb = OpsLearningKnowledgeBase(db=self.db)
         self.t1_dba = HerdDBAExpert()
         self.t2_dev = HerdSeniorDev()
         self.t3_sre = HerdObservabilitySRE()
@@ -706,6 +719,17 @@ class WatchdogSupervisor:
         except Exception:
             pass
 
+        # Persistencia pasiva inmutable en Firebase Firestore (Anti-429)
+        if self.db is not None:
+            try:
+                self.db.collection("system_memory").document("cache_system_ops_status").set(summary, merge=True)
+                ts_hist = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
+                self.db.collection("mia_ops_audit_history").document(f"AUDIT_{ts_hist}").set(summary, merge=True)
+                if total_por_aprobar:
+                    self.db.collection("system_memory").document("cache_pending_ops_approvals").set({"pendientes": total_por_aprobar}, merge=True)
+            except Exception as e_fb:
+                print(f"| FIREBASE OPS AUDIT ERROR | {e_fb}")
+
         # 5. Notificar a Slack vía mia_slack_bridge
         if notify_slack:
             try:
@@ -749,6 +773,11 @@ class WatchdogSupervisor:
 
                 # Actualizar o purgar cola de aprobaciones
                 requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, json=remaining, timeout=4)
+                if self.db is not None:
+                    try:
+                        self.db.collection("system_memory").document("cache_pending_ops_approvals").set({"pendientes": remaining}, merge=True)
+                    except Exception:
+                        pass
                 return {"status": "SUCCESS", "ejecutadas": executed, "pendientes_restantes": len(remaining)}
         except Exception as e:
             return {"status": "ERROR", "error": str(e)}
@@ -768,6 +797,11 @@ class WatchdogSupervisor:
 
             # Purgar las propuestas de la cola de pendientes
             requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, json=[], timeout=4)
+            if self.db is not None:
+                try:
+                    self.db.collection("system_memory").document("cache_pending_ops_approvals").set({"pendientes": []}, merge=True)
+                except Exception:
+                    pass
 
             # Registrar lección en la Knowledge Base de Aprendizaje
             if rejected:
