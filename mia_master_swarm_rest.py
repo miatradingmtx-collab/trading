@@ -376,7 +376,10 @@ def run_hft_cycle():
             db.collection("mia_atlas").document("latest_debate_ab").set(payload)
             if debe_archivar:
                 db.collection("mia_herds_history").document(safe_title).set(payload)
-                db.collection("mia_swarm_rest_history").document(safe_title).set(payload)
+                
+                fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
+                db.collection("mia_swarm_rest_history").document(fecha_hoy).collection("reportes").document(safe_title).set(payload)
+
                 LAST_SAVED_STATE = estado
                 LAST_SAVED_TIME = now_ts
                 emit_ws_event("Master", "INFO", f"Nuevo hito de debate archivado en Firebase: {safe_title}")
