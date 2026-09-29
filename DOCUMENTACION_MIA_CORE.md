@@ -1700,7 +1700,26 @@ ecent_logs desde cache_hist_mt5.
   - **Fase 3 (Autónoma Total):**
     - El sistema opera de extremo a extremo sin intervención manual, aplicando optimizaciones, autocuración y trading en caliente.
 
+### [Update 2026-09-28 - Sesión 40] - Checkboxes Interactivos en Slack, Registro MCP Ops de Chat, Desacoplamiento Anti-429 y Canal General con Gemini Pro
+- **Checkboxes Interactivos en Slack Block Kit:**
+  - Se incorporó el elemento interactivo `checkboxes` (`proposals_selection_block` con `action_id: selected_proposals_checkbox`) en [`mia_slack_bridge.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_slack_bridge.py).
+  - Permite al operador autorizar selectivamente con un check (`☑️`) qué propuestas específicas desea ejecutar (`[Aprobar Seleccionadas ☑️]`) o aplicar el lote completo (`[Aprobar Todas ✅]`), manteniendo las no marcadas pendientes o rechazadas.
+  - El endpoint `/api/slack/interactions` en [`app.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/app.py) extrae los índices seleccionados y ejecuta quirúrgicamente los cambios autorizados.
+- **Depuración de Falsos Positivos de LangChain:**
+  - Se corrigió el bloque en `HerdSeniorDev` ([`mia_system_ops_swarm.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_system_ops_swarm.py)) que duplicaba la inserción de `MIGRAR_LANGCHAIN_LEGADO` en todos los archivos. Ahora solo reporta anomalías verídicas (la cola pasó de 5 propuestas erróneas a 1 propuesta legítima de diseño Plotly).
+- **Estandarización MCP Ops (`/mcp/ops`):**
+  - Se registró la herramienta `mcp_ops_chat_with_mia` en [`mia_ops_mcp_server.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_ops_mcp_server.py) bajo JSON-RPC 2.0 y REST `/api/mcp/ops/tools/mcp_ops_chat_with_mia`.
+  - Mantiene el principio de Menor Privilegio (Least Privilege) y desacoplamiento entre trading e infraestructura.
+- **Garantía Anti-429 (Cero Consumo de Firebase):**
+  - Toda consulta conversacional con Mia lee exclusivamente desde Upstash Redis mediante `MGET` atómico sub-35ms (`cache_mt5`, `cache_system_ops_status`, `cache_regla_de_3`, `cache_herd_debate_latest`, `cache_shadow_trades`).
+  - **Cero lecturas a Firestore** en los ciclos de chat, blindando la cuota Spark contra el error 429.
+- **Canal Dedicado de Charlas Generales & Integración Gemini Pro:**
+  - Soporte para canal libre (ej: `#mia-chat` / `#hablar-con-mia`) para consultas que no contaminen `#back-office-y-backend`.
+  - Enrutamiento inteligente: OpenRouter para microestructura y trading quant; Google Gemini (`GOOGLE_API_KEY`) para consultas de clima, noticias mundiales o conocimiento general sin costo.
+  - Endpoint `/api/slack/events` habilitado para Event Subscriptions con respuesta automática a mensajes y menciones `@Mia`.
+
 ---
+
 
 
 

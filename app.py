@@ -4491,7 +4491,26 @@ async def handle_slack_interaction(request: Request):
             if actions:
                 action_id = actions[0].get("action_id")
                 val = actions[0].get("value", "")
-                if "approve" in val or "approve" in action_id:
+                if "approve_selected" in val or "approve_selected" in action_id:
+                    state_values = data.get("state", {}).get("values", {})
+                    cb_block = state_values.get("proposals_selection_block", {})
+                    selected_cbs = cb_block.get("selected_proposals_checkbox", {}).get("selected_options", [])
+                    indices = []
+                    for opt in selected_cbs:
+                        v = opt.get("value", "")
+                        if "propuesta_" in v:
+                            try:
+                                indices.append(int(v.replace("propuesta_", "")))
+                            except:
+                                pass
+                    exec_res = system_ops_supervisor.apply_approved_actions(selected_indices=indices)
+                    res = system_ops_supervisor.run_swarm_audit(notify_slack=False)
+                    ejecutadas_str = ", ".join(exec_res.get("ejecutadas", [])) if exec_res.get("ejecutadas") else "Propuestas seleccionadas aplicadas"
+                    return {
+                        "response_type": "in_channel",
+                        "text": f"☑️ *Propuestas Seleccionadas Aprobadas por @{user_name}*.\n• *Acciones aplicadas ({len(indices)}):* `{ejecutadas_str}`\n• *Salud Global:* `{res.get('estado_general')}`"
+                    }
+                elif "approve" in val or "approve" in action_id:
                     exec_res = system_ops_supervisor.apply_approved_actions()
                     res = system_ops_supervisor.run_swarm_audit(notify_slack=False)
                     ejecutadas_str = ", ".join(exec_res.get("ejecutadas", [])) if exec_res.get("ejecutadas") else "Verificación y calibración completa"
@@ -4526,6 +4545,36 @@ async def supervisor_chat_api(request: Request):
         return {"status": "SUCCESS", "reply": reply}
     except Exception as e:
         return {"status": "ERROR", "error": str(e)}
+
+@app.post("/api/slack/events")
+async def handle_slack_events(request: Request):
+    """
+    Maneja Event Subscriptions de Slack.
+    Permite a Mia responder en canales (#mia-chat, menciones @Mia) de forma natural sin slash commands.
+    """
+    try:
+        data = await request.json()
+        if data.get("type") == "url_verification":
+            return {"challenge": data.get("challenge")}
+
+        event = data.get("event", {})
+        event_type = event.get("type")
+        text = event.get("text", "")
+        bot_id = event.get("bot_id")
+
+        if bot_id or not text:
+            return {"status": "ignored"}
+
+        if event_type in ["app_mention", "message"]:
+            from mia_supervisor_chat import chat_with_mia
+            reply = chat_with_mia(text)
+            from mia_slack_bridge import slack_bridge
+            slack_bridge.send_raw_message(f"👑 *MIA Supervisor:*\n{reply}")
+            return {"status": "replied"}
+
+        return {"status": "ok"}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 @app.post("/api/slack/command")
 async def handle_slack_command(request: Request):

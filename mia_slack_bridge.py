@@ -7,11 +7,13 @@ Permite:
 1. Transparencia total: cada uno de los 6 Herds reporta qué está haciendo y qué detectó.
 2. Veredicto Senior del Supervisor Watchdog.
 3. Modo FASE 1 STRICT HUMAN-IN-THE-LOOP: Cero cambios automáticos sin aprobación previa.
-4. Botones interactivos de acción directa:
-   - [Aprobar Propuestas ✅]
+4. Selección con checkboxes para autorizar propuestas individuales o todas.
+5. Botones interactivos de acción directa:
+   - [Aprobar Seleccionadas ☑️]
+   - [Aprobar Todas ✅]
    - [Rechazar / Mantener Actual ⛔]
    - [Forzar Resync 🔄]
-5. Enlaces directos a Dashboards:
+6. Enlaces directos a Dashboards:
    - Red Neuronal: https://trading-production-1fd4.up.railway.app/brain
    - Enjambres 3D: https://trading-production-1fd4.up.railway.app/
    - Dashboard Plotly: https://trading-production-927a.up.railway.app/dashboard
@@ -46,7 +48,8 @@ class MiaSlackBridge:
     def send_senior_ops_report(self, summary: Dict[str, Any]) -> bool:
         """
         Envía un reporte Senior consolidado con transparencia de los 6 Herds,
-        Veredicto del Supervisor y Botones para Aprobación Humana estricta.
+        Veredicto del Supervisor, checkboxes para seleccionar propuestas individuales
+        y Botones para Aprobación Humana estricta.
         """
         if not self.webhook_url:
             return False
@@ -82,11 +85,22 @@ class MiaSlackBridge:
         )
 
         # 3. Propuestas que requieren aprobación humana
+        options_checkboxes = []
         if por_aprobar:
             txt_aprobar = "\n".join([
                 f"{i+1}. ⚠️ *{pa.get('accion', 'PROPUESTA')}*: {pa.get('detalle', pa.get('propuesta', ''))}"
-                for i, pa in enumerate(por_aprobar[:5])
+                for i, pa in enumerate(por_aprobar[:6])
             ])
+            for i, pa in enumerate(por_aprobar[:6]):
+                act_label = pa.get('accion', f'PROPUESTA_{i+1}')
+                desc_label = pa.get('detalle', pa.get('propuesta', ''))[:40]
+                options_checkboxes.append({
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*{i+1}. {act_label}*: {desc_label}"[:75]
+                    },
+                    "value": f"propuesta_{i}"
+                })
         else:
             txt_aprobar = "• ✅ Cero cambios pendientes de autorización. Todo opera en óptimas condiciones."
 
@@ -125,14 +139,40 @@ class MiaSlackBridge:
                     "type": "mrkdwn",
                     "text": f"*📋 [PROPUESTAS PENDIENTES DE APROBACIÓN HUMANA]:*\n{txt_aprobar}"
                 }
-            },
-            {
+            }
+        ]
+
+        # Agregar bloque de selección interactiva con checkboxes si hay propuestas
+        if options_checkboxes:
+            blocks.append({
+                "type": "section",
+                "block_id": "proposals_selection_block",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*☑️ Selecciona qué propuestas específicas deseas autorizar:*"
+                },
+                "accessory": {
+                    "type": "checkboxes",
+                    "action_id": "selected_proposals_checkbox",
+                    "options": options_checkboxes
+                }
+            })
+
+            # Botones con opción de autorizar seleccionadas, todas o rechazar
+            blocks.append({
                 "type": "actions",
                 "block_id": "watchdog_triage_actions",
                 "elements": [
                     {
                         "type": "button",
-                        "text": {"type": "plain_text", "text": "Aprobar Propuestas ✅", "emoji": True},
+                        "text": {"type": "plain_text", "text": "Aprobar Seleccionadas ☑️", "emoji": True},
+                        "style": "primary",
+                        "value": "approve_selected",
+                        "action_id": "approve_selected_action"
+                    },
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Aprobar Todas ✅", "emoji": True},
                         "style": "primary",
                         "value": "approve_all_pending",
                         "action_id": "approve_triage_action"
@@ -151,22 +191,35 @@ class MiaSlackBridge:
                         "action_id": "resync_action"
                     }
                 ]
-            },
-            {
-                "type": "context",
+            })
+        else:
+            blocks.append({
+                "type": "actions",
+                "block_id": "watchdog_triage_actions",
                 "elements": [
                     {
-                        "type": "mrkdwn",
-                        "text": (
-                            "🔗 *Dashboards:* "
-                            "<https://trading-production-1fd4.up.railway.app/brain|🧠 Red Neuronal> | "
-                            "<https://trading-production-1fd4.up.railway.app/|🌐 Enjambres 3D> | "
-                            "<https://trading-production-927a.up.railway.app/dashboard|📊 Dashboard Plotly>"
-                        )
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Forzar Resync 🔄", "emoji": True},
+                        "value": "force_resync",
+                        "action_id": "resync_action"
                     }
                 ]
-            }
-        ]
+            })
+
+        blocks.append({
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": (
+                        "🔗 *Dashboards:* "
+                        "<https://trading-production-1fd4.up.railway.app/brain|🧠 Red Neuronal> | "
+                        "<https://trading-production-1fd4.up.railway.app/|🌐 Enjambres 3D> | "
+                        "<https://trading-production-927a.up.railway.app/dashboard|📊 Dashboard Plotly>"
+                    )
+                }
+            ]
+        })
 
         try:
             r = requests.post(self.webhook_url, json={"blocks": blocks}, timeout=4)

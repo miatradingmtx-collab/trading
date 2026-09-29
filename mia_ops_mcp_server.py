@@ -99,6 +99,17 @@ OPS_TOOLS_REGISTRY = [
             "properties": {},
             "required": []
         }
+    },
+    {
+        "name": "mcp_ops_chat_with_mia",
+        "description": "SUPERVISOR CHAT: Diálogo interactivo con Mia Supervisor (análisis quant, trading, infraestructura, o consultas generales con Gemini/OpenRouter).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "message": {"type": "string", "description": "Mensaje o consulta del usuario"}
+            },
+            "required": ["message"]
+        }
     }
 ]
 
@@ -125,6 +136,12 @@ def execute_ops_tool(tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any
 
     elif tool_name == "mcp_ops_run_full_audit":
         return system_ops_supervisor.run_swarm_audit()
+
+    elif tool_name == "mcp_ops_chat_with_mia":
+        from mia_supervisor_chat import chat_with_mia
+        msg = arguments.get("message", "Hola Mia")
+        reply = chat_with_mia(msg)
+        return {"status": "SUCCESS", "reply": reply}
 
     else:
         raise ValueError(f"Herramienta MCP Ops desconocida: '{tool_name}'")

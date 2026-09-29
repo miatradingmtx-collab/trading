@@ -169,11 +169,6 @@ class HerdSeniorDev:
                             "accion": "MIGRAR_LANGCHAIN_LEGADO",
                             "detalle": f"El archivo {fname} contiene importaciones de LangChain."
                         })
-                    por_aprobar.append({
-                        "archivo": fname,
-                        "accion": "MIGRAR_LANGCHAIN_LEGADO",
-                        "detalle": f"El archivo {fname} contiene importaciones de LangChain."
-                    })
 
             except SyntaxError as se:
                 errores_sintaxis.append(f"{fname}:{se.lineno} - {se.msg}")
@@ -549,9 +544,10 @@ class WatchdogSupervisor:
 
         return summary
 
-    def apply_approved_actions(self) -> Dict[str, Any]:
+    def apply_approved_actions(self, selected_indices: Optional[List[int]] = None) -> Dict[str, Any]:
         """
         Ejecuta las acciones autorizadas por el humano en Slack (Fase 1 Human-in-the-Loop).
+        Si selected_indices se especifica, solo aplica las propuestas marcadas con check.
         """
         try:
             r = requests.get(f"{UPSTASH_URL}/get/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, timeout=4)
@@ -559,7 +555,12 @@ class WatchdogSupervisor:
                 raw = r.json().get("result")
                 pending = json.loads(raw) if isinstance(raw, str) else (raw or [])
                 executed = []
-                for p in pending:
+                remaining = []
+                for idx, p in enumerate(pending):
+                    if selected_indices is not None and idx not in selected_indices:
+                        remaining.append(p)
+                        continue
+
                     target = p.get("target")
                     payload = p.get("payload")
                     if target and payload:
@@ -568,9 +569,9 @@ class WatchdogSupervisor:
                     elif p.get("accion"):
                         executed.append(p.get("accion"))
 
-                # Purgar cola de aprobaciones
-                requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, json=[], timeout=4)
-                return {"status": "SUCCESS", "ejecutadas": executed}
+                # Actualizar o purgar cola de aprobaciones
+                requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, json=remaining, timeout=4)
+                return {"status": "SUCCESS", "ejecutadas": executed, "pendientes_restantes": len(remaining)}
         except Exception as e:
             return {"status": "ERROR", "error": str(e)}
         return {"status": "NO_PENDING"}
