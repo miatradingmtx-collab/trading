@@ -5068,14 +5068,39 @@ async def handle_slack_events(request: Request):
             return Response(content="ignored", media_type="text/plain", status_code=200)
 
         if event_type in ["app_mention", "message"]:
-            channel_id = event.get("channel")
+            channel_id = event.get("channel", "")
             
             async def async_chat_reply():
                 try:
-                    from mia_supervisor_chat import chat_with_mia
-                    reply = chat_with_mia(text)
+                    from mia_supervisor_chat import chat_with_mia, is_quant_or_infra_query
                     from mia_slack_bridge import slack_bridge
-                    slack_bridge.send_channel_message(f"👑 *MIA Supervisor:*\n{reply}", channel=channel_id)
+                    
+                    # 1. Determinar el canal consultando Slack API si bot_token está presente
+                    channel_name = ""
+                    if slack_bridge.bot_token and channel_id:
+                        try:
+                            h = {"Authorization": f"Bearer {slack_bridge.bot_token}"}
+                            r_info = requests.get(f"https://slack.com/api/conversations.info?channel={channel_id}", headers=h, timeout=3)
+                            if r_info.status_code == 200 and r_info.json().get("ok"):
+                                channel_name = r_info.json().get("channel", {}).get("name", "").lower()
+                        except Exception:
+                            pass
+
+                    # 2. Selección estricta de motor por canal:
+                    # - #mia-chat: Gemini Pro obligatorio para temas cotidianos, clima, noticias
+                    # - #back-office-y-backend: OpenRouter obligatorio para trading quant, MT5 e infra
+                    # - Fallback inteligente por intención semántica
+                    engine = None
+                    if "mia-chat" in channel_name or "chat" in channel_name:
+                        engine = "gemini"
+                    elif "back-office" in channel_name or "backend" in channel_name:
+                        engine = "openrouter"
+                    else:
+                        engine = "openrouter" if is_quant_or_infra_query(text) else "gemini"
+
+                    reply = chat_with_mia(text, force_engine=engine)
+                    motor_badge = "✨ Google Gemini" if engine == "gemini" else "🧠 OpenRouter Quant"
+                    slack_bridge.send_channel_message(f"👑 *MIA Supervisor* `[{motor_badge}]`:\n{reply}", channel=channel_id)
                 except Exception as e_reply:
                     print(f"| SLACK CHAT EVENT ERROR | {e_reply}")
 

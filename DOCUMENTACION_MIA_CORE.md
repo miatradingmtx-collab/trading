@@ -1795,6 +1795,10 @@ ecent_logs desde cache_hist_mt5.
   - Soporte en `MiaSlackBridge` para enrutamiento por canal (`SLACK_BOT_TOKEN` y `SLACK_CHAT_WEBHOOK_URL`).
   - `handle_slack_events` adaptado para responder a Slack con HTTP 200 en <10ms y procesar el chat con Gemini/OpenRouter en segundo plano vía `asyncio.create_task`, evitando timeouts y reintentos duplicados de Slack.
   - Identificación del requisito de membresía de canal: la App MIA Watchdog debe estar agregada al canal (`/invite @MIA Watchdog`) para que Slack reenvíe los mensajes del canal.
+  - **Enrutamiento Estricto por Canal (Dual-Engine AI):**
+    - Canal `#mia-chat`: Gobernado exclusivamente por **Google Gemini Pro** para conversaciones cotidianas, clima, noticias y soporte personal filial con respuesta inmediata.
+    - Canal `#back-office-y-backend`: Gobernado exclusivamente por **OpenRouter (Llama 3.3 70B / DeepSeek / Claude)** alimentado con el contexto vivo de Upstash MGET (MT5, Herds, SMC, POC, Floating PnL).
+    - Identificador visual en cada mensaje con badges: `[✨ Google Gemini]` o `[🧠 OpenRouter Quant]`.
 
 ---
 
