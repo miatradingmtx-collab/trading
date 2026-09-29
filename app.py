@@ -4514,17 +4514,46 @@ async def handle_slack_interaction(request: Request):
     except Exception as e:
         return {"text": f"Error procesando interacciÃ³n: {e}"}
 
+@app.post("/api/supervisor/chat")
+async def supervisor_chat_api(request: Request):
+    """Endpoint REST para conversar con Mia Supervisor vía OpenRouter"""
+    try:
+        data = await request.json()
+        user_msg = data.get("message", "")
+        history = data.get("history", [])
+        from mia_supervisor_chat import chat_with_mia
+        reply = chat_with_mia(user_msg, history)
+        return {"status": "SUCCESS", "reply": reply}
+    except Exception as e:
+        return {"status": "ERROR", "error": str(e)}
+
 @app.post("/api/slack/command")
 async def handle_slack_command(request: Request):
-    """Maneja Slash Commands de Slack (/mia-status, /mia-audit)"""
+    """Maneja Slash Commands de Slack (/mia, /mia-chat, /mia-status, /mia-audit)"""
     try:
+        form = await request.form()
+        command = form.get("command", "")
+        text = (form.get("text") or "").strip()
+
+        # Diálogo conversacional con Mia (/mia o si saluda 'Hola Mia')
+        if command in ["/mia", "/mia-chat", "/chat"] or "hola mia" in text.lower():
+            from mia_supervisor_chat import chat_with_mia
+            msg = text if text else "Hola Mia"
+            reply = chat_with_mia(msg)
+            return {
+                "response_type": "in_channel",
+                "text": f"👑 *MIA Supervisor:*\n{reply}"
+            }
+
+        # Auditoría SRE del sistema (/mia-status, /mia-audit)
         from mia_system_ops_swarm import system_ops_supervisor
-        res = system_ops_supervisor.run_swarm_audit()
+        res = system_ops_supervisor.run_swarm_audit(notify_slack=False)
         h = res.get("herds_results", {})
-        t1 = h.get("herd_t1_db_sync", {})
+        t1 = h.get("herd_t1_dba", {})
+        t4 = h.get("herd_t4_cache_latency", {})
         return {
             "response_type": "in_channel",
-            "text": f"ðŸ›¡ï¸ *MIA SYSTEM OPS STATUS*: {res.get('system_health')}\nâ€¢ Posiciones MT5: {t1.get('posiciones_activas')}\nâ€¢ Flotante Neto: ${t1.get('flotante_neto', 0.0):+.2f} USD\nâ€¢ Equidad: ${t1.get('equity', 0.0):.2f} USD\nâ€¢ Latencia: {h.get('herd_t4_devops_health', {}).get('upstash_latency_ms')} ms"
+            "text": f"🛡️ *MIA SYSTEM OPS STATUS*: `{res.get('estado_general')}`\n• Posiciones MT5: `{t1.get('posiciones_activas', 'N/A')}`\n• Flotante Neto: `${t1.get('flotante_neto', 0.0):+.2f} USD`\n• Equidad: `${t1.get('equity', 0.0):.2f} USD`\n• Latencia MGET: `{t4.get('mget_latency_ms', 0)} ms`\n• Fase: `FASE 1 (Strict Human-in-the-Loop)`"
         }
     except Exception as e:
         return {"text": f"Error en comando: {e}"}
