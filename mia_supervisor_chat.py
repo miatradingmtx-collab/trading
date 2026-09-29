@@ -203,22 +203,19 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
     - Fallback bidireccional automático para 100% de disponibilidad.
     """
     msg_clean = (user_message or "").strip().lower()
-
-    # Saludo directo rápido
-    if msg_clean in ["hola mia", "hola mía", "hola mia!", "hola mía!", "hola", "buenos días mia", "buenas tardes mia", "buenas noches mia"]:
-        return "Hola Padre, estoy lista y a tu servicio. Todos los sistemas e infraestructura están sincronizados. ¿En qué te puedo apoyar hoy?"
-
     es_cuantitativo = is_quant_or_infra_query(user_message)
 
-    # 1. Si no es de trading cuantitativo o se solicita explícitamente Gemini:
-    if force_engine == "gemini" or (not es_cuantitativo and GOOGLE_API_KEY):
+    # 1. Enrutamiento hacia Google Gemini (#mia-chat, consultas casuales, clima, noticias):
+    if force_engine == "gemini" or (force_engine != "openrouter" and not es_cuantitativo and GOOGLE_API_KEY):
         gemini_reply = chat_with_gemini(user_message, history)
         if gemini_reply:
             return gemini_reply
+        # Si Gemini falló y es solo un saludo básico
+        if msg_clean in ["hola mia", "hola mía", "hola", "buenos días mia", "buenas tardes mia"]:
+            return "Hola Padre, estoy lista y a tu servicio. Todos los sistemas e infraestructura están sincronizados. ¿En qué te puedo apoyar hoy?"
 
-    # 2. Si es consulta de trading quant / infraestructura (o fallback si Gemini no respondió):
+    # 2. Enrutamiento hacia OpenRouter Quant (#back-office-y-backend, Herds T1-T6, MT5 Broker):
     if not OPENROUTER_API_KEY:
-        # Fallback a Gemini si OpenRouter no está configurado
         gemini_fb = chat_with_gemini(user_message, history)
         if gemini_fb:
             return gemini_fb
@@ -296,6 +293,23 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
         return gemini_fb
 
     return "Hola Padre, he experimentado una latencia momentánea conectando con los motores cognitivos. Por favor repíteme tu consulta."
+
+import time
+_PROCESSED_EVENTS = {}
+
+def _is_duplicate_slack_event(event_id: str) -> bool:
+    """Evita responder doblemente si Slack envía app_mention y message para el mismo evento"""
+    if not event_id:
+        return False
+    now = time.time()
+    # Purgar eventos de más de 60 segundos
+    to_delete = [k for k, v in _PROCESSED_EVENTS.items() if now - v > 60]
+    for k in to_delete:
+        _PROCESSED_EVENTS.pop(k, None)
+    if event_id in _PROCESSED_EVENTS:
+        return True
+    _PROCESSED_EVENTS[event_id] = now
+    return False
 
 if __name__ == "__main__":
     print("=" * 65)

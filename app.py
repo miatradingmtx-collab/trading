@@ -5069,6 +5069,13 @@ async def handle_slack_events(request: Request):
 
         if event_type in ["app_mention", "message"]:
             channel_id = event.get("channel", "")
+            event_id = data.get("event_id") or event.get("client_msg_id") or f"{channel_id}_{event.get('ts')}"
+            
+            # Deduplicación para evitar respuestas dobles si Slack envía app_mention + message
+            from mia_supervisor_chat import _is_duplicate_slack_event
+            if _is_duplicate_slack_event(event_id):
+                return Response(content="duplicate_ignored", media_type="text/plain", status_code=200)
+
             print(f"| SLACK EVENT | Mensaje detectado en canal {channel_id}: '{text[:60]}'")
             
             async def async_chat_reply():
@@ -5076,9 +5083,12 @@ async def handle_slack_events(request: Request):
                     from mia_supervisor_chat import chat_with_mia, is_quant_or_infra_query
                     from mia_slack_bridge import slack_bridge
                     
-                    # 1. Determinar el canal consultando Slack API o memoria Redis
-                    channel_name = ""
-                    if slack_bridge.bot_token and channel_id:
+                    # 1. Determinar el canal consultando mapa conocido, Slack API o memoria Redis
+                    KNOWN_CHANNELS = {
+                        "C0C4QCZPTPH": "mia-chat"
+                    }
+                    channel_name = KNOWN_CHANNELS.get(channel_id, "")
+                    if not channel_name and slack_bridge.bot_token and channel_id:
                         try:
                             h = {"Authorization": f"Bearer {slack_bridge.bot_token}"}
                             r_info = requests.get(f"https://slack.com/api/conversations.info?channel={channel_id}", headers=h, timeout=3)
@@ -5097,20 +5107,19 @@ async def handle_slack_events(request: Request):
                         except Exception:
                             pass
 
-                    # 2. Selección estricta de motor por canal:
-                    # - #mia-chat: Gemini Pro obligatorio para temas cotidianos, clima, noticias
-                    # - #back-office-y-backend: OpenRouter obligatorio para trading quant, MT5 e infra
-                    # - Fallback inteligente por intención semántica
-                    engine = None
-                    if "mia-chat" in channel_name or "chat" in channel_name:
+                    # 2. Selección estricta e inviolable de motor por canal:
+                    # - #mia-chat (C0C4QCZPTPH): Google Gemini Pro OBLIGATORIO para temas cotidianos, clima satelital, noticias
+                    # - #back-office-y-backend: OpenRouter OBLIGATORIO con contexto de 6 Herds Técnicos T1-T6 y MT5 Broker
+                    is_mia_chat = ("mia-chat" in channel_name or channel_name == "mia-chat" or channel_id == "C0C4QCZPTPH" or "chat" in channel_name)
+                    
+                    if is_mia_chat:
                         engine = "gemini"
-                    elif "back-office" in channel_name or "backend" in channel_name:
-                        engine = "openrouter"
+                        motor_badge = "✨ Google Gemini"
                     else:
-                        engine = "openrouter" if is_quant_or_infra_query(text) else "gemini"
+                        engine = "openrouter"
+                        motor_badge = "🧠 OpenRouter Quant / Herds T1-T6"
 
                     reply = chat_with_mia(text, force_engine=engine)
-                    motor_badge = "✨ Google Gemini" if engine == "gemini" else "🧠 OpenRouter Quant"
                     slack_bridge.send_channel_message(f"👑 *MIA Supervisor* `[{motor_badge}]`:\n{reply}", channel=channel_id)
                 except Exception as e_reply:
                     print(f"| SLACK CHAT EVENT ERROR | {e_reply}")

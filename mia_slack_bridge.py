@@ -53,8 +53,11 @@ class MiaSlackBridge:
         Envía un mensaje a un canal específico (ej: #mia-chat o #back-office-y-backend).
         Si SLACK_BOT_TOKEN está configurado, usa chat.postMessage al canal indicado.
         Si es para #mia-chat y existe SLACK_CHAT_WEBHOOK_URL, usa ese webhook.
-        Si no, utiliza el webhook principal configurado por defecto.
+        Si falla y el destino era exclusivo (#mia-chat), EVITA la fuga hacia el webhook de backoffice.
         """
+        target_ch = str(channel or "").lower()
+        is_mia_chat = ("chat" in target_ch or target_ch == "c0c4qczptph")
+
         if self.bot_token and channel:
             try:
                 headers = {
@@ -63,13 +66,17 @@ class MiaSlackBridge:
                 }
                 payload = {"channel": channel, "text": text}
                 r = requests.post("https://slack.com/api/chat.postMessage", headers=headers, json=payload, timeout=5)
-                if r.status_code == 200 and r.json().get("ok", False):
+                res_data = r.json() if r.status_code == 200 else {}
+                if r.status_code == 200 and res_data.get("ok", False):
                     return True
+                else:
+                    err = res_data.get("error", r.text)
+                    print(f"| SLACK API ERROR | chat.postMessage falló para canal '{channel}': {err}")
             except Exception as e:
                 print(f"| SLACK ERROR | Error enviando a {channel} vía API: {e}")
 
-        # Si el canal es #mia-chat y tiene su propio webhook
-        if channel and ("chat" in str(channel).lower() or channel == "mia-chat") and self.chat_webhook_url:
+        # Si el canal es #mia-chat y tiene su propio webhook secundario
+        if is_mia_chat and self.chat_webhook_url:
             try:
                 r = requests.post(self.chat_webhook_url, json={"text": text}, timeout=4)
                 if r.status_code == 200:
@@ -77,7 +84,14 @@ class MiaSlackBridge:
             except Exception as e:
                 print(f"| SLACK CHAT WEBHOOK ERROR | {e}")
 
+        # AISLAMIENTO ESTRICTO DE CANALES:
+        # Si el mensaje fue originado en #mia-chat, NUNCA debe desviarse al Webhook de #back-office-y-backend
+        if is_mia_chat:
+            print(f"| SLACK ROUTING ISOLATION | Mensaje para '{channel}' omitido del webhook de backoffice para evitar cruce de canales.")
+            return False
+
         return self.send_raw_message(text)
+
 
     def send_senior_ops_report(self, summary: Dict[str, Any]) -> bool:
         """
