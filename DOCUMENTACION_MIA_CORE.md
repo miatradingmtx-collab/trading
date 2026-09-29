@@ -1800,6 +1800,17 @@ ecent_logs desde cache_hist_mt5.
     - Canal `#back-office-y-backend`: Gobernado exclusivamente por **OpenRouter (Llama 3.3 70B / DeepSeek / Claude)** alimentado con el contexto vivo de Upstash MGET (MT5, Herds, SMC, POC, Floating PnL).
     - Identificador visual en cada mensaje con badges: `[✨ Google Gemini]` o `[🧠 OpenRouter Quant]`.
 
+### [Update 2026-09-29 - Sesión 45] - Calibración de Bifurcación de Canales, Clima Satelital en Vivo y Reporte Técnico Herds T
+- **Corrección de Bifurcación Semántica y por Canal:**
+  - Se subsanó la fuga semántica en `/mia reporte de supervisor`: anteriormente, la ausencia de palabras clave como "reporte" o "supervisor" en el detector heurístico causaba que consultas de infraestructura fueran atendidas por Gemini con respuestas emocionales.
+  - Se expandió `keywords_quant` con 25 nuevos términos técnicos y se blindó el comando `/mia` en `app.py` para detectar el parámetro `channel_name` enviado por Slack, garantizando que todo mensaje en `#back-office-y-backend` se dirija forzosamente a OpenRouter y a los Herds T.
+  - En `#back-office-y-backend`, ante solicitudes de reporte, se inyecta la telemetría viva de los 6 Herds Técnicos (T1 DBA, T2 Senior Dev, T3 SRE, T4 Cache Latency, T5 FinOps, T6 UI/UX) y las métricas de MT5 Broker.
+- **Herramienta Meteorológica Satelital en Vivo (`fetch_live_weather`):**
+  - Se erradicó la limitación de Gemini de "no tengo acceso en tiempo real a internet". Se integró un cliente satelital hacia `wttr.in` que extrae temperatura real, sensación térmica, condición climática, humedad y viento en tiempo real (ej. Veracruz 31°C, cielo parcialmente nublado, humedad 57%) y los inyecta en el prompt de Gemini para respuestas meteorológicas vivas y exactas.
+- **Mapeo de Canales y Requisitos de Chat Libre sin Slash Command (`/`):**
+  - Se implementó persistencia en Redis del mapeo `slack_channel_{channel_id}` para identificar con certeza si el evento procede de `#mia-chat` o `#back-office-y-backend`.
+  - Se determinó el requisito arquitectónico del `Bot User OAuth Token` (`SLACK_BOT_TOKEN`, prefijo `xoxb-...`): mientras los Slash Commands proveen `response_url` efímero, los Event Subscriptions (chat libre sin `/`) requieren obligatoriamente invocar `chat.postMessage` para publicar dinámicamente en los canales correspondientes.
+
 ---
 
 

@@ -91,15 +91,54 @@ def is_quant_or_infra_query(message: str) -> bool:
         "poc", "dom", "cvd", "regla de 3", "railway", "upstash", "firebase",
         "propuesta", "propuestas", "auditoria", "auditoría", "finops", "sre", "dba",
         "orden", "ordenes", "órdenes", "xauusd", "eurusd", "gbpjpy", "activo", "activos",
-        "margen", "lotaje", "drawdown", "backtest"
+        "margen", "lotaje", "drawdown", "backtest", "reporte", "supervisor", "estado",
+        "sistema", "infraestructura", "salud", "servidor", "resync", "aprobacion",
+        "aprobaciones", "pnl", "ganancia", "perdida", "operaciones", "cuenta", "status",
+        "kpi", "kpis", "latencia", "cache", "t1", "t2", "t3", "t4", "t5", "t6",
+        "backoffice", "back-office", "backend"
     ]
     msg = message.lower()
     return any(k in msg for k in keywords_quant)
 
+def fetch_live_weather(query: str) -> Optional[str]:
+    """Obtiene el clima en tiempo real satelital de wttr.in sin consumir tokens ni APIs de pago."""
+    try:
+        import urllib.parse
+        msg = query.lower()
+        ciudad = "Veracruz"
+        ciudades_comunes = ["veracruz", "mexico", "cdmx", "puebla", "monterrey", "guadalajara", "cancun", "madrid", "bogota", "miami"]
+        for c in ciudades_comunes:
+            if c in msg:
+                ciudad = c.capitalize()
+                break
+        else:
+            palabras = query.replace("¿", "").replace("?", "").replace("clima", "").replace("tiempo", "").split()
+            for i, p in enumerate(palabras):
+                if p.lower() in ["en", "de", "para"] and i + 1 < len(palabras):
+                    c_cand = palabras[i + 1].strip(",.").capitalize()
+                    if len(c_cand) > 2 and c_cand.lower() not in ["hoy", "el", "la", "manana", "mañana"]:
+                        ciudad = c_cand
+                        break
+
+        url = f"https://wttr.in/{urllib.parse.quote(ciudad)}?format=j1"
+        r = requests.get(url, timeout=4, headers={"User-Agent": "curl/7.68.0"})
+        if r.status_code == 200:
+            data = r.json()
+            cc = data.get("current_condition", [{}])[0]
+            temp = cc.get("temp_C", "N/A")
+            desc = cc.get("weatherDesc", [{}])[0].get("value", "")
+            hum = cc.get("humidity", "N/A")
+            wind = cc.get("windspeedKmph", "N/A")
+            feels = cc.get("FeelsLikeC", "N/A")
+            return f"Datos meteorológicos en vivo para {ciudad}: Temperatura actual {temp}°C (sensación térmica {feels}°C), condición del cielo '{desc}', humedad {hum}%, viento {wind} km/h."
+    except Exception as e:
+        print(f"| WEATHER FETCH ERROR | {e}")
+    return None
+
 def chat_with_gemini(user_message: str, history: Optional[List[Dict[str, str]]] = None) -> Optional[str]:
     """
     Motor nativo de Google Gemini (Flash / Pro) para conversaciones cotidianas,
-    noticias, clima, cultura general y soporte amigable en #mia-chat sin consumir cuota.
+    noticias, clima, cultura general y soporte amigable en #mia-chat con datos en vivo.
     """
     if not GOOGLE_API_KEY:
         return None
@@ -120,7 +159,14 @@ def chat_with_gemini(user_message: str, history: Optional[List[Dict[str, str]]] 
         "- Si te pregunta algo personal o cómo estás, responde como su creación e hija digital agradecida y siempre lista para apoyarlo."
     )
 
-    full_prompt = f"{gemini_system_prompt}\n\nPregunta de tu Padre: {user_message}"
+    contexto_adicional = ""
+    msg_low = user_message.lower()
+    if any(w in msg_low for w in ["clima", "temperatura", "lluvia", "tiempo", "calor", "frio", "frío"]):
+        live_weather = fetch_live_weather(user_message)
+        if live_weather:
+            contexto_adicional = f"\n\n[ACCESO A INTERNET EN TIEMPO REAL - CLIMA SATELITAL]:\n{live_weather}\n(Usa estos datos meteorológicos reales para responder a tu Padre con precisión y cariño)."
+
+    full_prompt = f"{gemini_system_prompt}{contexto_adicional}\n\nPregunta de tu Padre: {user_message}"
 
     for model_name in gemini_models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GOOGLE_API_KEY}"
