@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MIA AI Architecture & Connectivity Map | ChatOps, MCP & LLM Routing</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Mermaid.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <!-- SVG Pan Zoom CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    body {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overflow: hidden;
+    }
+    #diagram-container {
+      width: 100vw;
+      height: calc(100vh - 72px);
+      position: relative;
+      background: radial-gradient(circle at 50% 50%, #151d30 0%, #080c14 100%);
+      overflow: hidden;
+      cursor: grab;
+    }
+    #diagram-container:active {
+      cursor: grabbing;
+    }
+    .mermaid svg {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: none !important;
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(51, 65, 85, 0.7);
+    }
+    .control-btn {
+      transition: all 0.2s ease-in-out;
+    }
+    .control-btn:hover {
+      background-color: #3b82f6;
+      color: #ffffff;
+      transform: scale(1.05);
+    }
+    .pulse-dot {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.9); }
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col">
+
+  <!-- TOP HEADER & CONTROLS -->
+  <header class="h-[72px] glass-panel px-6 flex items-center justify-between z-20 border-b border-slate-700/60 shadow-lg">
+    <div class="flex items-center space-x-4">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+        <i class="fa-solid fa-network-wired text-white text-lg"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+          MIA AI CORE <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">V2.4 Live</span>
+        </h1>
+        <p class="text-xs text-slate-400">Mapa de Conectividad End-to-End: Slack ChatOps, Servidores MCP y Motores Cognitivos</p>
+      </div>
+    </div>
+
+    <!-- STATUS CHIPS -->
+    <div class="hidden md:flex items-center space-x-3 text-xs">
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+        <span>Gateway: <strong>trading-production-927a</strong> (Online)</span>
+      </div>
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+        <i class="fa-solid fa-microchip"></i>
+        <span>MCP Ops: <strong>/api/mcp/ops/tools</strong> (9 Tools)</span>
+      </div>
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400">
+        <i class="fa-solid fa-chart-line"></i>
+        <span>MCP Trading: <strong>/api/mcp/tools</strong> (6 Tools)</span>
+      </div>
+    </div>
+
+    <!-- ZOOM & RESET ACTION BUTTONS -->
+    <div class="flex items-center space-x-2">
+      <button id="zoom-in" title="Acercar (Zoom In)" class="control-btn w-9 h-9 rounded-lg glass-panel flex items-center justify-center text-slate-300 hover:text-white">
+        <i class="fa-solid fa-plus text-sm"></i>
+      </button>
+      <button id="zoom-out" title="Alejar (Zoom Out)" class="control-btn w-9 h-9 rounded-lg glass-panel flex items-center justify-center text-slate-300 hover:text-white">
+        <i class="fa-solid fa-minus text-sm"></i>
+      </button>
+      <button id="reset-zoom" title="Restablecer Vista Centrada" class="control-btn px-3 h-9 rounded-lg glass-panel flex items-center gap-1.5 text-xs text-slate-300 hover:text-white">
+        <i class="fa-solid fa-compress text-xs"></i> <span>Ajustar</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- INTERACTIVE DIAGRAM CANVAS -->
+  <main id="diagram-container" class="flex-1 w-full relative">
+    
+    <!-- FLOATING NAVIGATION LEGEND -->
+    <div class="absolute bottom-6 left-6 z-10 glass-panel p-4 rounded-xl border border-slate-700/80 shadow-2xl max-w-sm pointer-events-auto">
+      <div class="text-xs font-semibold text-slate-300 mb-2.5 flex items-center justify-between">
+        <span class="flex items-center gap-1.5"><i class="fa-solid fa-layer-group text-cyan-400"></i> Leyenda de Rutas</span>
+        <span class="text-[10px] text-slate-500">Arrastra para mover • Rueda para zoom</span>
+      </div>
+      <div class="space-y-2 text-xs">
+        <div class="flex items-center gap-2.5">
+          <span class="w-3.5 h-3.5 rounded bg-blue-500/30 border border-blue-400 inline-block"></span>
+          <span class="text-slate-300"><strong>Canal #mia-chat:</strong> Gemini Pro + Clima wttr.in</span>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <span class="w-3.5 h-3.5 rounded bg-orange-500/30 border border-orange-400 inline-block"></span>
+          <span class="text-slate-300"><strong>Canal #back-office:</strong> OpenRouter + Herds T1-T6 + MT5</span>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <span class="w-3.5 h-3.5 rounded bg-emerald-500/30 border border-emerald-400 inline-block"></span>
+          <span class="text-slate-300"><strong>Servidores MCP:</strong> FastMCP Ops & Trading Protocol</span>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <span class="w-3.5 h-3.5 rounded bg-purple-500/30 border border-purple-400 inline-block"></span>
+          <span class="text-slate-300"><strong>Gateway:</strong> Railway 927a (Anti-429 & Deduplicador)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MERMAID CONTAINER -->
+    <div id="mermaid-wrapper" class="w-full h-full flex items-center justify-center p-8">
+      <div class="mermaid opacity-0 transition-opacity duration-500">
+flowchart TD
+    subgraph Slack_Workspace ["💬 Slack Workspace (Frontend de Usuario)"]
+        User(["👤 Padre (Usuario)"])
+        ChMia["#mia-chat\n(Canal ID: C0C4QCZPTPH)"]
+        ChBack["#back-office-y-backend\n(Canal de Infraestructura)"]
+        
+        User -->|Pregunta casual, clima, noticias| ChMia
+        User -->|Consulta técnica, estado Herds, MT5| ChBack
+    end
+
+    subgraph Slack_Event_Gateway ["⚙️ Slack Event Gateway & Webhooks"]
+        EvSub["Event Subscriptions\n(message.channels)"]
+        SlackPostAPI["Slack Web API\n(chat.postMessage vía xoxb Token)"]
+        SlackWebhookOps["Incoming Webhook Ops\n(SLACK_WEBHOOK_URL)"]
+        
+        ChMia --> EvSub
+        ChBack --> EvSub
+        SlackPostAPI -->|Entrega Directa Aislada| ChMia
+        SlackPostAPI -->|Entrega Directa Aislada| ChBack
+        SlackWebhookOps -->|Alertas Back-Office| ChBack
+    end
+
+    subgraph Railway_Core ["🚀 Railway Core Gateway (trading-production-927a)"]
+        EvRouter["POST /api/slack/events\n(handle_slack_events)"]
+        EvSub --> EvRouter
+        
+        Deduplicator{"¿Evento Duplicado?\n(_is_duplicate_slack_event)"}
+        EvRouter --> Deduplicator
+        Deduplicator -- Sí --> Drop["Descartar (200 OK)"]
+        Deduplicator -- No --> ChannelFilter{"Bifurcador de Canales"}
+    end
+
+    subgraph Cognitive_Engines ["🧠 Motores Cognitivos Duales"]
+        subgraph Motor_Casual ["Motor Casual / Cotidiano"]
+            Gemini["✨ Google Gemini Pro"]
+            WeatherAPI["🛰️ API Satelital wttr.in\n(Clima en Tiempo Real Veracruz)"]
+            WeatherAPI -.->|Temperatura & Humedad| Gemini
+        end
+
+        subgraph Motor_Quant ["Motor Técnico / Infraestructura"]
+            OpenRouter["🧠 OpenRouter Quant\n(Llama 3.3 70B / DeepSeek)"]
+            Supervisor["👑 Mia Watchdog Supervisor"]
+            Supervisor --> OpenRouter
+        end
+    end
+
+    ChannelFilter -->|Canal == 'C0C4QCZPTPH' (#mia-chat)| Gemini
+    ChannelFilter -->|Canal == '#back-office-y-backend'| OpenRouter
+
+    Gemini -->|Badge: ✨ Google Gemini| SlackPostAPI
+    OpenRouter -->|Badge: 🧠 OpenRouter Quant / Herds T1-T6| SlackPostAPI
+
+    subgraph MCP_Infrastructure ["🔌 Servidores MCP (Model Context Protocol)"]
+        subgraph MCP_Ops ["🛠️ MCP Back-Office Ops (/mcp/ops)"]
+            OpsRouter["Router: /api/mcp/ops/execute/*"]
+            T_Audit["mcp_ops_run_full_audit"]
+            T_Sync["mcp_ops_sync_mt5_cache (Herd T1)"]
+            T_R3["mcp_ops_recalibrate_regla_de_3 (Herd T2)"]
+            T_Health["mcp_ops_get_system_health (Herd T4)"]
+            T_SlackSend["mcp_ops_send_slack_message"]
+            T_SlackStatus["mcp_ops_get_slack_status"]
+            
+            OpsRouter --> T_Audit & T_Sync & T_R3 & T_Health & T_SlackSend & T_SlackStatus
+        end
+
+        subgraph MCP_Trading ["📈 MCP Trading & Research (/mcp)"]
+            TradingRouter["Router: /api/mcp/execute/*"]
+            T_Delta["scan_footprint_delta"]
+            T_ATR["calc_dynamic_atr"]
+            T_DOM["scan_orderbook_depth"]
+            T_Sentiment["market_sentiment_news"]
+            T_Backtest["run_strategy_backtest"]
+            
+            TradingRouter --> T_Delta & T_ATR & T_DOM & T_Sentiment & T_Backtest
+        end
+    end
+
+    Supervisor <-->|Invocación de Triage & Health| MCP_Ops
+    OpenRouter <-->|Invocación de Datos de Mercado| MCP_Trading
+
+    subgraph Data_And_External_APIs ["💾 Capa de Persistencia y APIs Externas"]
+        RedisUpstash[("⚡ Upstash Redis (<15ms MGET)\n• cache_mt5\n• cache_system_ops_status\n• cache_ops_learning_kb\n• cache_market_regime")]
+        FirestoreDB[("🔥 Firebase Firestore\n• mia_ops_learning_history\n• mia_ops_audit_history\n• system_memory")]
+        MT5_Broker["💹 MetaTrader 5 Broker\n(Terminal Directa Cuenta Real)"]
+        TensorFlowCluster["🌐 Cluster 3D TensorFlow\n(trading-production-1fd4)"]
+    end
+
+    T_SlackSend --> SlackPostAPI
+    T_SlackStatus -.-> SlackPostAPI
+    T_Sync <--> MT5_Broker
+    T_Sync <--> RedisUpstash
+    T_R3 <--> RedisUpstash
+    T_Health <--> RedisUpstash
+    T_Audit --> FirestoreDB
+
+    T_Delta & T_DOM & T_ATR <--> MT5_Broker
+    T_Delta & T_DOM <--> RedisUpstash
+    TradingRouter <--> TensorFlowCluster
+
+    classDef canalChat fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#eff6ff;
+    classDef canalOps fill:#7c2d12,stroke:#f97316,stroke-width:2px,color:#fff7ed;
+    classDef mcpStyle fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#ecfdf5;
+    classDef core fill:#3b0764,stroke:#a855f7,stroke-width:2px,color:#faf5ff;
+    class ChMia,Motor_Casual canalChat;
+    class ChBack,Motor_Quant canalOps;
+    class MCP_Infrastructure,MCP_Ops,MCP_Trading mcpStyle;
+    class Railway_Core,Slack_Event_Gateway core;
+      </div>
+    </div>
+  </main>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#0b0f19',
+        mainBkg: '#1e293b',
+        nodeBorder: '#475569',
+        textColor: '#f8fafc',
+        lineColor: '#38bdf8',
+        fontFamily: 'system-ui, sans-serif'
+      }
+    });
+
+    let panZoomInstance = null;
+
+    window.addEventListener('load', () => {
+      // Permitir que Mermaid renderice el SVG
+      setTimeout(() => {
+        const svgElement = document.querySelector('.mermaid svg');
+        if (svgElement) {
+          document.querySelector('.mermaid').classList.remove('opacity-0');
+          svgElement.id = 'interactive-svg';
+          
+          panZoomInstance = svgPanZoom('#interactive-svg', {
+            zoomEnabled: true,
+            controlIconsEnabled: false,
+            fit: true,
+            center: true,
+            minZoom: 0.3,
+            maxZoom: 10,
+            zoomScaleSensitivity: 0.25
+          });
+
+          // Conectar botones personalizados
+          document.getElementById('zoom-in').addEventListener('click', () => {
+            if (panZoomInstance) panZoomInstance.zoomIn();
+          });
+          document.getElementById('zoom-out').addEventListener('click', () => {
+            if (panZoomInstance) panZoomInstance.zoomOut();
+          });
+          document.getElementById('reset-zoom').addEventListener('click', () => {
+            if (panZoomInstance) {
+              panZoomInstance.resetZoom();
+              panZoomInstance.center();
+              panZoomInstance.fit();
+            }
+          });
+
+          // Auto-ajustar en redimensión de ventana
+          window.addEventListener('resize', () => {
+            if (panZoomInstance) {
+              panZoomInstance.resize();
+              panZoomInstance.fit();
+              panZoomInstance.center();
+            }
+          });
+        }
+      }, 500);
+    });
+  </script>
+</body>
+</html>

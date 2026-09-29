@@ -4679,6 +4679,15 @@ async def handle_slack_interaction(request: Request):
         print(f"| SLACK INTERACTION ERROR | {e}")
         return Response(content=f"Error: {e}", media_type="text/plain", status_code=200)
 
+@app.get("/diagrama", response_class=HTMLResponse)
+def get_diagrama_conectividad():
+    """Retorna el mapa interactivo de conectividad de ChatOps, MCP Servers y Motores Cognitivos con zoom/pan."""
+    diagram_path = os.path.join(os.path.dirname(__file__), "diagrama_conectividad_mcp_slack.html")
+    if os.path.exists(diagram_path):
+        with open(diagram_path, "r", encoding="utf-8", errors="replace") as f:
+            return f.read()
+    return "<h1>Diagrama no encontrado</h1>"
+
 @app.get("/dashboard/preview", response_class=HTMLResponse)
 def get_dashboard_preview():
     """
