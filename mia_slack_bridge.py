@@ -31,8 +31,9 @@ SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "")
 
 class MiaSlackBridge:
-    def __init__(self, webhook_url: Optional[str] = None):
+    def __init__(self, webhook_url: Optional[str] = None, bot_token: Optional[str] = None):
         self.webhook_url = webhook_url or os.getenv("SLACK_WEBHOOK_URL", "")
+        self.bot_token = bot_token or os.getenv("SLACK_BOT_TOKEN", "")
 
     def send_raw_message(self, text: str) -> bool:
         if not self.webhook_url:
@@ -44,6 +45,27 @@ class MiaSlackBridge:
         except Exception as e:
             print(f"| SLACK ERROR | Error enviando mensaje crudo: {e}")
             return False
+
+    def send_channel_message(self, text: str, channel: Optional[str] = None) -> bool:
+        """
+        Envía un mensaje a un canal específico (ej: #mia-chat o #back-office-y-backend).
+        Si SLACK_BOT_TOKEN está configurado, usa chat.postMessage al canal indicado.
+        Si no, utiliza el webhook configurado por defecto.
+        """
+        if self.bot_token and channel:
+            try:
+                headers = {
+                    "Authorization": f"Bearer {self.bot_token}",
+                    "Content-Type": "application/json"
+                }
+                payload = {"channel": channel, "text": text}
+                r = requests.post("https://slack.com/api/chat.postMessage", headers=headers, json=payload, timeout=5)
+                if r.status_code == 200 and r.json().get("ok", False):
+                    return True
+            except Exception as e:
+                print(f"| SLACK ERROR | Error enviando a {channel} vía API: {e}")
+
+        return self.send_raw_message(text)
 
     def send_senior_ops_report(self, summary: Dict[str, Any]) -> bool:
         """

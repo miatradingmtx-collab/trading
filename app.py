@@ -4567,10 +4567,11 @@ async def handle_slack_events(request: Request):
             return {"status": "ignored"}
 
         if event_type in ["app_mention", "message"]:
+            channel_id = event.get("channel")
             from mia_supervisor_chat import chat_with_mia
             reply = chat_with_mia(text)
             from mia_slack_bridge import slack_bridge
-            slack_bridge.send_raw_message(f"👑 *MIA Supervisor:*\n{reply}")
+            slack_bridge.send_channel_message(f"👑 *MIA Supervisor:*\n{reply}", channel=channel_id)
             return {"status": "replied"}
 
         return {"status": "ok"}
