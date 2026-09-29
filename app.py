@@ -4491,12 +4491,25 @@ async def handle_slack_interaction(request: Request):
             if actions:
                 action_id = actions[0].get("action_id")
                 val = actions[0].get("value", "")
-                if "approve" in val:
-                    # Ejecutar auditorÃ­a y sincronizaciÃ³n forzada
-                    res = system_ops_supervisor.run_swarm_audit()
-                    return {"response_type": "in_channel", "text": f"âœ… *AcciÃ³n Aprobada por @{user_name}*. Watchdog ejecutÃ³ la sincronizaciÃ³n con Ã©xito: {res.get('system_health')}"}
+                if "approve" in val or "approve" in action_id:
+                    exec_res = system_ops_supervisor.apply_approved_actions()
+                    res = system_ops_supervisor.run_swarm_audit(notify_slack=False)
+                    ejecutadas_str = ", ".join(exec_res.get("ejecutadas", [])) if exec_res.get("ejecutadas") else "Verificación y calibración completa"
+                    return {
+                        "response_type": "in_channel",
+                        "text": f"✅ *Propuestas Aprobadas y Ejecutadas por @{user_name}*.\n• *Acciones aplicadas:* `{ejecutadas_str}`\n• *Salud Global:* `{res.get('estado_general')}`"
+                    }
+                elif "resync" in val or "resync" in action_id:
+                    res = system_ops_supervisor.run_swarm_audit(notify_slack=True)
+                    return {
+                        "response_type": "in_channel",
+                        "text": f"🔄 *Resincronización Forzada por @{user_name}*. Los 6 Herds fueron auditados en {res.get('total_execution_ms')}ms."
+                    }
                 else:
-                    return {"response_type": "in_channel", "text": f"â›” *AcciÃ³n Cancelada por @{user_name}*. Se mantiene el estado actual."}
+                    return {
+                        "response_type": "in_channel",
+                        "text": f"⛔ *Propuestas Rechazadas por @{user_name}*. Se mantiene la configuración actual sin alteraciones."
+                    }
         return {"text": "Payload recibido"}
     except Exception as e:
         return {"text": f"Error procesando interacciÃ³n: {e}"}

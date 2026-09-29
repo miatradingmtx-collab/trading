@@ -4,15 +4,14 @@ MIA SLACK BRIDGE (HUMAN-IN-THE-LOOP & CHATOPS INTEGRATION)
 Conector de comunicación entre el Watchdog Supervisor (Back-Office)
 y el usuario a través de Slack.
 Permite:
-1. Publicación de eventos y reportes en canales dedicados (#back-office-y-backend).
-2. Reportes enriquecidos con Triage Senior de 6 Herds Técnicos:
-   - [AUTO-CORREGIDO EN CALIENTE ✅]
-   - [REQUIERE APROBACIÓN HUMANA ⚠️]
-3. Solicitud de Aprobación Humana (Human-in-the-Loop) con Botones Interactivos:
-   - [APROBAR CAMBIO ✅]
-   - [RECHAZAR / CANCELAR ⛔]
-   - [PAGAR / FONDEAR 💳]
-4. Enlaces directos a Dashboards:
+1. Transparencia total: cada uno de los 6 Herds reporta qué está haciendo y qué detectó.
+2. Veredicto Senior del Supervisor Watchdog.
+3. Modo FASE 1 STRICT HUMAN-IN-THE-LOOP: Cero cambios automáticos sin aprobación previa.
+4. Botones interactivos de acción directa:
+   - [Aprobar Propuestas ✅]
+   - [Rechazar / Mantener Actual ⛔]
+   - [Forzar Resync 🔄]
+5. Enlaces directos a Dashboards:
    - Red Neuronal: https://trading-production-1fd4.up.railway.app/brain
    - Enjambres 3D: https://trading-production-1fd4.up.railway.app/
    - Dashboard Plotly: https://trading-production-927a.up.railway.app/dashboard
@@ -46,57 +45,65 @@ class MiaSlackBridge:
 
     def send_senior_ops_report(self, summary: Dict[str, Any]) -> bool:
         """
-        Envía un reporte Senior consolidado con Triage de 6 Herds:
-        - Auto-corregidos en caliente
-        - Propuestas que requieren aprobación humana (con botones)
+        Envía un reporte Senior consolidado con transparencia de los 6 Herds,
+        Veredicto del Supervisor y Botones para Aprobación Humana estricta.
         """
         if not self.webhook_url:
             return False
 
+        herds = summary.get("herds_results", {})
+        t1 = herds.get("herd_t1_dba", {})
+        t2 = herds.get("herd_t2_senior_dev", {})
+        t3 = herds.get("herd_t3_observability_sre", {})
+        t4 = herds.get("herd_t4_cache_latency", {})
+        t5 = herds.get("herd_t5_finops_billing", {})
+        t6 = herds.get("herd_t6_ui_ux_designer", {})
+
         triage = summary.get("triage", {})
-        auto_corregidos = triage.get("auto_corregidos_en_caliente", [])
         por_aprobar = triage.get("requiere_aprobacion_humana", [])
         ms = summary.get("total_execution_ms", 0.0)
         estado = summary.get("estado_general", "OPTIMAL_HEALTH")
 
-        # Texto para sección Auto-Corregidos
-        if auto_corregidos:
-            txt_auto = "\n".join([f"• ✅ {ac}" for ac in auto_corregidos[:6]])
-        else:
-            txt_auto = "• ✅ Cero anomalías detectadas. Datos y sintaxis 100% íntegros."
+        # 1. Desglose detallado de qué está haciendo cada uno de los 6 agentes
+        txt_agentes = (
+            f"• *🗄️ HERD T1 (DBA Sentinel):* {t1.get('resumen', 'Auditoría de base de datos activa.')}\n"
+            f"• *💻 HERD T2 (Senior Dev):* {t2.get('resumen', 'Auditoría de sintaxis y código activa.')}\n"
+            f"• *📡 HERD T3 (Observability SRE):* {t3.get('resumen', 'Monitoreo de endpoints activo.')}\n"
+            f"• *⚡ HERD T4 (Cache Latency):* {t4.get('resumen', 'Medición de latencia sub-35ms activa.')}\n"
+            f"• *💳 HERD T5 (FinOps Billing):* {t5.get('resumen', 'Control de presupuesto y pagos activo.')}\n"
+            f"• *🎨 HERD T6 (UI/UX Plotly):* {t6.get('resumen', 'Auditoría visual de dashboards activa.')}"
+        )
 
-        # Texto para sección Por Aprobar
+        # 2. Veredicto del Supervisor
+        txt_supervisor = (
+            f"*Veredicto Global:* `{estado}` (Auditado en {ms} ms)\n"
+            f"*Modo Operativo:* `FASE 1: STRICT HUMAN-IN-THE-LOOP` 🔒\n"
+            f"*Directriz:* Ningún agente modifica producción sin tu confirmación previa."
+        )
+
+        # 3. Propuestas que requieren aprobación humana
         if por_aprobar:
-            txt_aprobar = "\n".join([f"• ⚠️ *{pa.get('accion', 'PROPUESTA')}*: {pa.get('detalle', '')}" for pa in por_aprobar[:4]])
+            txt_aprobar = "\n".join([
+                f"{i+1}. ⚠️ *{pa.get('accion', 'PROPUESTA')}*: {pa.get('detalle', pa.get('propuesta', ''))}"
+                for i, pa in enumerate(por_aprobar[:5])
+            ])
         else:
-            txt_aprobar = "• Ninguna acción pendiente de autorización. Todo opera en régimen autónomo."
+            txt_aprobar = "• ✅ Cero cambios pendientes de autorización. Todo opera en óptimas condiciones."
 
         blocks = [
             {
                 "type": "header",
                 "text": {
                     "type": "plain_text",
-                    "text": "🛡️ MIA WATCHDOG SUPERVISOR - Triage de Infraestructura (6 Herds)",
+                    "text": "🛡️ MIA WATCHDOG SUPERVISOR - Auditoría & Triage de Infraestructura",
                     "emoji": True
                 }
             },
             {
                 "type": "section",
-                "fields": [
-                    {"type": "mrkdwn", "text": "*Supervisor:* `MIA_WATCHDOG_MASTER (Sr Lead)`"},
-                    {"type": "mrkdwn", "text": f"*Salud General:* `{estado}`"},
-                    {"type": "mrkdwn", "text": "*Malla Técnica:* `6 Herds Online (T1-T6)`"},
-                    {"type": "mrkdwn", "text": f"*Tiempo Auditoría:* `{ms} ms`"}
-                ]
-            },
-            {
-                "type": "divider"
-            },
-            {
-                "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*⚡ [AUTO-CORREGIDO EN CALIENTE POR LOS HERDS]:*\n{txt_auto}"
+                    "text": f"*👑 VEREDICTO DEL SUPERVISOR GENERAL:*\n{txt_supervisor}"
                 }
             },
             {
@@ -106,7 +113,17 @@ class MiaSlackBridge:
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*📋 [PROPUESTAS QUE REQUIEREN APROBACIÓN HUMANA]:*\n{txt_aprobar}"
+                    "text": f"*🔍 ¿QUÉ ESTÁ HACIENDO CADA UNO DE LOS 6 AGENTES?*\n{txt_agentes}"
+                }
+            },
+            {
+                "type": "divider"
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*📋 [PROPUESTAS PENDIENTES DE APROBACIÓN HUMANA]:*\n{txt_aprobar}"
                 }
             },
             {

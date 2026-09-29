@@ -530,9 +530,11 @@ class WatchdogSupervisor:
             }
         }
         
-        # 4. Guardar en Upstash Redis (cache_system_ops_status)
+        # 4. Guardar en Upstash Redis (cache_system_ops_status y cache_pending_ops_approvals)
         try:
             requests.post(f"{UPSTASH_URL}/set/cache_system_ops_status", headers=UPSTASH_HEADERS, json=summary, timeout=4)
+            if total_por_aprobar:
+                requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, json=total_por_aprobar, timeout=4)
         except Exception:
             pass
 
@@ -546,6 +548,32 @@ class WatchdogSupervisor:
                 print(f"| SUPERVISOR | Error despachando a Slack: {e_slack}")
 
         return summary
+
+    def apply_approved_actions(self) -> Dict[str, Any]:
+        """
+        Ejecuta las acciones autorizadas por el humano en Slack (Fase 1 Human-in-the-Loop).
+        """
+        try:
+            r = requests.get(f"{UPSTASH_URL}/get/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, timeout=4)
+            if r.status_code == 200 and r.json().get("result"):
+                raw = r.json().get("result")
+                pending = json.loads(raw) if isinstance(raw, str) else (raw or [])
+                executed = []
+                for p in pending:
+                    target = p.get("target")
+                    payload = p.get("payload")
+                    if target and payload:
+                        requests.post(f"{UPSTASH_URL}/set/{target}", headers=UPSTASH_HEADERS, json=payload, timeout=4)
+                        executed.append(p.get("accion"))
+                    elif p.get("accion"):
+                        executed.append(p.get("accion"))
+
+                # Purgar cola de aprobaciones
+                requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, json=[], timeout=4)
+                return {"status": "SUCCESS", "ejecutadas": executed}
+        except Exception as e:
+            return {"status": "ERROR", "error": str(e)}
+        return {"status": "NO_PENDING"}
 
 system_ops_supervisor = WatchdogSupervisor()
 

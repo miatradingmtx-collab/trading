@@ -1,48 +1,48 @@
----
-name: actualizacion_documentacion_continua
-description: Regla para asegurar que todos los cambios se guarden en la base de conocimientos.
-trigger: always_on
----
-
-# ?? Regla de Documentación Automotica (MIA Core)
-
-Como Inteligencia Artificial, tienes la directriz estricta de mantener la Base de Conocimientos (Obsidian) siempre sincronizada. 
-
-Cada vez que realices o diseñes:
-1. **Modificación de Arquitectura:** (Ej. Enjambres, Failovers, Firebase).
-2. **Modelados Matematicos:** (Ej. area Bajo la Curva, Morgan, V_M, Montecarlo).
-3. **Optimizaciones:** (Ej. Criosueño, Cache Redis, Latencia).
-
-**Instrucción de Ejecución:**
-Debes de manera autonoma editar el archivo DOCUMENTACION_MIA_CORE.md (o el nodo de trading correspondiente) e inyectar un resumen detallado del cambio, la fecha y la formula aplicada. Tras hacerlo, realiza el Commit y Push. **No le preguntes al usuario si debe guardarse, hazlo por defecto y avisale cuando este terminado.**
-
----
-name: reportes_desde_cache
-description: Regla para evitar bloqueos 429 en Firebase usando Upstash.
-trigger: always_on
----
-
-# =؀� Regla de Extracci�n de Reportes (Anti-429)
-
-Como Inteligencia Artificial, tienes PROHIBIDO realizar consultas iterativas masivas o descargas de colecciones completas en Firebase (ej. mia_audit_logs, 	rading_matrix) para generar reportes estad�sticos, de ML o de rankings.
-
-**Instrucci�n de Ejecuci�n:**
-Para obtener datos de reportes, rankings, pesos de Machine Learning (ML) o m�tricas de PNL, DEBES conectarte exclusivamente a la cach� de **Upstash Redis**.
-El endpoint o variable que almacena estos reportes pre-procesados est� en Upstash, evitando as� agotar la cuota de lecturas (429 Quota Exceeded) en el plan Spark de Firebase.
+---
+name: actualizacion_documentacion_continua
+description: Regla para asegurar que todos los cambios se guarden en la base de conocimientos.
+trigger: always_on
+---
 
-
-
----
-name: arquitectura_tensorflow_cloud
-description: Regla de CI/CD para TensorFlow y Upstash
-trigger: always_on
----
-
-# 🧠 ARQUITECTURA TENSORFLOW Y UPSTASH (CI/CD)
-1. **CI/CD Cloud-Native:** Toda la IA y el modelo predictivo corre exclusivamente en Railway. Prohibido ejecutar scripts de entrenamiento local.
-2. **TensorFlow Deep Learning:** El cerebro de Mia migró a un Modelo Secuencial (Capas Densas, ReLU, Dropout, Sigmoid).
-3. **Desacoplamiento (Anti-429):** TensorFlow entrena leyendo de cache_hist_mt5 (Upstash) y guarda el cerebro en cache_mia_tensorflow (Upstash).
-4. **Swarm HFT:** Los Enjambres consultan la probabilidad neuronal directamente desde Upstash, consumiendo cero cuota de Firebase.
+# ?? Regla de Documentación Automotica (MIA Core)
+
+Como Inteligencia Artificial, tienes la directriz estricta de mantener la Base de Conocimientos (Obsidian) siempre sincronizada. 
+
+Cada vez que realices o diseñes:
+1. **Modificación de Arquitectura:** (Ej. Enjambres, Failovers, Firebase).
+2. **Modelados Matematicos:** (Ej. area Bajo la Curva, Morgan, V_M, Montecarlo).
+3. **Optimizaciones:** (Ej. Criosueño, Cache Redis, Latencia).
+
+**Instrucción de Ejecución:**
+Debes de manera autonoma editar el archivo DOCUMENTACION_MIA_CORE.md (o el nodo de trading correspondiente) e inyectar un resumen detallado del cambio, la fecha y la formula aplicada. Tras hacerlo, realiza el Commit y Push. **No le preguntes al usuario si debe guardarse, hazlo por defecto y avisale cuando este terminado.**
+
+---
+name: reportes_desde_cache
+description: Regla para evitar bloqueos 429 en Firebase usando Upstash.
+trigger: always_on
+---
+
+# =؀� Regla de Extracci�n de Reportes (Anti-429)
+
+Como Inteligencia Artificial, tienes PROHIBIDO realizar consultas iterativas masivas o descargas de colecciones completas en Firebase (ej. mia_audit_logs, 	rading_matrix) para generar reportes estad�sticos, de ML o de rankings.
+
+**Instrucci�n de Ejecuci�n:**
+Para obtener datos de reportes, rankings, pesos de Machine Learning (ML) o m�tricas de PNL, DEBES conectarte exclusivamente a la cach� de **Upstash Redis**.
+El endpoint o variable que almacena estos reportes pre-procesados est� en Upstash, evitando as� agotar la cuota de lecturas (429 Quota Exceeded) en el plan Spark de Firebase.
+
+
+
+---
+name: arquitectura_tensorflow_cloud
+description: Regla de CI/CD para TensorFlow y Upstash
+trigger: always_on
+---
+
+# 🧠 ARQUITECTURA TENSORFLOW Y UPSTASH (CI/CD)
+1. **CI/CD Cloud-Native:** Toda la IA y el modelo predictivo corre exclusivamente en Railway. Prohibido ejecutar scripts de entrenamiento local.
+2. **TensorFlow Deep Learning:** El cerebro de Mia migró a un Modelo Secuencial (Capas Densas, ReLU, Dropout, Sigmoid).
+3. **Desacoplamiento (Anti-429):** TensorFlow entrena leyendo de cache_hist_mt5 (Upstash) y guarda el cerebro en cache_mia_tensorflow (Upstash).
+4. **Swarm HFT:** Los Enjambres consultan la probabilidad neuronal directamente desde Upstash, consumiendo cero cuota de Firebase.
 
 ---
 name: deprecacion_crewai_langchain
@@ -159,11 +159,27 @@ trigger: always_on
    - Ante excepciones de código o fallos complejos en la nube, el sistema invoca quirúrgicamente a OpenRouter (`Claude 3.5 Sonnet`, `DeepSeek V3` o `Llama 3.3 70B`) para generar diagnósticos y parches automáticos con la misma capacidad analítica que Antigravity.
 3. **Estándar de Modernización Frontend (HERD T6):** Toda mejora o rediseño para `/dashboard` (`https://trading-production-927a.up.railway.app/dashboard`) debe adoptar la estética financiera de gráficos interactivos estilo Plotly Dark, preservando intactos el menú lateral, balances, márgenes, floating PnL, regla de 3 y tabla de posiciones de MT5.
 
+---
+name: strict_human_in_the_loop_fase1
+description: Regla mandatoria de Fase 1 para requerir notificación transparente de cada agente y aprobación humana obligatoria en Slack antes de cualquier cambio.
+trigger: always_on
+---
+
+# 🔒 REGLA: PROTOCOLO ESTRICTO HUMAN-IN-THE-LOOP (FASE 1)
+1. **Cero Mutaciones sin Aprobación Previa:** En esta Fase 1, ningún agente técnico (HERD T1 a T6) ni el Supervisor Watchdog tiene autorización para ejecutar cambios automáticos destructivos o modificaciones de base de datos/código en producción sin autorización explícita previa.
+2. **Transparencia Total de los 6 Herds:** Cada agente debe reportar en Slack `#back-office-y-backend` qué auditó, qué anomalía detectó y la propuesta exacta que recomienda aplicar.
+3. **Control por Botones Interactivos en Slack:** El Supervisor Watchdog emite el veredicto consolidado y presenta las propuestas a través de 3 botones interactivos:
+   - `[Aprobar Propuestas ✅]`: Autoriza y ejecuta las propuestas a través de `/api/slack/interactions`.
+   - `[Rechazar / Mantener Actual ⛔]`: Descarta las propuestas y preserva el estado actual sin cambios.
+   - `[Forzar Resync 🔄]`: Re-ejecuta la auditoría en vivo para verificar el estado de los 6 Herds.
+4. **Evolución Progresiva a Fase 2:** La transición a auto-remediación autónoma solo se activará en el futuro tras verificar empíricamente en el tiempo que las correcciones son 100% seguras y consistentes.
 
 
 
 
 
+
+
 
 ---
 name: estricta_separacion_shadow_y_filtro_noticias
@@ -171,9 +187,9 @@ description: Regla para evitar la contaminacion cruzada de metricas Shadow a Pro
 trigger: always_on
 ---
 
-# ?? REGLA: SEPARACI�N STRICTA SHADOW MODE Y FILTRO DE NOTICIAS
-1. **Contaminaci�n Cero a Producci�n:** Queda ESTRICTAMENTE PROHIBIDO que el Agente Supervisor o cualquier script autom�tico inyecte pesos, m�tricas o indicadores provenientes de TensorFlow, ATLAS o Enjambres HFT (Herds) hacia las tablas de producci�n (ej. mia_kb/regla_de_3) mientras se encuentren en periodo de "Shadow Mode" o calibraci�n.
-2. **Tablas Aisladas:** El aprendizaje en la sombra debe escribirse EXCLUSIVAMENTE en sus colecciones y cach�s dedicadas (cache_mia_atlas, cache_mia_tensorflow, cache_shadow_trades, cache_herd_debate_latest).
-3. **Filtro de Noticias Trampa:** El nodo iltro_trampa_noticias (que rige los 15 minutos previos y 5 posteriores a una noticia) es una regla estructural y est�tica de seguridad. **NO debe ser alterada din�micamente por Machine Learning**. Si los Enjambres desean probar diferentes tiempos de bloqueo pre-noticia, lo har�n simulando en sus propias tablas, sin afectar la producci�n.
+# ?? REGLA: SEPARACI�N STRICTA SHADOW MODE Y FILTRO DE NOTICIAS
+1. **Contaminaci�n Cero a Producci�n:** Queda ESTRICTAMENTE PROHIBIDO que el Agente Supervisor o cualquier script autom�tico inyecte pesos, m�tricas o indicadores provenientes de TensorFlow, ATLAS o Enjambres HFT (Herds) hacia las tablas de producci�n (ej. mia_kb/regla_de_3) mientras se encuentren en periodo de "Shadow Mode" o calibraci�n.
+2. **Tablas Aisladas:** El aprendizaje en la sombra debe escribirse EXCLUSIVAMENTE en sus colecciones y cach�s dedicadas (cache_mia_atlas, cache_mia_tensorflow, cache_shadow_trades, cache_herd_debate_latest).
+3. **Filtro de Noticias Trampa:** El nodo iltro_trampa_noticias (que rige los 15 minutos previos y 5 posteriores a una noticia) es una regla estructural y est�tica de seguridad. **NO debe ser alterada din�micamente por Machine Learning**. Si los Enjambres desean probar diferentes tiempos de bloqueo pre-noticia, lo har�n simulando en sus propias tablas, sin afectar la producci�n.
 4. **Consulta Anti-429 Integral:** El iltro_trampa_noticias y la egla_de_3 deben ser consultados 100% mediante Upstash Redis (cache_regla_de_3). Cero consultas directas a Firebase Firestore al momento de ejecutar un trade.
-5. **Protocolo de Migraci�n (Slack):** Cuando termine la ventana de calibraci�n (1-2 semanas), la decisi�n de pasar a TensorFlow/ATLAS a Producci�n (hacer el "Switch") es clasificada como [REQUIERE APROBACI�N HUMANA ??]. El Supervisor debe solicitar autorizaci�n obligatoria en Slack antes de tocar la base de datos principal de Firebase.
+5. **Protocolo de Migraci�n (Slack):** Cuando termine la ventana de calibraci�n (1-2 semanas), la decisi�n de pasar a TensorFlow/ATLAS a Producci�n (hacer el "Switch") es clasificada como [REQUIERE APROBACI�N HUMANA ??]. El Supervisor debe solicitar autorizaci�n obligatoria en Slack antes de tocar la base de datos principal de Firebase.
