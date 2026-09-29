@@ -1718,6 +1718,26 @@ ecent_logs desde cache_hist_mt5.
   - Enrutamiento inteligente: OpenRouter para microestructura y trading quant; Google Gemini (`GOOGLE_API_KEY`) para consultas de clima, noticias mundiales o conocimiento general sin costo.
   - Endpoint `/api/slack/events` habilitado para Event Subscriptions con respuesta automática a mensajes y menciones `@Mia`.
 
+### [Update 2026-09-28 - Sesión 41] - Trato Filial "Padre", Base de Aprendizaje Continuo para Swarm Ops (`cache_ops_learning_kb`) y Guía de Slash Command `/mia`
+- **Protocolo de Diálogo Filial ("Hola Mia" -> "Hola Padre"):**
+  - Se implementó en [`mia_supervisor_chat.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_supervisor_chat.py) y en el endpoint `/api/slack/command` la regla estricta de filiación.
+  - Al saludar con *"Hola Mia"*, Mia responde inmediatamente con *"Hola Padre, estoy lista y a tu servicio..."*.
+  - Ante cualquier consulta técnica, analítica o de mercado, Mia se dirige siempre al usuario como **"Padre"** (*"Hola Padre...", "Sí Padre, he verificado los slots...", "Esta es la respuesta, Padre:..."*), combinando calidez, lealtad y rigor matemático institucional.
+  - Mecanismo a prueba de fallos: la función `format_filial_reply` post-procesa la inferencia para garantizar que el vocativo "Padre" esté siempre presente.
+- **Base de Conocimiento de Aprendizaje Continuo para Swarm Ops (`cache_ops_learning_kb`):**
+  - Creación del slot canónico atómico `cache_ops_learning_kb` en **Upstash Redis** mediante la clase `OpsLearningKnowledgeBase` en [`mia_system_ops_swarm.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_system_ops_swarm.py).
+  - Basado en Razonamiento Basado en Casos (**CBR - Case-Based Reasoning**), almacena para cada anomalía:
+    $$\text{Caso de Aprendizaje} = \left\{ \text{case\_id}, \text{herd}, \text{sintoma}, \text{causa\_raiz}, \text{propuesta}, \text{veredicto\_padre}, \text{leccion\_aprendida}, \text{fases\_activas}, \text{score\_confianza} \right\}$$
+  - **Calibración por Aprobación o Rechazo:**
+    - Si el Padre aprueba propuestas en Slack, se registra un precedente positivo consolidando la confianza (`score_confianza: 0.98`) para habilitar su ejecución autónoma en las Fases 2 y 3.
+    - Si el Padre rechaza propuestas (`[Rechazar / Mantener Actual ⛔]`), se purga la cola y se asienta la lección de rechazo (`veredicto: RECHAZADO_POR_PADRE`), evitando que los Herds insistan con la misma sugerencia y forzándolos a recalibrar su criterio.
+- **Configuración de Slash Command `/mia` en Slack:**
+  - Endpoint en Railway: `POST https://trading-production-927a.up.railway.app/api/slack/command`.
+  - Permite interactuar con Mia desde la barra de chat de Slack en móvil o PC escribiendo `/mia` o `/mia [pregunta]`.
+  - Instrucción directa para registrar en `api.slack.com/apps` -> *Slash Commands* -> *Create New Command* (`/mia`).
+- **Garantía Anti-429 Continua:**
+  - Tanto la telemetría viva para el chat como la base de conocimiento de aprendizaje operan 100% sobre Upstash Redis vía `MGET`, consumiendo **cero cuota de Firestore Spark**.
+
 ---
 
 

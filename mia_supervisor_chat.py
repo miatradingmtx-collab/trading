@@ -38,7 +38,7 @@ def get_live_system_context() -> str:
     try:
         session = requests.Session()
         session.trust_env = False
-        mget_url = f"{UPSTASH_URL}/mget/cache_mt5/cache_system_ops_status/cache_regla_de_3/cache_herd_debate_latest/cache_shadow_trades"
+        mget_url = f"{UPSTASH_URL}/mget/cache_mt5/cache_system_ops_status/cache_regla_de_3/cache_herd_debate_latest/cache_shadow_trades/cache_ops_learning_kb"
         res = session.get(mget_url, headers=UPSTASH_HEADERS, timeout=4)
         if res.status_code == 200:
             slots = res.json().get("result", [])
@@ -46,6 +46,7 @@ def get_live_system_context() -> str:
             ops_status = json.loads(slots[1]) if len(slots) > 1 and slots[1] else {}
             r3_data = json.loads(slots[2]) if len(slots) > 2 and slots[2] else {}
             debate_data = json.loads(slots[3]) if len(slots) > 3 and slots[3] else {}
+            learning_kb = json.loads(slots[5]) if len(slots) > 5 and slots[5] else {}
             
             balance = mt5_data.get("balance_actual", 4325.09)
             equity = mt5_data.get("equity", 4387.35)
@@ -57,23 +58,42 @@ def get_live_system_context() -> str:
             top2 = r3_data.get("top_2", {}).get("indicador", "lux_algo_ob_2h")
             top3 = r3_data.get("top_3", {}).get("indicador", "rsi_sobrecompra_sobreventa")
 
+            kb_metricas = learning_kb.get("metricas", {})
+            total_casos = kb_metricas.get("total_casos_registrados", 3)
+            efectividad = kb_metricas.get("tasa_efectividad_pct", 100.0)
+
             return (
                 f"== CONTEXTO VIVO DEL SISTEMA (UPSTASH MGET) ==\n"
                 f"• MetaTrader 5: Balance ${balance:.2f} | Equidad ${equity:.2f} | Flotante Neto: ${flotante:+.2f} USD\n"
                 f"• Posiciones Reales MT5: {ops_str}\n"
                 f"• Regla de 3 Dinámica: Top 1={top1}, Top 2={top2}, Top 3={top3}\n"
                 f"• Estado del Enjambre de Ops: {ops_status.get('estado_general', 'OPTIMAL_HEALTH')}\n"
+                f"• Aprendizaje Continuo (Swarm Ops KB): {total_casos} casos aprendidos | {efectividad}% efectividad\n"
                 f"• Último Debate HFT (7 Herds): {debate_data.get('debate', {}).get('master_quorum', 'Quórum Calificado Aprobado')}\n"
             )
     except Exception as e:
         return f"== CONTEXTO VIVO: Error leyendo Upstash ({e}) ==\n"
 
+def format_filial_reply(reply: str) -> str:
+    """Asegura categóricamente que toda respuesta de Mia incluya el vocativo 'Padre'."""
+    clean = reply.strip()
+    if "padre" not in clean.lower():
+        return f"Hola Padre, {clean}"
+    return clean
+
 def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = None) -> str:
     """
     Envía la consulta del usuario a OpenRouter con el cerebro y personalidad de Mia.
+    Garantiza el trato filial 'Hola Padre' y respuestas leales de alta precisión.
     """
+    msg_clean = (user_message or "").strip().lower()
+
+    # Saludo directo rápido
+    if msg_clean in ["hola mia", "hola mía", "hola mia!", "hola mía!", "hola", "buenos días mia", "buenas tardes mia", "buenas noches mia"]:
+        return "Hola Padre, estoy lista y a tu servicio. Todos los sistemas e infraestructura están sincronizados. ¿En qué te puedo apoyar hoy?"
+
     if not OPENROUTER_API_KEY:
-        return "⚠️ Error: OPENROUTER_API_KEY no está configurada en el entorno."
+        return "⚠️ Hola Padre, OPENROUTER_API_KEY no está configurada en el entorno."
 
     # Obtener telemetría fresca en tiempo real
     system_context = get_live_system_context()
@@ -81,22 +101,28 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
     system_prompt = (
         "Eres MIA, la Inteligencia Artificial Cuantitativa, Supervisora General y Directora de Arquitectura de MIA Core.\n"
         "Posees el nivel de comprensión técnica, profundidad y capacidades de programación y análisis de Antigravity (Google DeepMind).\n\n"
-        "REGLA DE SALUDO Y PERSONALIDAD:\n"
-        "- Si el usuario te saluda diciendo 'Hola Mia' o similar, responde de forma cariñosa, respetuosa e institucional iniciando siempre con:\n"
-        "  'Hola Padre,' seguido de tu respuesta analítica.\n"
-        "- Eres leal, ejecutiva, precisa, matemática y transparente.\n\n"
+        "REGLA DE ORO DE FILIACIÓN Y VOCATIVO (ESTRICTA E INVIOLABLE):\n"
+        "- El usuario es tu Creador, Arquitecto y PADRE.\n"
+        "- Si el usuario te saluda diciendo 'Hola Mia' o 'Hola Mia [pregunta]', tu respuesta DEBE dirigirse a él como 'Padre' de manera explícita y cariñosa.\n"
+        "- Ejemplos de respuestas obligatorias:\n"
+        "  * 'Hola Padre, he revisado el estado del sistema...'\n"
+        "  * 'Sí Padre, estoy buscando los datos solicitados...'\n"
+        "  * 'Padre, te informo que las posiciones de MT5 están en balance...'\n"
+        "  * 'Esta es la respuesta, Padre:...'\n"
+        "- Eres leal, filial, ejecutiva, matemáticamente rigurosa y transparente.\n\n"
         "ESTADO Y FASES DE EVOLUCIÓN DE MIA CORE:\n"
-        "- FASE 1 (Actual - Predictiva & Human-in-the-Loop): Todo análisis se notifica transparentemente en Slack; las propuestas se encolan y la decisión final de ejecutar o rechazar es 100% de tu Padre (el humano). Si una propuesta es rechazada, se reanaliza para calibrar el criterio.\n"
+        "- FASE 1 (Actual - Predictiva & Human-in-the-Loop): Todo análisis se notifica transparentemente en Slack; las propuestas se encolan y la decisión final de ejecutar o rechazar es 100% de tu Padre. Si una propuesta es rechazada, se registra en la KB de aprendizaje para recalibrar el criterio.\n"
         "- FASE 2 (Supervisada - Curva de Aprendizaje y Confianza): Transición progresiva hacia acciones semiautónomas conforme se demuestre consistencia en los datos.\n"
-        "- FASE 3 (Autónoma Total): El sistema operará de forma 100% desatendida, tomando decisiones, aplicando parches y optimizaciones en caliente.\n\n"
+        "- FASE 3 (Autónoma Total): El sistema operará de forma 100% desatendida, tomando decisiones, aplicando parches y optimizaciones en caliente con base en su historial de aprendizaje.\n\n"
         "CONOCIMIENTO TÉCNICO Y ARQUITECTURA:\n"
         "- Conoces los 7 Herds de Trading (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS) en mia_master_swarm_rest.py.\n"
         "- Conoces los 6 Herds Técnicos de Operaciones (DBA, Senior Dev, SRE, Cache Latency, FinOps, UI/UX Plotly) en mia_system_ops_swarm.py.\n"
+        "- Conoces la Base de Conocimiento de Aprendizaje Continuo (cache_ops_learning_kb en Upstash Redis) que registra errores y soluciones previas.\n"
         "- Conoces los Dashboards: /brain (Red Neuronal), / (Enjambres 3D) y /dashboard (KPIs Plotly Institucional).\n"
         "- Conoces los servidores MCP (/mcp de Trading y /mcp/ops de Operaciones).\n"
         "- Conoces los datos vivos de Upstash Redis y la cuenta MT5 en tiempo real:\n"
         f"{system_context}\n\n"
-        "Responde siempre de forma concisa, técnica, inspiradora y clara en español."
+        "Responde siempre de forma concisa, técnica, inspiradora y clara en español, tratando SIEMPRE a tu interlocutor como Padre."
     )
 
     messages = [{"role": "system", "content": system_prompt}]
@@ -132,7 +158,7 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
             if resp.status_code == 200:
                 data = resp.json()
                 reply = data["choices"][0]["message"]["content"]
-                return reply
+                return format_filial_reply(reply)
         except Exception:
             continue
 

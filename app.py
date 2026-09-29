@@ -4503,20 +4503,20 @@ async def handle_slack_interaction(request: Request):
                                 indices.append(int(v.replace("propuesta_", "")))
                             except:
                                 pass
-                    exec_res = system_ops_supervisor.apply_approved_actions(selected_indices=indices)
+                    exec_res = system_ops_supervisor.apply_approved_actions(selected_indices=indices, user_name=user_name)
                     res = system_ops_supervisor.run_swarm_audit(notify_slack=False)
                     ejecutadas_str = ", ".join(exec_res.get("ejecutadas", [])) if exec_res.get("ejecutadas") else "Propuestas seleccionadas aplicadas"
                     return {
                         "response_type": "in_channel",
-                        "text": f"☑️ *Propuestas Seleccionadas Aprobadas por @{user_name}*.\n• *Acciones aplicadas ({len(indices)}):* `{ejecutadas_str}`\n• *Salud Global:* `{res.get('estado_general')}`"
+                        "text": f"☑️ *Propuestas Seleccionadas Aprobadas por @{user_name}* (Aprendizaje asentado en `cache_ops_learning_kb`).\n• *Acciones aplicadas ({len(indices)}):* `{ejecutadas_str}`\n• *Salud Global:* `{res.get('estado_general')}`"
                     }
                 elif "approve" in val or "approve" in action_id:
-                    exec_res = system_ops_supervisor.apply_approved_actions()
+                    exec_res = system_ops_supervisor.apply_approved_actions(user_name=user_name)
                     res = system_ops_supervisor.run_swarm_audit(notify_slack=False)
                     ejecutadas_str = ", ".join(exec_res.get("ejecutadas", [])) if exec_res.get("ejecutadas") else "Verificación y calibración completa"
                     return {
                         "response_type": "in_channel",
-                        "text": f"✅ *Propuestas Aprobadas y Ejecutadas por @{user_name}*.\n• *Acciones aplicadas:* `{ejecutadas_str}`\n• *Salud Global:* `{res.get('estado_general')}`"
+                        "text": f"✅ *Propuestas Aprobadas y Ejecutadas por @{user_name}* (Aprendizaje asentado en `cache_ops_learning_kb`).\n• *Acciones aplicadas:* `{ejecutadas_str}`\n• *Salud Global:* `{res.get('estado_general')}`"
                     }
                 elif "resync" in val or "resync" in action_id:
                     res = system_ops_supervisor.run_swarm_audit(notify_slack=True)
@@ -4525,9 +4525,10 @@ async def handle_slack_interaction(request: Request):
                         "text": f"🔄 *Resincronización Forzada por @{user_name}*. Los 6 Herds fueron auditados en {res.get('total_execution_ms')}ms."
                     }
                 else:
+                    system_ops_supervisor.reject_proposals(user_name=user_name, reason="Rechazado vía botón interactivo Slack")
                     return {
                         "response_type": "in_channel",
-                        "text": f"⛔ *Propuestas Rechazadas por @{user_name}*. Se mantiene la configuración actual sin alteraciones."
+                        "text": f"⛔ *Propuestas Rechazadas por @{user_name}* (Precedente asentado en `cache_ops_learning_kb`).\n• Se mantiene la configuración actual sin alteraciones.\n• Los 6 Herds han registrado la decisión para afinar su criterio hacia las Fases 2 y 3."
                     }
         return {"text": "Payload recibido"}
     except Exception as e:
