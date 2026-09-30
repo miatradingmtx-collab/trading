@@ -1165,6 +1165,12 @@ ecent_logs desde cache_hist_mt5.
     - En [`handle_slack_command`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/app.py), si se ejecuta `/mia` desde `#mia-chat`, se rechaza con un mensaje efímero recordando que MIA Watchdog opera exclusivamente en `#back-office-y-backend`.
     - El comando `/mia` enruta ahora **100% a OpenRouter Quant** con la telemetría viva de los 6 Herds T1 al T6.
   - **Enfoque Exclusivo en Trading & Infraestructura:** La App MIA Watchdog queda 100% purificada, desvinculada de cualquier rol de chat cotidiano y dedicada a la auditoría del broker MT5, Upstash Redis y los 6 Herds de Operaciones.
+- **Roadmap / Tarea Pendiente Autorizada por el Padre (Microservicio Dedicado de Ops):**
+  - **Objetivo:** Desplegar en Railway un nuevo microservicio independiente y ultrarrápido (`mia-ops-service`) con su propia URL pública dedicada exclusivamente al Plano de Control (Control Plane).
+  - **Componentes a Mudar:** Endpoints de Slack (`/api/slack/events`, `/api/slack/interactions`, `/api/slack/command`), Servidor MCP Ops (`/mcp/ops`), `mia_system_ops_swarm.py` y bucle de los 6 Herds T1-T6.
+  - **Beneficio Técnico:** Aislamiento total del Plano de Datos (Data Plane en `927a` con MT5 Cloud Executor). Ninguna consulta pesada, re-auditoría ni tráfico de lenguaje natural de OpenRouter podrá generar jamás sobrecarga ni latencia sobre la ejecución de órdenes y gestión de flotante de MT5.
+  - **Estado:** `PENDIENTE_EN_COLA` (Listo para implementación en la siguiente fase).
+
 
 
 
