@@ -291,12 +291,38 @@ class MiaSlackBridge:
             ]
         })
 
-        try:
-            r = requests.post(self.webhook_url, json={"blocks": blocks}, timeout=4)
-            return r.status_code == 200
-        except Exception as e:
-            print(f"| SLACK ERROR | Error enviando reporte senior: {e}")
-            return False
+        # 1. Enviar prioritariamente vía chat.postMessage si bot_token está activo
+        if self.bot_token:
+            try:
+                headers = {
+                    "Authorization": f"Bearer {self.bot_token}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "channel": "C0C4ZMFCMJ8",  # #back-office-y-backend
+                    "text": "🛡️ MIA WATCHDOG SUPERVISOR - Auditoría & Triage de Infraestructura",
+                    "blocks": blocks,
+                    "username": "MIA Watchdog",
+                    "icon_emoji": ":shield:"
+                }
+                r = requests.post("https://slack.com/api/chat.postMessage", headers=headers, json=payload, timeout=6)
+                if r.status_code == 200 and r.json().get("ok"):
+                    return True
+                else:
+                    print(f"| SLACK API OPS REPORT | chat.postMessage respondió: {r.text}")
+            except Exception as e_api:
+                print(f"| SLACK API OPS REPORT ERROR | {e_api}")
+
+        # 2. Fallback a Webhook si bot_token no entregó o no está disponible
+        if self.webhook_url:
+            try:
+                r = requests.post(self.webhook_url, json={"blocks": blocks}, timeout=4)
+                return r.status_code == 200
+            except Exception as e:
+                print(f"| SLACK ERROR | Error enviando reporte senior vía webhook: {e}")
+                return False
+
+        return False
 
     def send_ops_report(self, audit_summary: Dict[str, Any]) -> bool:
         """Fallback compatible con versiones previas"""
