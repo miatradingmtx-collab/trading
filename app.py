@@ -5181,22 +5181,19 @@ async def handle_slack_command(request: Request):
             except Exception:
                 pass
 
-        # Bifurcación Estricta por Canal:
-        # - Canal #mia-chat (o /mia-chat): GEMINI PRO obligatorio (temas cotidianos, clima satelital, noticias, charla)
-        # - Canal #back-office-y-backend (o /mia-status o temas de trading/infra): OPENROUTER QUANT obligatorio (Herds T, MT5, balance, auditorías)
-        from mia_supervisor_chat import is_quant_or_infra_query, chat_with_mia
-        
-        is_quant = is_quant_or_infra_query(text or "")
-        engine = None
+        # Aislamiento Total MIA Watchdog (100% Trading & Infraestructura):
+        # MIA Watchdog opera EXCLUSIVAMENTE con OpenRouter y los 6 Herds T1-T6.
+        # Si se ejecuta desde #mia-chat, se rechaza educadamente invitando a usar #back-office-y-backend.
         if "chat" in channel_name or command == "/mia-chat":
-            engine = "gemini"
-        elif "back-office" in channel_name or "backend" in channel_name or command in ["/mia-status", "/mia-audit"] or is_quant:
-            engine = "openrouter"
-        else:
-            engine = "openrouter" if is_quant else "gemini"
+            return {
+                "response_type": "ephemeral",
+                "text": "🛡️ *MIA Watchdog*: Padre, este bot de supervisión técnica opera exclusivamente en el canal `#back-office-y-backend`. Para consultas técnicas y de trading, por favor interactúa en `#back-office-y-backend`."
+            }
+
+        engine = "openrouter"
 
         # Si el usuario pide auditoría / status explícito en backoffice y no hay texto adicional, devolver reporte SRE rápido
-        if command in ["/mia-status", "/mia-audit"] or (("back-office" in channel_name or "backend" in channel_name) and text.lower() in ["status", "estado", "reporte", "audit", "reporte de supervisor"]):
+        if command in ["/mia-status", "/mia-audit"] or text.lower() in ["status", "estado", "reporte", "audit", "reporte de supervisor"]:
             from mia_system_ops_swarm import system_ops_supervisor
             res = system_ops_supervisor.run_swarm_audit(notify_slack=False)
             h = res.get("herds_results", {})
@@ -5214,7 +5211,7 @@ async def handle_slack_command(request: Request):
             return {
                 "response_type": "in_channel",
                 "text": (
-                    f"👑 *MIA Supervisor* `[🧠 OpenRouter Quant / 6 Herds T]`:\n"
+                    f"👑 *MIA Watchdog Supervisor* `[🧠 OpenRouter Quant / 6 Herds T]`:\n"
                     f"Hola Padre, aquí tienes el reporte técnico consolidado de infraestructura y trading:\n\n"
                     f"• *Salud Global:* `{res.get('estado_general', 'OPTIMAL_HEALTH')}` (Auditado en {res.get('total_execution_ms', 0)} ms)\n"
                     f"• *MT5 Broker:* Balance `${t1.get('balance', 4325.09):.2f}` | Equidad `${t1.get('equity', 4387.35):.2f}` | Flotante `${t1.get('flotante_neto', 62.26):+.2f} USD`\n"
@@ -5229,13 +5226,12 @@ async def handle_slack_command(request: Request):
                 )
             }
 
-        # Diálogo conversacional con Mia con el motor asignado por canal
+        # Diálogo conversacional del Supervisor Watchdog (OpenRouter Quant)
         msg = text if text else "Hola Mia"
-        reply = chat_with_mia(msg, force_engine=engine)
-        motor_badge = "✨ Google Gemini" if engine == "gemini" else "🧠 OpenRouter Quant"
+        reply = chat_with_mia(msg, force_engine="openrouter")
         return {
             "response_type": "in_channel",
-            "text": f"👑 *MIA Supervisor* `[{motor_badge}]`:\n{reply}"
+            "text": f"🛡️ *MIA Watchdog (Supervisor / Herds T1-T6)* `[🧠 OpenRouter Quant]`:\n{reply}"
         }
     except Exception as e:
         return {"text": f"Error en comando: {e}"}
