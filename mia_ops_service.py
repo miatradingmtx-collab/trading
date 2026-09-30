@@ -80,6 +80,63 @@ def sync_antigravity_mirror():
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
+@app.post("/api/antigravity/mirror/push")
+async def push_antigravity_mirror_delta(request: Request):
+    """
+    Endpoint receptor del Live Mirror desde sesiones de Google Antigravity.
+    Recibe el payload con commits, decisiones, prompts y lo inyecta a Upstash en caliente.
+    """
+    try:
+        body = await request.json()
+        upstash_url = os.getenv("UPSTASH_REDIS_REST_URL", "https://certain-gnat-160816.upstash.io")
+        upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
+        headers = {"Authorization": f"Bearer {upstash_token}", "Content-Type": "application/json"}
+        
+        # Persistir en slot Upstash
+        r = requests.post(f"{upstash_url}/set/cache_mia_live_antigravity_delta", headers=headers, json=body, timeout=4)
+        return {
+            "status": "MIRROR_RECEIVED",
+            "upstash_status": r.status_code,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving mirror delta: {e}")
+
+@app.get("/api/antigravity/mirror")
+def get_antigravity_mirror():
+    """Retorna el estado actual del espejo de Antigravity inyectado en Upstash."""
+    upstash_url = os.getenv("UPSTASH_REDIS_REST_URL", "https://certain-gnat-160816.upstash.io")
+    upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
+    headers = {"Authorization": f"Bearer {upstash_token}"}
+    r = requests.get(f"{upstash_url}/get/cache_mia_live_antigravity_delta", headers=headers, timeout=4)
+    if r.status_code == 200 and r.json().get("result"):
+        raw = r.json().get("result")
+        return json.loads(raw) if isinstance(raw, str) else raw
+    return {"status": "NO_MIRROR_DATA", "detalle": "Slot cache_mia_live_antigravity_delta vacío o no inicializado."}
+
+@app.post("/api/ops/vectorize")
+def trigger_vectorization(payload: Optional[Dict[str, Any]] = None):
+    """
+    HERD T1 (DBA_SENTINEL): Vectoriza campos de catálogos y arrays a un tensor numérico 20D.
+    Guarda en cache_vector_indicadores para ingesta sub-5ms de TensorFlow.
+    """
+    from mia_system_ops_swarm import HerdDBAExpert
+    sample_doc = payload or {
+        "sesion": "NEW_YORK",
+        "regimen": "EXPANSION_ALCISTA",
+        "confirmaciones": ["OB_4H", "SMC_SWEEP", "CVD_DIVERGENCE"],
+        "top_1": {"peso": 35},
+        "top_2": {"peso": 30},
+        "top_3": {"peso": 25},
+        "spread": 1.15
+    }
+    vector_result = HerdDBAExpert.vectorize_features(sample_doc)
+    upstash_url = os.getenv("UPSTASH_REDIS_REST_URL", "https://certain-gnat-160816.upstash.io")
+    upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
+    headers = {"Authorization": f"Bearer {upstash_token}", "Content-Type": "application/json"}
+    requests.post(f"{upstash_url}/set/cache_vector_indicadores", headers=headers, json=vector_result, timeout=4)
+    return {"status": "VECTORIZED", "vector": vector_result}
+
 # ====================================================================
 # CHATOPS SLACK WEBHOOKS (DESACOPLADOS DE MT5)
 # ====================================================================

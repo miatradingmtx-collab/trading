@@ -114,6 +114,25 @@ class AntigravityLiveMirror:
             return False
 
     @classmethod
+    def push_to_microservice(cls, endpoint_url: str = None) -> bool:
+        """Envía el Live Mirror delta al endpoint REST del microservicio de Ops en Railway."""
+        base_url = endpoint_url or os.getenv("MIA_OPS_SERVICE_URL", "http://localhost:8080")
+        target_url = f"{base_url.rstrip('/')}/api/antigravity/mirror/push"
+        payload = cls.build_live_mirror_payload()
+        try:
+            r = requests.post(target_url, json=payload, timeout=5)
+            return r.status_code == 200
+        except Exception:
+            return False
+
+    @classmethod
+    def sync_everywhere(cls, microservice_url: str = None) -> Dict[str, bool]:
+        """Sincroniza en paralelo a Upstash Redis y al endpoint del nuevo microservicio de Ops."""
+        ok_upstash = cls.sync_to_upstash()
+        ok_endpoint = cls.push_to_microservice(microservice_url)
+        return {"upstash": ok_upstash, "microservice_endpoint": ok_endpoint}
+
+    @classmethod
     def get_live_context_for_prompt(cls) -> str:
         """Retorna el bloque de texto homologado para inyectar en el prompt de Llama."""
         payload = cls.build_live_mirror_payload()
@@ -134,6 +153,7 @@ DECISIONES DE ARQUITECTURA HOMOLOGADAS EN ESTA SESIÓN:
 """
 
 if __name__ == "__main__":
-    ok = AntigravityLiveMirror.sync_to_upstash()
-    print(f"Antigravity Live Mirror sincronizado en Upstash ({AntigravityLiveMirror.SLOT_KEY}): {ok}")
+    res = AntigravityLiveMirror.sync_everywhere()
+    print(f"Antigravity Live Mirror sincronizado: {res}")
     print(AntigravityLiveMirror.get_live_context_for_prompt()[:350] + "...")
+
