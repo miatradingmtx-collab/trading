@@ -1124,6 +1124,22 @@ ecent_logs desde cache_hist_mt5.
 - **Soporte de Chat Libre en Texto Plano:**
   - El sistema cuenta con soporte para conversacin libre sin comandos de barra diagonal (`/`) gracias al mtodo nativo `chat.postMessage` de `SLACK_BOT_TOKEN`, enrutando automticamente a Gemini Pro en `#mia-chat` y a OpenRouter Quant en `#back-office-y-backend`.
 
+### [Update 2026-09-29 - Sesin 47] - Calibracin y Blindaje de Aislamiento de Canales, Activacin de Scopes y Telemetra Perpetua Herds T1-T6
+- **Distribucin Arquitectnica Cannica de Canales (3 Puntos):**
+  - **Canal 1 (`#mia-chat`):** Gobernado exclusivamente por **Google Gemini Pro** con integracin satelital `wttr.in`. Aislamiento estricto: cero mencin ni contacto con trading o infraestructura tcnica.
+  - **Canal 2 (`#back-office-y-backend`):** Gobernado exclusivamente por **OpenRouter** con el **Supervisor Watchdog y los 6 Herds Tcnicos T1 al T6**. Monitorea activamente las tareas/skills especficas de cada agente, notifica errores, y gestiona propuestas de mejora va checkboxes y los 4 botones interactivos (`[Aprobar Seleccionadas]`, `[Aprobar Todas]`, `[Rechazar]`, `[Forzar Resync]`) con comparador visual interactivo (`/dashboard/preview`).
+  - **Canal 3 (A Futuro - `#mia-trading-reportes`):** Reservado para reportes de bolsa y operativa MT5 (PnL, BE, SL, TP, lotes y rdenes abiertas).
+- **Activacin de Scopes Oficiales en Slack API (`oauth.v2`):**
+  - Se complet la reinstalacin oficial de la aplicacin en el espacio de trabajo con los 6 scopes: `chat:write`, `channels:read`, `channels:history`, `commands`, `incoming-webhook` y `app_mentions:read`.
+  - Se verific la membresa automtica del bot en ambos canales pblicos (`mia-chat` ID: `C0C4QCZPTPH` y `back-office-y-backend` ID: `C0C4ZMFCMJ8`).
+  - Entrega directa confirmada va `chat.postMessage` con cdigo HTTP 200 en ambos canales.
+- **Validacin del Bucle Perpetuo de Monitoreo (`system_ops_watchdog_loop`):**
+  - Cadencia de evaluacin: cada 10 minutos (600s) en Railway Core (`927a`).
+  - Poltica Anti-Spam Inteligente: opera en modo silencioso cuando el sistema est en `OPTIMAL_HEALTH` y no hay propuestas pendientes; despacha notificacin interactiva a `#back-office-y-backend` nicamente ante fallas o propuestas de mejora.
+  - Snapshot de telemetra viva en Upstash Redis (`cache_system_ops_status`) validado con los 6 Herds operativos en tiempo real.
+- **Diagrama Interactivo Vectorial (`/diagrama`):**
+  - Desplegado endpoint HTML interactivo con tecnologa Mermaid.js y SVG Pan-Zoom en Railway: [`/diagrama`](https://trading-production-927a.up.railway.app/diagrama) para navegacin fluida en PC y mviles.
+
 ---
 
 name: deprecacion_crewai_langchain
