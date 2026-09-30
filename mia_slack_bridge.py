@@ -22,7 +22,7 @@ Permite:
 import os
 import json
 import requests
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -123,55 +123,83 @@ class MiaSlackBridge:
         t4 = herds.get("herd_t4_cache_latency", {})
         t5 = herds.get("herd_t5_finops_billing", {})
         t6 = herds.get("herd_t6_ui_ux_designer", {})
+        t7 = herds.get("herd_t7_architect_diagrammer", {})
+        t8 = herds.get("herd_t8_shadow_compliance", {})
+        t9 = herds.get("herd_t9_slack_dispatcher", {})
+        t10 = herds.get("herd_t10_swarm_neural_sentry", {})
 
         triage = summary.get("triage", {})
-        por_aprobar = triage.get("requiere_aprobacion_humana", [])
+        validadas_85 = triage.get("propuestas_validadas_score_85", [])
+        observadas_sub85 = triage.get("propuestas_observadas_score_menor_85", [])
+        eval_cognitiva = triage.get("evaluacion_cognitiva", {})
+        modelo_eval = eval_cognitiva.get("modelo_evaluador", "meta-llama/llama-3.3-70b-instruct")
+
+        learning_kb = summary.get("learning_kb", {})
+        conf_score = learning_kb.get("confidence_score_global", 0.98)
         ms = summary.get("total_execution_ms", 0.0)
         estado = summary.get("estado_general", "OPTIMAL_HEALTH")
 
-        # 1. Desglose detallado de qué está haciendo cada uno de los 6 agentes
+        # 1. Desglose detallado de los 10 Herds
         txt_agentes = (
             f"• *🗄️ HERD T1 (DBA Sentinel):* {t1.get('resumen', 'Auditoría de base de datos activa.')}\n"
-            f"• *💻 HERD T2 (Senior Dev):* {t2.get('resumen', 'Auditoría de sintaxis y código activa.')}\n"
-            f"• *📡 HERD T3 (Observability SRE):* {t3.get('resumen', 'Monitoreo de endpoints activo.')}\n"
-            f"• *⚡ HERD T4 (Cache Latency):* {t4.get('resumen', 'Medición de latencia sub-35ms activa.')}\n"
-            f"• *💳 HERD T5 (FinOps Billing):* {t5.get('resumen', 'Control de presupuesto y pagos activo.')}\n"
-            f"• *🎨 HERD T6 (UI/UX Plotly):* {t6.get('resumen', 'Auditoría visual de dashboards activa.')}"
+            f"• *💻 HERD T2 (Sr Fullstack Dev):* {t2.get('resumen', 'Auditoría AST y acoplamiento UI activo.')}\n"
+            f"• *📡 HERD T3 (Observability SRE):* {t3.get('resumen', 'Monitoreo de endpoints cloud activo.')}\n"
+            f"• *⚡ HERD T4 (Cache Latency):* {t4.get('resumen', 'Medición MGET sub-35ms activa.')}\n"
+            f"• *💳 HERD T5 (FinOps Billing):* {t5.get('resumen', 'Control de presupuestos y alertas 48h activo.')}\n"
+            f"• *🎨 HERD T6 (UI/UX Stitch):* {t6.get('resumen', 'Diseño Google Stitch y Plotly Dark activo.')}\n"
+            f"• *📐 HERD T7 (Architect & Diagram):* {t7.get('resumen', 'Diagramación continua y microservicios.')}\n"
+            f"• *🛡️ HERD T8 (Shadow Compliance):* {t8.get('resumen', 'Candado MT5 y noticias institucional.')}\n"
+            f"• *💬 HERD T9 (Slack Dispatcher):* {t9.get('resumen', 'Aislamiento de canal y Block Kit interactivo.')}\n"
+            f"• *🧠 HERD T10 (Neural Sentry):* {t10.get('resumen', 'Vigilancia de TensorFlow y 7 Herds HFT.')}"
         )
 
-        # 2. Veredicto del Supervisor
+        # 2. Veredicto del Supervisor y Evaluación Cognitiva
         txt_supervisor = (
             f"*Veredicto Global:* `{estado}` (Auditado en {ms} ms)\n"
-            f"*Modo Operativo:* `FASE 1: STRICT HUMAN-IN-THE-LOOP` 🔒\n"
+            f"*Modo Operativo:* `FASE 1: STRICT HUMAN-IN-THE-LOOP` 🔒 (Confianza Acumulada: `{int(conf_score * 100)}%`)\n"
+            f"*Evaluador Cognitivo:* `{modelo_eval}` (Grounding de Arquitectura MIA activado)\n"
             f"*Directriz:* Ningún agente modifica producción sin tu confirmación previa."
         )
 
-        # 3. Propuestas que requieren aprobación humana
+        # 3. Propuestas Validadas (Score >= 85)
         options_checkboxes = []
-        if por_aprobar:
-            txt_aprobar = "\n".join([
-                f"{i+1}. ⚠️ *{pa.get('accion', 'PROPUESTA')}*: {pa.get('detalle', pa.get('propuesta', ''))}"
-                for i, pa in enumerate(por_aprobar[:6])
+        if validadas_85:
+            txt_validadas = "\n".join([
+                f"{i+1}. ⭐ *[Score {pa.get('score', 90)}/100]* *{pa.get('accion', 'PROPUESTA')}*: {pa.get('detalle', '')}\n"
+                f"   • *Antes:* {pa.get('antes', 'Configuración actual')}\n"
+                f"   • *Después:* {pa.get('despues', 'Mejora aplicada')}\n"
+                f"   • *Veredicto IA:* _{pa.get('justificacion_ia', 'Alineado a la arquitectura')}_"
+                for i, pa in enumerate(validadas_85[:5])
             ])
-            for i, pa in enumerate(por_aprobar[:6]):
+            for i, pa in enumerate(validadas_85[:5]):
                 act_label = pa.get('accion', f'PROPUESTA_{i+1}')
-                desc_label = pa.get('detalle', pa.get('propuesta', ''))[:40]
+                desc_label = pa.get('detalle', '')[:40]
                 options_checkboxes.append({
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"*{i+1}. {act_label}*: {desc_label}"[:75]
+                        "text": f"*{i+1}. [Score {pa.get('score', 90)}] {act_label}*: {desc_label}"[:75]
                     },
                     "value": f"propuesta_{i}"
                 })
         else:
-            txt_aprobar = "• ✅ Cero cambios pendientes de autorización. Todo opera en óptimas condiciones."
+            txt_validadas = "• ✅ Cero cambios críticos pendientes. Todos los parámetros operan en niveles óptimos."
+
+        # 4. Propuestas Observadas o Descartadas por la IA (Score < 85)
+        if observadas_sub85:
+            txt_observadas = "\n".join([
+                f"• ⚠️ *[Score {po.get('score', 60)}/100]* *{po.get('accion', 'OBSERVACIÓN')}*: {po.get('detalle', '')}\n"
+                f"   ↳ *Motivo de Observación / Descarte:* _{po.get('justificacion_ia', 'No cumple con las reglas de oro de infraestructura')}_"
+                for po in observadas_sub85[:4]
+            ])
+        else:
+            txt_observadas = "• 🟢 Cero propuestas observadas o descartadas por la IA."
 
         blocks = [
             {
                 "type": "header",
                 "text": {
                     "type": "plain_text",
-                    "text": "🛡️ MIA WATCHDOG SUPERVISOR - Auditoría & Triage de Infraestructura",
+                    "text": "🛡️ MIA WATCHDOG SUPERVISOR - Malla de 10 Herds & Triage Cognitivo",
                     "emoji": True
                 }
             },
@@ -189,7 +217,7 @@ class MiaSlackBridge:
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*🔍 ¿QUÉ ESTÁ HACIENDO CADA UNO DE LOS 6 AGENTES?*\n{txt_agentes}"
+                    "text": f"*🔍 RADIOGRAFÍA ACTIVA DE LOS 10 HERDS:*\n{txt_agentes}"
                 }
             },
             {
@@ -199,19 +227,25 @@ class MiaSlackBridge:
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*📋 [PROPUESTAS PENDIENTES DE APROBACIÓN HUMANA]:*\n{txt_aprobar}"
+                    "text": f"*⭐ PROPUESTAS RECOMENDADAS POR WATCHDOG AI (Score >= 85):*\n{txt_validadas}"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*⚠️ PROPUESTAS OBSERVADAS / DESCARTADAS (Score < 85):*\n{txt_observadas}"
                 }
             }
         ]
 
-        # Agregar bloque de selección interactiva con checkboxes si hay propuestas
         if options_checkboxes:
             blocks.append({
                 "type": "section",
                 "block_id": "proposals_selection_block",
                 "text": {
                     "type": "mrkdwn",
-                    "text": "*☑️ Selecciona qué propuestas específicas deseas autorizar:*"
+                    "text": "*☑️ Selecciona qué propuestas específicas autorizas aplicar:*"
                 },
                 "accessory": {
                     "type": "checkboxes",
@@ -220,7 +254,6 @@ class MiaSlackBridge:
                 }
             })
 
-            # Botones con opción de autorizar seleccionadas, todas o rechazar
             blocks.append({
                 "type": "actions",
                 "block_id": "watchdog_triage_actions",
@@ -283,7 +316,7 @@ class MiaSlackBridge:
             })
 
         # Agregar enlace de inspección previa si hay propuestas visuales
-        if any("PLOTLY" in str(p) or "DASHBOARD" in str(p) for p in por_aprobar):
+        if any("PLOTLY" in str(p) or "DASHBOARD" in str(p) or "STITCH" in str(p) for p in validadas_85):
             blocks.append({
                 "type": "section",
                 "text": {

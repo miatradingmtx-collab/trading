@@ -1199,3 +1199,26 @@ egla_de_3 deben ser consultados 100% mediante Upstash Redis (cache_regla_de_3). 
   - **MIA WATCHDOG MASTER (TRIAGE SENIOR):** Cero intervenciones destructivas, 0 acciones pendientes por aprobar.
 - **Creación de Lanzador Rápido:**
   - Creado [`Abrir_Watchdog_Supervisor.bat`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/Abrir_Watchdog_Supervisor.bat) tanto en la raíz del proyecto como un acceso directo en `C:\Users\ecybe\Desktop\Abrir_Watchdog_Supervisor.bat` para inspección con un solo clic.
+
+### [Update 2026-09-30 - Sesión 48] - Malla de 10 Herds Colaborativos, Grounding de Arquitectura para Llama 3.3 70B y Doble Reporte en Slack
+- **Expansión de la Malla Operativa (Herds T1 al T10):**
+  - **HERD T1 (DBA_SENTINEL):** Integridad de Firestore/Upstash, paridad contable MT5, sanitización anti-null/NaN y auditoría de esquemas.
+  - **HERD T2 (SENIOR_FULLSTACK_AUDITOR):** Auditoría AST de código backend (FastAPI/WebSockets) e integrador de código UI modular.
+  - **HERD T3 (OBSERVABILITY_SRE):** Healthcheck activo de Railway (`1fd4`/`927a`), MCPs (`/mcp`, `/mcp/ops`), Upstash y prevención de caídas de red.
+  - **HERD T4 (CACHE_LATENCY_SPECIALIST):** Desacoplamiento canónico atómico por documento, latencia MGET sub-35ms, Regla de 3 en vivo.
+  - **HERD T5 (FINOPS_BILLING_CONTROLLER):** Presupuestos Cloud (Railway, MetaApi, OpenRouter, Firebase Spark), alertas estrictas de pago a 48h.
+  - **HERD T6 (UIUX_STITCH_DESIGNER):** Diseñador Frontend con Google Stitch y Plotly Dark Theme; extrae CSS/HTML modular para T2.
+  - **HERD T7 (ARCHITECT_DIAGRAMMER_INNOVATOR):** Arquitecto de Infraestructura; genera diagramas dinámicos Mermaid/SVG y diseña microservicios.
+  - **HERD T8 (SHADOW_COMPLIANCE_GATEKEEPER):** Centinela del Modo Shadow (`SHADOW_MODE_GLOBAL = True`), tickets `#SHADOW_XXXXXX` y filtro de noticias.
+  - **HERD T9 (SLACK_OPS_DISPATCHER):** Despachador interactivo en `#back-office-y-backend` (Block Kit, Checkboxes, Antes/Después, botones de acción).
+  - **HERD T10 (SWARM_NEURAL_SENTRY):** Monitor de salud de TensorFlow Deep Learning (accuracy, latencia) y de los 7 Trading Herds.
+- **Grounding de Arquitectura e Ingesta Histórica (`mia_infra_grounding_kb.py`):**
+  - Se creó el módulo de Grounding que compendia la radiografía viva de GitHub, Railway (1fd4 y 927a), slots atómicos de Upstash, colecciones de Firestore y el banco histórico de errores y parches.
+  - Sincronizado en Upstash Redis (`cache_mia_architecture_grounding`).
+- **Doble Reporte Cognitivo y Transparencia Total:**
+  - El Supervisor somete las propuestas a juicio de **Llama 3.3 70B** en OpenRouter bajo el Grounding de la arquitectura real de MIA.
+  - Divide las propuestas en:
+    - `⭐ PROPUESTAS RECOMENDADAS (Score >= 85)`: Con checkboxes de autorización y comparativa de ANTES vs DESPUÉS.
+    - `⚠️ PROPUESTAS OBSERVADAS / DESCARTADAS (Score < 85)`: Con la justificación explícita de por qué Llama/Supervisor bajaron el score o descartaron la idea, permitiendo al Padre verificar si el criterio de la IA se autocalibra y evoluciona hacia la Autonomía Total.
+  - Conectores validados y despachados en vivo a Slack `#back-office-y-backend`.
+
