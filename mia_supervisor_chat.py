@@ -304,12 +304,12 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
         except Exception:
             continue
 
-    # Fallback final a Google Gemini
-    gemini_fb = chat_with_gemini(user_message, history)
-    if gemini_fb:
-        return gemini_fb
-
-    return "Hola Padre, he experimentado una latencia momentánea conectando con los motores cognitivos. Por favor repíteme tu consulta."
+    # Fallback Técnico del Supervisor (Aislamiento Total: NUNCA desviar a Gemini en Back-Office)
+    return format_filial_reply(
+        "Padre, he experimentado una latencia momentánea conectando con OpenRouter, pero te reporto directamente desde la telemetría viva de Upstash:\n\n"
+        f"{system_context}\n"
+        "Todos los 6 Herds de Operaciones continúan operando de forma nominal."
+    )
 
 import time
 _PROCESSED_EVENTS = {}

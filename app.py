@@ -5122,14 +5122,15 @@ async def handle_slack_events(request: Request):
                     is_mia_chat = ("mia-chat" in channel_name or channel_name == "mia-chat" or channel_id == "C0C4QCZPTPH" or "chat" in channel_name)
                     
                     if is_mia_chat:
-                        engine = "gemini"
-                        motor_badge = "✨ Google Gemini"
+                        # Identidad LIMPIA y cariñosa para #mia-chat: CERO Supervisor ni trading
+                        reply = chat_with_mia(text, force_engine="gemini")
+                        msg_formatted = f"✨ *Mia*:\n{reply}"
+                        slack_bridge.send_channel_message(msg_formatted, channel=channel_id, username="Mia", icon_emoji=":sparkles:")
                     else:
-                        engine = "openrouter"
-                        motor_badge = "🧠 OpenRouter Quant / Herds T1-T6"
-
-                    reply = chat_with_mia(text, force_engine=engine)
-                    slack_bridge.send_channel_message(f"👑 *MIA Supervisor* `[{motor_badge}]`:\n{reply}", channel=channel_id)
+                        # Identidad TÉCNICA y ejecutiva para #back-office-y-backend: Supervisor Watchdog
+                        reply = chat_with_mia(text, force_engine="openrouter")
+                        msg_formatted = f"🛡️ *MIA Watchdog (Supervisor / Herds T1-T6)*:\n{reply}"
+                        slack_bridge.send_channel_message(msg_formatted, channel=channel_id, username="MIA Watchdog", icon_emoji=":shield:")
                 except Exception as e_reply:
                     print(f"| SLACK CHAT EVENT ERROR | {e_reply}")
 
