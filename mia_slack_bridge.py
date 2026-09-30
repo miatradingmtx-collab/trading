@@ -258,6 +258,20 @@ class MiaSlackBridge:
                 "elements": [
                     {
                         "type": "button",
+                        "text": {"type": "plain_text", "text": "Aprobar Todas ✅", "emoji": True},
+                        "style": "primary",
+                        "value": "approve_all_pending",
+                        "action_id": "approve_triage_action"
+                    },
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Rechazar / Mantener Actual ⛔", "emoji": True},
+                        "style": "danger",
+                        "value": "reject_all_pending",
+                        "action_id": "reject_triage_action"
+                    },
+                    {
+                        "type": "button",
                         "text": {"type": "plain_text", "text": "Forzar Resync 🔄", "emoji": True},
                         "value": "force_resync",
                         "action_id": "resync_action"
