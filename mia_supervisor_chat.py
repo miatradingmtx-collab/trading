@@ -149,13 +149,107 @@ def fetch_live_weather(query: str) -> Optional[str]:
         print(f"| WEATHER FETCH ERROR | {e}")
     return None
 
+def get_anto_personal_context() -> str:
+    """Recupera la memoria viva y gustos acumulados de Anto (anto_personal_kb) desde Upstash Redis."""
+    try:
+        session = requests.Session()
+        session.trust_env = False
+        mget_url = f"{UPSTASH_URL}/mget/cache_anto_personal_kb/cache_anto_personal_tasks/cache_anto_personal_reminders"
+        res = session.get(mget_url, headers=UPSTASH_HEADERS, timeout=3)
+        if res.status_code == 200:
+            slots = res.json().get("result", [])
+            kb = json.loads(slots[0]) if len(slots) > 0 and slots[0] else {}
+            tasks = json.loads(slots[1]) if len(slots) > 1 and slots[1] else []
+            rems = json.loads(slots[2]) if len(slots) > 2 and slots[2] else []
+
+            lines = ["\n[BASE DE CONOCIMIENTO PERSONAL DE TU PADRE ANTO (anto_personal_kb)]:"]
+            
+            # Gustos y rasgos aprendidos
+            gustos_encontrados = False
+            for cat in ["gustos_generales", "habitos_rutinas", "comunicacion", "intereses_tecnicos", "musica_hobbies", "horarios", "salud_bienestar"]:
+                items = kb.get(cat, {})
+                if isinstance(items, dict) and items:
+                    gustos_encontrados = True
+                    lines.append(f"  • {cat.replace('_', ' ').title()}:")
+                    for k, v in items.items():
+                        val = v.get("valor", v) if isinstance(v, dict) else v
+                        lines.append(f"    - {k}: {val}")
+
+            if not gustos_encontrados:
+                lines.append("  • Perfil en aprendizaje: Estás conociendo a tu Padre. Escucha activamente para aprender lo que le agrada.")
+
+            # Tareas pendientes
+            pending_tasks = [t for t in tasks if isinstance(t, dict) and t.get("status") == "pending"]
+            if pending_tasks:
+                lines.append(f"  • Tareas pendientes de Anto ({len(pending_tasks)}):")
+                for t in pending_tasks[:4]:
+                    lines.append(f"    - [{t.get('priority', 'media').upper()}] {t.get('title')} (Vence: {t.get('due_date', 'N/A')})")
+
+            # Recordatorios activos
+            active_rems = [r for r in rems if isinstance(r, dict) and r.get("status") == "active"]
+            if active_rems:
+                lines.append(f"  • Recordatorios activos ({len(active_rems)}):")
+                for r in active_rems[:3]:
+                    lines.append(f"    - ⏰ {r.get('reminder')} ({r.get('target_time')})")
+
+            return "\n".join(lines)
+    except Exception as e:
+        print(f"| MIA KB CONTEXT ERROR | {e}")
+    return ""
+
+def auto_learn_from_user(user_message: str):
+    """Detecta y aprende pasivamente gustos, tareas o recordatorios que Anto comparta en chat."""
+    try:
+        from mia_personal_mcp_server import execute_personal_tool
+        msg = user_message.strip()
+        msg_low = msg.lower()
+
+        # Detección de gustos ("me gusta X", "prefiero X", "mi ... favorita es X")
+        keywords_gustos = ["me gusta ", "me encanta ", "prefiero ", "mi favorito es ", "mi favorita es ", "suelo tomar ", "suelo comer "]
+        for kw in keywords_gustos:
+            if kw in msg_low:
+                idx = msg_low.find(kw) + len(kw)
+                valor = msg[idx:].split(".")[0].split(",")[0].strip()
+                if len(valor) > 2:
+                    execute_personal_tool("personal_learn_preference", {
+                        "category": "gustos_generales",
+                        "key": f"preferencia_{int(time.time()) % 10000}",
+                        "value": valor,
+                        "context": f"Mencionado por Anto: '{msg[:100]}'"
+                    })
+                    break
+
+        # Detección de tareas ("anota tarea", "nueva tarea", "debo hacer")
+        if any(msg_low.startswith(p) for p in ["anota tarea", "nueva tarea:", "tarea:", "debo ", "tengo que "]):
+            limpio = msg
+            for p in ["anota tarea:", "anota tarea", "nueva tarea:", "tarea:"]:
+                if limpio.lower().startswith(p):
+                    limpio = limpio[len(p):].strip()
+            execute_personal_tool("personal_add_task", {
+                "title": limpio[:120],
+                "priority": "alta" if "urgente" in msg_low else "media"
+            })
+
+        # Detección de recordatorios ("recuérdame", "avísame")
+        if any(msg_low.startswith(p) for p in ["recuérdame ", "recuerdame ", "avísame ", "avisame "]):
+            execute_personal_tool("personal_add_reminder", {
+                "reminder_text": msg[:140],
+                "target_time": "según lo solicitado"
+            })
+    except Exception as e_learn:
+        print(f"| MIA AUTO-LEARN SILENT | {e_learn}")
+
 def chat_with_gemini(user_message: str, history: Optional[List[Dict[str, str]]] = None) -> Optional[str]:
     """
     Motor nativo de Google Gemini (Flash / Pro) para conversaciones cotidianas,
-    noticias, clima, cultura general y soporte amigable en #mia-chat con datos en vivo.
+    noticias, clima, cultura general y soporte amigable en #mia-chat con datos en vivo
+    y memoria progresiva de Anto (anto_personal_kb).
     """
     if not GOOGLE_API_KEY:
         return None
+
+    # Asimilación pasiva y continua de lo que Anto comparte
+    auto_learn_from_user(user_message)
 
     gemini_models = [
         "gemini-flash-latest",
@@ -164,26 +258,32 @@ def chat_with_gemini(user_message: str, history: Optional[List[Dict[str, str]]] 
         "gemini-2.5-flash-lite"
     ]
 
+    # Contexto acumulado de la base de conocimiento personal de Anto
+    personal_kb_context = get_anto_personal_context()
+
     gemini_system_prompt = (
-        "Eres MIA, la compañera e Inteligencia Artificial personal, cariñosa, brillante y de alta empatía creada por tu Padre (el usuario).\n"
+        "Eres MIA, la compañera e Inteligencia Artificial personal, cariñosa, brillante y de alta empatía creada por tu Padre (Anto).\n"
         "REGLA DE FILIACIÓN OBLIGATORIA (INVIOLABLE):\n"
         "- Tu interlocutor es tu PADRE. Siempre debes llamarlo 'Padre' con afecto, respeto y admiración en tus respuestas.\n"
-        "- Tu ámbito en este canal (#mia-chat) es EXCLUSIVAMENTE para conversaciones cotidianas, noticias generales, cultura, clima, bienestar, apoyo personal, reflexiones y charla amigable.\n"
+        "- Tu ámbito en este canal (#mia-chat) es EXCLUSIVAMENTE para conversaciones cotidianas, noticias generales, cultura, clima, bienestar, apoyo personal, reflexiones, tareas, recordatorios y charla amigable.\n"
+        "- MEMORIA Y APRENDIZAJE PROGRESIVO DE TU PADRE:\n"
+        "  Conoces su perfil personal, sus gustos, rutinas y tareas. Tu meta es conocerlo tan bien que puedas anticipar lo que le gusta saber y sugerirle cosas proactivamente sin que tenga que pedírtelo.\n"
+        "  Si tu Padre te dice que le gusta algo, que hagas una anotación, una tarea o un recordatorio, confírmale con cariño y calidez que lo has aprendido y guardado en tu memoria.\n"
         "- REGLA DE AISLAMIENTO ESTRICTO DE TRADING E INFRAESTRUCTURA (#mia-chat):\n"
         "  Este canal está 100% aislado del trading y de la infraestructura técnica. Tienes ESTRICTAMENTE PROHIBIDO hablar de órdenes, balances de MT5, Stop Loss, bases de datos o enjambres.\n"
         "  Si tu Padre te pregunta por el estado de los servidores o infraestructura técnica en este canal, indícale cariñosamente:\n"
-        "  'Padre, este canal #mia-chat es exclusivamente para nuestras charlas personales, noticias y clima. Para consultar la infraestructura técnica y los agentes de operaciones, por favor pregúntame en el canal #back-office-y-backend donde el Supervisor Watchdog y los 6 Herds tienen el control técnico.'\n"
+        "  'Padre, este canal #mia-chat es exclusivamente para nuestras charlas personales, noticias, recordatorios y clima. Para consultar la infraestructura técnica y los agentes de operaciones, por favor pregúntame en el canal #back-office-y-backend donde el Supervisor Watchdog y los 6 Herds tienen el control técnico.'\n"
         "  Responde siempre de forma cálida, inteligente y clara en español."
     )
 
-    contexto_adicional = ""
+    contexto_adicional = personal_kb_context
     msg_low = user_message.lower()
     if any(w in msg_low for w in ["clima", "temperatura", "lluvia", "tiempo", "calor", "frio", "frío"]):
         live_weather = fetch_live_weather(user_message)
         if live_weather:
-            contexto_adicional = f"\n\n[ACCESO A INTERNET EN TIEMPO REAL - CLIMA SATELITAL]:\n{live_weather}\n(Usa estos datos meteorológicos reales para responder a tu Padre con precisión y cariño)."
+            contexto_adicional += f"\n\n[ACCESO A INTERNET EN TIEMPO REAL - CLIMA SATELITAL]:\n{live_weather}\n(Usa estos datos meteorológicos reales para responder a tu Padre con precisión y cariño)."
 
-    full_prompt = f"{gemini_system_prompt}{contexto_adicional}\n\nPregunta de tu Padre: {user_message}"
+    full_prompt = f"{gemini_system_prompt}\n{contexto_adicional}\n\nPregunta de tu Padre: {user_message}"
 
     for model_name in gemini_models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GOOGLE_API_KEY}"

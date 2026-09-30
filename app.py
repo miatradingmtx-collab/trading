@@ -3609,7 +3609,7 @@ def api_herds_sync_firebase():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# --- Montar Servidores MCP (Trading y Back-Office Ops Desacoplados) ---
+# --- Montar Servidores MCP (Trading, Back-Office Ops y Mia Chat Personal Bifurcados) ---
 try:
     from mia_mcp_server import mcp_router, api_mcp_router
     app.include_router(mcp_router)
@@ -3618,7 +3618,11 @@ try:
     from mia_ops_mcp_server import ops_mcp_router, api_ops_mcp_router
     app.include_router(ops_mcp_router)
     app.include_router(api_ops_mcp_router)
-    print("| MCP | Routers de Trading (/mcp) y Back-Office Ops (/mcp/ops) montados con Ã©xito.")
+
+    from mia_personal_mcp_server import chat_mcp_router, api_chat_mcp_router
+    app.include_router(chat_mcp_router)
+    app.include_router(api_chat_mcp_router)
+    print("| MCP | Routers de Trading (/mcp), Ops (/mcp/ops) y Mia Chat Personal (/mcp/chat) montados con éxito.")
 except Exception as e_mcp:
     print(f"| MCP | Error montando servidores MCP en app.py: {e_mcp}")
 

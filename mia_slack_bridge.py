@@ -30,12 +30,14 @@ load_dotenv()
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "")
 SLACK_CHAT_WEBHOOK_URL = os.getenv("SLACK_CHAT_WEBHOOK_URL", "")
+SLACK_MIA_CHAT_BOT_TOKEN = os.getenv("SLACK_MIA_CHAT_BOT_TOKEN", "")
 
 class MiaSlackBridge:
-    def __init__(self, webhook_url: Optional[str] = None, bot_token: Optional[str] = None, chat_webhook_url: Optional[str] = None):
+    def __init__(self, webhook_url: Optional[str] = None, bot_token: Optional[str] = None, chat_webhook_url: Optional[str] = None, chat_bot_token: Optional[str] = None):
         self.webhook_url = webhook_url or os.getenv("SLACK_WEBHOOK_URL", "")
         self.bot_token = bot_token or os.getenv("SLACK_BOT_TOKEN", "")
         self.chat_webhook_url = chat_webhook_url or os.getenv("SLACK_CHAT_WEBHOOK_URL", "")
+        self.chat_bot_token = chat_bot_token or os.getenv("SLACK_MIA_CHAT_BOT_TOKEN", "")
 
     def send_raw_message(self, text: str) -> bool:
         if not self.webhook_url:
@@ -52,6 +54,7 @@ class MiaSlackBridge:
         """
         Envía un mensaje a un canal específico (ej: #mia-chat o #back-office-y-backend).
         Permite personalizar la identidad visual del bot (username e icon_emoji) por canal.
+        Si SLACK_MIA_CHAT_BOT_TOKEN está configurado y el destino es #mia-chat, usa ese token nativo.
         Si SLACK_BOT_TOKEN está configurado, usa chat.postMessage al canal indicado.
         Si es para #mia-chat y existe SLACK_CHAT_WEBHOOK_URL, usa ese webhook.
         Si falla y el destino era exclusivo (#mia-chat), EVITA la fuga hacia el webhook de backoffice.
@@ -59,16 +62,18 @@ class MiaSlackBridge:
         target_ch = str(channel or "").lower()
         is_mia_chat = ("chat" in target_ch or target_ch == "c0c4qczptph")
 
-        if self.bot_token and channel:
+        token_to_use = self.chat_bot_token if (is_mia_chat and self.chat_bot_token) else self.bot_token
+
+        if token_to_use and channel:
             try:
                 headers = {
-                    "Authorization": f"Bearer {self.bot_token}",
+                    "Authorization": f"Bearer {token_to_use}",
                     "Content-Type": "application/json"
                 }
                 payload = {"channel": channel, "text": text}
-                if username:
+                if username and not (is_mia_chat and self.chat_bot_token):
                     payload["username"] = username
-                if icon_emoji:
+                if icon_emoji and not (is_mia_chat and self.chat_bot_token):
                     payload["icon_emoji"] = icon_emoji
 
                 r = requests.post("https://slack.com/api/chat.postMessage", headers=headers, json=payload, timeout=5)

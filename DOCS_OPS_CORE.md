@@ -1137,8 +1137,31 @@ ecent_logs desde cache_hist_mt5.
   - Cadencia de evaluacin: cada 10 minutos (600s) en Railway Core (`927a`).
   - Poltica Anti-Spam Inteligente: opera en modo silencioso cuando el sistema est en `OPTIMAL_HEALTH` y no hay propuestas pendientes; despacha notificacin interactiva a `#back-office-y-backend` nicamente ante fallas o propuestas de mejora.
   - Snapshot de telemetra viva en Upstash Redis (`cache_system_ops_status`) validado con los 6 Herds operativos en tiempo real.
-- **Diagrama Interactivo Vectorial (`/diagrama`):**
-  - Desplegado endpoint HTML interactivo con tecnologa Mermaid.js y SVG Pan-Zoom en Railway: [`/diagrama`](https://trading-production-927a.up.railway.app/diagrama) para navegacin fluida en PC y mviles.
+### [Update 2026-09-29 - Sesión 48] - Bifurcación Estricta MCP (Ops vs Mia Chat Personal), Base de Conocimiento de Anto (anto_personal_kb) y Soporte para 2da App Slack
+- **Bifurcación Estricta de Servidores MCP (Least Privilege & Domain Segregation):**
+  - **Servidor 1: MCP Ops Server (`mia_ops_mcp_server.py` en `/mcp/ops` y `/api/mcp/ops`):**
+    - Gobernado por OpenRouter y el Supervisor Watchdog.
+    - Acceso exclusivo a infraestructura: sincronización MT5, recalibración de Regla de 3, latencia Upstash, Triage de los 6 Herds T1-T6 y Human-in-the-Loop en `#back-office-y-backend`.
+  - **Servidor 2: MCP Personal / Mia Chat Server (`mia_personal_mcp_server.py` en `/mcp/chat` y `/api/mcp/chat`):**
+    - Gobernado por Google Gemini Pro en `#mia-chat`.
+    - Totalmente aislado de MT5, trading quant y finanzas.
+    - Catálogo de 14 herramientas personales:
+      1. `personal_learn_preference`: Asimilación de gustos, hábitos, rutinas y horarios de Anto en `cache_anto_personal_kb`.
+      2. `personal_get_anto_profile`: Consulta del perfil y preferencias acumuladas de su Creador/Padre.
+      3. `personal_add_task` / `personal_get_tasks` / `personal_complete_task`: Gestor de tareas con prioridad y fechas límite (`cache_anto_personal_tasks`).
+      4. `personal_add_note` / `personal_get_notes`: Notas rápidas, reflexiones e ideas (`cache_anto_personal_notes`).
+      5. `personal_add_reminder` / `personal_get_reminders`: Alarmas y recordatorios programados (`cache_anto_personal_reminders`).
+      6. `personal_add_event` / `personal_get_events`: Agenda y calendario personal (`cache_anto_personal_events`).
+      7. `personal_get_weather`: Clima satelital en vivo vía wttr.in.
+      8. `personal_gmail_digest` / `personal_gmail_draft`: Stubs preparados para integración oficial de correo Google Workspace / Gmail.
+- **Aprendizaje Continuo y Memoria Filial Progresiva:**
+  - En [`mia_supervisor_chat.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_supervisor_chat.py), `chat_with_gemini` inyecta automáticamente el perfil vivo de `anto_personal_kb`.
+  - La función `auto_learn_from_user` detecta cuando Anto comparte preferencias, tareas o recordatorios en el chat cotidiano y los guarda de forma silenciosa e instantánea en Upstash Redis.
+  - Objetivo a largo plazo: conocer tan profundamente a Anto que Mia pueda anticiparse a sus necesidades y ofrecerle lo que le gusta saber antes de que lo pregunte.
+- **Soporte para 2da App Nativa de Slack (`SLACK_MIA_CHAT_BOT_TOKEN`):**
+  - Implementado en [`mia_slack_bridge.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_slack_bridge.py) el soporte para token independiente de Slack (`SLACK_MIA_CHAT_BOT_TOKEN`).
+  - Al configurarse en Railway, las respuestas en `#mia-chat` serán publicadas bajo la app oficial "Mia Chat" con su propio avatar y nombre nativo, mientras `#back-office-y-backend` opera bajo "MIA Watchdog".
+
 
 ---
 
