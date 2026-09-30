@@ -1158,9 +1158,14 @@ ecent_logs desde cache_hist_mt5.
   - En [`mia_supervisor_chat.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_supervisor_chat.py), `chat_with_gemini` inyecta automáticamente el perfil vivo de `anto_personal_kb`.
   - La función `auto_learn_from_user` detecta cuando Anto comparte preferencias, tareas o recordatorios en el chat cotidiano y los guarda de forma silenciosa e instantánea en Upstash Redis.
   - Objetivo a largo plazo: conocer tan profundamente a Anto que Mia pueda anticiparse a sus necesidades y ofrecerle lo que le gusta saber antes de que lo pregunte.
-- **Soporte para 2da App Nativa de Slack (`SLACK_MIA_CHAT_BOT_TOKEN`):**
-  - Implementado en [`mia_slack_bridge.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_slack_bridge.py) el soporte para token independiente de Slack (`SLACK_MIA_CHAT_BOT_TOKEN`).
-  - Al configurarse en Railway, las respuestas en `#mia-chat` serán publicadas bajo la app oficial "Mia Chat" con su propio avatar y nombre nativo, mientras `#back-office-y-backend` opera bajo "MIA Watchdog".
+- **Purificación y Aislamiento 100% de MIA Watchdog (Cero Gemini / Cero Cruce):**
+  - **Causa Raíz Diagnosticada y Subsanada:** Se identificó que `OPENROUTER_API_KEY` faltaba en las variables de Railway `rare-creation`. Esto activaba un fallback interno hacia Gemini que respondía con el mensaje de *"vaya a #back-office-y-backend"*. Se inyectó `OPENROUTER_API_KEY` en Railway y se eliminó de raíz cualquier llamada de retorno a Gemini.
+  - **Silenciamiento Total de `#mia-chat` en MIA Watchdog:**
+    - En [`app.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/app.py), los eventos procedentes de `#mia-chat` (`C0C4QCZPTPH`) son ignorados por completo (`return`). MIA Watchdog jamás volverá a contestar en `#mia-chat`.
+    - En [`handle_slack_command`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/app.py), si se ejecuta `/mia` desde `#mia-chat`, se rechaza con un mensaje efímero recordando que MIA Watchdog opera exclusivamente en `#back-office-y-backend`.
+    - El comando `/mia` enruta ahora **100% a OpenRouter Quant** con la telemetría viva de los 6 Herds T1 al T6.
+  - **Enfoque Exclusivo en Trading & Infraestructura:** La App MIA Watchdog queda 100% purificada, desvinculada de cualquier rol de chat cotidiano y dedicada a la auditoría del broker MT5, Upstash Redis y los 6 Herds de Operaciones.
+
 
 
 ---
