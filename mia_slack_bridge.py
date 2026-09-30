@@ -50,10 +50,11 @@ class MiaSlackBridge:
             print(f"| SLACK ERROR | Error enviando mensaje crudo: {e}")
             return False
 
-    def send_channel_message(self, text: str, channel: Optional[str] = None, username: Optional[str] = None, icon_emoji: Optional[str] = None) -> bool:
+    def send_channel_message(self, text: str, channel: Optional[str] = None, username: Optional[str] = None, icon_emoji: Optional[str] = None, blocks: Optional[List[Dict[str, Any]]] = None) -> bool:
         """
         Envía un mensaje a un canal específico (ej: #mia-chat o #back-office-y-backend).
-        Permite personalizar la identidad visual del bot (username e icon_emoji) por canal.
+        Permite personalizar la identidad visual del bot (username e icon_emoji) por canal,
+        así como adjuntar interactividad nativa mediante Block Kit (blocks).
         Si SLACK_MIA_CHAT_BOT_TOKEN está configurado y el destino es #mia-chat, usa ese token nativo.
         Si SLACK_BOT_TOKEN está configurado, usa chat.postMessage al canal indicado.
         Si es para #mia-chat y existe SLACK_CHAT_WEBHOOK_URL, usa ese webhook.
@@ -71,6 +72,8 @@ class MiaSlackBridge:
                     "Content-Type": "application/json"
                 }
                 payload = {"channel": channel, "text": text}
+                if blocks:
+                    payload["blocks"] = blocks
                 if username and not (is_mia_chat and self.chat_bot_token):
                     payload["username"] = username
                 if icon_emoji and not (is_mia_chat and self.chat_bot_token):

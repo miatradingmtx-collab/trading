@@ -5133,7 +5133,41 @@ async def handle_slack_events(request: Request):
                         # Identidad TÉCNICA y ejecutiva para #back-office-y-backend: Supervisor Watchdog
                         reply = chat_with_mia(text, force_engine="openrouter")
                         msg_formatted = f"🛡️ *MIA Watchdog (Supervisor / Herds T1-T6)*:\n{reply}"
-                        slack_bridge.send_channel_message(msg_formatted, channel=channel_id, username="MIA Watchdog", icon_emoji=":shield:")
+
+                        # Adjuntar siempre botones de acción rápida
+                        chat_blocks = [
+                            {
+                                "type": "section",
+                                "text": {"type": "mrkdwn", "text": msg_formatted}
+                            },
+                            {
+                                "type": "actions",
+                                "block_id": "watchdog_chat_actions",
+                                "elements": [
+                                    {
+                                        "type": "button",
+                                        "text": {"type": "plain_text", "text": "Aprobar Todas ✅", "emoji": True},
+                                        "style": "primary",
+                                        "value": "approve_all_pending",
+                                        "action_id": "approve_triage_action"
+                                    },
+                                    {
+                                        "type": "button",
+                                        "text": {"type": "plain_text", "text": "Rechazar / Mantener Actual ⛔", "emoji": True},
+                                        "style": "danger",
+                                        "value": "reject_all_pending",
+                                        "action_id": "reject_triage_action"
+                                    },
+                                    {
+                                        "type": "button",
+                                        "text": {"type": "plain_text", "text": "Forzar Resync 🔄", "emoji": True},
+                                        "value": "force_resync",
+                                        "action_id": "resync_action"
+                                    }
+                                ]
+                            }
+                        ]
+                        slack_bridge.send_channel_message(msg_formatted, channel=channel_id, username="MIA Watchdog", icon_emoji=":shield:", blocks=chat_blocks)
                 except Exception as e_reply:
                     print(f"| SLACK CHAT EVENT ERROR | {e_reply}")
 
