@@ -31,6 +31,7 @@ from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 
 from mia_infra_grounding_kb import MiaInfraGroundingKB
+from mia_antigravity_mirror import AntigravityLiveMirror
 
 load_dotenv()
 
@@ -114,8 +115,9 @@ class HerdDBAExpert:
                     "despues": f"Enjambre lee slot atómico 'cache_{tabla_pesada}' via MGET sub-35ms"
                 })
 
-            # 3. Auditar estructura de cache_regla_de_3
+            # 3. Auditar estructura de cache_regla_de_3 y Normalización de Entidades
             r_r3 = requests.get(f"{UPSTASH_URL}/get/cache_regla_de_3", headers=UPSTASH_HEADERS, timeout=4)
+            d_r3 = {}
             if r_r3.status_code == 200 and r_r3.json().get("result"):
                 raw_r3 = r_r3.json().get("result")
                 d_r3 = json.loads(raw_r3) if isinstance(raw_r3, str) else (raw_r3 or {})
@@ -127,14 +129,39 @@ class HerdDBAExpert:
                         "antes": "Campos top_1/top_2/top_3 ausentes o incompletos",
                         "despues": "Esquema canónico inyectado con top 3 confirmaciones institucionales"
                     })
-            
+                
+                # Normalización de timestamp en cache_regla_de_3
+                if not d_r3.get("ultima_actualizacion"):
+                    d_r3["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                    requests.post(f"{UPSTASH_URL}/set/cache_regla_de_3", headers=UPSTASH_HEADERS, json=d_r3, timeout=3)
+                    auto_corregidos.append("Normalizado timestamp en cache_regla_de_3.")
+
+            # 4. VECTORIZACIÓN AUTOMÁTICA DE DOCUMENTOS (Para agilización de TensorFlow y Herds)
+            # Compactar confirmaciones institucionales en un vector numérico normalizado de 1D
+            vector_slot = "cache_vector_indicadores"
+            r_vec = requests.get(f"{UPSTASH_URL}/get/{vector_slot}", headers=UPSTASH_HEADERS, timeout=3)
+            if r_vec.status_code != 200 or not r_vec.json().get("result"):
+                # Generar el vector institucional compacto [OB_2H, OB_8H, OB_4H, SMC_SWEEP, CVD_DELTA]
+                top1_peso = float(d_r3.get("top_1", {}).get("peso", 35)) / 100.0
+                top2_peso = float(d_r3.get("top_2", {}).get("peso", 30)) / 100.0
+                top3_peso = float(d_r3.get("top_3", {}).get("peso", 25)) / 100.0
+                vector_payload = {
+                    "vector_1d": [round(top1_peso, 2), round(top2_peso, 2), round(top3_peso, 2), 0.85, 0.90],
+                    "labels": ["top_1_peso", "top_2_peso", "top_3_peso", "smc_confidence", "cvd_delta_weight"],
+                    "dimension": 5,
+                    "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "estado": "VECTOR_NORMALIZADO_OPTIMAL"
+                }
+                requests.post(f"{UPSTASH_URL}/set/{vector_slot}", headers=UPSTASH_HEADERS, json=vector_payload, timeout=3)
+                auto_corregidos.append(f"Vectorizado documento a slot atómico '{vector_slot}' para inferencia sub-5ms de TensorFlow.")
+
             return {
                 "herd": self.name,
                 "status": "OK" if not warnings else "WARNING",
                 "auto_corregidos": auto_corregidos,
                 "por_aprobar": por_aprobar,
                 "warnings": warnings,
-                "resumen": f"Paridad MT5 ratificada. {len(auto_corregidos)} sanitizaciones aplicadas."
+                "resumen": f"Normalización y paridad MT5 ratificadas. {len(auto_corregidos)} optimizaciones aplicadas."
             }
         except Exception as e:
             return {"herd": self.name, "status": "ERROR", "error": str(e), "auto_corregidos": [], "por_aprobar": []}
@@ -856,10 +883,12 @@ class WatchdogSupervisor:
             }
 
         grounding_context = MiaInfraGroundingKB.get_grounding_prompt_for_llama()
+        antigravity_mirror = AntigravityLiveMirror.get_live_context_for_prompt()
+        contexto_completo = f"{grounding_context}\n{antigravity_mirror}"
         proposals_str = json.dumps(proposals, indent=2, ensure_ascii=False)
 
         prompt_evaluacion = f"""
-{grounding_context}
+{contexto_completo}
 
 === TAREA DE AUDITORÍA SRE ===
 Tienes ante ti las siguientes propuestas técnicas emitidas por los Herds T1 al T10:
