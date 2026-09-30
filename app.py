@@ -5126,10 +5126,9 @@ async def handle_slack_events(request: Request):
                     is_mia_chat = ("mia-chat" in channel_name or channel_name == "mia-chat" or channel_id == "C0C4QCZPTPH" or "chat" in channel_name)
                     
                     if is_mia_chat:
-                        # Identidad LIMPIA y cariñosa para #mia-chat: CERO Supervisor ni trading
-                        reply = chat_with_mia(text, force_engine="gemini")
-                        msg_formatted = f"✨ *Mia*:\n{reply}"
-                        slack_bridge.send_channel_message(msg_formatted, channel=channel_id, username="Mia", icon_emoji=":sparkles:")
+                        # AISLAMIENTO TOTAL: MIA Watchdog NO responde en #mia-chat (en pausa hasta App separada)
+                        print(f"| SLACK CHAT EVENT | Canal '{channel_name}' ({channel_id}) omitido. MIA Watchdog solo atiende #back-office-y-backend.")
+                        return
                     else:
                         # Identidad TÉCNICA y ejecutiva para #back-office-y-backend: Supervisor Watchdog
                         reply = chat_with_mia(text, force_engine="openrouter")

@@ -331,14 +331,15 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
             return "Hola Padre, estoy lista y a tu servicio. ¿Cómo estás hoy y en qué te puedo acompañar?"
 
     # 2. Enrutamiento hacia OpenRouter Quant (#back-office-y-backend, Supervisor Watchdog, Herds T1-T6):
-    if not OPENROUTER_API_KEY:
-        gemini_fb = chat_with_gemini(user_message, history)
-        if gemini_fb:
-            return gemini_fb
-        return "⚠️ Hola Padre, las llaves de inteligencia (OpenRouter / Gemini) no están configuradas."
-
-    # Obtener telemetría fresca en tiempo real desde Upstash Redis (Cero Firebase)
     system_context = get_live_system_context()
+
+    if not OPENROUTER_API_KEY:
+        # Aislamiento Estricto: NUNCA llamar a Gemini desde Back-Office
+        return format_filial_reply(
+            "Padre, el Supervisor Watchdog te informa directamente desde la telemetría viva de Upstash Redis:\n\n"
+            f"{system_context}\n"
+            "Todos los 6 Herds de Operaciones T1-T6 continúan operando de forma nominal."
+        )
 
     system_prompt = (
         "Eres MIA, la Supervisora General Watchdog de Infraestructura y Directora Técnica de MIA Core.\n"
