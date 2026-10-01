@@ -3556,6 +3556,13 @@ def api_dashboard_data():
 def get_cache_mget():
     """Retorna el contenido del slot fÃ­sico cache_mget en Upstash Redis (Consolidado MGET)."""
     try:
+        # [FILTRO INSTITUCIONAL]: Bloqueo de pares Europeos en Sesion Asiatica
+        from datetime import datetime
+        hora_utc = datetime.utcnow().hour
+        activo_upper = alert.activo.upper()
+        if (activo_upper.startswith('EUR') or activo_upper.startswith('GBP')) and (hora_utc >= 22 or hora_utc <= 6):
+            return {"status": "rejected", "razon": "Par europeo bloqueado en Asia"}
+
         import requests, json
         up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
         session = requests.Session()
