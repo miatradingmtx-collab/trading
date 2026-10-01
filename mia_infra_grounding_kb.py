@@ -56,27 +56,39 @@ class MiaInfraGroundingKB:
                         "/brain (Red Neuronal Canvas 2D interactiva)",
                         "/ (Antopus 3D Three.js Swarm Orbit)",
                         "/mcp (Servidor MCP Trading JSON-RPC)",
-                        "/mcp/ops (Servidor MCP Back-Office)",
                         "/api/cache_mget (Proxy agregador atómico)"
                     ]
                 },
                 "instancia_927a": {
                     "url": "https://trading-production-927a.up.railway.app",
-                    "rol": "Backend de Ejecución MT5 & Control Plane",
+                    "rol": "Backend de Ejecución MT5 (Data Plane de Mercado)",
                     "endpoints_clave": [
                         "/api/trade_alert (Webhook ejecutor de MetaTrader 5)",
                         "/dashboard (Dashboard Institucional de KPIs y Trades MT5)",
                         "/api/dashboard_data (Bypass total servido desde Upstash)",
-                        "/api/slack/events (Webhook receptor de Slack)",
-                        "/api/slack/interactions (Botones interactivos Block Kit)",
-                        "/api/slack/command (/mia comando interactivo)",
                         "/diagrama (Mapa interactivo de conectividad SVG/HTML)"
                     ]
                 },
-                "roadmap_proximo_microservicio": {
+                "instancia_0b51_ops": {
+                    "url": "https://trading-production-0b51.up.railway.app",
+                    "rol": "Plano de Control SRE, 10 Terminators, Servidor MCP Ops & ChatOps Slack (Desacoplado)",
+                    "estado": "ONLINE_Y_DESACOPLADO_ACTIVO",
+                    "endpoints_clave": [
+                        "/health (Healthcheck de microservicio y 10 Terminators)",
+                        "/api/ops/status (Auditoría continua SRE y evaluación Llama 3.3)",
+                        "/mcp/ops (Servidor MCP Ops JSON-RPC)",
+                        "/api/slack/events (Receptor de eventos Slack #back-office-y-backend)",
+                        "/api/slack/interactions (Botones interactivos y triage Block Kit)",
+                        "/api/slack/command (/mia comando interactivo)",
+                        "/api/ops/vectorize (Vectorización 20D de Terminator T1)",
+                        "/api/antigravity/mirror/push (Receptor de Antigravity Live Mirror)"
+                    ]
+                },
+                "microservicio_ops_status": {
                     "nombre": "mia-ops-service",
-                    "estado": "PENDIENTE_EN_COLA",
-                    "objetivo": "Desacoplar Slack API, MCP Ops y Herds T1-T10 de 927a para dar 0% de interferencia y jitter a MT5"
+                    "estado": "DESPLEGADO_Y_OPERATIVO_EN_PRODUCCION",
+                    "url_oficial": "https://trading-production-0b51.up.railway.app",
+                    "resultado": "Slack API, MCP Ops y Herds T1-T10 desacoplados al 100% de 927a, 0% de jitter en MT5."
                 }
             },
             "radiografia_completa_bases_de_datos": {

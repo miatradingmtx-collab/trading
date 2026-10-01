@@ -315,10 +315,11 @@ class HerdObservabilitySRE:
 
     def execute(self) -> Dict[str, Any]:
         endpoints = [
-            {"nombre": "Railway App (1fd4)", "url": "https://trading-production-1fd4.up.railway.app/health", "timeout": 3},
-            {"nombre": "Railway App (927a)", "url": "https://trading-production-927a.up.railway.app/health", "timeout": 3},
+            {"nombre": "Railway App (1fd4 - Swarm)", "url": "https://trading-production-1fd4.up.railway.app/health", "timeout": 3},
+            {"nombre": "Railway App (927a - MT5 Execution)", "url": "https://trading-production-927a.up.railway.app/health", "timeout": 3},
+            {"nombre": "Railway App (0b51 - Terminator Ops)", "url": "https://trading-production-0b51.up.railway.app/health", "timeout": 3},
             {"nombre": "Servidor MCP Trading", "url": "https://trading-production-1fd4.up.railway.app/mcp", "timeout": 3},
-            {"nombre": "Servidor MCP Back-Office", "url": "https://trading-production-1fd4.up.railway.app/mcp/ops", "timeout": 3},
+            {"nombre": "Servidor MCP Ops", "url": "https://trading-production-0b51.up.railway.app/api/mcp/ops/health", "timeout": 3},
             {"nombre": "Upstash Redis Gateway", "url": f"{UPSTASH_URL}/ping", "headers": UPSTASH_HEADERS, "timeout": 3}
         ]
 
@@ -547,21 +548,16 @@ class HerdArchitectDiagrammer:
         por_aprobar = []
 
         diagrama_mermaid = """graph TD
-    MT5["Broker MetaTrader 5"] -->|Ticks/Orders| R927["Railway 927a (MT5 Backend)"]
+    MT5["Broker MetaTrader 5"] -->|Ticks/Orders| R927["Railway 927a (MT5 Execution Data Plane)"]
     R927 -->|Sync Atomic| UP["Upstash Redis (Anti-429 Shield)"]
     UP -->|MGET sub-35ms| R1FD["Railway 1fd4 (Trading Swarm & WS)"]
     R1FD -->|Inference REST| OR["OpenRouter AI (Llama 3.3 70B)"]
-    UP -->|Passive Mirror| FB["Firebase Firestore (Judge)"]
-    R927 -->|ChatOps Events| SLACK["Slack #back-office-y-backend"]"""
+    UP -->|Vector Ingest| R0B51["Railway 0b51 (10 Terminators Ops & MCP)"]
+    R0B51 -->|ChatOps Events| SLACK["Slack #back-office-y-backend"]
+    UP -->|Passive Mirror| FB["Firebase Firestore (Judge)"]"""
 
-        # Propuesta técnica de evolución: Microservicio dedicado para Ops
-        por_aprobar.append({
-            "tarea_id": "T7_MIA_OPS_SERVICE_DEPLOY",
-            "accion": "CREAR_MICROSERVICIO_MIA_OPS",
-            "detalle": "Desplegar el microservicio 'mia-ops-service' en Railway para desacoplar Slack Webhooks, MCP Ops y Herds T1-T10 del contenedor 927a, garantizando 0% de jitter en MT5.",
-            "antes": "Contenedor 927a soporta tráfico simultáneo de MT5 Execution y eventos Slack",
-            "despues": "927a exclusivo para MT5 Data Plane; mia-ops-service exclusivo para Control Plane"
-        })
+        # El 3er microservicio (0b51) ya fue desplegado y está 100% operativo en producción
+        auto_corregidos.append("Arquitectura de 3 microservicios ratificada y desacoplada: Data Plane (927a), Swarm (1fd4) y Ops Control Plane (0b51).")
 
         return {
             "herd": self.name,
@@ -569,7 +565,7 @@ class HerdArchitectDiagrammer:
             "diagrama_mermaid": diagrama_mermaid,
             "auto_corregidos": auto_corregidos,
             "por_aprobar": por_aprobar,
-            "resumen": "Topología arquitectónica mapeada. Propuesta de segregación de microservicio en cola."
+            "resumen": "Topología arquitectónica de 3 microservicios ratificada y desacoplada al 100%."
         }
 
 

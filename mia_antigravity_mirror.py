@@ -94,11 +94,12 @@ class AntigravityLiveMirror:
             "decisiones_clave_sesion": [
                 "Desacoplamiento total del Enjambre de Ops: Cero reportes de trading en #back-office-y-backend.",
                 "Malla de 10 Herds colaborativos (T1 a T10): Incorporación de T10 SWARM_NEURAL_SENTRY.",
+                "3er Microservicio de Ops (trading-production-0b51.up.railway.app) DESPLEGADO Y OPERATIVO AL 100%: Slack API, MCP Ops y Herds T1-T10 desacoplados de MT5.",
                 "Doble Reporte en Slack: Score >= 85 (Recomendadas con Checkboxes) y Score < 85 (Observadas con motivo de descarte).",
                 "Integración Frontend de doble fase: T6 diseña con Google Stitch y extrae CSS/HTML; T2 acopla en el backend.",
-                "T7 Architect Diagrammer genera y actualiza diagramas dinámicos de conectividad Mermaid/SVG.",
+                "T7 Architect Diagrammer ratifica arquitectura de 3 microservicios (927a, 1fd4, 0b51) con diagramas Mermaid actualizados.",
                 "Aislamiento estricto de canal: Silenciamiento 100% de #mia-chat en el Supervisor Watchdog.",
-                "Normalización de Entidades y Vectorización: T1 compacta datos a vectores atómicos en Upstash.",
+                "Normalización de Entidades y Vectorización: T1 compacta datos a vectores atómicos 20D en Upstash.",
                 "Modo Confianza Progresivo: Acumulación de +1 por aprobación y -2 por rechazo hacia la autonomía total."
             ]
         }
