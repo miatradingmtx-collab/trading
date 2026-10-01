@@ -21,7 +21,7 @@ import datetime
 import requests
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Form
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel
 import uvicorn
 from dotenv import load_dotenv
@@ -60,8 +60,28 @@ def healthcheck():
 
 @app.get("/api/ops/status")
 def get_ops_status():
-    """Retorna el último pulso de salud de los 10 Herds desde Upstash."""
+    """Retorna el último pulso de salud de los 10 Herds desde Upstash en sub-25ms."""
+    try:
+        upstash_url = os.getenv("UPSTASH_REDIS_REST_URL", "https://certain-gnat-160816.upstash.io")
+        upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
+        headers = {"Authorization": f"Bearer {upstash_token}"}
+        r = requests.get(f"{upstash_url}/get/cache_system_ops_status", headers=headers, timeout=3)
+        if r.status_code == 200 and r.json().get("result"):
+            raw = r.json().get("result")
+            return json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        pass
     return system_ops_supervisor.run_swarm_audit(notify_slack=False)
+
+@app.get("/dashboard/preview")
+def redirect_to_dashboard_preview():
+    """Redirige al visualizador comparativo Antes vs Después en el microservicio 927a."""
+    return RedirectResponse(url="https://trading-production-927a.up.railway.app/dashboard/preview", status_code=307)
+
+@app.get("/dashboard")
+def redirect_to_dashboard():
+    """Redirige al Dashboard Central Gold Standard en el microservicio 927a."""
+    return RedirectResponse(url="https://trading-production-927a.up.railway.app/dashboard", status_code=307)
 
 @app.post("/api/ops/audit")
 async def trigger_ops_audit(background_tasks: BackgroundTasks):

@@ -1174,8 +1174,8 @@ Responde ÚNICAMENTE un JSON con la clave 'evaluaciones': [ ... ]. Cero texto ad
         
         # 4. Guardar en Upstash Redis (Sobrescribir siempre el slot de pendientes para evitar fantasmas)
         try:
-            requests.post(f"{UPSTASH_URL}/set/cache_system_ops_status", headers=UPSTASH_HEADERS, json=summary, timeout=4)
-            requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, json=validadas_85, timeout=4)
+            requests.post(f"{UPSTASH_URL}/set/cache_system_ops_status", headers=UPSTASH_HEADERS, data=json.dumps(summary), timeout=4)
+            requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, data=json.dumps(validadas_85), timeout=4)
         except Exception:
             pass
 
