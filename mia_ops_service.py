@@ -198,16 +198,80 @@ async def slack_events_endpoint(request: Request, background_tasks: BackgroundTa
         return PlainTextResponse(payload.get("challenge", ""))
 
     event = payload.get("event", {})
-    channel_id = event.get("channel", "")
+    event_type = event.get("type")
+    channel_id = event.get("channel") or "C0C4ZMFCMJ8"
+    bot_id = event.get("bot_id")
+    subtype = event.get("subtype")
+    text = (event.get("text") or "").strip()
 
-    # Aislamiento de canales: Solo procesar #back-office-y-backend
+    # Ignorar mensajes emitidos por bots, cambios de mensajes o texto vacío
+    if bot_id or subtype in ["bot_message", "message_changed", "message_deleted"] or not text:
+        return PlainTextResponse("IGNORED_BOT_OR_EMPTY", status_code=200)
+
+    # Aislamiento de canales: Solo procesar #back-office-y-backend (silenciar #mia-chat)
     if "chat" in str(channel_id).lower() or channel_id == "C0C4QCZPTPH":
         return PlainTextResponse("IGNORED_NON_OPS_CHANNEL", status_code=200)
 
-    if event.get("type") in ["app_mention", "message"] and not event.get("bot_id"):
-        text = event.get("text", "")
-        if "auditar" in text.lower() or "resync" in text.lower() or "estado" in text.lower():
+    if event_type in ["app_mention", "message"]:
+        event_id = payload.get("event_id") or event.get("client_msg_id") or f"{channel_id}_{event.get('ts')}"
+        from mia_supervisor_chat import _is_duplicate_slack_event, chat_with_mia
+        if _is_duplicate_slack_event(event_id):
+            return PlainTextResponse("DUPLICATE_IGNORED", status_code=200)
+
+        # Si el usuario pide forzar resync explícitamente
+        text_lower = text.lower()
+        if any(k in text_lower for k in ["forzar resync", "re-auditar en vivo"]):
             background_tasks.add_task(system_ops_supervisor.run_swarm_audit, notify_slack=True)
+            return PlainTextResponse("AUDIT_TRIGGERED", status_code=200)
+
+        # Responder conversacionalmente con OpenRouter y telemetría de 10 Herds
+        def process_chat_response():
+            try:
+                reply = chat_with_mia(text, force_engine="openrouter")
+                msg_formatted = f"🛡️ *MIA Watchdog (Supervisor / 10 Herds T1-T10)*:\n{reply}"
+                chat_blocks = [
+                    {
+                        "type": "section",
+                        "text": {"type": "mrkdwn", "text": msg_formatted}
+                    },
+                    {
+                        "type": "actions",
+                        "block_id": "watchdog_chat_actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {"type": "plain_text", "text": "Aprobar Todas ✅", "emoji": True},
+                                "style": "primary",
+                                "value": "approve_all_pending",
+                                "action_id": "approve_triage_action"
+                            },
+                            {
+                                "type": "button",
+                                "text": {"type": "plain_text", "text": "Rechazar / Mantener Actual ⛔", "emoji": True},
+                                "style": "danger",
+                                "value": "reject_all_pending",
+                                "action_id": "reject_triage_action"
+                            },
+                            {
+                                "type": "button",
+                                "text": {"type": "plain_text", "text": "Forzar Resync 🔄", "emoji": True},
+                                "value": "force_resync",
+                                "action_id": "resync_action"
+                            }
+                        ]
+                    }
+                ]
+                slack_bridge.send_channel_message(
+                    msg_formatted,
+                    channel=channel_id,
+                    username="MIA Watchdog",
+                    icon_emoji=":shield:",
+                    blocks=chat_blocks
+                )
+            except Exception as e_chat:
+                print(f"| SLACK OPS CHAT ERROR | Error procesando respuesta: {e_chat}")
+
+        background_tasks.add_task(process_chat_response)
 
     return PlainTextResponse("EVENT_RECEIVED", status_code=200)
 
