@@ -115,6 +115,25 @@ def get_antigravity_mirror():
         return json.loads(raw) if isinstance(raw, str) else raw
     return {"status": "NO_MIRROR_DATA", "detalle": "Slot cache_mia_live_antigravity_delta vacío o no inicializado."}
 
+class HomologateApprovalRequest(BaseModel):
+    tarea_id: str
+    detalle: Optional[str] = ""
+    solucion: Optional[str] = ""
+
+@app.post("/api/antigravity/homologate_approval")
+def homologate_antigravity_approval_endpoint(payload: HomologateApprovalRequest):
+    """
+    Homologa en caliente una aprobación o solución ejecutada directamente en Google Antigravity.
+    Remueve la tarea de 'cache_pending_ops_approvals', actualiza el espejo en vivo
+    y registra el precedente en 'mia_ops_learning_history' con score de confianza 0.98.
+    """
+    res = AntigravityLiveMirror.homologate_antigravity_approval(
+        tarea_id_o_accion=payload.tarea_id,
+        detalle=payload.detalle or "",
+        solucion=payload.solucion or ""
+    )
+    return res
+
 @app.post("/api/ops/vectorize")
 def trigger_vectorization(payload: Optional[Dict[str, Any]] = None):
     """

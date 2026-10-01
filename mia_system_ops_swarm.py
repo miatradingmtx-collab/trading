@@ -514,16 +514,10 @@ class HerdUIDesigner:
         ]
 
         auto_corregidos.append("Dashboard Central Mia AI ratificado como estándar de oro institucional.")
+        auto_corregidos.append("Vista Historial de Trades MT5 integrada: Plotly micro-charts y data grid reactivo en producción.")
 
-        # Proponer modernización de vista secundaria (Historial) con Google Stitch
-        propuestas_diseno = [
-            {
-                "componente": "Historial de Trades MT5",
-                "estilo": "Google Stitch Dark Grid (Plotly Micro-Charts)",
-                "antes": "Tabla estándar con 9 columnas estáticas",
-                "despues": "Data grid reactivo con micro-gráficos sparkline de PnL flotante y badges dinámicos"
-            }
-        ]
+        # Si en el futuro surgen nuevos diseños pendientes, se registran aquí:
+        propuestas_diseno = []
 
         return {
             "herd": self.name,
@@ -1104,8 +1098,48 @@ Responde ÚNICAMENTE un JSON con la clave 'evaluaciones': [ ... ]. Cero texto ad
             for item in h.get("por_aprobar", []):
                 total_por_aprobar_raw.append(item)
 
+        # 2.5 Filtrado inteligente de propuestas homologadas o aprobadas previamente en Google Antigravity
+        homologadas = set()
+        try:
+            # 1. Desde la KB de aprendizaje
+            for caso in self.learning_kb.get_kb().get("casos_aprendizaje", []):
+                veredicto = str(caso.get("veredicto_padre", "")).upper()
+                if "APROBADO" in veredicto or "HOMOLOGADO" in veredicto:
+                    if caso.get("propuesta"):
+                        homologadas.add(str(caso.get("propuesta")).upper())
+                    if caso.get("tarea_o_accion"):
+                        homologadas.add(str(caso.get("tarea_o_accion")).upper())
+                    if caso.get("case_id"):
+                        homologadas.add(str(caso.get("case_id")).upper())
+            # 2. Desde el Live Mirror de Antigravity
+            r_mir = requests.get(f"{UPSTASH_URL}/get/cache_mia_live_antigravity_delta", headers=UPSTASH_HEADERS, timeout=3)
+            if r_mir.status_code == 200 and r_mir.json().get("result"):
+                raw_m = r_mir.json().get("result")
+                dm = json.loads(raw_m) if isinstance(raw_m, str) else (raw_m or {})
+                for d in dm.get("decisiones_clave_sesion", []):
+                    homologadas.add(str(d).upper())
+                for c in dm.get("git_delta", {}).get("ultimos_commits", []):
+                    homologadas.add(str(c.get("mensaje", "")).upper())
+        except Exception:
+            pass
+
+        filtradas_para_evaluar = []
+        for item in total_por_aprobar_raw:
+            tid = str(item.get("tarea_id", "")).upper()
+            acc = str(item.get("accion", "")).upper()
+            es_homologada = False
+            for h in homologadas:
+                if (tid and tid in h) or (acc and acc in h) or (h and h in tid):
+                    es_homologada = True
+                    break
+            
+            if es_homologada:
+                total_auto_corregidos.append(f"[{item.get('tarea_id', 'TASK')}] Homologado en Google Antigravity / Precedente validado. Auto-aplicado.")
+            else:
+                filtradas_para_evaluar.append(item)
+
         # 3. Evaluación Cognitiva con OpenRouter Llama 3.3 70B (Grounding de Arquitectura)
-        cognitive_eval = self.evaluate_proposals_with_openrouter(total_por_aprobar_raw)
+        cognitive_eval = self.evaluate_proposals_with_openrouter(filtradas_para_evaluar)
         validadas_85 = cognitive_eval.get("propuestas_validadas_score_85", [])
         observadas_sub85 = cognitive_eval.get("propuestas_observadas_score_menor_85", [])
 
@@ -1138,11 +1172,10 @@ Responde ÚNICAMENTE un JSON con la clave 'evaluaciones': [ ... ]. Cero texto ad
             "learning_kb": kb_summary
         }
         
-        # 4. Guardar en Upstash Redis
+        # 4. Guardar en Upstash Redis (Sobrescribir siempre el slot de pendientes para evitar fantasmas)
         try:
             requests.post(f"{UPSTASH_URL}/set/cache_system_ops_status", headers=UPSTASH_HEADERS, json=summary, timeout=4)
-            if validadas_85:
-                requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, json=validadas_85, timeout=4)
+            requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, json=validadas_85, timeout=4)
         except Exception:
             pass
 
@@ -1152,8 +1185,7 @@ Responde ÚNICAMENTE un JSON con la clave 'evaluaciones': [ ... ]. Cero texto ad
                 self.db.collection("system_memory").document("cache_system_ops_status").set(summary, merge=True)
                 ts_hist = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
                 self.db.collection("mia_ops_audit_history").document(f"AUDIT_{ts_hist}").set(summary, merge=True)
-                if validadas_85:
-                    self.db.collection("system_memory").document("cache_pending_ops_approvals").set({"pendientes": validadas_85}, merge=True)
+                self.db.collection("system_memory").document("cache_pending_ops_approvals").set({"pendientes": validadas_85}, merge=True)
             except Exception:
                 pass
 

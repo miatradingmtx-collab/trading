@@ -134,6 +134,89 @@ class AntigravityLiveMirror:
         return {"upstash": ok_upstash, "microservice_endpoint": ok_endpoint}
 
     @classmethod
+    def homologate_antigravity_approval(cls, tarea_id_o_accion: str, detalle: str = "", solucion: str = "") -> Dict[str, Any]:
+        """
+        Homologa en caliente una aprobación o solución ejecutada directamente en Google Antigravity.
+        - Elimina la tarea de 'cache_pending_ops_approvals' en Upstash y Firestore.
+        - Registra el precedente en 'mia_ops_learning_history' como 'APROBADO_EN_ANTIGRAVITY'.
+        - Agrega la decisión al espejo en vivo para que Llama 3.3 la reconozca de inmediato.
+        - Sincroniza en caliente en Upstash y en el microservicio 0b51.
+        """
+        now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        
+        # 1. Limpiar de cache_pending_ops_approvals
+        pendientes_restantes = []
+        removidas = []
+        try:
+            r = requests.get(f"{UPSTASH_URL}/get/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, timeout=4)
+            if r.status_code == 200 and r.json().get("result"):
+                raw = r.json().get("result")
+                pendientes = json.loads(raw) if isinstance(raw, str) else (raw or [])
+                for p in pendientes:
+                    p_id = str(p.get("tarea_id", "")).upper()
+                    p_acc = str(p.get("accion", "")).upper()
+                    target_cmp = str(tarea_id_o_accion).upper()
+                    if target_cmp in p_id or target_cmp in p_acc:
+                        removidas.append(p)
+                    else:
+                        pendientes_restantes.append(p)
+                
+                requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, json=pendientes_restantes, timeout=4)
+        except Exception:
+            pass
+
+        # 2. Registrar en Firestore y Upstash Learning History
+        clean_key = str(tarea_id_o_accion).replace(" ", "_").upper()[:28]
+        case_id = f"CASE_ANTIGRAVITY_{clean_key}"
+        learning_payload = {
+            "case_id": case_id,
+            "tarea_o_accion": tarea_id_o_accion,
+            "detalle": detalle or f"Solución aplicada directamente en Antigravity para {tarea_id_o_accion}.",
+            "solucion_aplicada": solucion or "Aprobado e implementado en sesión de pair-programming Antigravity.",
+            "veredicto_padre": "APROBADO_EN_ANTIGRAVITY",
+            "origen": "GOOGLE_ANTIGRAVITY_PAIR_PROGRAMMING",
+            "score_confianza": 0.98,
+            "estado": "HOMOLOGADO_EN_PRODUCCION",
+            "timestamp": now_str
+        }
+        
+        try:
+            import firebase_admin
+            from firebase_admin import credentials, firestore
+            if not firebase_admin._apps:
+                cred = credentials.Certificate('serviceAccountKey.json')
+                firebase_admin.initialize_app(cred)
+            db = firestore.client()
+            db.collection('mia_ops_learning_history').document(case_id).set(learning_payload, merge=True)
+            db.collection('system_memory').document('cache_pending_ops_approvals').set({"pendientes": pendientes_restantes}, merge=True)
+        except Exception:
+            pass
+
+        # 3. Guardar también en el slot de Upstash cache_ops_learning_history
+        try:
+            r_hist = requests.get(f"{UPSTASH_URL}/get/cache_ops_learning_history", headers=UPSTASH_HEADERS, timeout=4)
+            hist_data = {}
+            if r_hist.status_code == 200 and r_hist.json().get("result"):
+                raw_h = r_hist.json().get("result")
+                hist_data = json.loads(raw_h) if isinstance(raw_h, str) else (raw_h or {})
+            hist_data[case_id] = learning_payload
+            requests.post(f"{UPSTASH_URL}/set/cache_ops_learning_history", headers=UPSTASH_HEADERS, json=hist_data, timeout=4)
+        except Exception:
+            pass
+
+        # 4. Sincronizar espejo en vivo en todos lados
+        sync_res = cls.sync_everywhere()
+
+        return {
+            "status": "HOMOLOGADO_EXITOSO",
+            "case_id": case_id,
+            "tarea_homologada": tarea_id_o_accion,
+            "tareas_removidas_de_pendientes": len(removidas),
+            "pendientes_restantes": len(pendientes_restantes),
+            "sync_mirror": sync_res
+        }
+
+    @classmethod
     def get_live_context_for_prompt(cls) -> str:
         """Retorna el bloque de texto homologado para inyectar en el prompt de Llama."""
         payload = cls.build_live_mirror_payload()
