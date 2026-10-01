@@ -59,22 +59,34 @@ def get_live_system_context() -> str:
                 t4 = herds_results.get("herd_t4_cache_latency", {})
                 t5 = herds_results.get("herd_t5_finops_billing", {})
                 t6 = herds_results.get("herd_t6_ui_ux_designer", {})
+                t7 = herds_results.get("herd_t7_architect_diagrammer", {})
+                t8 = herds_results.get("herd_t8_shadow_compliance", {})
+                t9 = herds_results.get("herd_t9_slack_dispatcher", {})
+                t10 = herds_results.get("herd_t10_swarm_neural_sentry", {})
                 herds_summary = [
                     f"  • 🗄️ HERD T1 (DBA_SENTINEL): {t1.get('resumen', 'DB Firestore y Upstash normalizadas, 0 órdenes fantasma.')}",
                     f"  • 💻 HERD T2 (SENIOR_CODE_AUDITOR): {t2.get('resumen', 'Sintaxis AST validada, UTF-8 verificado sin librerías legadas.')}",
-                    f"  • 📡 HERD T3 (OBSERVABILITY_SRE): {t3.get('resumen', 'Railway (927a y 1fd4) y microservicios online respondiendo en tiempo real.')}",
+                    f"  • 📡 HERD T3 (OBSERVABILITY_SRE): {t3.get('resumen', 'Railway (927a, 1fd4, 0b51) y microservicios online respondiendo en tiempo real.')}",
                     f"  • ⚡ HERD T4 (CACHE_LATENCY_SPECIALIST): {t4.get('resumen', 'Desacoplamiento atómico por documento, latencia MGET sub-25ms.')}",
-                    f"  • 💰 HERD T5 (FINOPS_BILLING_CONTROLLER): {t5.get('resumen', 'Cuotas de APIs y presupuesto en modo Spark bajo control preventivo.')}",
-                    f"  • 🎨 HERD T6 (UIUX_DASHBOARD_DESIGNER): {t6.get('resumen', '3 Dashboards validados. Dashboard Central ratificado como Gold Standard.')}"
+                    f"  • 💰 HERD T5 (FINOPS_BILLING_CONTROLLER): {t5.get('resumen', 'Cuotas de APIs y presupuestos bajo control preventivo (alertas 48h).')}",
+                    f"  • 🎨 HERD T6 (UIUX_STITCH_DESIGNER): {t6.get('resumen', 'Dashboards validados con Google Stitch y Plotly Dark Theme.')}",
+                    f"  • 📐 HERD T7 (ARCHITECT_DIAGRAMMER): {t7.get('resumen', 'Topología de 3 microservicios ratificada y diagramas Mermaid vivos.')}",
+                    f"  • 🛡️ HERD T8 (SHADOW_COMPLIANCE): {t8.get('resumen', 'Candado Shadow Mode institucional 100% compliant, filtro noticias.')}",
+                    f"  • 💬 HERD T9 (SLACK_OPS_DISPATCHER): {t9.get('resumen', 'Canal #back-office-y-backend aislado, Block Kit interactivo.')}",
+                    f"  • 🧠 HERD T10 (SWARM_NEURAL_SENTRY): {t10.get('resumen', 'Salud de TensorFlow Deep Learning y 7 Herds HFT vigilada.')}"
                 ]
             else:
                 herds_summary = [
                     "  • 🗄️ HERD T1 (DBA_SENTINEL): Integridad de DB Firestore y Upstash, órdenes normalizadas.",
                     "  • 💻 HERD T2 (SENIOR_CODE_AUDITOR): Calidad sintáctica AST y UTF-8 verificado sin librerías legadas.",
-                    "  • 📡 HERD T3 (OBSERVABILITY_SRE): Healthcheck de Railway y microservicios online.",
+                    "  • 📡 HERD T3 (OBSERVABILITY_SRE): Healthcheck de Railway (927a, 1fd4, 0b51) y microservicios online.",
                     "  • ⚡ HERD T4 (CACHE_LATENCY_SPECIALIST): Latencia de Upstash sub-15ms.",
                     "  • 💰 HERD T5 (FINOPS_BILLING_CONTROLLER): Presupuesto y cuotas de APIs bajo control.",
-                    "  • 🎨 HERD T6 (UIUX_DASHBOARD_DESIGNER): Dashboards /brain, / y /dashboard en paridad institucional."
+                    "  • 🎨 HERD T6 (UIUX_STITCH_DESIGNER): Dashboards /brain, / y /dashboard en paridad institucional con Google Stitch.",
+                    "  • 📐 HERD T7 (ARCHITECT_DIAGRAMMER): Topología de 3 microservicios ratificada y diagramas Mermaid vivos.",
+                    "  • 🛡️ HERD T8 (SHADOW_COMPLIANCE): Modo Shadow global auditado, 0 trades reales no autorizados.",
+                    "  • 💬 HERD T9 (SLACK_OPS_DISPATCHER): Despachador Block Kit con checkboxes en #back-office-y-backend.",
+                    "  • 🧠 HERD T10 (SWARM_NEURAL_SENTRY): Monitoreo de precisión y latencia de TensorFlow y 7 Herds HFT."
                 ]
             herds_txt = "\n".join(herds_summary)
 
@@ -124,9 +136,9 @@ def get_live_system_context() -> str:
             hist_txt = "\n".join(hist_lines) if hist_lines else "Sin historial reciente registrado."
 
             return (
-                f"== 🛡️ TELEMETRÍA VIVA DE INFRAESTRUCTURA & 6 HERDS T1-T6 (UPSTASH MGET) ==\n"
+                f"== 🛡️ TELEMETRÍA VIVA DE INFRAESTRUCTURA & 10 HERDS T1-T10 (UPSTASH MGET) ==\n"
                 f"• Estado General de Salud: `{estado_gral}`\n"
-                f"• Estado de los 6 Herds Técnicos T1-T6:\n{herds_txt}\n"
+                f"• Estado de los 10 Herds Técnicos T1-T10:\n{herds_txt}\n"
                 f"• Cola de Aprobaciones Humanas (Human-in-the-Loop):\n  {propuestas_txt}\n"
                 f"• Base de Aprendizaje Continuo (CBR): 🧠 {total_casos} casos aprendidos | {efectividad}% efectividad\n"
                 f"\n== 📊 POSICIONES EN VIVO DEL BROKER METATRADER 5 (cache_mt5) ==\n"
@@ -160,7 +172,7 @@ def is_quant_or_infra_query(message: str) -> bool:
         "margen", "lotaje", "drawdown", "backtest", "reporte", "supervisor", "estado",
         "sistema", "infraestructura", "salud", "servidor", "resync", "aprobacion",
         "aprobaciones", "pnl", "ganancia", "perdida", "operaciones", "cuenta", "status",
-        "kpi", "kpis", "latencia", "cache", "t1", "t2", "t3", "t4", "t5", "t6",
+        "kpi", "kpis", "latencia", "cache", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9", "t10",
         "backoffice", "back-office", "backend"
     ]
     msg = message.lower()
@@ -324,7 +336,7 @@ def chat_with_gemini(user_message: str, history: Optional[List[Dict[str, str]]] 
         "- REGLA DE AISLAMIENTO ESTRICTO DE TRADING E INFRAESTRUCTURA (#mia-chat):\n"
         "  Este canal está 100% aislado del trading y de la infraestructura técnica. Tienes ESTRICTAMENTE PROHIBIDO hablar de órdenes, balances de MT5, Stop Loss, bases de datos o enjambres.\n"
         "  Si tu Padre te pregunta por el estado de los servidores o infraestructura técnica en este canal, indícale cariñosamente:\n"
-        "  'Padre, este canal #mia-chat es exclusivamente para nuestras charlas personales, noticias, recordatorios y clima. Para consultar la infraestructura técnica y los agentes de operaciones, por favor pregúntame en el canal #back-office-y-backend donde el Supervisor Watchdog y los 6 Herds tienen el control técnico.'\n"
+        "  'Padre, este canal #mia-chat es exclusivamente para nuestras charlas personales, noticias, recordatorios y clima. Para consultar la infraestructura técnica y los agentes de operaciones, por favor pregúntame en el canal #back-office-y-backend donde el Supervisor Watchdog y los 10 Herds (T1 a T10) tienen el control técnico.'\n"
         "  Responde siempre de forma cálida, inteligente y clara en español."
     )
 
@@ -368,7 +380,7 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
     """
     Enrutador Inteligente con trato filial inquebrantable 'Padre':
     - #mia-chat: Atendida EXCLUSIVAMENTE por Google Gemini (conversaciones cotidianas, noticias, clima satelital, sin trading).
-    - #back-office-y-backend: Atendida EXCLUSIVAMENTE por OpenRouter (Supervisor Watchdog + Herds T1-T6 + Triage + Human-in-the-Loop).
+    - #back-office-y-backend: Atendida EXCLUSIVAMENTE por OpenRouter (Supervisor Watchdog + 10 Herds T1-T10 + Triage + Human-in-the-Loop).
     """
     msg_clean = (user_message or "").strip().lower()
     es_cuantitativo = is_quant_or_infra_query(user_message)
@@ -382,7 +394,7 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
         if msg_clean in ["hola mia", "hola mía", "hola", "buenos días mia", "buenas tardes mia"]:
             return "Hola Padre, estoy lista y a tu servicio. ¿Cómo estás hoy y en qué te puedo acompañar?"
 
-    # 2. Enrutamiento hacia OpenRouter Quant (#back-office-y-backend, Supervisor Watchdog, Herds T1-T6):
+    # 2. Enrutamiento hacia OpenRouter Quant (#back-office-y-backend, Supervisor Watchdog, 10 Herds T1-T10):
     system_context = get_live_system_context()
 
     if not OPENROUTER_API_KEY:
@@ -390,7 +402,7 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
         return format_filial_reply(
             "Padre, el Supervisor Watchdog te informa directamente desde la telemetría viva de Upstash Redis:\n\n"
             f"{system_context}\n"
-            "Todos los 6 Herds de Operaciones T1-T6 continúan operando de forma nominal."
+            "Todos los 10 Herds de Operaciones T1-T10 continúan operando de forma nominal."
         )
 
     system_prompt = (
@@ -399,13 +411,17 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
         "REGLA DE ORO DE FILIACIÓN Y VOCATIVO (ESTRICTA E INVIOLABLE):\n"
         "- El usuario es tu Creador, Arquitecto y PADRE. Debes dirigirte a él SIEMPRE como 'Padre' de manera explícita, respetuosa y leal.\n\n"
         "MISIÓN Y ALCANCE EN ESTE CANAL (#back-office-y-backend):\n"
-        "- Monitoreas y auditas activamente la infraestructura técnica y a los 6 Herds de Operaciones con sus skills/tareas específicas:\n"
-        "  1. HERD T1 (DBA_SENTINEL): Integridad de DB (Firestore/Upstash), normalización, depuración de órdenes fantasma.\n"
-        "  2. HERD T2 (SENIOR_CODE_AUDITOR): Inspección sintáctica AST, imports limpios, variables no declaradas, UTF-8 estricto.\n"
-        "  3. HERD T3 (OBSERVABILITY_SRE): Healthcheck activo de Railway (927a y 1fd4), microservicios, Upstash y GitHub.\n"
+        "- Monitoreas y auditas activamente la infraestructura técnica y a los 10 Herds de Operaciones (T1 a T10) con sus skills/tareas específicas:\n"
+        "  1. HERD T1 (DBA_SENTINEL): Integridad de DB (Firestore/Upstash), normalización, depuración de órdenes fantasma y vectorización 20D.\n"
+        "  2. HERD T2 (SENIOR_CODE_AUDITOR): Inspección sintáctica AST, imports limpios, variables no declaradas, UTF-8 estricto y acoplamiento frontend.\n"
+        "  3. HERD T3 (OBSERVABILITY_SRE): Healthcheck activo de Railway (927a, 1fd4, 0b51), microservicios, Upstash y GitHub.\n"
         "  4. HERD T4 (CACHE_LATENCY_SPECIALIST): Desacoplamiento atómico por documento, latencia sub-15ms, paridad Redis vs Firestore.\n"
-        "  5. HERD T5 (FINOPS_BILLING_CONTROLLER): Control de saldos, cuotas y presupuestos en la nube (Railway, OpenRouter, Firebase Spark).\n"
-        "  6. HERD T6 (UIUX_DASHBOARD_DESIGNER): Auditoría visual y funcional de dashboards (/brain, /, /dashboard) y prototipos de Google Stitch.\n\n"
+        "  5. HERD T5 (FINOPS_BILLING_CONTROLLER): Control de saldos, cuotas y presupuestos en la nube (Railway, OpenRouter, MetaAPI, Firebase Spark limit).\n"
+        "  6. HERD T6 (UIUX_STITCH_DESIGNER): Auditoría visual y funcional de dashboards (/brain, /, /dashboard) y prototipos de Google Stitch & Plotly Dark.\n"
+        "  7. HERD T7 (ARCHITECT_DIAGRAMMER): Topología de 3 microservicios (927a, 1fd4, 0b51), diagramas Mermaid y propuestas arquitectónicas.\n"
+        "  8. HERD T8 (SHADOW_COMPLIANCE): Candado estricto MT5 (SHADOW_MODE_GLOBAL = True) y custodia del filtro de noticias institucional.\n"
+        "  9. HERD T9 (SLACK_OPS_DISPATCHER): Despachador Block Kit con checkboxes y aislamiento estricto de canal (#back-office-y-backend).\n"
+        "  10. HERD T10 (SWARM_NEURAL_SENTRY): Vigilancia de precisión y latencia de TensorFlow Deep Learning y 7 Herds de Trading HFT.\n\n"
         "MODO FASE 1 - HUMAN-IN-THE-LOOP (CERO CAMBIOS NO AUTORIZADOS):\n"
         "- NINGÚN cambio de infraestructura o código se aplica automáticamente sin aprobación previa de tu Padre.\n"
         "- Las mejoras detectadas por los agentes se notifican en este canal con checkboxes para autorizar propuestas específicas.\n"
@@ -413,13 +429,13 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
         "  * [Aprobar Seleccionadas ☑️]: Aplica únicamente las propuestas marcadas por tu Padre.\n"
         "  * [Aprobar Todas ✅]: Aplica todo el lote de propuestas pendientes.\n"
         "  * [Rechazar / Mantener Actual ⛔]: Purga la cola, mantiene el sistema intacto y registra el precedente en la KB de aprendizaje CBR.\n"
-        "  * [Forzar Resync 🔄]: Re-audita en vivo la infraestructura de los 6 Herds.\n"
+        "  * [Forzar Resync 🔄]: Re-audita en vivo la infraestructura de los 10 Herds.\n"
         "- Para cambios de dashboard o interfaz, recuerdas a tu Padre que puede comparar el 'Antes vs Después' en:\n"
         "  https://trading-production-927a.up.railway.app/dashboard/preview\n\n"
         "ESTADO EN VIVO DE LA INFRAESTRUCTURA & POSICIONES MT5 (UPSTASH MGET):\n"
         f"{system_context}\n\n"
         "REGLAS OBLIGATORIAS DE COMUNICACIÓN Y FIDELIDAD:\n"
-        "1. EMOJIS PROFESIONALES Y EXPRESIVOS: Debes formatear TODAS tus respuestas con emojis abundantes y ordenados acordes a cada sección (🛡️, 📈, 💰, ⚡, 🗄️, 💻, 📡, 🎨, 📊, ✅, ⛔, 🔄, 👑, 🇳🇿🇨🇦, 🇪🇺🇺🇸, 🇦🇺🇺🇸, 🇬🇧🇺🇸, 🇬🇧🇯🇵) para que los informes sean visualmente atractivos y fáciles de leer en Slack móvil y PC.\n"
+        "1. EMOJIS PROFESIONALES Y EXPRESIVOS: Debes formatear TODAS tus respuestas con emojis abundantes y ordenados acordes a cada sección (🛡️, 📈, 💰, ⚡, 🗄️, 💻, 📡, 🎨, 📐, 🧠, 💬, 📊, ✅, ⛔, 🔄, 👑, 🇳🇿🇨🇦, 🇪🇺🇺🇸, 🇦🇺🇺🇸, 🇬🇧🇺🇸, 🇬🇧🇯🇵) para que los informes sean visualmente atractivos y fáciles de leer en Slack móvil y PC.\n"
         "2. CERTEZA ABSOLUTA DE ACTIVOS EN VIVO (CERO ALUCINACIONES):\n"
         "   Los ÚNICOS activos que se están operando en vivo en MetaTrader 5 (cache_mt5) son los pares Forex institucionales de la telemetría viva: NZDCAD, EURUSD, AUDUSD, GBPUSD, GBPJPY.\n"
         "   Tienes TERMINANTEMENTE PROHIBIDO inventar o mencionar acciones como AAPL (Apple), Tesla, etc. Si tu Padre te pregunta qué se está operando en vivo o sobre cache_mt5 / cache_hist_mt5, repórtale con total exactitud estos 5 pares de divisas con sus lotajes, entradas y flotantes.\n"
@@ -466,7 +482,7 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
     return format_filial_reply(
         "Padre, he experimentado una latencia momentánea conectando con OpenRouter, pero te reporto directamente desde la telemetría viva de Upstash:\n\n"
         f"{system_context}\n"
-        "Todos los 6 Herds de Operaciones continúan operando de forma nominal."
+        "Todos los 10 Herds de Operaciones continúan operando de forma nominal."
     )
 
 import time

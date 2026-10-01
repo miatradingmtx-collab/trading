@@ -4,7 +4,7 @@ MIA SLACK BRIDGE (HUMAN-IN-THE-LOOP & CHATOPS INTEGRATION)
 Conector de comunicación entre el Watchdog Supervisor (Back-Office)
 y el usuario a través de Slack.
 Permite:
-1. Transparencia total: cada uno de los 6 Herds reporta qué está haciendo y qué detectó.
+1. Transparencia total: cada uno de los 10 Herds (T1 a T10) reporta qué está haciendo y qué detectó.
 2. Veredicto Senior del Supervisor Watchdog.
 3. Modo FASE 1 STRICT HUMAN-IN-THE-LOOP: Cero cambios automáticos sin aprobación previa.
 4. Selección con checkboxes para autorizar propuestas individuales o todas.
@@ -109,7 +109,7 @@ class MiaSlackBridge:
 
     def send_senior_ops_report(self, summary: Dict[str, Any]) -> bool:
         """
-        Envía un reporte Senior consolidado con transparencia de los 6 Herds,
+        Envía un reporte Senior consolidado con transparencia de los 10 Herds (T1 a T10),
         Veredicto del Supervisor, checkboxes para seleccionar propuestas individuales
         y Botones para Aprobación Humana estricta.
         """

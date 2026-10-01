@@ -5122,7 +5122,7 @@ async def handle_slack_events(request: Request):
 
                     # 2. Selección estricta e inviolable de motor por canal:
                     # - #mia-chat (C0C4QCZPTPH): Google Gemini Pro OBLIGATORIO para temas cotidianos, clima satelital, noticias
-                    # - #back-office-y-backend: OpenRouter OBLIGATORIO con contexto de 6 Herds Técnicos T1-T6 y MT5 Broker
+                    # - #back-office-y-backend: OpenRouter OBLIGATORIO con contexto de 10 Herds Técnicos T1-T10 y MT5 Broker
                     is_mia_chat = ("mia-chat" in channel_name or channel_name == "mia-chat" or channel_id == "C0C4QCZPTPH" or "chat" in channel_name)
                     
                     if is_mia_chat:
@@ -5132,7 +5132,7 @@ async def handle_slack_events(request: Request):
                     else:
                         # Identidad TÉCNICA y ejecutiva para #back-office-y-backend: Supervisor Watchdog
                         reply = chat_with_mia(text, force_engine="openrouter")
-                        msg_formatted = f"🛡️ *MIA Watchdog (Supervisor / Herds T1-T6)*:\n{reply}"
+                        msg_formatted = f"🛡️ *MIA Watchdog (Supervisor / 10 Herds T1-T10)*:\n{reply}"
 
                         # Adjuntar siempre botones de acción rápida
                         chat_blocks = [
@@ -5216,7 +5216,7 @@ async def handle_slack_command(request: Request):
                 pass
 
         # Aislamiento Total MIA Watchdog (100% Trading & Infraestructura):
-        # MIA Watchdog opera EXCLUSIVAMENTE con OpenRouter y los 6 Herds T1-T6.
+        # MIA Watchdog opera EXCLUSIVAMENTE con OpenRouter y los 10 Herds T1-T10.
         # Si se ejecuta desde #mia-chat, se rechaza educadamente invitando a usar #back-office-y-backend.
         if "chat" in channel_name or command == "/mia-chat":
             return {
@@ -5237,6 +5237,10 @@ async def handle_slack_command(request: Request):
             t4 = h.get("herd_t4_cache_latency", {})
             t5 = h.get("herd_t5_finops_billing", {})
             t6 = h.get("herd_t6_ui_ux_designer", {})
+            t7 = h.get("herd_t7_architect_diagrammer", {})
+            t8 = h.get("herd_t8_shadow_compliance", {})
+            t9 = h.get("herd_t9_slack_dispatcher", {})
+            t10 = h.get("herd_t10_swarm_neural_sentry", {})
             triage = res.get("triage", {})
             pa = triage.get("requiere_aprobacion_humana", [])
             pa_str = f"{len(pa)} pendientes" if pa else "Cero cambios pendientes (Óptimo)"
@@ -5245,16 +5249,20 @@ async def handle_slack_command(request: Request):
             return {
                 "response_type": "in_channel",
                 "text": (
-                    f"👑 *MIA Watchdog Supervisor* `[🧠 OpenRouter Quant / 6 Herds T]`:\n"
+                    f"👑 *MIA Watchdog Supervisor* `[🧠 OpenRouter Quant / 10 Herds T1-T10]`:\n"
                     f"Hola Padre, aquí tienes el reporte técnico consolidado de infraestructura y trading:\n\n"
                     f"• *Salud Global:* `{res.get('estado_general', 'OPTIMAL_HEALTH')}` (Auditado en {res.get('total_execution_ms', 0)} ms)\n"
                     f"• *MT5 Broker:* Balance `${t1.get('balance', 4325.09):.2f}` | Equidad `${t1.get('equity', 4387.35):.2f}` | Flotante `${t1.get('flotante_neto', 62.26):+.2f} USD`\n"
-                    f"• *HERD T1 (DBA Sentinel):* {t1.get('resumen', 'Base de datos íntegra.')}\n"
+                    f"• *HERD T1 (DBA Sentinel):* {t1.get('resumen', 'Base de datos íntegra y vectorización lista.')}\n"
                     f"• *HERD T2 (Senior Dev):* {t2.get('resumen', 'Sintaxis 100% limpia sin librerías legadas.')}\n"
-                    f"• *HERD T3 (Observability SRE):* {t3.get('resumen', 'Endpoints online.')}\n"
+                    f"• *HERD T3 (Observability SRE):* {t3.get('resumen', 'Endpoints online (927a, 1fd4, 0b51).')}\n"
                     f"• *HERD T4 (Cache Latency):* {t4_res}\n"
-                    f"• *HERD T5 (FinOps Billing):* {t5.get('resumen', 'Presupuesto Spark saludable.')}\n"
-                    f"• *HERD T6 (UI/UX Plotly):* {t6.get('resumen', 'Dashboard Central Gold Standard.')}\n"
+                    f"• *HERD T5 (FinOps Billing):* {t5.get('resumen', 'Presupuesto Spark saludable y alertas 48h.')}\n"
+                    f"• *HERD T6 (UI/UX Stitch):* {t6.get('resumen', 'Dashboard Central Gold Standard y Stitch UI.')}\n"
+                    f"• *HERD T7 (Architect):* {t7.get('resumen', 'Topología de 3 microservicios ratificada.')}\n"
+                    f"• *HERD T8 (Shadow Compliance):* {t8.get('resumen', 'Modo Shadow 100% compliant.')}\n"
+                    f"• *HERD T9 (Slack Dispatcher):* {t9.get('resumen', 'Block Kit interactivo en backoffice.')}\n"
+                    f"• *HERD T10 (Neural Sentry):* {t10.get('resumen', 'Salud de TensorFlow y Herds vigilada.')}\n"
                     f"• *Triage Humano:* `{pa_str}`\n"
                     f"• *Fase Actual:* `FASE 1 (Strict Human-in-the-Loop)`"
                 )
@@ -5265,7 +5273,7 @@ async def handle_slack_command(request: Request):
         reply = chat_with_mia(msg, force_engine="openrouter")
         return {
             "response_type": "in_channel",
-            "text": f"🛡️ *MIA Watchdog (Supervisor / Herds T1-T6)* `[🧠 OpenRouter Quant]`:\n{reply}"
+            "text": f"🛡️ *MIA Watchdog (Supervisor / 10 Herds T1-T10)* `[🧠 OpenRouter Quant]`:\n{reply}"
         }
     except Exception as e:
         return {"text": f"Error en comando: {e}"}

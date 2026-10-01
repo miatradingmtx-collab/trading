@@ -1124,10 +1124,10 @@ ecent_logs desde cache_hist_mt5.
 - **Soporte de Chat Libre en Texto Plano:**
   - El sistema cuenta con soporte para conversacin libre sin comandos de barra diagonal (`/`) gracias al mtodo nativo `chat.postMessage` de `SLACK_BOT_TOKEN`, enrutando automticamente a Gemini Pro en `#mia-chat` y a OpenRouter Quant en `#back-office-y-backend`.
 
-### [Update 2026-09-29 - Sesin 47] - Calibracin y Blindaje de Aislamiento de Canales, Activacin de Scopes y Telemetra Perpetua Herds T1-T6
+### [Update 2026-09-29 - Sesin 47] - Calibracin y Blindaje de Aislamiento de Canales, Activacin de Scopes y Telemetra Perpetua Herds T1-T10
 - **Distribucin Arquitectnica Cannica de Canales (3 Puntos):**
   - **Canal 1 (`#mia-chat`):** Gobernado exclusivamente por **Google Gemini Pro** con integracin satelital `wttr.in`. Aislamiento estricto: cero mencin ni contacto con trading o infraestructura tcnica.
-  - **Canal 2 (`#back-office-y-backend`):** Gobernado exclusivamente por **OpenRouter** con el **Supervisor Watchdog y los 6 Herds Tcnicos T1 al T6**. Monitorea activamente las tareas/skills especficas de cada agente, notifica errores, y gestiona propuestas de mejora va checkboxes y los 4 botones interactivos (`[Aprobar Seleccionadas]`, `[Aprobar Todas]`, `[Rechazar]`, `[Forzar Resync]`) con comparador visual interactivo (`/dashboard/preview`).
+  - **Canal 2 (`#back-office-y-backend`):** Gobernado exclusivamente por **OpenRouter** con el **Supervisor Watchdog y los 10 Herds Tcnicos T1 al T10**. Monitorea activamente las tareas/skills especficas de cada agente, notifica errores, y gestiona propuestas de mejora va checkboxes y los 4 botones interactivos (`[Aprobar Seleccionadas]`, `[Aprobar Todas]`, `[Rechazar]`, `[Forzar Resync]`) con comparador visual interactivo (`/dashboard/preview`).
   - **Canal 3 (A Futuro - `#mia-trading-reportes`):** Reservado para reportes de bolsa y operativa MT5 (PnL, BE, SL, TP, lotes y rdenes abiertas).
 - **Activacin de Scopes Oficiales en Slack API (`oauth.v2`):**
   - Se complet la reinstalacin oficial de la aplicacin en el espacio de trabajo con los 6 scopes: `chat:write`, `channels:read`, `channels:history`, `commands`, `incoming-webhook` y `app_mentions:read`.
@@ -1136,12 +1136,12 @@ ecent_logs desde cache_hist_mt5.
 - **Validacin del Bucle Perpetuo de Monitoreo (`system_ops_watchdog_loop`):**
   - Cadencia de evaluacin: cada 10 minutos (600s) en Railway Core (`927a`).
   - Poltica Anti-Spam Inteligente: opera en modo silencioso cuando el sistema est en `OPTIMAL_HEALTH` y no hay propuestas pendientes; despacha notificacin interactiva a `#back-office-y-backend` nicamente ante fallas o propuestas de mejora.
-  - Snapshot de telemetra viva en Upstash Redis (`cache_system_ops_status`) validado con los 6 Herds operativos en tiempo real.
+  - Snapshot de telemetra viva en Upstash Redis (`cache_system_ops_status`) validado con los 10 Herds operativos en tiempo real.
 ### [Update 2026-09-29 - Sesión 48] - Bifurcación Estricta MCP (Ops vs Mia Chat Personal), Base de Conocimiento de Anto (anto_personal_kb) y Soporte para 2da App Slack
 - **Bifurcación Estricta de Servidores MCP (Least Privilege & Domain Segregation):**
   - **Servidor 1: MCP Ops Server (`mia_ops_mcp_server.py` en `/mcp/ops` y `/api/mcp/ops`):**
     - Gobernado por OpenRouter y el Supervisor Watchdog.
-    - Acceso exclusivo a infraestructura: sincronización MT5, recalibración de Regla de 3, latencia Upstash, Triage de los 6 Herds T1-T6 y Human-in-the-Loop en `#back-office-y-backend`.
+    - Acceso exclusivo a infraestructura: sincronización MT5, recalibración de Regla de 3, latencia Upstash, Triage de los 10 Herds T1-T10 y Human-in-the-Loop en `#back-office-y-backend`.
   - **Servidor 2: MCP Personal / Mia Chat Server (`mia_personal_mcp_server.py` en `/mcp/chat` y `/api/mcp/chat`):**
     - Gobernado por Google Gemini Pro en `#mia-chat`.
     - Totalmente aislado de MT5, trading quant y finanzas.
@@ -1163,13 +1163,13 @@ ecent_logs desde cache_hist_mt5.
   - **Silenciamiento Total de `#mia-chat` en MIA Watchdog:**
     - En [`app.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/app.py), los eventos procedentes de `#mia-chat` (`C0C4QCZPTPH`) son ignorados por completo (`return`). MIA Watchdog jamás volverá a contestar en `#mia-chat`.
     - En [`handle_slack_command`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/app.py), si se ejecuta `/mia` desde `#mia-chat`, se rechaza con un mensaje efímero recordando que MIA Watchdog opera exclusivamente en `#back-office-y-backend`.
-    - El comando `/mia` enruta ahora **100% a OpenRouter Quant** con la telemetría viva de los 6 Herds T1 al T6.
-  - **Enfoque Exclusivo en Trading & Infraestructura:** La App MIA Watchdog queda 100% purificada, desvinculada de cualquier rol de chat cotidiano y dedicada a la auditoría del broker MT5, Upstash Redis y los 6 Herds de Operaciones.
-- **Roadmap / Tarea Pendiente Autorizada por el Padre (Microservicio Dedicado de Ops):**
-  - **Objetivo:** Desplegar en Railway un nuevo microservicio independiente y ultrarrápido (`mia-ops-service`) con su propia URL pública dedicada exclusivamente al Plano de Control (Control Plane).
-  - **Componentes a Mudar:** Endpoints de Slack (`/api/slack/events`, `/api/slack/interactions`, `/api/slack/command`), Servidor MCP Ops (`/mcp/ops`), `mia_system_ops_swarm.py` y bucle de los 6 Herds T1-T6.
-  - **Beneficio Técnico:** Aislamiento total del Plano de Datos (Data Plane en `927a` con MT5 Cloud Executor). Ninguna consulta pesada, re-auditoría ni tráfico de lenguaje natural de OpenRouter podrá generar jamás sobrecarga ni latencia sobre la ejecución de órdenes y gestión de flotante de MT5.
-  - **Estado:** `PENDIENTE_EN_COLA` (Listo para implementación en la siguiente fase).
+    - El comando `/mia` enruta ahora **100% a OpenRouter Quant** con la telemetría viva de los 10 Herds T1 al T10.
+  - **Enfoque Exclusivo en Trading & Infraestructura:** La App MIA Watchdog queda 100% purificada, desvinculada de cualquier rol de chat cotidiano y dedicada a la auditoría del broker MT5, Upstash Redis y los 10 Herds de Operaciones.
+- **Microservicio Dedicado de Ops (Control Plane Desacoplado):**
+  - **Microservicio Desplegado:** `trading-production-0b51.up.railway.app` (Instancia `0b51`).
+  - **Componentes Mudados:** Endpoints de Slack (`/api/slack/events`, `/api/slack/interactions`, `/api/slack/command`), Servidor MCP Ops (`/mcp/ops`), `mia_system_ops_swarm.py` y bucle de los 10 Herds T1-T10.
+  - **Beneficio Técnico:** Aislamiento total del Plano de Datos (Data Plane en `927a` con MT5 Cloud Executor). Ninguna consulta pesada, re-auditoría ni tráfico de lenguaje natural de OpenRouter genera sobrecarga sobre la ejecución de órdenes y gestión de flotante de MT5.
+  - **Estado:** `DESPLEGADO_Y_OPERATIVO_EN_PRODUCCION` (Online al 100%).
 
 
 

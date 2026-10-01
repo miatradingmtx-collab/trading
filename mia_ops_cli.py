@@ -172,7 +172,7 @@ def render_ops_cycle(audit_data: dict):
 
 def main():
     print_banner()
-    print(f"{C_CYAN}Iniciando escucha continua del Enjambre de Operaciones (6 Herds + Watchdog)...{C_RESET}")
+    print(f"{C_CYAN}Iniciando escucha continua del Enjambre de Operaciones (10 Herds T1-T10 + Watchdog)...{C_RESET}")
     print(f"{C_DIM}💡 Presiona [CTRL + C] para salir.{C_RESET}\n")
 
     while True:

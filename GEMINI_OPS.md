@@ -238,42 +238,28 @@ trigger: always_on
 3. **Consumo Atmico va MGET:** Toda deliberacin inter-agente debe recuperar sus insumos en un nico viaje de red HTTP (`GET /mget/...`), garantizando latencia $< 35\text{ ms}$, consumo de memoria optimizado y paridad absoluta de informacin.
 
 ---
-name: malla_6_herds_ops_y_watchdog
-description: Regla de arquitectura para la Malla de 6 Herds de Operaciones (Back-Office) y el Supervisor General Watchdog.
+name: malla_10_herds_ops_y_watchdog
+description: Regla de arquitectura para la Malla de 10 Herds de Operaciones (Back-Office) y el Supervisor General Watchdog.
 trigger: always_on
 ---
 
-#  REGLA: MALLA DE 6 HERDS TCNICOS Y WATCHDOG SUPERVISOR (BACK-OFFICE)
-1. **Taxonoma de los 6 Herds Tcnicos Especializados:**
-   - `HERD T1 (DBA_SENTINEL)`: Integridad de Firestore/Upstash, normalizacin, sanitizacin anti-null/NaN y depuracin de rdenes fantasma.
-   - `HERD T2 (SENIOR_CODE_AUDITOR)`: Auditora sintctica profunda con AST, imports limpios (cero CrewAI/LangChain), variables no declaradas y codificacin UTF-8 estricta.
-   - `HERD T3 (OBSERVABILITY_SRE)`: Monitoreo activo de endpoints de Railway (1fd4 y 927a), OpenRouter, Servidores MCP (`/mcp` y `/mcp/ops`), Upstash y GitHub.
-   - `HERD T4 (CACHE_LATENCY_SPECIALIST)`: Desacoplamiento cannico por documento, garanta de latencia MGET $< 35\text{ ms}$ y paridad perpetua de la Regla de 3.
+# 🛡️ REGLA: MALLA DE 10 HERDS TÉCNICOS Y WATCHDOG SUPERVISOR (BACK-OFFICE)
+1. **Taxonomía de los 10 Herds Técnicos Especializados:**
+   - `HERD T1 (DBA_SENTINEL)`: Integridad de Firestore/Upstash, normalización, sanitización anti-null/NaN, depuración de órdenes fantasma y vectorización 20D para TensorFlow.
+   - `HERD T2 (SENIOR_CODE_AUDITOR)`: Auditoría sintáctica profunda con AST, imports limpios (cero librerías legadas), variables no declaradas, UTF-8 estricto y acoplamiento frontend/backend.
+   - `HERD T3 (OBSERVABILITY_SRE)`: Monitoreo activo de los 3 microservicios Railway (927a MT5, 1fd4 Brain, 0b51 Ops), OpenRouter, Servidores MCP (`/mcp` y `/mcp/ops`), Upstash y GitHub.
+   - `HERD T4 (CACHE_LATENCY_SPECIALIST)`: Desacoplamiento canónico por documento, garantía de latencia MGET $< 35\text{ ms}$ y paridad perpetua de la Regla de 3.
    - `HERD T5 (FINOPS_BILLING_CONTROLLER)`: Control de presupuestos en modo Spark (Railway, OpenRouter, MetaAPI, Firebase Spark limit), con alertas preventivas a 48 horas con montos exactos y enlaces directos de pago.
-   - `HERD T6 (UIUX_DASHBOARD_DESIGNER)`: Auditora visual de `/brain` (Red Neuronal), `/` (Enjambres 3D) y `/dashboard` (KPIs estilo Plotly institucional sin prdida de datos ni mens existentes).
+   - `HERD T6 (UIUX_STITCH_DESIGNER)`: Diseño frontend con Google Stitch y Plotly Dark Theme; extracción de CSS/HTML modular. Auditoría visual de `/brain`, `/` y `/dashboard`.
+   - `HERD T7 (ARCHITECT_DIAGRAMMER_INNOVATOR)`: Arquitectura del sistema, topología de 3 microservicios desacoplados y diagramas Mermaid/SVG vivos en tiempo real.
+   - `HERD T8 (SHADOW_COMPLIANCE_GATEKEEPER)`: Candado institucional de ejecución (SHADOW_MODE_GLOBAL = True) y custodia estricta del filtro de noticias (15m Pre / 5m Post).
+   - `HERD T9 (SLACK_OPS_DISPATCHER)`: Aislamiento total de canal (#back-office-y-backend exclusivo; #mia-chat silenciado) y despacho interactivo con Block Kit y checkboxes.
+   - `HERD T10 (SWARM_NEURAL_SENTRY)`: Vigilancia de salud, precisión y latencia de TensorFlow Deep Learning ($> 85\%$) y de los 7 Herds de Trading HFT.
 2. **Supervisor General Watchdog Master:**
-   - Ejerce liderazgo senior integral. Ejecuta los 6 Herds en Python determinista (0 tokens de LLM) y realiza el triage clasificando en:
-     - `[AUTO-CORREGIDO EN CALIENTE ]`: Acciones seguras ejecutadas de forma autnoma.
-     - `[REQUIERE APROBACIN HUMANA ]`: Pagos de FinOps, propuestas de rediseo UI/UX o migraciones de base de datos despachadas a Slack (`#back-office-y-backend`) con botones interactivos.
-
----
-name: malla_6_herds_ops_y_watchdog
-description: Regla de arquitectura para la Malla de 6 Herds de Operaciones (Back-Office) y el Supervisor General Watchdog.
-trigger: always_on
----
-
-#  REGLA: MALLA DE 6 HERDS TCNICOS Y WATCHDOG SUPERVISOR (BACK-OFFICE)
-1. **Taxonoma de los 6 Herds Tcnicos Especializados:**
-   - `HERD T1 (DBA_SENTINEL)`: Integridad de Firestore/Upstash, normalizacin, sanitizacin anti-null/NaN y depuracin de rdenes fantasma.
-   - `HERD T2 (SENIOR_CODE_AUDITOR)`: Auditora sintctica profunda con AST, imports limpios (cero CrewAI/LangChain), variables no declaradas y codificacin UTF-8 estricta.
-   - `HERD T3 (OBSERVABILITY_SRE)`: Monitoreo activo de endpoints de Railway (1fd4 y 927a), OpenRouter, Servidores MCP (`/mcp` y `/mcp/ops`), Upstash y GitHub.
-   - `HERD T4 (CACHE_LATENCY_SPECIALIST)`: Desacoplamiento cannico por documento, garanta de latencia MGET $< 35\text{ ms}$ y paridad perpetua de la Regla de 3.
-   - `HERD T5 (FINOPS_BILLING_CONTROLLER)`: Control de presupuestos en modo Spark (Railway, OpenRouter, MetaAPI, Firebase Spark limit), con alertas preventivas a 48 horas con montos exactos y enlaces directos de pago.
-   - `HERD T6 (UIUX_DASHBOARD_DESIGNER)`: Auditora visual de `/brain` (Red Neuronal), `/` (Enjambres 3D) y `/dashboard` (KPIs estilo Plotly institucional sin prdida de datos ni mens existentes).
-2. **Supervisor General Watchdog Master:**
-   - Ejerce liderazgo senior integral. Ejecuta los 6 Herds en Python determinista (0 tokens de LLM) y realiza el triage clasificando en:
-     - `[AUTO-CORREGIDO EN CALIENTE ]`: Acciones seguras ejecutadas de forma autnoma.
-     - `[REQUIERE APROBACIN HUMANA ]`: Pagos de FinOps, propuestas de rediseo UI/UX o migraciones de base de datos despachadas a Slack (`#back-office-y-backend`) con botones interactivos.
+   - Ejerce liderazgo senior integral. Ejecuta los 10 Herds en Python determinista (0 tokens de LLM), evalúa propuestas cognitivamente con Llama 3.3 70B Grounded y realiza el triage clasificando en:
+     - `[AUTO-CORREGIDO EN CALIENTE ⚡]`: Acciones seguras ejecutadas de forma autónoma o ratificadas en Google Antigravity.
+     - `[REQUIERE APROBACIÓN HUMANA ⭐]`: Propuestas de Score >= 85 despachadas a Slack (`#back-office-y-backend`) con checkboxes y botones interactivos.
+     - `[OBSERVADAS / DESCARTADAS ⚠️]`: Propuestas con Score < 85 con justificación técnica de descarte.
 
 ---
 name: homologacion_antigravity_cloud_openrouter
@@ -307,29 +293,15 @@ description: Regla mandatoria de Fase 1 para requerir notificacin transparente d
 trigger: always_on
 ---
 
-#  REGLA: PROTOCOLO ESTRICTO HUMAN-IN-THE-LOOP (FASE 1)
-1. **Cero Mutaciones sin Aprobacin Previa:** En esta Fase 1, ningn agente tcnico (HERD T1 a T6) ni el Supervisor Watchdog tiene autorizacin para ejecutar cambios automticos destructivos o modificaciones de base de datos/cdigo en produccin sin autorizacin explcita previa.
-2. **Transparencia Total de los 6 Herds:** Cada agente debe reportar en Slack `#back-office-y-backend` qu audit, qu anomala detect y la propuesta exacta que recomienda aplicar.
-3. **Control por Botones Interactivos en Slack:** El Supervisor Watchdog emite el veredicto consolidado y presenta las propuestas a travs de 3 botones interactivos:
-   - `[Aprobar Propuestas ]`: Autoriza y ejecuta las propuestas a travs de `/api/slack/interactions`.
-   - `[Rechazar / Mantener Actual ]`: Descarta las propuestas y preserva el estado actual sin cambios.
-   - `[Forzar Resync ]`: Re-ejecuta la auditora en vivo para verificar el estado de los 6 Herds.
-4. **Evolucin Progresiva a Fase 2:** La transicin a auto-remediacin autnoma solo se activar en el futuro tras verificar empricamente en el tiempo que las correcciones son 100% seguras y consistentes.
-
----
-name: strict_human_in_the_loop_fase1
-description: Regla mandatoria de Fase 1 para requerir notificacin transparente de cada agente y aprobacin humana obligatoria en Slack antes de cualquier cambio.
-trigger: always_on
----
-
-#  REGLA: PROTOCOLO ESTRICTO HUMAN-IN-THE-LOOP (FASE 1)
-1. **Cero Mutaciones sin Aprobacin Previa:** En esta Fase 1, ningn agente tcnico (HERD T1 a T6) ni el Supervisor Watchdog tiene autorizacin para ejecutar cambios automticos destructivos o modificaciones de base de datos/cdigo en produccin sin autorizacin explcita previa.
-2. **Transparencia Total de los 6 Herds:** Cada agente debe reportar en Slack `#back-office-y-backend` qu audit, qu anomala detect y la propuesta exacta que recomienda aplicar.
-3. **Control por Botones Interactivos en Slack:** El Supervisor Watchdog emite el veredicto consolidado y presenta las propuestas a travs de 3 botones interactivos:
-   - `[Aprobar Propuestas ]`: Autoriza y ejecuta las propuestas a travs de `/api/slack/interactions`.
-   - `[Rechazar / Mantener Actual ]`: Descarta las propuestas y preserva el estado actual sin cambios.
-   - `[Forzar Resync ]`: Re-ejecuta la auditora en vivo para verificar el estado de los 6 Herds.
-4. **Evolucin Progresiva a Fase 2:** La transicin a auto-remediacin autnoma solo se activar en el futuro tras verificar empricamente en el tiempo que las correcciones son 100% seguras y consistentes.
+# 🛡️ REGLA: PROTOCOLO ESTRICTO HUMAN-IN-THE-LOOP (FASE 1)
+1. **Cero Mutaciones sin Aprobación Previa:** En esta Fase 1, ningún agente técnico (HERD T1 a T10) ni el Supervisor Watchdog tiene autorización para ejecutar cambios automáticos destructivos o modificaciones de base de datos/código en producción sin autorización explícita previa o ratificación en Antigravity.
+2. **Transparencia Total de los 10 Herds:** Cada agente debe reportar en Slack `#back-office-y-backend` qué auditó, qué anomalía detectó y la propuesta exacta que recomienda aplicar.
+3. **Control por Botones Interactivos en Slack:** El Supervisor Watchdog emite el veredicto consolidado y presenta las propuestas a través de checkboxes y 4 botones interactivos:
+   - `[Aprobar Seleccionadas ☑️]`: Aplica únicamente las propuestas marcadas en los checkboxes.
+   - `[Aprobar Todas ✅]`: Autoriza y ejecuta todo el lote de propuestas pendientes a través de `/api/slack/interactions`.
+   - `[Rechazar / Mantener Actual ⛔]`: Descarta las propuestas, purga la cola y preserva el estado actual sin cambios.
+   - `[Forzar Resync 🔄]`: Re-ejecuta la auditoría en vivo para verificar el estado de los 10 Herds.
+4. **Evolución Progresiva a Fase 2 (Confianza Progresiva):** Se acumula score de confianza (+1 por aprobación humana / Antigravity, -2 por rechazo). La transición a auto-remediación autónoma solo se activará en el futuro tras verificar empíricamente en el tiempo que las correcciones son 100% consistentes.
 
 ---
 name: estricta_separacion_shadow_y_filtro_noticias

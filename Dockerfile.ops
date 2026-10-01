@@ -1,0 +1,26 @@
+FROM python:3.10-slim
+
+# Evitar que Python escriba archivos .pyc y forzar salida stdout sin buffer
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Instalar dependencias del sistema mínimas
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar dependencias de Python especializadas para Ops (sub-150MB, sin TensorFlow ni MetaAPI)
+COPY requirements-ops.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements-ops.txt
+
+# Copiar el código fuente
+COPY . .
+
+# Exponer el puerto por defecto
+EXPOSE 8080
+
+# Comando de ejecución del microservicio de Ops (Control Plane, MCP Ops, 10 Herds y ChatOps Slack)
+CMD uvicorn mia_ops_service:app --host 0.0.0.0 --port ${PORT:-8080}
