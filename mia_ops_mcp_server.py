@@ -241,6 +241,15 @@ async def handle_ops_mcp_jsonrpc(req: OpsMCPRequest):
 # ENDPOINTS REST DIRECTOS (/api/mcp/ops/...)
 # ====================================================================
 
+@api_ops_mcp_router.get("/health")
+async def mcp_ops_health_rest():
+    """Healthcheck REST para el servidor MCP Ops"""
+    return {
+        "status": "HEALTHY",
+        "domain": "BACK_OFFICE_DEVOPS",
+        "total_tools": len(OPS_TOOLS_REGISTRY)
+    }
+
 @api_ops_mcp_router.get("/tools")
 async def list_ops_tools_rest():
     """Lista las herramientas de infraestructura disponibles en el Servidor MCP Ops"""
