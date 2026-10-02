@@ -296,24 +296,122 @@ async def slack_interactions_endpoint(request: Request, background_tasks: Backgr
 
     action = actions[0]
     action_id = action.get("action_id", "")
+    val = action.get("value", "")
+    user_name = payload.get("user", {}).get("name") or "Padre"
+    channel_id = payload.get("channel", {}).get("id") or "C0C4ZMFCMJ8"
+    response_url = payload.get("response_url", "")
 
-    if action_id == "approve_triage_action":
-        # Aprobar todas las propuestas
-        res = system_ops_supervisor.apply_approved_actions(user_name="Padre")
-        slack_bridge.send_channel_message(
-            text=f"✅ *[AUTORIZADO POR EL PADRE]:* Se han aplicado {len(res.get('ejecutadas', []))} propuestas técnicas en caliente. (+1 Confianza registrada en KB)",
-            channel="C0C4ZMFCMJ8"
-        )
-    elif action_id == "reject_triage_action":
-        # Rechazar propuestas
-        res = system_ops_supervisor.reject_proposals(user_name="Padre")
-        slack_bridge.send_channel_message(
-            text=f"⛔ *[RECHAZADO POR EL PADRE]:* Se mantendrá la configuración actual. Precedente registrado en KB para autocalibración.",
-            channel="C0C4ZMFCMJ8"
-        )
-    elif action_id == "resync_action":
-        # Forzar resync
+    # 1. Ignorar clics en los checkboxes directamente (solo guardan estado en el cliente)
+    if "selected_proposals_checkbox" in action_id or "checkboxes" in action_id:
+        return PlainTextResponse("OK", status_code=200)
+
+    # 2. Botón: Aprobar Seleccionadas
+    if "approve_selected" in val or "approve_selected" in action_id:
+        state_values = payload.get("state", {}).get("values", {})
+        indices = []
+        for b_id, b_val in state_values.items():
+            for k, v in b_val.items():
+                if isinstance(v, dict) and "selected_options" in v:
+                    for opt in v.get("selected_options", []):
+                        v_opt = opt.get("value", "")
+                        if "propuesta_" in v_opt:
+                            try:
+                                indices.append(int(v_opt.replace("propuesta_", "")))
+                            except:
+                                pass
+
+        if not indices:
+            warning_msg = (
+                f"⚠️ *Atención Padre*: No marcaste ninguna casilla antes de presionar *Aprobar Seleccionadas*.\n"
+                f"• Por favor marca con el check (☑️) una o más propuestas pendientes y vuelve a presionar el botón.\n"
+                f"• O presiona *[Aprobar Todas ✅]* para autorizar todas las tareas pendientes en un solo clic."
+            )
+            slack_bridge.send_channel_message(warning_msg, channel=channel_id)
+            if response_url:
+                try:
+                    requests.post(response_url, json={"text": warning_msg, "replace_original": False, "response_type": "in_channel"}, timeout=3)
+                except Exception:
+                    pass
+            return PlainTextResponse("OK", status_code=200)
+
+        def do_apply_selected():
+            try:
+                exec_res = system_ops_supervisor.apply_approved_actions(selected_indices=indices, user_name=user_name)
+                res = system_ops_supervisor.run_swarm_audit(notify_slack=False)
+                ejecutadas_str = ", ".join(exec_res.get("ejecutadas", [])) if exec_res.get("ejecutadas") else "Propuestas seleccionadas aplicadas"
+                msg = (
+                    f"☑️ *Propuestas Seleccionadas Aprobadas por el Padre*:\n"
+                    f"• *Acciones aplicadas ({len(indices)}):* `{ejecutadas_str}`\n"
+                    f"• *Pendientes restantes:* `{exec_res.get('pendientes_restantes', 0)}`\n"
+                    f"• *Salud Global:* `{res.get('estado_general')}`\n"
+                    f"• *Aprendizaje CBR:* Precedente grabado en `cache_ops_learning_kb` y `mia_ops_learning_history` (+1 Confianza)."
+                )
+                slack_bridge.send_channel_message(msg, channel=channel_id)
+                if response_url:
+                    try:
+                        requests.post(response_url, json={"text": msg, "replace_original": False, "response_type": "in_channel"}, timeout=3)
+                    except Exception:
+                        pass
+            except Exception as e_sel:
+                print(f"| APPLY SELECTED ERROR | {e_sel}")
+                slack_bridge.send_channel_message(f"❌ *Error al aplicar propuestas*: {e_sel}", channel=channel_id)
+
+        background_tasks.add_task(do_apply_selected)
+        return PlainTextResponse("OK", status_code=200)
+
+    # 3. Botón: Aprobar Todas
+    elif "approve" in val or "approve" in action_id:
+        def do_apply_all():
+            try:
+                res_exec = system_ops_supervisor.apply_approved_actions(user_name="Padre")
+                res_audit = system_ops_supervisor.run_swarm_audit(notify_slack=False)
+                ejecutadas_str = ", ".join(res_exec.get("ejecutadas", [])) if res_exec.get("ejecutadas") else "Todas las tareas aplicadas"
+                msg = (
+                    f"✅ *Todas las Propuestas Aprobadas por el Padre*:\n"
+                    f"• *Acciones ejecutadas:* `{ejecutadas_str}`\n"
+                    f"• *Salud Global:* `{res_audit.get('estado_general')}`\n"
+                    f"• *Aprendizaje CBR:* Registrado en memoria viva (+1 Confianza)."
+                )
+                slack_bridge.send_channel_message(msg, channel=channel_id)
+                if response_url:
+                    try:
+                        requests.post(response_url, json={"text": msg, "replace_original": False, "response_type": "in_channel"}, timeout=3)
+                    except Exception:
+                        pass
+            except Exception as e_all:
+                print(f"| APPLY ALL ERROR | {e_all}")
+                slack_bridge.send_channel_message(f"❌ *Error al aprobar propuestas*: {e_all}", channel=channel_id)
+
+        background_tasks.add_task(do_apply_all)
+        return PlainTextResponse("OK", status_code=200)
+
+    # 4. Botón: Rechazar / Mantener Actual
+    elif "reject" in val or "reject" in action_id:
+        def do_reject():
+            try:
+                res_rej = system_ops_supervisor.reject_proposals(user_name="Padre")
+                msg = (
+                    f"⛔ *Propuestas Rechazadas por el Padre*:\n"
+                    f"• Se mantiene la configuración intacta sin modificaciones.\n"
+                    f"• *Aprendizaje CBR:* Precedente registrado para autocalibración preventiva."
+                )
+                slack_bridge.send_channel_message(msg, channel=channel_id)
+                if response_url:
+                    try:
+                        requests.post(response_url, json={"text": msg, "replace_original": False, "response_type": "in_channel"}, timeout=3)
+                    except Exception:
+                        pass
+            except Exception as e_rej:
+                print(f"| REJECT ERROR | {e_rej}")
+                slack_bridge.send_channel_message(f"❌ *Error al rechazar propuestas*: {e_rej}", channel=channel_id)
+
+        background_tasks.add_task(do_reject)
+        return PlainTextResponse("OK", status_code=200)
+
+    # 5. Botón: Forzar Resync
+    elif "resync" in val or "resync" in action_id:
         background_tasks.add_task(system_ops_supervisor.run_swarm_audit, notify_slack=True)
+        return PlainTextResponse("OK", status_code=200)
 
     return PlainTextResponse("OK", status_code=200)
 
