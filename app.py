@@ -4268,6 +4268,13 @@ async def scheduler_daily_ai_cron():
                 train_tensorflow()
             except Exception as e:
                 print(f"Error TensorFlow Cron: {e}")
+
+            print("| DAILY AI CRON | Disparando Watchdog Sync (ATLAS y MGET)...")
+            try:
+                import subprocess
+                subprocess.Popen(["python", "ops_sync_watchdog.py"])
+            except Exception as e:
+                print(f"Error Watchdog Cron: {e}")
                 
             await asyncio.sleep(3600)
         except Exception as err:
