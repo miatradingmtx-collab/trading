@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 #           METATRADER 5 CLOUD AUTOMATED EXECUTOR (METAAPI CLOUD)
 # ==============================================================================
 # Este script se ejecuta en segundo plano en Render/Nube.
@@ -798,8 +798,10 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             toca_parcial = 0
             if en_ganancia:
                 # Damos respiro (oxÃ­geno) al trade: 
-                # Antes: Parcial en 25%, ahora: Parcial 1 en 40%, Parcial 2 en 65%, Trail en 85%
-                if distancia_total > 0 and porcentaje_recorrido >= 0.85 and nivel_parcial < 3:
+                # Antes: Parcial en 25%, ahora: Parcial 1 en 40%, Parcial 2 en 65%, Trail en 85%, Cierre Total (Front-Run TP) en 95%
+                if distancia_total > 0 and porcentaje_recorrido >= 0.95:
+                    toca_parcial = 4 # Cierre total para evitar rebotes en el último pip
+                elif distancia_total > 0 and porcentaje_recorrido >= 0.85 and nivel_parcial < 3:
                     toca_parcial = 3
                 elif distancia_total > 0 and porcentaje_recorrido >= 0.65 and nivel_parcial < 2:
                     toca_parcial = 2
@@ -831,7 +833,10 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 # TP1 (toca_parcial=1) -> 25% del volumen
                 # TP2 (toca_parcial=2) -> 50% del volumen
                 # TP3 (toca_parcial=3) -> 0% del volumen (solo Trail)
-                if toca_parcial == 3:
+                # TP4 (toca_parcial=4) -> 100% del volumen (Front-Run TP)
+                if toca_parcial == 4:
+                    porcentaje_a_cerrar = 1.0
+                elif toca_parcial == 3:
                     porcentaje_a_cerrar = 0.0
                 else:
                     porcentaje_a_cerrar = 0.25 if toca_parcial == 1 else 0.50
@@ -854,7 +859,12 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 if lote_a_cerrar < min_volume:
                     lote_a_cerrar = 0.0
                     
-                desc_tp = "TP1 (25% vol at 40% dist)" if toca_parcial == 1 else "TP2 (50% vol at 65% dist)"
+                if toca_parcial == 4:
+                    desc_tp = "Front-Run TP (Cierre Total al 95%)"
+                elif toca_parcial == 1:
+                    desc_tp = "TP1 (25% vol at 40% dist)"
+                else:
+                    desc_tp = "TP2 (50% vol at 65% dist)"
                 pnl_parcial = 0.0
                 
                 # --- 1. INTENTAR COBRAR PARCIAL ---
@@ -885,8 +895,8 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     print(f"| GESTOR PARCIALES INFO | Volumen muy pequeÃ±o para partir ({volume}). Se asegurarÃ¡ con SL.")
                     cobro_exitoso = True # Lo damos por exitoso para que avance a mover el SL
                     
-                # --- 2. MOVER STOP LOSS SIEMPRE ---
-                if cobro_exitoso:
+                # --- 2. MOVER STOP LOSS SIEMPRE (Excepto Cierre Total) ---
+                if cobro_exitoso and toca_parcial != 4:
                     buffer_be = 0.0001 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.01
                     
                     if toca_parcial == 1:
@@ -930,7 +940,8 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                             
                     # --- 3. NOTIFICAR EN TELEGRAM ---
                     try:
-                        comentario_tg = f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP" if lote_a_cerrar > 0 else f"Protegido en {desc_sl} (lote intocable)"
+                        desc_segura = desc_sl if toca_parcial != 4 else "N/A"
+                        comentario_tg = f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP" if lote_a_cerrar > 0 else f"Protegido en {desc_segura} (lote intocable)"
                         await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=comentario_tg, estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""), lotaje=pos.get('volume', 0.0))
                     except Exception as t_e:
                         print(f"| TELEGRAM WARN | No se enviÃ³ notificaciÃ³n parcial: {t_e}")                    
