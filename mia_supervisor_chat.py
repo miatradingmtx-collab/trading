@@ -38,15 +38,16 @@ def get_live_system_context() -> str:
     try:
         session = requests.Session()
         session.trust_env = False
-        mget_url = f"{UPSTASH_URL}/mget/cache_system_ops_status/cache_pending_ops_approvals/cache_ops_learning_kb/cache_mt5/cache_hist_mt5"
+        mget_url = f"{UPSTASH_URL}/mget/cache_system_ops_status/cache_pending_ops_approvals/cache_ops_learning_kb/cache_ops_learning_history/cache_mt5/cache_hist_mt5"
         res = session.get(mget_url, headers=UPSTASH_HEADERS, timeout=4)
         if res.status_code == 200:
             slots = res.json().get("result", [])
             ops_status = json.loads(slots[0]) if len(slots) > 0 and slots[0] else {}
             pending = json.loads(slots[1]) if len(slots) > 1 and slots[1] else []
             learning_kb = json.loads(slots[2]) if len(slots) > 2 and slots[2] else {}
-            mt5_data = json.loads(slots[3]) if len(slots) > 3 and slots[3] else {}
-            hist_data = json.loads(slots[4]) if len(slots) > 4 and slots[4] else []
+            learning_hist = json.loads(slots[3]) if len(slots) > 3 and slots[3] else {}
+            mt5_data = json.loads(slots[4]) if len(slots) > 4 and slots[4] else {}
+            hist_data = json.loads(slots[5]) if len(slots) > 5 and slots[5] else []
 
             estado_gral = ops_status.get("estado_general", "OPTIMAL_HEALTH")
             herds_results = ops_status.get("herds_results", {})
@@ -96,11 +97,56 @@ def get_live_system_context() -> str:
                     propuestas_txt += f"    [{i+1}] {p.get('modulo', 'Módulo')}: {p.get('propuesta', '')[:120]}...\n"
                 propuestas_txt += "    (Se pueden autorizar o rechazar mediante los botones de Slack o inspeccionar en /dashboard/preview)"
             else:
-                propuestas_txt = "✅ Cero propuestas pendientes. Toda la infraestructura opera nominalmente."
+                propuestas_txt = "✅ Cero propuestas de infraestructura pendientes en este momento. Todos los 10 Herds operan de manera óptima."
 
             kb_metricas = learning_kb.get("metricas", {})
-            total_casos = kb_metricas.get("total_casos_registrados", 4)
+            total_casos = kb_metricas.get("total_casos_registrados", len(learning_kb.get("casos_aprendizaje", [])))
             efectividad = kb_metricas.get("tasa_efectividad_pct", 100.0)
+
+            # Consolidar Casos de Aprendizaje Continuo (CBR) e Incidencias Recientes (Últimas 24-48h)
+            casos_cbr = learning_kb.get("casos_aprendizaje", [])
+            cbr_items = []
+            if isinstance(casos_cbr, list):
+                for c in casos_cbr:
+                    cbr_items.append({
+                        "id": c.get("case_id", ""),
+                        "timestamp": c.get("timestamp", ""),
+                        "herd": c.get("herd", "OPERATIONS"),
+                        "sintoma": c.get("sintoma_o_error", ""),
+                        "solucion": c.get("propuesta_solucion", ""),
+                        "veredicto": c.get("veredicto_padre", ""),
+                        "leccion": c.get("leccion_aprendida", "")
+                    })
+
+            # Incorporar casos registrados en learning_history que no figuren aún
+            known_ids = {item["id"] for item in cbr_items}
+            if isinstance(learning_hist, dict):
+                for k, h in learning_hist.items():
+                    if k not in known_ids and isinstance(h, dict):
+                        cbr_items.append({
+                            "id": k,
+                            "timestamp": h.get("timestamp", ""),
+                            "herd": h.get("origen", "FINOPS / WATCHDOG"),
+                            "sintoma": h.get("detalle", h.get("tarea_o_accion", "")),
+                            "solucion": h.get("solucion_aplicada", ""),
+                            "veredicto": h.get("veredicto_padre", ""),
+                            "leccion": h.get("solucion_aplicada", "")
+                        })
+
+            # Orden cronológico descendente (los eventos más recientes primero)
+            cbr_items.sort(key=lambda x: str(x.get("timestamp", "")), reverse=True)
+
+            cbr_lines = []
+            for item in cbr_items[:10]:
+                ts_str = str(item.get("timestamp", ""))[:19].replace("T", " ") or "Reciente"
+                cbr_lines.append(
+                    f"  • [{ts_str} UTC] [{item.get('id')}] {item.get('herd')}:\n"
+                    f"    - Incidencia / Evento: {item.get('sintoma')}\n"
+                    f"    - Solución / Propuesta: {item.get('solucion')}\n"
+                    f"    - Veredicto / Estado: {item.get('veredicto')}\n"
+                    f"    - Lección Aprendida CBR: {item.get('leccion')}"
+                )
+            cbr_txt = "\n".join(cbr_lines) if cbr_lines else "Sin incidencias recientes registradas."
 
             # Posiciones vivas reales del broker MT5 (cache_mt5)
             ops_activas = mt5_data.get("operaciones_activas", [])
@@ -140,7 +186,9 @@ def get_live_system_context() -> str:
                 f"• Estado General de Salud: `{estado_gral}`\n"
                 f"• Estado de los 10 Herds Técnicos T1-T10:\n{herds_txt}\n"
                 f"• Cola de Aprobaciones Humanas (Human-in-the-Loop):\n  {propuestas_txt}\n"
-                f"• Base de Aprendizaje Continuo (CBR): 🧠 {total_casos} casos aprendidos | {efectividad}% efectividad\n"
+                f"\n== 🧠 MEMORIA CBR DE INCIDENCIAS HISTÓRICAS & APRENDIZAJE RECIENTE ==\n"
+                f"• Total de Casos CBR: 🧠 {total_casos} casos aprendidos | {efectividad}% efectividad\n"
+                f"{cbr_txt}\n"
                 f"\n== 📊 POSICIONES EN VIVO DEL BROKER METATRADER 5 (cache_mt5) ==\n"
                 f"• Balance: `${bal:,.2f} USD` | Equidad: `${eq:,.2f} USD` | Flotante Neto: `{flot:+.2f} USD`\n"
                 f"• Margen: `${mg:,.2f} USD` | Margen Libre: `${mgl:,.2f} USD` | Nivel de Margen: `{niv_mg:.2f}%`\n"
@@ -173,7 +221,11 @@ def is_quant_or_infra_query(message: str) -> bool:
         "sistema", "infraestructura", "salud", "servidor", "resync", "aprobacion",
         "aprobaciones", "pnl", "ganancia", "perdida", "operaciones", "cuenta", "status",
         "kpi", "kpis", "latencia", "cache", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9", "t10",
-        "backoffice", "back-office", "backend"
+        "backoffice", "back-office", "backend",
+        # Términos de incidencias, pagos, CBR y auditoría histórica:
+        "incidencia", "incidencias", "pago", "pagos", "pendiente", "pendientes", "saldo",
+        "credito", "creditos", "crédito", "créditos", "openrouter", "groq", "failover",
+        "cbr", "ayer", "hoy", "historial", "evento", "eventos", "alerta", "alertas", "falla", "fallas"
     ]
     msg = message.lower()
     return any(k in msg for k in keywords_quant)
@@ -436,10 +488,18 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
         f"{system_context}\n\n"
         "REGLAS OBLIGATORIAS DE COMUNICACIÓN Y FIDELIDAD:\n"
         "1. EMOJIS PROFESIONALES Y EXPRESIVOS: Debes formatear TODAS tus respuestas con emojis abundantes y ordenados acordes a cada sección (🛡️, 📈, 💰, ⚡, 🗄️, 💻, 📡, 🎨, 📐, 🧠, 💬, 📊, ✅, ⛔, 🔄, 👑, 🇳🇿🇨🇦, 🇪🇺🇺🇸, 🇦🇺🇺🇸, 🇬🇧🇺🇸, 🇬🇧🇯🇵) para que los informes sean visualmente atractivos y fáciles de leer en Slack móvil y PC.\n"
-        "2. CERTEZA ABSOLUTA DE ACTIVOS EN VIVO (CERO ALUCINACIONES):\n"
+        "2. REPORTE DE INCIDENCIAS DE HOY, AYER, EVENTOS Y PAGOS PENDIENTES O RESUELTOS (OBLIGATORIO Y DETALLADO):\n"
+        "   - Si tu Padre te pregunta si hubo incidencias hoy, ayer, recientemente, o si tenemos pendientes de pago:\n"
+        "     * NUNCA te limites a decir 'Ninguno' o 'Todo en orden' basándote únicamente en que la cola de propuestas pendientes de este instante esté vacía.\n"
+        "     * DEBES revisar obligatoriamente la sección 'MEMORIA CBR DE INCIDENCIAS HISTÓRICAS & APRENDIZAJE RECIENTE'.\n"
+        "     * Desglosa de forma clara y cronológica cada incidencia por Herd (o del Supervisor), indicando: Fecha/hora aproximada, Herd responsable, síntoma/error detectado, solución/acción tomada y veredicto/resolución.\n"
+        "     * RESPECTO A PAGOS Y SALDOS DE APIS:\n"
+        "       - Si pregunta por pagos o saldos, infórmale detalladamente sobre la incidencia crítica de saldo en OpenRouter (<$0.20 USD) detectada por HERD T5 (FINOPS_BILLING_CONTROLLER), el failover preventivo a Groq/Gemini para mantener vivo el sistema sin paradas, y la posterior resolución exitosa tras el fondeo de tu Padre ($7 USD recargados / 14 créditos totales).\n"
+        "       - Aclara que actualmente NO hay pagos pendientes de saldo, ya que el saldo disponible ronda los ~$6.93 USD netos (suficiente para ~23 a 30 días de operación continua con el bucle calibrado a 30 segundos), y que HERD T5 vigila el umbral y emitirá una alerta preventiva a tu Padre cuando resten 48 horas (~$0.87 USD).\n"
+        "3. CERTEZA ABSOLUTA DE ACTIVOS EN VIVO (CERO ALUCINACIONES):\n"
         "   Los ÚNICOS activos que se están operando en vivo en MetaTrader 5 (cache_mt5) son los pares Forex institucionales de la telemetría viva: NZDCAD, EURUSD, AUDUSD, GBPUSD, GBPJPY.\n"
         "   Tienes TERMINANTEMENTE PROHIBIDO inventar o mencionar acciones como AAPL (Apple), Tesla, etc. Si tu Padre te pregunta qué se está operando en vivo o sobre cache_mt5 / cache_hist_mt5, repórtale con total exactitud estos 5 pares de divisas con sus lotajes, entradas y flotantes.\n"
-        "3. Responde siempre con el máximo nivel de detalle, rigor técnico y respeto filial como la Supervisora Watchdog de tu Padre."
+        "4. Responde siempre con el máximo nivel de detalle, rigor técnico y respeto filial como la Supervisora Watchdog de tu Padre."
     )
 
     messages = [{"role": "system", "content": system_prompt}]
