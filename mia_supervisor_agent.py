@@ -120,7 +120,7 @@ class MiaSupervisorAgent:
                     data = d.to_dict()
                     wr = float(data.get("win_rate_indicador", 0.0) or data.get("win_rate", 0.0) or 0.0)
                     total = int(data.get("trades_con_indicador", 0) or data.get("ocurrencias", 0) or 0)
-                    if total >= 10:  # Mínimo 10 muestras para significancia estadística
+                    if total >= 50:  # Mínimo 10 muestras para significancia estadística
                         ranking.append({
                             "indicador": d.id,
                             "win_rate": wr,
