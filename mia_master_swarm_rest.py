@@ -499,7 +499,7 @@ if __name__ == "__main__":
             emit_ws_event("Master", "ERROR", f"Fallo Crítico en Ciclo REST: {e}")
             print(f"Error: {e}")
             
-        # Espera de seguridad entre ciclos
-        emit_ws_event("Master", "SLEEP", "Ciclo Finalizado. Escaneo en Tiempo Real (15s)...")
-        print("\n[INFO] HFT ACTIVO (Freno quitado): Durmiendo 15 segundos (4 RPM, 100% seguro para OpenRouter).")
-        time.sleep(15)
+        # Espera de seguridad entre ciclos calibrada a 30s (2 RPM, arquitectura optimizada para OpenRouter)
+        emit_ws_event("Master", "SLEEP", "Ciclo Finalizado. Escaneo en Tiempo Real (30s)...")
+        print("\n[INFO] HFT CALIBRADO A 30s: Durmiendo 30 segundos (2 RPM, ~23 días con $7 USD en OpenRouter).")
+        time.sleep(30)
