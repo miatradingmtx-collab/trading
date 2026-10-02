@@ -902,8 +902,13 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     if toca_parcial == 1:
                         # Al llegar al 40%, asegurar el 15% del recorrido en GANANCIA REAL (Trailing Seguro) en vez de BE $0.00
                         distancia_segura = distancia_total * 0.15
+                        # Proteccion contra el override de $50 USD (si el precio aun no llega al 15%, forzar break-even puro)
+                        if distancia_recorrida < distancia_segura:
+                            distancia_segura = distancia_recorrida * 0.50 # Asegurar solo la mitad de lo que lleva
+                            desc_sl = "Nivel Seguro Dinamico (Rapido >$50)"
+                        else:
+                            desc_sl = "Nivel Seguro (+15% Profit Real)"
                         nuevo_sl = (entry_price + distancia_segura) if es_buy else (entry_price - distancia_segura)
-                        desc_sl = "Nivel Seguro (+15% Profit Real)"
                     elif toca_parcial == 2:
                         # Al llegar al 65%, asegurar el 40% del recorrido
                         distancia_tp1 = distancia_total * 0.40
@@ -1475,6 +1480,51 @@ async def run_escaner_loop():
                 await gestionar_posiciones_activas(account, connection, balance)
             except Exception as e:
                 print(f"| GESTOR POSICIONES ERROR | {e}")
+                
+            # SINCRONIZACION DIRECTA A UPSTASH (CACHE MT5 DASHBOARD)
+            try:
+                import datetime
+                info = await connection.get_account_information()
+                positions = await connection.get_positions()
+                ops_activas = []
+                for p in positions:
+                    pos = p if isinstance(p, dict) else getattr(p, '__dict__', {})
+                    ops_activas.append({
+                        "ticket": str(pos.get('id', '')),
+                        "activo": pos.get('symbol', ''),
+                        "tipo": "BUY" if pos.get('type') == 'POSITION_TYPE_BUY' else "SELL",
+                        "lotes": pos.get('volume', 0.0),
+                        "precio_apertura": pos.get('openPrice', 0.0),
+                        "precio_actual": pos.get('currentPrice', 0.0),
+                        "sl": pos.get('stopLoss', 0.0),
+                        "tp": pos.get('takeProfit', 0.0),
+                        "pnl": pos.get('profit', 0.0),
+                        "floating_pnl": pos.get('profit', 0.0),
+                        "estado": "EN_VIVO",
+                        "estado_display": "EN VIVO MT5"
+                    })
+                
+                payload_upstash = {
+                    "balance_actual": float(info.get('balance', 0.0)),
+                    "equity": float(info.get('equity', 0.0)),
+                    "floating_pnl": float(info.get('equity', 0.0)) - float(info.get('balance', 0.0)),
+                    "margen": float(info.get('margin', 0.0)),
+                    "margen_libre": float(info.get('freeMargin', 0.0)),
+                    "nivel_margen": float(info.get('marginLevel', 0.0)),
+                    "mercado_abierto": True,
+                    "ultima_actualizacion": datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC'),
+                    "feed": "MetaTrader 5 Real-Time Cloud (Homologado 112472341)",
+                    "operaciones_activas": ops_activas
+                }
+                
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    await client.post(
+                        "https://certain-gnat-160816.upstash.io/set/cache_mt5",
+                        json=payload_upstash,
+                        headers={"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                    )
+            except Exception as e_up:
+                pass
                 
         except Exception as e:
             print(f"| RUNNER CLOUD ERROR | OcurriÃ³ un fallo en el escÃ¡ner: {e}")
