@@ -470,13 +470,42 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
                 "temperature": 0.3,
                 "max_tokens": 750
             }
-            resp = requests.post(url, headers=headers, json=payload, timeout=12)
+            resp = requests.post(url, headers=headers, json=payload, timeout=8)
             if resp.status_code == 200:
                 data = resp.json()
                 reply = data["choices"][0]["message"]["content"]
                 return format_filial_reply(reply)
+            elif resp.status_code == 402:
+                print("| OPENROUTER 402 | Saldo agotado en OpenRouter. Saltando al failover de inmediato.")
+                break
         except Exception:
             continue
+
+    # 2.1 Failover Cognitivo a Groq (Qwen 27B / GPT-OSS 120B) para mantener inteligencia viva en #back-office-y-backend
+    groq_key = os.getenv("GROQ_API_KEY")
+    if groq_key:
+        groq_models = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"]
+        for g_model in groq_models:
+            try:
+                url_groq = "https://api.groq.com/openai/v1/chat/completions"
+                headers_groq = {
+                    "Authorization": f"Bearer {groq_key}",
+                    "Content-Type": "application/json"
+                }
+                payload_groq = {
+                    "model": g_model,
+                    "messages": messages,
+                    "temperature": 0.3,
+                    "max_tokens": 750
+                }
+                resp_g = requests.post(url_groq, headers=headers_groq, json=payload_groq, timeout=8)
+                if resp_g.status_code == 200:
+                    data_g = resp_g.json()
+                    reply = data_g["choices"][0]["message"]["content"]
+                    return format_filial_reply(reply)
+            except Exception as e_groq:
+                print(f"| GROQ SUPERVISOR FAILOVER | Error: {e_groq}")
+                continue
 
     # Fallback Técnico del Supervisor (Aislamiento Total: NUNCA desviar a Gemini en Back-Office)
     return format_filial_reply(

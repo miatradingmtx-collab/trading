@@ -442,6 +442,21 @@ class HerdFinOpsBilling:
         or_status = "KEY_CONFIGURED" if OPENROUTER_API_KEY else "KEY_MISSING"
         firebase_status = "SPARK_SAFE (<1% cuota diaria)"
 
+        # Consulta dinámica del saldo en OpenRouter AI
+        or_cred = 7.0
+        or_usg = 0.0
+        or_rem = 7.0
+        if OPENROUTER_API_KEY:
+            try:
+                r_or = requests.get("https://openrouter.ai/api/v1/credits", headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"}, timeout=3)
+                if r_or.status_code == 200:
+                    d_or = r_or.json().get("data", {})
+                    or_cred = float(d_or.get("total_credits", 0.0) or 0.0)
+                    or_usg = float(d_or.get("total_usage", 0.0) or 0.0)
+                    or_rem = max(0.0, or_cred - or_usg)
+            except Exception:
+                pass
+
         servicios_finops = [
             {
                 "plataforma": "Railway Cloud",
@@ -460,32 +475,33 @@ class HerdFinOpsBilling:
             {
                 "plataforma": "OpenRouter AI",
                 "url_pago": "https://openrouter.ai/credits",
-                "costo_estimado_mensual": "$3.00 USD (Gracias a Single-Cycle Turn)",
-                "estado": "SALDO DISPONIBLE",
-                "dias_para_corte": 30
+                "costo_estimado_mensual": "$5.00 USD",
+                "estado": f"SALDO DISPONIBLE (${or_rem:.2f} USD)" if or_rem > 0.20 else f"SALDO AGOTADO (${or_rem:.4f} USD de ${or_cred:.2f})",
+                "dias_para_corte": 30 if or_rem > 0.20 else 0
             }
         ]
 
-        # Validar regla preventiva de 48 horas
+        # Validar regla preventiva de 48 horas / corte de API
         for s in servicios_finops:
             if s["dias_para_corte"] <= 2:
                 alertas_pago.append({
                     "servicio": s["plataforma"],
                     "monto": s["costo_estimado_mensual"],
                     "url": s["url_pago"],
-                    "motivo": f"Vencimiento en {s['dias_para_corte']} días. Fondear para evitar corte de API."
+                    "motivo": f"Saldo agotado o vencimiento en {s['dias_para_corte']} días. Fondear para evitar corte de API."
                 })
                 por_aprobar.append({
                     "tarea_id": f"T5_PAY_{s['plataforma'].upper().replace(' ', '_')}",
                     "accion": f"PAGAR_{s['plataforma'].upper().replace(' ', '_')}",
                     "detalle": f"Fondear {s['costo_estimado_mensual']} en {s['plataforma']} ({s['url_pago']})",
-                    "antes": f"Saldo de {s['plataforma']} por expirar en {s['dias_para_corte']} días",
+                    "antes": f"Saldo de {s['plataforma']} en estado '{s['estado']}'",
                     "despues": "Servicio renovado con crédito activo por 30 días"
                 })
 
         return {
             "herd": self.name,
             "status": "BUDGET_OPTIMAL" if not alertas_pago else "PAYMENT_REQUIRED",
+            "openrouter_saldo_restante": f"${or_rem:.4f} USD",
             "openrouter_status": or_status,
             "firebase_spark_margin": firebase_status,
             "servicios": servicios_finops,
@@ -977,6 +993,33 @@ Responde ÚNICAMENTE un JSON con la clave 'evaluaciones': [ ... ]. Cero texto ad
                     if resp.status_code == 200:
                         raw_content = resp.json()["choices"][0]["message"]["content"].strip()
                         return self._parse_evaluation_json(raw_content, proposals, model)
+                    elif resp.status_code == 402:
+                        print("| OPENROUTER EVAL 402 | Saldo agotado en OpenRouter. Saltando al failover de inmediato.")
+                        break
+                except Exception:
+                    continue
+
+        # 2.1 ESTRATEGIA GROQ (Failover rápido si OpenRouter está agotado)
+        groq_key = os.getenv("GROQ_API_KEY")
+        if groq_key:
+            groq_models = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"]
+            for g_model in groq_models:
+                try:
+                    url_groq = "https://api.groq.com/openai/v1/chat/completions"
+                    headers_groq = {
+                        "Authorization": f"Bearer {groq_key}",
+                        "Content-Type": "application/json"
+                    }
+                    payload_groq = {
+                        "model": g_model,
+                        "messages": [{"role": "user", "content": prompt_evaluacion}],
+                        "temperature": 0.2,
+                        "max_tokens": 800
+                    }
+                    resp_g = requests.post(url_groq, headers=headers_groq, json=payload_groq, timeout=8)
+                    if resp_g.status_code == 200:
+                        raw_content = resp_g.json()["choices"][0]["message"]["content"].strip()
+                        return self._parse_evaluation_json(raw_content, proposals, f"Groq ({g_model})")
                 except Exception:
                     continue
 
