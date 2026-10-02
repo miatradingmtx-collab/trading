@@ -317,3 +317,16 @@ trigger: always_on
 egla_de_3 deben ser consultados 100% mediante Upstash Redis (cache_regla_de_3). Cero consultas directas a Firebase Firestore al momento de ejecutar un trade.
 5. **Protocolo de Migracin (Slack):** Cuando termine la ventana de calibracin (1-2 semanas), la decisin de pasar a TensorFlow/ATLAS a Produccin (hacer el "Switch") es clasificada como [REQUIERE APROBACIN HUMANA ??]. El Supervisor debe solicitar autorizacin obligatoria en Slack antes de tocar la base de datos principal de Firebase.
 
+
+---
+name: homologacion_cbr_knowledge_base
+description: Protocolo de diagnostico clinico del Watchdog mediante la consulta del Case-Based Reasoning (CBR).
+trigger: always_on
+---
+
+# 🧠 REGLA: CONSULTA OBLIGATORIA DEL CBR (CASE-BASED REASONING)
+1. **El CBR es la Enciclopedia Medica:** Todos los errores fatales, crash loops y anomalias que el ecosistema ha resuelto en el pasado se documentan en archivos .md dentro del directorio Docuementos/ (ej. CBR_Uvicorn_Null_Bytes.md).
+2. **Protocolo del Watchdog y Herds T:** 
+   - Antes de proponer una solucion o emitir un reporte de 'Cero cambios criticos' tras una caida de sistema, el Watchdog y los agentes de infraestructura (Herds T1-T10) DEBEN leer el directorio Docuementos/ y buscar cualquier documento que empiece con CBR_.
+   - Si la firma del error actual (logs de Railway, Uvicorn, Docker, Upstash) coincide con un registro CBR, el Watchdog extraera la 'Solucion Inmediata' (Playbook) del CBR.
+3. **Delegacion Asignada:** Una vez leido el CBR, el Watchdog asignara el script de mitigacion al agente T correspondiente (ej. T3 Observability o T1) para que ejecute la cura con precision milimetrica sin inventar codigo nuevo.
