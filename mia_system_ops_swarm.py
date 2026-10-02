@@ -442,9 +442,9 @@ class HerdFinOpsBilling:
         or_status = "KEY_CONFIGURED" if OPENROUTER_API_KEY else "KEY_MISSING"
         firebase_status = "SPARK_SAFE (<1% cuota diaria)"
 
-        # Consulta dinámica del saldo en OpenRouter AI
-        or_cred = 7.0
-        or_usg = 0.0
+        # Consulta dinámica del saldo en OpenRouter AI y cálculo de Burn Rate a 30s
+        or_cred = 14.0
+        or_usg = 7.0
         or_rem = 7.0
         if OPENROUTER_API_KEY:
             try:
@@ -456,6 +456,12 @@ class HerdFinOpsBilling:
                     or_rem = max(0.0, or_cred - or_usg)
             except Exception:
                 pass
+
+        # Modelo Matemático FinOps (Calibrado a 30s / 2 RPM = 120 ciclos/h con Llama 3.3 70B):
+        # 1 ciclo = $0.000151 USD -> 1 hora = $0.01812 USD -> 24h = $0.43488 USD/día
+        burn_rate_por_hora = 0.01812
+        horas_autonomia = round(or_rem / burn_rate_por_hora, 1) if burn_rate_por_hora > 0 else 999.0
+        dias_para_corte_or = max(0.0, round(horas_autonomia / 24.0, 1))
 
         servicios_finops = [
             {
@@ -475,20 +481,26 @@ class HerdFinOpsBilling:
             {
                 "plataforma": "OpenRouter AI",
                 "url_pago": "https://openrouter.ai/credits",
-                "costo_estimado_mensual": "$5.00 USD",
-                "estado": f"SALDO DISPONIBLE (${or_rem:.2f} USD)" if or_rem > 0.20 else f"SALDO AGOTADO (${or_rem:.4f} USD de ${or_cred:.2f})",
-                "dias_para_corte": 30 if or_rem > 0.20 else 0
+                "costo_estimado_mensual": "$9.50 USD",
+                "estado": f"SALDO DISPONIBLE (${or_rem:.2f} USD / ~{int(horas_autonomia)}h de autonomía)" if or_rem > 0.87 else f"SALDO CRÍTICO (${or_rem:.2f} USD restantes, ~{int(horas_autonomia)}h para corte)",
+                "dias_para_corte": dias_para_corte_or,
+                "horas_para_corte": horas_autonomia
             }
         ]
 
-        # Validar regla preventiva de 48 horas / corte de API
+        # Validar regla preventiva de 46h - 48 horas / corte de API
         for s in servicios_finops:
-            if s["dias_para_corte"] <= 2:
+            if s["dias_para_corte"] <= 2.0:
+                motivo_alerta = (
+                    f"Alerta Preventiva 46h-48h: Quedan ${or_rem:.2f} USD (~{int(horas_autonomia)}h de autonomía a 30s). Fondear para evitar corte de API y salto a Groq/Gemini."
+                    if s["plataforma"] == "OpenRouter AI"
+                    else f"Vencimiento en {s['dias_para_corte']} días. Fondear para evitar corte de API."
+                )
                 alertas_pago.append({
                     "servicio": s["plataforma"],
                     "monto": s["costo_estimado_mensual"],
                     "url": s["url_pago"],
-                    "motivo": f"Saldo agotado o vencimiento en {s['dias_para_corte']} días. Fondear para evitar corte de API."
+                    "motivo": motivo_alerta
                 })
                 por_aprobar.append({
                     "tarea_id": f"T5_PAY_{s['plataforma'].upper().replace(' ', '_')}",

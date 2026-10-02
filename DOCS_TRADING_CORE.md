@@ -416,3 +416,10 @@ name: estricta_separacion_shadow_y_filtro_noticias
 description: Regla para evitar la contaminacion cruzada de metricas Shadow a Produccion y gobernar el Filtro de Noticias.
 trigger: always_on
 ---
+
+## REGLA DE ROLLBACK - AUTORIZACION OBLIGATORIA
+- **Todo rollback de código, configuración, red neuronal, pesos ML, endpoints o infraestructura REQUIERE autorización explícita del usuario.**
+- El monitor de rendimiento (performance_monitor.py) puede DETECTAR y RECOMENDAR rollbacks cuando el Health Score baje, pero NUNCA ejecutarlos automáticamente.
+- Solo el usuario puede dar la orden de revertir a un snapshot anterior.
+- Los snapshots se almacenan en Logs/performance_metrics.json como puntos de referencia.
+- El dashboard visual está en Diagramas/monitor_rendimiento.html.
