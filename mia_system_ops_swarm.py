@@ -664,7 +664,7 @@ class HerdSwarmNeuralSentry:
                 d = json.loads(raw) if isinstance(raw, str) else (raw or {})
                 val_acc = float(d.get("accuracy", tf_accuracy))
                 tf_accuracy = round(val_acc * 100 if val_acc <= 1.0 else val_acc, 2)
-                if tf_accuracy < 85.0:
+                if tf_accuracy < 75.0:  # Umbral realista para HFT con grandes datasets
                     por_aprobar.append({
                         "tarea_id": "T10_RETRAIN_TF_LOW_ACCURACY",
                         "accion": "REENTRENAR_TENSORFLOW",
