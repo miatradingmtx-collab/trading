@@ -3,7 +3,7 @@
 Esta es la proyeccion matematica del comportamiento de tu ecosistema para la proxima semana (Lunes a Viernes), asumiendo que los Enjambres y ATLAS siguen apagados (Criosueño), operando exclusivamente con la **Logica de Negocio Base (app.py) + Filtros de Riesgo Institucional**.
 
 ## 📊 Parametros del Modelo Matematico
-* **Capital Base (Equidad):** ~$4,890 USD
+* **Capital Base (Equidad):** ~$4,209 USD
 * **WinRate del Motor Base (MIA KB):** 84.50% (Confirmado por 678 trades reales).
 * **Filtros Activos:** Sesiones Optimas por Activo (Evita el 80% de operativas en rango/chop).
 * **Techo de Cristal (Profit Lock):** +$75 USD diarios (El bot se apaga al ganar).
