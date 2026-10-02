@@ -3556,12 +3556,44 @@ def api_dashboard_data():
 def get_cache_mget():
     """Retorna el contenido del slot fÃ­sico cache_mget en Upstash Redis (Consolidado MGET)."""
     try:
-        # [FILTRO INSTITUCIONAL]: Bloqueo de pares Europeos en Sesion Asiatica
+        # [FILTRO INSTITUCIONAL]: Matriz Optima de Sesiones por Activo
         from datetime import datetime
+        import requests
+        import json
+        
         hora_utc = datetime.utcnow().hour
-        activo_upper = alert.activo.upper()
-        if (activo_upper.startswith('EUR') or activo_upper.startswith('GBP')) and (hora_utc >= 22 or hora_utc <= 6):
-            return {"status": "rejected", "razon": "Par europeo bloqueado en Asia"}
+        
+        # Obtener activo de forma segura
+        activo_upper = ""
+        if 'req' in locals() and hasattr(req, 'activo'): activo_upper = req.activo.upper()
+        elif 'alert' in locals() and hasattr(alert, 'activo'): activo_upper = alert.activo.upper()
+        
+        sesiones_optimas = {
+            "EURUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], # London + NY
+            "GBPUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], # London + NY
+            "GBPJPY": [23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], # Asia + London
+            "NZDCAD": [22, 23, 0, 1, 2, 3, 4, 5], # Asia (Pacifico)
+            "XAUUSD": [13, 14, 15, 16, 17, 18, 19, 20] # NY Principalmente
+        }
+        
+        if activo_upper in sesiones_optimas and hora_utc not in sesiones_optimas[activo_upper]:
+            print(f'| RUNE RISK | Bloqueando {activo_upper} fuera de sesion optima (UTC: {hora_utc})')
+            return {"status": "rejected", "razon": f"Activo {activo_upper} bloqueado fuera de sesion optima"}
+            
+        # [DAILY PROFIT LOCK]: Bloqueo de Ganancia / Perdida (+1.5% o -3%)
+        # Consultamos el estado rapido en Upstash Redis
+        try:
+            r_mt5 = requests.get(f"{UPSTASH_URL}/get/cache_mt5", headers=UPSTASH_HEADERS, timeout=2)
+            if r_mt5.status_code == 200 and r_mt5.json().get('result'):
+                mt5_data = json.loads(r_mt5.json()['result'])
+                pnl_hoy = mt5_data.get('pnl_cerrado_hoy', 0.0)
+                # Metas Conservadoras (Base $5000)
+                if pnl_hoy >= 75.0:
+                    return {"status": "rejected", "razon": "Daily Profit Lock: Meta de ganancia diaria alcanzada"}
+                if pnl_hoy <= -150.0:
+                    return {"status": "rejected", "razon": "Daily Drawdown Lock: Limite de perdida diaria alcanzado"}
+        except:
+            pass
 
         import requests, json
         up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
@@ -4391,7 +4423,11 @@ async def entrenar_pesos_dinamicos():
         GLOBAL_MIA_COLLECTIVE["dynamic_weights"] = nuevos_pesos
         
         # 4.5 Guardar la "Regla de 3" en mia_kb (Firebase)
-        top_3 = sorted(nuevos_pesos.items(), key=lambda item: item[1], reverse=True)[:3]
+        # Filtrar para evitar rachas de suerte (Umbral: 50 confirmaciones historicas minimas)
+        candidatos_maduros = {k: v for k, v in nuevos_pesos.items() if frecuencias.get(k, 0) >= 50}
+        if len(candidatos_maduros) < 3:
+            candidatos_maduros = nuevos_pesos
+        top_3 = sorted(candidatos_maduros.items(), key=lambda item: item[1], reverse=True)[:3]
         regla_de_3_data = {
             "ultima_actualizacion": datetime.datetime.now().isoformat(),
             "top_1": {"indicador": top_3[0][0], "peso": top_3[0][1], "win_rate_asociado": int((frecuencias.get(top_3[0][0], 0) / total) * 100)},
@@ -4404,7 +4440,11 @@ async def entrenar_pesos_dinamicos():
             print(f"| MACHINE LEARNING | Error guardando Regla de 3 en Firebase mia_kb: {fb_err}")
         
         # 5. Escribir top 3 en la Base de Conocimiento (Obsidian) para la "Regla de 3"
-        top_3 = sorted(nuevos_pesos.items(), key=lambda item: item[1], reverse=True)[:3]
+        # Filtrar para evitar rachas de suerte (Umbral: 50 confirmaciones historicas minimas)
+        candidatos_maduros = {k: v for k, v in nuevos_pesos.items() if frecuencias.get(k, 0) >= 50}
+        if len(candidatos_maduros) < 3:
+            candidatos_maduros = nuevos_pesos
+        top_3 = sorted(candidatos_maduros.items(), key=lambda item: item[1], reverse=True)[:3]
         obsidian_path = r"D:\obsidiana\Proyectos\Mia_Trading\Mejores_Estrategias_Regla_De_3.md"
         
         import os
