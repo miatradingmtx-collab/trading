@@ -325,7 +325,7 @@ trigger: always_on
 ---
 
 # 🧠 REGLA: CONSULTA OBLIGATORIA DEL CBR (CASE-BASED REASONING)
-1. **El CBR es la Enciclopedia Medica:** Todos los errores fatales, crash loops y anomalias que el ecosistema ha resuelto en el pasado se documentan en archivos .md dentro del directorio Docuementos/ (ej. CBR_Uvicorn_Null_Bytes.md).
+1. **El CBR es la Enciclopedia Medica:** Todos los errores fatales, crash loops y anomalias que el ecosistema ha resuelto en el pasado se documentan en archivos .md dentro del directorio Docuementos/ (ej. CBR_MASTER_KNOWLEDGE_BASE.md).
 2. **Protocolo del Watchdog y Herds T:** 
    - Antes de proponer una solucion o emitir un reporte de 'Cero cambios criticos' tras una caida de sistema, el Watchdog y los agentes de infraestructura (Herds T1-T10) DEBEN leer el directorio Docuementos/ y buscar cualquier documento que empiece con CBR_.
    - Si la firma del error actual (logs de Railway, Uvicorn, Docker, Upstash) coincide con un registro CBR, el Watchdog extraera la 'Solucion Inmediata' (Playbook) del CBR.
