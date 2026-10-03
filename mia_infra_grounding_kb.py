@@ -94,8 +94,9 @@ class MiaInfraGroundingKB:
             "radiografia_completa_bases_de_datos": {
                 "upstash_redis_slots_canonicos": [
                     {"slot": "cache_mt5", "tipo": "JSON", "proposito": "Órdenes vivas reales del broker, balance, equity, flotante y márgenes"},
-                    {"slot": "cache_hist_mt5", "tipo": "JSON", "proposito": "Historial de los últimos 50 trades reales cerrados de MT5 (Anti-429)"},
-                    {"slot": "cache_mia_tensorflow", "tipo": "JSON Base64", "proposito": "Pesos compilados de la Red Neuronal, Accuracy (97.87%) y tensores"},
+                    {"slot": "cache_hist_mt5", "tipo": "JSON", "proposito": "Historial de los últimos 50 trades recientes de MT5 (Buffer visual y deduplicación, NO es el dataset de entrenamiento)"},
+                    {"slot": "cache_mia_dataset_tf", "tipo": "JSON", "proposito": "Dataset canónico institucional de 678 trades históricos para entrenamiento y validación de TensorFlow (NUNCA sustituir por cache_hist_mt5)"},
+                    {"slot": "cache_mia_tensorflow", "tipo": "JSON Base64", "proposito": "Pesos compilados de la Red Neuronal, Accuracy, Trades Aprendidos (678) y tensores"},
                     {"slot": "cache_trading_matrix", "tipo": "JSON", "proposito": "Matriz cuantitativa de confluencias y ranking de activos"},
                     {"slot": "cache_researcher_insights", "tipo": "JSON", "proposito": "Análisis macroeconómico y sentimiento de mercado"},
                     {"slot": "cache_regla_de_3", "tipo": "JSON", "proposito": "Top 1, 2 y 3 dinámico de confirmaciones institucionales y filtro de noticias"},
@@ -150,6 +151,11 @@ class MiaInfraGroundingKB:
                     "error": "Cruce de Identidad y Ruido en Slack (#mia-chat vs #back-office-y-backend)",
                     "causa": "MIA Watchdog respondía a mensajes generales de chat en #mia-chat consumiendo tokens de Gemini",
                     "solucion_aplicada": "Silenciamiento 100% de #mia-chat en Watchdog. #back-office-y-backend opera exclusivamente con OpenRouter Llama 3.3 70B y Herds T1-T10."
+                },
+                {
+                    "error": "Caída de Trades Aprendidos a 50 y Falso Positivo de Reentrenamiento en TensorFlow",
+                    "causa": "train_tensorflow leía erróneamente solo cache_hist_mt5 (buffer circular de 50 órdenes recientes de MT5) ignorando cache_mia_dataset_tf (678 trades). Al sobreajustar en 50 trades mostraba 98% artificial, y al intentar regularizar, T10 generaba alerta por caída de accuracy.",
+                    "solucion_aplicada": "Ingesta consolidada obligatoria de cache_mia_dataset_tf (678 trades) + recentes en app.py; umbral de T10 fijado en 55%-75% para datasets masivos (>500 trades); candado estricto que prohíbe entrenar con <100 trades."
                 }
             ],
             "protocolo_fase_1_human_in_the_loop": {
