@@ -293,15 +293,16 @@ description: Regla mandatoria de Fase 1 para requerir notificacin transparente d
 trigger: always_on
 ---
 
-# 🛡️ REGLA: PROTOCOLO ESTRICTO HUMAN-IN-THE-LOOP (FASE 1)
-1. **Cero Mutaciones sin Aprobación Previa:** En esta Fase 1, ningún agente técnico (HERD T1 a T10) ni el Supervisor Watchdog tiene autorización para ejecutar cambios automáticos destructivos o modificaciones de base de datos/código en producción sin autorización explícita previa o ratificación en Antigravity.
-2. **Transparencia Total de los 10 Herds:** Cada agente debe reportar en Slack `#back-office-y-backend` qué auditó, qué anomalía detectó y la propuesta exacta que recomienda aplicar.
-3. **Control por Botones Interactivos en Slack:** El Supervisor Watchdog emite el veredicto consolidado y presenta las propuestas a través de checkboxes y 4 botones interactivos:
-   - `[Aprobar Seleccionadas ☑️]`: Aplica únicamente las propuestas marcadas en los checkboxes.
-   - `[Aprobar Todas ✅]`: Autoriza y ejecuta todo el lote de propuestas pendientes a través de `/api/slack/interactions`.
-   - `[Rechazar / Mantener Actual ⛔]`: Descarta las propuestas, purga la cola y preserva el estado actual sin cambios.
-   - `[Forzar Resync 🔄]`: Re-ejecuta la auditoría en vivo para verificar el estado de los 10 Herds.
-4. **Evolución Progresiva a Fase 2 (Confianza Progresiva):** Se acumula score de confianza (+1 por aprobación humana / Antigravity, -2 por rechazo). La transición a auto-remediación autónoma solo se activará en el futuro tras verificar empíricamente en el tiempo que las correcciones son 100% consistentes.
+# 🛡️ REGLA: PROTOCOLO ESTRICTO HUMAN-IN-THE-LOOP (FASE 1 - ENTRENAMIENTO)
+1. **Prohibición Total de Auto-Ejecución (Modo Entrenamiento):** En esta Fase 1, TODOS los agentes técnicos (HERD T1 a T10) y el Supervisor Watchdog están en modo de entrenamiento y aprendizaje progresivo. Queda TERMINANTEMENTE PROHIBIDO que cualquier agente ejecute cambios, reentrenamientos, mutaciones de base de datos o parches por sí mismo.
+2. **Obligatoriedad de Checkboxes en Slack:** Antes de aplicar cualquier cambio o issue detectado, es OBLIGATORIO preguntarle al Padre en Slack (#back-office-y-backend) mediante CHECKBOXES individuales ([ ]) para que él revise, evalúe y seleccione cuáles son correctos y seguros de aplicar.
+3. **Verificación Previa de Homologación de Caché:** Ningún cambio puede aplicarse a ciegas sin verificar que la caché (Upstash) y las fuentes canónicas estén 100% homologadas (evitando errores como reentrenar sobre buffers recientes en lugar del dataset histórico).
+4. **Control por Botones Interactivos en Slack:**
+   - [Aprobar Seleccionadas ☑️]: Aplica única y exclusivamente las propuestas que el Padre haya marcado en los checkboxes.
+   - [Aprobar Todas ✅]: Aplica el lote solo bajo expresa confirmación.
+   - [Rechazar / Mantener Actual ⛔]: Purga la cola, mantiene el sistema intacto y registra el precedente en la KB de aprendizaje CBR.
+   - [Forzar Resync 🔄]: Re-ejecuta la auditoría en vivo para verificar el estado de los 10 Herds.
+5. **Evolución Progresiva a Fase 2 (Confianza Acumulada):** Los agentes solo podrán auto-ejecutar remediaciones cuando hayan superado la prueba de confianza estadística (+1 por aprobación humana verificada, -2 por descarte). Mientras tanto, la regla de selección humana por checkbox aplica sin excepción para TODOS los issues.
 
 ---
 name: estricta_separacion_shadow_y_filtro_noticias

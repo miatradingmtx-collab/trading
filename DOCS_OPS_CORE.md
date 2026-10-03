@@ -962,22 +962,29 @@ ecent_logs desde cache_hist_mt5.
   - Actualizado para renderizar a todo color en terminal los 6 Herds, mtricas de red, slots de Upstash y el bloque de Triage Senior en vivo.
 
 ### [Update 2026-09-28 - Sesin 38] - Protocolo Estricto de Human-in-the-Loop (FASE 1): Pre-Notificacin y Aprobacin Humana Obligatoria en Slack
-- **Directriz Operativa Fundamental (Fase 1: HITL Mandatorio):**
-  - **Cero Modificaciones Autnomas Previas:** Ningn agente tcnico ni el Supervisor Watchdog puede aplicar mutaciones a ciegas en produccin (bases de datos, slots de cach, parches de cdigo, configuraciones de MT5 o pagos cloud).
-  - **Transparencia Total de los 6 Herds Tcnicos:** En cada ciclo de auditora, cada uno de los 6 Herds reporta de manera explcita y transparente en Slack (`#back-office-y-backend`):
-    1. *HERD T1 (DBA Sentinel):* Qu anomalas detect en Firestore/Upstash y qu saneamiento propone.
-    2. *HERD T2 (Senior Dev):* Qu estado sintctico/cdigo encontr y qu patch propone.
-    3. *HERD T3 (Observability SRE):* Qu telemetra y latencias midi y qu accin recomienda.
-    4. *HERD T4 (Cache Latency):* Qu estado de sincronizacin y desacoplamiento evalu.
-    5. *HERD T5 (FinOps Billing):* Qu saldos, consumos y alertas de pago preventivas a 48h detect.
-    6. *HERD T6 (UI/UX Plotly):* Qu diagnstico visual de dashboards (`/brain`, `/`, `/dashboard`) elabor y qu bosquejo propone.
+- **Directriz Operativa Fundamental (Fase 1: HITL Mandatorio - Modo Entrenamiento):**
+  - **Cero Modificaciones Autónomas (Prohibición Total de Auto-Ejecución):** Todos los 10 Herds (T1 a T10) y el Supervisor Watchdog están en modo de entrenamiento y aprendizaje progresivo. NINGÚN agente puede aplicar mutaciones, reentrenamientos o parches por sí mismo.
+  - **Obligatoriedad de Checkboxes en Slack:** Antes de aplicar cualquier cambio o issue detectado, es OBLIGATORIO preguntarle al Padre en Slack (#back-office-y-backend) mediante CHECKBOXES individuales ([ ]) para que él revise, evalúe y seleccione cuáles son correctos y seguros de aplicar.
+  - **Verificación Previa de Homologación de Caché:** Ningún cambio puede aplicarse sin verificar que la caché (Upstash) y las fuentes canónicas estén 100% homologadas (evitando errores como reentrenar sobre buffers recientes en lugar del dataset histórico canónico de 678 trades).
+  - **Transparencia Total de los 10 Herds Técnicos:** En cada ciclo de auditoría, cada uno de los 10 Herds reporta de manera explícita y transparente en Slack (#back-office-y-backend):
+    1. *HERD T1 (DBA Sentinel):* Normalización de bases de datos y vectorización 20D.
+    2. *HERD T2 (Senior Dev):* Inspección sintáctica AST, imports y dependencias.
+    3. *HERD T3 (Observability SRE):* Healthcheck y latencias de los 3 microservicios en Railway.
+    4. *HERD T4 (Cache Latency):* Desacoplamiento por slots y latencias sub-15ms.
+    5. *HERD T5 (FinOps Billing):* Presupuesto, saldos y alertas preventivas a 48h (<.87 USD).
+    6. *HERD T6 (UI/UX Stitch):* Dashboards institucionales y vista Antes vs Después.
+    7. *HERD T7 (Architect Diagrammer):* Topología de microservicios y diagramas Mermaid.
+    8. *HERD T8 (Shadow Compliance):* Candado Shadow Mode y filtro de noticias institucional.
+    9. *HERD T9 (Slack Dispatcher):* Aislamiento estricto de canal y Block Kit interactivo.
+    10. *HERD T10 (Swarm Neural Sentry):* Vigilancia de TensorFlow (678 trades) y 7 Herds HFT.
 - **Veredicto Senior del Watchdog Master y Botones Interactivos:**
-  - El Supervisor sintetiza la auditora, emite su veredicto global de salud y publica la lista de propuestas pendientes bajo estricto control humano:
-    - `[Aprobar Propuestas ]`: Ejecuta a travs del endpoint `/api/slack/interactions` en Railway las acciones autorizadas por el usuario.
-    - `[Rechazar / Mantener Actual ]`: Cancela las propuestas y mantiene la infraestructura inalterada.
-    - `[Forzar Resync ]`: Re-ejecuta la auditora en tiempo real para refrescar el estado del sistema.
-- **Ruta de Transicin Progresiva (Fase 1 $\rightarrow$ Fase 2):**
-  - En esta Fase 1, el 100% de los cambios se autoriza manualmente. A medida que se verifique empricamente en el tiempo que las acciones son 100% seguras y libres de efectos secundarios, el usuario podr autorizar la transicin gradual hacia la Fase 2 (auto-remediacin autnoma en caliente).
+  - El Supervisor sintetiza la auditoría, emite su veredicto global de salud y publica la lista de propuestas pendientes con checkboxes y 4 botones interactivos:
+    - [Aprobar Seleccionadas ☑️]: Aplica única y exclusivamente las propuestas marcadas por el Padre en los checkboxes.
+    - [Aprobar Todas ✅]: Aplica todo el lote solo bajo confirmación explícita.
+    - [Rechazar / Mantener Actual ⛔]: Purga la cola, mantiene el sistema intacto y registra el precedente en la KB de aprendizaje CBR.
+    - [Forzar Resync 🔄]: Re-ejecuta la auditoría en vivo para verificar el estado de los 10 Herds.
+- **Ruta de Transición Progresiva (Fase 1 -> Fase 2):**
+  - En esta Fase 1, el 100% de los cambios se autoriza manualmente vía checkboxes. Solo cuando el enjambre supere la prueba de confianza estadística (+1 por aprobación verificada, -2 por rechazo), se habilitará gradualmente la Fase 2 (auto-remediación autónoma). Mientras tanto, esta regla aplica sin excepción a TODOS los issues.
 
 ### [Update 2026-09-28 - Sesin 39] - Interfaz Conversacional Directa con Mia Supervisor ('Hola Mia' -> 'Hola Padre') y Ciclo de Re-Anlisis de 3 Fases
 - **Canal de Dilogo Directo con Mia Supervisor (`mia_supervisor_chat.py`):**

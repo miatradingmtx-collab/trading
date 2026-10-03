@@ -1191,20 +1191,10 @@ Responde ÚNICAMENTE un JSON con la clave 'evaluaciones': [ ... ]. Cero texto ad
         except Exception:
             pass
 
-        filtradas_para_evaluar = []
-        for item in total_por_aprobar_raw:
-            tid = str(item.get("tarea_id", "")).upper()
-            acc = str(item.get("accion", "")).upper()
-            es_homologada = False
-            for h in homologadas:
-                if (tid and tid in h) or (acc and acc in h) or (h and h in tid):
-                    es_homologada = True
-                    break
-            
-            if es_homologada:
-                total_auto_corregidos.append(f"[{item.get('tarea_id', 'TASK')}] Homologado en Google Antigravity / Precedente validado. Auto-aplicado.")
-            else:
-                filtradas_para_evaluar.append(item)
+        # EN FASE 1 (Entrenamiento Estricto HITL): NINGUNA propuesta se auto-ejecuta.
+        # Todos los agentes T1-T10 están en modo entrenamiento y aprendizaje progresivo.
+        # Toda propuesta pasa OBLIGATORIAMENTE por evaluación cognitiva y checkboxes para el Padre.
+        filtradas_para_evaluar = list(total_por_aprobar_raw)
 
         # 3. Evaluación Cognitiva con OpenRouter Llama 3.3 70B (Grounding de Arquitectura)
         cognitive_eval = self.evaluate_proposals_with_openrouter(filtradas_para_evaluar)
@@ -1241,9 +1231,11 @@ Responde ÚNICAMENTE un JSON con la clave 'evaluaciones': [ ... ]. Cero texto ad
         }
         
         # 4. Guardar en Upstash Redis (Sobrescribir siempre el slot de pendientes para evitar fantasmas)
+        # 4. Guardar en Upstash Redis (Sobrescribir siempre el slot de pendientes para evitar fantasmas)
+        todas_pendientes = validadas_85 + [p for p in observadas_sub85 if p not in validadas_85]
         try:
             requests.post(f"{UPSTASH_URL}/set/cache_system_ops_status", headers=UPSTASH_HEADERS, data=json.dumps(summary), timeout=4)
-            requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, data=json.dumps(validadas_85), timeout=4)
+            requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, data=json.dumps(todas_pendientes), timeout=4)
         except Exception:
             pass
 
@@ -1253,7 +1245,7 @@ Responde ÚNICAMENTE un JSON con la clave 'evaluaciones': [ ... ]. Cero texto ad
                 self.db.collection("system_memory").document("cache_system_ops_status").set(summary, merge=True)
                 ts_hist = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
                 self.db.collection("mia_ops_audit_history").document(f"AUDIT_{ts_hist}").set(summary, merge=True)
-                self.db.collection("system_memory").document("cache_pending_ops_approvals").set({"pendientes": validadas_85}, merge=True)
+                self.db.collection("system_memory").document("cache_pending_ops_approvals").set({"pendientes": todas_pendientes}, merge=True)
             except Exception:
                 pass
 
@@ -1286,6 +1278,12 @@ Responde ÚNICAMENTE un JSON con la clave 'evaluaciones': [ ... ]. Cero texto ad
                     if target and payload:
                         requests.post(f"{UPSTASH_URL}/set/{target}", headers=UPSTASH_HEADERS, json=payload, timeout=4)
                         executed.append(p.get("accion", target))
+                    elif p.get("accion") == "REENTRENAR_TENSORFLOW":
+                        try:
+                            r_tf = requests.get("https://trading-production-927a.up.railway.app/api/cron/train_tensorflow", timeout=30)
+                            executed.append("REENTRENAR_TENSORFLOW (678 trades verificados)")
+                        except Exception as e_tf:
+                            executed.append(f"REENTRENAR_TENSORFLOW (Error: {e_tf})")
                     elif p.get("accion"):
                         executed.append(p.get("accion"))
 

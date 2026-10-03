@@ -162,7 +162,6 @@ class MiaSlackBridge:
         )
 
         # 3. Propuestas Validadas (Score >= 85)
-        options_checkboxes = []
         if validadas_85:
             txt_validadas = "\n".join([
                 f"{i+1}. ⭐ *[Score {pa.get('score', 90)}/100]* *{pa.get('accion', 'PROPUESTA')}*: {pa.get('detalle', '')}\n"
@@ -171,16 +170,6 @@ class MiaSlackBridge:
                 f"   • *Veredicto IA:* _{pa.get('justificacion_ia', 'Alineado a la arquitectura')}_"
                 for i, pa in enumerate(validadas_85[:5])
             ])
-            for i, pa in enumerate(validadas_85[:5]):
-                act_label = pa.get('accion', f'PROPUESTA_{i+1}')
-                desc_label = pa.get('detalle', '')[:40]
-                options_checkboxes.append({
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"*{i+1}. [Score {pa.get('score', 90)}] {act_label}*: {desc_label}"[:75]
-                    },
-                    "value": f"propuesta_{i}"
-                })
         else:
             txt_validadas = "• ✅ Cero cambios críticos pendientes. Todos los parámetros operan en niveles óptimos."
 
@@ -193,6 +182,21 @@ class MiaSlackBridge:
             ])
         else:
             txt_observadas = "• 🟢 Cero propuestas observadas o descartadas por la IA."
+
+        # Construcción de Checkboxes para TODAS las propuestas accionables (Fase 1 Human-in-the-Loop)
+        todas_propuestas = validadas_85 + [p for p in observadas_sub85 if p not in validadas_85]
+        options_checkboxes = []
+        for i, pa in enumerate(todas_propuestas[:7]):
+            sc = pa.get('score', 85)
+            act_label = pa.get('accion', f'PROPUESTA_{i+1}')
+            desc_label = pa.get('detalle', '')[:40]
+            options_checkboxes.append({
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*{i+1}. [{sc}/100] {act_label}*: {desc_label}"[:75]
+                },
+                "value": f"propuesta_{i}"
+            })
 
         blocks = [
             {
