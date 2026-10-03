@@ -5347,29 +5347,50 @@ def train_tensorflow():
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import Dense, Dropout
         
-        # 1. Extraer historial directamente desde Redis (No Firebase)
-        upstash_read_url = "https://certain-gnat-160816.upstash.io/get/cache_hist_mt5"
+        # 1. Extraer dataset institucional completo (cache_mia_dataset_tf = 678 trades) + recientes (cache_hist_mt5)
         headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-        res = requests.get(upstash_read_url, headers=headers, timeout=10)
-        
-        raw_data = res.json().get("result", "{}")
-        data = json.loads(raw_data) if isinstance(raw_data, str) else (raw_data or {})
-        logs = data.get("recent_logs", [])
-        
-        # HidrataciÃ³n inteligente si Upstash tiene pocos logs (ej. tras reinicio del contenedor)
+        logs = []
+
+        # 1.1 Cargar dataset profundo institucional (678 trades)
+        try:
+            r_ds = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_dataset_tf", headers=headers, timeout=10)
+            if r_ds.status_code == 200 and r_ds.json().get("result"):
+                raw_ds = r_ds.json().get("result")
+                parsed_ds = json.loads(raw_ds) if isinstance(raw_ds, str) else (raw_ds or [])
+                if isinstance(parsed_ds, list) and len(parsed_ds) > 0:
+                    logs.extend(parsed_ds)
+                    print(f"| TENSORFLOW | Dataset histórico cargado: {len(parsed_ds)} trades.")
+        except Exception as e_ds:
+            print(f"| TENSORFLOW WARN | Error leyendo cache_mia_dataset_tf: {e_ds}")
+
+        # 1.2 Incorporar trades recientes de MT5 deduplicando por ticket
+        try:
+            upstash_read_url = "https://certain-gnat-160816.upstash.io/get/cache_hist_mt5"
+            res = requests.get(upstash_read_url, headers=headers, timeout=10)
+            if res.status_code == 200 and res.json().get("result"):
+                raw_data = res.json().get("result", "{}")
+                data = json.loads(raw_data) if isinstance(raw_data, str) else (raw_data or {})
+                recent_logs = data.get("recent_logs", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+                existing_tickets = {str(t.get("ticket")) for t in logs if t.get("ticket")}
+                for r_trade in recent_logs:
+                    t_id = str(r_trade.get("ticket")) if r_trade.get("ticket") else None
+                    if not t_id or t_id not in existing_tickets:
+                        logs.append(r_trade)
+        except Exception as e_rec:
+            print(f"| TENSORFLOW WARN | Error leyendo cache_hist_mt5: {e_rec}")
+
+        # 1.3 Hidratación fallback si Upstash tiene pocos logs
         global GLOBAL_AUDIT_LOGS
         if len(logs) < 10:
             if GLOBAL_AUDIT_LOGS and len(GLOBAL_AUDIT_LOGS) >= 5:
-                logs = GLOBAL_AUDIT_LOGS
+                logs.extend(GLOBAL_AUDIT_LOGS)
             else:
                 try:
-                    # Lectura desde slot desacoplado cache_mia_audit_logs en Upstash (0 Firebase)
                     r_aud = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_audit_logs", headers=headers, timeout=5)
                     if r_aud.status_code == 200:
                         aud_raw = r_aud.json().get("result")
                         if aud_raw:
-                            logs = json.loads(aud_raw)
-                            print(f"| TENSORFLOW | Entrenando con {len(logs)} trades desde cache_mia_audit_logs (Upstash).")
+                            logs.extend(json.loads(aud_raw))
                 except Exception as e_h:
                     print(f"Error hidratando Upstash desde cache_mia_audit_logs: {e_h}")
 
@@ -5378,18 +5399,27 @@ def train_tensorflow():
         for trade in logs:
             pnl = float(trade.get("pnl", 0.0) or 0.0)
             exito = 1 if pnl > 0.0 else 0
-            detalle = str(trade.get("detalle_setup", "") or trade.get("razon", "")).lower()
-            
+            detalle = str(trade.get("detalle_setup", "") or trade.get("motivo", "") or trade.get("razon", "")).lower()
+
+            ts = str(trade.get("timestamp", trade.get("fecha", "")))
+            hora = 12
+            if len(ts) >= 13 and ts[11:13].isdigit():
+                hora = int(ts[11:13])
+            elif trade.get("hora_utc"):
+                hora = int(trade.get("hora_utc"))
+
+            score = float(trade.get("score", trade.get("score_porcentaje", trade.get("score_estrategia", 50))) or 50)
+
             df_data.append({
-                "hora_utc": int(trade.get("hora_utc", 12) or 12),
-                "score_original": float(trade.get("score_porcentaje", trade.get("score_estrategia", 50)) or 50),
-                "ind_lux_1h": 1 if "lux ob 1h" in detalle or "lux_1h" in detalle or "lux" in detalle else 0,
-                "ind_lux_2h": 1 if "lux ob 2h" in detalle or "lux_2h" in detalle or "lux ob zona 2h" in detalle or "2h" in detalle else 0,
+                "hora_utc": hora,
+                "score_original": score,
+                "ind_lux_1h": 1 if any(k in detalle for k in ["lux ob 1h", "lux_1h", "lux"]) else 0,
+                "ind_lux_2h": 1 if any(k in detalle for k in ["lux ob 2h", "lux_2h", "lux ob zona 2h", "2h"]) else 0,
                 "ind_rsi": 1 if "rsi" in detalle else 0,
                 "ind_fvg": 1 if "fvg" in detalle else 0,
                 "EXITO": exito
             })
-            
+
         if len(df_data) < 5:
             return {"status": "error", "message": f"Insuficientes datos ({len(df_data)}) en Upstash para entrenar TF"}
             
