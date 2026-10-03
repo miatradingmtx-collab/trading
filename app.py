@@ -3492,8 +3492,9 @@ def api_dashboard_data():
                             payload_fb["origen"] = "herds_multimodal_swarm"
                             payload_fb["sincronizado_en"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                             try:
-                                db.collection("mia_herds_history").document(doc_id).set(payload_fb, merge=True)
-                                db.collection("mia_swarm_rest_history").document(doc_id).set(payload_fb, merge=True)
+                                today_date = datetime.datetime.now().strftime('%Y-%m-%d')
+                                db.collection("mia_herds_history").document(today_date).collection("reportes").document(doc_id).set(payload_fb, merge=True)
+                                db.collection("mia_swarm_rest_history").document(today_date).collection("reportes").document(doc_id).set(payload_fb, merge=True)
                                 api_dashboard_data.last_synced_herd_ts = herd_ts
                                 print(f"| FIREBASE | Herds debate homologado en Firestore ({doc_id})")
                             except Exception as fb_err:
@@ -3640,8 +3641,9 @@ def api_herds_sync_firebase():
                     doc_id = data.get("title", f"HERD_DEBATE_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
                     data["origen"] = "herds_multimodal_swarm"
                     data["sincronizado_en"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-                    db.collection("mia_herds_history").document(doc_id).set(data, merge=True)
-                    db.collection("mia_swarm_rest_history").document(doc_id).set(data, merge=True)
+                    today_date = datetime.datetime.now().strftime('%Y-%m-%d')
+                    db.collection("mia_herds_history").document(today_date).collection("reportes").document(doc_id).set(data, merge=True)
+                    db.collection("mia_swarm_rest_history").document(today_date).collection("reportes").document(doc_id).set(data, merge=True)
                     return {"status": "success", "message": f"Debate sincronizado en Firestore: {doc_id}", "data": data}
                 else:
                     return {"status": "warning", "message": "Firebase no inicializado en este nodo local. Sincronizado en Upstash.", "data": data}
