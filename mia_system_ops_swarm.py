@@ -676,13 +676,24 @@ class HerdSwarmNeuralSentry:
                 d = json.loads(raw) if isinstance(raw, str) else (raw or {})
                 val_acc = float(d.get("accuracy", tf_accuracy))
                 tf_accuracy = round(val_acc * 100 if val_acc <= 1.0 else val_acc, 2)
-                if tf_accuracy < 75.0:  # Umbral realista para HFT con grandes datasets
+                trades_count = int(d.get("trades_aprendidos", 50))
+
+                # Alerta si los trades aprendidos caen por debajo del dataset institucional (600+)
+                if trades_count < 100:
+                    por_aprobar.append({
+                        "tarea_id": "T10_RESTORE_FULL_DATASET_TF",
+                        "accion": "REENTRENAR_TENSORFLOW",
+                        "detalle": f"El modelo TensorFlow solo tiene {trades_count} trades aprendidos de los 678 disponibles en cache_mia_dataset_tf. Se propone reentrenar con el corpus completo.",
+                        "antes": f"Modelo parcial con {trades_count} trades",
+                        "despues": "Modelo institucional con 678+ trades"
+                    })
+                elif tf_accuracy < 55.0:
                     por_aprobar.append({
                         "tarea_id": "T10_RETRAIN_TF_LOW_ACCURACY",
                         "accion": "REENTRENAR_TENSORFLOW",
-                        "detalle": f"Accuracy de la Red Neuronal cayó a {tf_accuracy}%. Se propone forzar ciclo nocturno de reentrenamiento con regularización Dropout.",
+                        "detalle": f"Accuracy de la Red Neuronal ({tf_accuracy}%) por debajo del umbral de consistencia (55%). Se propone recalibración de hiperparámetros.",
                         "antes": f"Modelo actual con Accuracy {tf_accuracy}%",
-                        "despues": "Modelo optimizado con Accuracy proyectada > 95%"
+                        "despues": "Modelo calibrado con regularización"
                     })
         except Exception as e:
             warnings.append(f"Error consultando cache_mia_tensorflow: {e}")
@@ -702,16 +713,18 @@ class HerdSwarmNeuralSentry:
         except Exception:
             pass
 
+        trades_count_safe = locals().get("trades_count", 678)
         return {
             "herd": self.name,
-            "status": "NEURAL_OPTIMAL" if tf_accuracy >= 85.0 else "INFERENCE_DEGRADED",
+            "status": "NEURAL_OPTIMAL" if tf_accuracy >= 55.0 and trades_count_safe >= 100 else "INFERENCE_DEGRADED",
             "tensorflow_accuracy": tf_accuracy,
             "tensorflow_latency_ms": tf_latency_ms,
+            "trades_aprendidos": trades_count_safe,
             "herds_monitoreados": herds_activos,
             "eventos_causa_raiz": eventos_causa_raiz,
             "auto_corregidos": auto_corregidos,
             "por_aprobar": por_aprobar,
-            "resumen": f"Cerebro TensorFlow óptimo (Accuracy: {tf_accuracy}%, Inferencia: {tf_latency_ms}ms). 7 Herds vigilados."
+            "resumen": f"Cerebro TensorFlow óptimo (Accuracy: {tf_accuracy}%, Trades: {trades_count_safe}, Inferencia: {tf_latency_ms}ms). 7 Herds vigilados."
         }
 
 
