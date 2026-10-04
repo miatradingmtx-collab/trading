@@ -99,7 +99,12 @@ class MiaSlackBridge:
                 print(f"| SLACK CHAT WEBHOOK ERROR | {e}")
 
         # AISLAMIENTO ESTRICTO DE CANALES:
-        # Si el mensaje fue originado en #mia-chat, NUNCA debe desviarse al Webhook de #back-office-y-backend
+        # Si se especificó un canal y falló, NO debemos enviarlo al webhook global (backoffice)
+        # a menos que el canal original fuera None o explícitamente backoffice.
+        if channel is not None and channel != "" and not is_mia_chat:
+            print(f"| SLACK ROUTING ISOLATION | Mensaje para '{channel}' falló en API. Omitido del webhook de backoffice para evitar cruce de canales.")
+            return False
+
         if is_mia_chat:
             print(f"| SLACK ROUTING ISOLATION | Mensaje para '{channel}' omitido del webhook de backoffice para evitar cruce de canales.")
             return False
