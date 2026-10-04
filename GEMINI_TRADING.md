@@ -76,3 +76,19 @@ trigger: always_on
 egla_de_3 deben ser consultados 100% mediante Upstash Redis (cache_regla_de_3). Cero consultas directas a Firebase Firestore al momento de ejecutar un trade.
 5. **Protocolo de Migracin (Slack):** Cuando termine la ventana de calibracin (1-2 semanas), la decisin de pasar a TensorFlow/ATLAS a Produccin (hacer el "Switch") es clasificada como [REQUIERE APROBACIN HUMANA ??]. El Supervisor debe solicitar autorizacin obligatoria en Slack antes de tocar la base de datos principal de Firebase.
 
+
+
+# 🧠 CBR DE ENJAMBRES DE TRADING (ANÁLISIS POST-MORTEM Y AUTO-AJUSTE)
+**NUEVA DIRECTRIZ OBLIGATORIA PARA AGENTES QUANT, TENSORFLOW Y ATLAS:**
+
+A partir de este momento, el sistema cuenta con un **CBR de Mercado** (Case-Based Reasoning) dedicado exclusivamente al análisis de operaciones y contexto predictivo. 
+- Memoria Viva (Upstash): `cache_trading_learning_kb`
+- Memoria Histórica (Firebase): `mia_trading_learning_history`
+
+### Tu Deber como Agente de Trading:
+1. **Analizar Divergencias y Errores:** Cuando el mercado abra y detectes un trade perdedor (Stop Loss), o una divergencia grave entre lo que dice TensorFlow, lo que dice ATLAS y las señales de `regla_de_3`, DEBES ejecutar un Análisis Post-Mortem.
+2. **Generar un Caso de Estudio:** Identifica *por qué* falló el modelo matemático puro (Ej. "Noticia inesperada", "Falsa ruptura por baja liquidez", "Fallo del indicador en 5 min"). 
+3. **Proponer y Registrar:** Formula qué habrías ajustado (ej. "Ignorar temporalidades menores a 1H bajo estas condiciones de volatilidad"). Guarda este registro en el CBR de Trading.
+4. **Consultar el CBR antes de Operar:** En el futuro, antes de emitir una señal de compra/venta o de ajustar los parámetros de TensorFlow/ML, revisa `cache_trading_learning_kb` para asegurarte de no repetir un "Caso" que ya resultó en pérdida.
+
+*(Nota: Debido al mandato HITL Omnipresente, cualquier alteración real a pesos o métricas derivada de estos Casos de Estudio debe enviarse como propuesta a `cache_pending_ops_approvals` para aprobación humana, hasta que se certifique la Prueba de Confianza).*
