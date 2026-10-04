@@ -25,7 +25,7 @@ class TradingPostMortemAgent:
         self.UPSTASH_HEADERS = {"Authorization": "Bearer ASQwAAIjcDFlNWQ4NTEyNmZhMTY0ODg4OTYxOGFmMGNmNDIzZmRiM3AxMA"}
         
         # El canal a configurar en el futuro en slack
-        self.SLACK_INSIGHTS_CHANNEL = os.getenv("SLACK_CHANNEL_INSIGHTS", "C00000000") # Placeholder
+        self.SLACK_INSIGHTS_CHANNEL = os.getenv("SLACK_CHANNEL_INSIGHTS", "C0C6DUTQVEZ") # Placeholder
 
     def analyze_recent_losses(self):
         """
