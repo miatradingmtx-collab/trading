@@ -1244,7 +1244,8 @@ Responde ÚNICAMENTE un JSON con la clave 'evaluaciones': [ ... ]. Cero texto ad
             try:
                 self.db.collection("system_memory").document("cache_system_ops_status").set(summary, merge=True)
                 ts_hist = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
-                self.db.collection("mia_ops_audit_history").document(f"AUDIT_{ts_hist}").set(summary, merge=True)
+                today_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+                self.db.collection("mia_ops_audit_history").document(today_date).collection("reportes").document(f"AUDIT_{ts_hist}").set(summary, merge=True)
                 self.db.collection("system_memory").document("cache_pending_ops_approvals").set({"pendientes": todas_pendientes}, merge=True)
             except Exception:
                 pass
