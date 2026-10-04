@@ -20,3 +20,20 @@ Para evitar sobrecarga de contexto y tropiezos entre agentes:
 1. Todo análisis o corrección detectada debe enviarse como una PROPUESTA a \cache_pending_ops_approvals\.
 2. Un operador humano debe revisar la propuesta en el Dashboard o Slack, y autorizarla explícitamente (con un check / botón de aprobar).
 3. **Modo Autónomo / Prueba de Confianza:** El sistema ejecutará automáticamente las propuestas (Trust Mode = True) ÚNICAMENTE cuando el humano dictamine explícitamente que los T y el Supervisor han pasado la \Prueba de Confianza\.
+
+# 🛡️ MANDATO HITL OMNIPRESENTE (TODAS LAS COLECCIONES)
+**REGLA DE ORO:** Está terminantemente PROHIBIDO que los agentes (T1-T10, Supervisor, LLMs) realicen cambios estructurales, actualizaciones de pesos, reglas o estado operativo de forma autónoma.
+Esto aplica a toda la base de datos estructural:
+- `mia_kb` (y subcolecciones como regla_de_3)
+- `mia_tensorflow` (Pesos y Tensores)
+- `trading_matrix`
+- `mia_atlas`
+- `system_memory` (Excepto cola de pendientes)
+- `trading_alerts`
+- `mia_kb_test_temp`
+
+**¿Qué pasa con los historiales?**
+Las colecciones de log (`mia_ops_audit_history`, `mia_herds_history`, `mia_swarm_rest_history`, `mia_audit_logs`, `mia_mget_history`, `mia_ml_history`, `mia_system_logs`, `swarm_history`) son **EXCEPCIONES DE SOLO ESCRITURA (APPEND-ONLY)**. Los agentes SÍ pueden guardar sus reportes ahí para no dejar el sistema ciego, pero NO pueden alterar datos del pasado.
+
+**Flujo Obligatorio:**
+Toda mejora o corrección sobre los parámetros del bot DEBE ser enviada como una propuesta JSON a `cache_pending_ops_approvals`. El humano la revisará (Check = Aprobado / X = Rechazado). Ningún agente asume el rol de aplicar cambios hasta que el humano declare: "Prueba de Confianza Superada".
