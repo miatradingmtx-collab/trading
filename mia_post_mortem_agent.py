@@ -3,6 +3,10 @@ import datetime
 import json
 import requests
 import firebase_admin
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
 from firebase_admin import credentials, firestore
 
 try:
@@ -32,15 +36,68 @@ class MiaQuantSupervisor:
 
     def _llm_gemini_inference(self, trade_context, cbr_history):
         """
-        Stub para la llamada EXCLUSIVA a Gemini Pro.
-        Cruza la info del trade perdido con los casos históricos del CBR.
+        Llamada EXCLUSIVA a Gemini 1.5 Pro.
+        Cruza la info del trade perdido con los casos históricos del CBR,
+        las estrategias activas de mia_kb (regla de 3) y el estado de la Red Neuronal (TensorFlow).
         """
-        # Aquí irá la lógica de google-generativeai en el futuro.
-        # Por ahora devolvemos la deducción simulada basada en el cruce de datos.
-        return {
-            "diagnostico": f"Evaluación Gemini Pro: El trade {trade_context['ticket']} cerró en pérdida. Fallo de TensorFlow por divergencia de volumen.",
-            "sugerencia": "Sugerencia Cuántica: Incrementar filtro de volatilidad VIX > 15 para temporalidades M5."
-        }
+        gemini_api_key = os.getenv("GEMINI_API_KEY")
+        
+        # 1. Recolectar Contexto Operativo (Anti-429: Todo desde Upstash Hot Cache)
+        estrategia_actual = "{}"
+        estado_tf = "{}"
+        try:
+            r_kb = requests.get(f"{self.UPSTASH_URL}/get/cache_regla_de_3", headers=self.UPSTASH_HEADERS, timeout=3).json()
+            estrategia_actual = r_kb.get("result", "{}")
+            
+            r_tf = requests.get(f"{self.UPSTASH_URL}/get/cache_mia_tensorflow", headers=self.UPSTASH_HEADERS, timeout=3).json()
+            # Solo pasamos una radiografía ligera de TF para no reventar el token limit
+            tf_data = json.loads(r_tf.get("result", "{}")) if r_tf.get("result") else {}
+            estado_tf = json.dumps({"accuracy": tf_data.get("accuracy"), "trades_aprendidos": tf_data.get("trades_learned")})
+        except Exception:
+            pass
+
+        if not genai or not gemini_api_key:
+            return {
+                "diagnostico": f"Evaluación simulada (Falta GEMINI_API_KEY): El trade {trade_context.get('ticket')} falló.",
+                "sugerencia": "Sugerencia: Configurar GEMINI_API_KEY en entorno para habilitar razonamiento avanzado."
+            }
+
+        try:
+            genai.configure(api_key=gemini_api_key)
+            # Usar el modelo pro para mayor ventana de contexto y cruce de datos
+            model = genai.GenerativeModel('gemini-1.5-pro')
+            
+            prompt = f"""
+            Eres MIA Quant Supervisor. Tu tarea es hacer un Análisis Post-Mortem de un trade perdedor.
+            NO vas a ejecutar nada, solo darás un diagnóstico y una sugerencia para el CBR.
+            
+            [TRADE PERDIDO]
+            {json.dumps(trade_context)}
+            
+            [ESTRATEGIAS ACTUALES (mia_kb / regla_de_3 / ML)]
+            {estrategia_actual}
+            
+            [ESTADO RED NEURONAL TENSORFLOW]
+            {estado_tf}
+            
+            [HISTORIAL CBR DE TRADING (Aprende de estos casos)]
+            {json.dumps(cbr_history[:10])} # Top 10 casos recientes
+            
+            Instrucciones:
+            1. Haz un cruce de información: ¿Por qué la estrategia actual y la red neuronal fallaron en este trade?
+            2. Revisa el Historial CBR: ¿Es un error repetido (Ej. Case 10)? Si es así, indícalo.
+            3. Devuelve estrictamente un JSON con las claves: "diagnostico" (qué falló) y "sugerencia" (qué hiperparámetros o reglas propones ajustar para el enjambre o TensorFlow).
+            """
+            
+            response = model.generate_content(prompt)
+            texto = response.text.replace('```json', '').replace('```', '').strip()
+            resultado = json.loads(texto)
+            return resultado
+        except Exception as e:
+            return {
+                "diagnostico": f"Error de inferencia Gemini: {e}",
+                "sugerencia": "Mantener configuraciones actuales. Fallo en procesamiento Quant."
+            }
 
     def analyze_recent_losses(self):
         print("| QUANT SUPERVISOR | Iniciando escaneo post-mortem con Gemini...")
