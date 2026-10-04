@@ -150,18 +150,44 @@ class MiaSupervisorAgent:
             }
         }
 
-        # 1. Guardar en Upstash Redis (Anti-429)
-        try:
-            requests.post(f"{UPSTASH_URL}/set/cache_regla_de_3", headers=UPSTASH_HEADERS, json=regla_payload, timeout=4)
-        except Exception:
-            pass
-
-        # 2. Guardar en Firestore mia_kb/regla_de_3
-        if self.db is not None:
+        if self.TRUST_MODE_ENABLED:
+            # 1. Guardar en Upstash Redis (Anti-429)
             try:
-                self.db.collection("mia_kb").document("regla_de_3").set(regla_payload)
-            except Exception as fb_err:
-                print(f"| SUPERVISOR | Error guardando regla_de_3 en Firestore: {fb_err}")
+                requests.post(f"{UPSTASH_URL}/set/cache_regla_de_3", headers=UPSTASH_HEADERS, json=regla_payload, timeout=4)
+            except Exception:
+                pass
+
+            # 2. Guardar en Firestore mia_kb/regla_de_3
+            if self.db is not None:
+                try:
+                    self.db.collection("mia_kb").document("regla_de_3").set(regla_payload)
+                except Exception as fb_err:
+                    print(f"| SUPERVISOR | Error guardando regla_de_3 en Firestore: {fb_err}")
+        else:
+            # HITL MANDATE: Enviar a cache_pending_ops_approvals
+            print("| SUPERVISOR | HITL Activo: Cambio de regla_de_3 propuesto, requiere autorizacion humana.")
+            try:
+                propuesta = {
+                    "id": f"PROP_REG_{int(datetime.datetime.now().timestamp())}",
+                    "titulo": "Actualizar Regla de 3 Dinamica",
+                    "descripcion": "El supervisor encontro mejores win rates (>=50 trades). Requiere autorizacion para aplicar.",
+                    "payload_tecnico": regla_payload,
+                    "target_collection": "mia_kb",
+                    "target_document": "regla_de_3",
+                    "status": "PENDING"
+                }
+                # Obtener pendientes actuales
+                r_pend = requests.get(f"{UPSTASH_URL}/get/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, timeout=4).json()
+                import json
+                pendientes = json.loads(r_pend.get("result", "[]")) if r_pend.get("result") else []
+                # Evitar duplicados por titulo en el dia
+                if not any(p.get("titulo") == propuesta["titulo"] for p in pendientes):
+                    pendientes.append(propuesta)
+                    requests.post(f"{UPSTASH_URL}/set/cache_pending_ops_approvals", headers=UPSTASH_HEADERS, json=pendientes, timeout=4)
+                    if self.db is not None:
+                        self.db.collection("system_memory").document("cache_pending_ops_approvals").set({"pendientes": pendientes}, merge=True)
+            except Exception as e:
+                print(f"| SUPERVISOR | Error al proponer regla_de_3: {e}")
 
         return {
             "status": "success",

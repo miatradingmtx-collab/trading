@@ -331,3 +331,13 @@ trigger: always_on
    - Antes de proponer una solucion o emitir un reporte de 'Cero cambios criticos' tras una caida de sistema, el Watchdog y los agentes de infraestructura (Herds T1-T10) DEBEN leer el directorio Docuementos/ y buscar cualquier documento que empiece con CBR_.
    - Si la firma del error actual (logs de Railway, Uvicorn, Docker, Upstash) coincide con un registro CBR, el Watchdog extraera la 'Solucion Inmediata' (Playbook) del CBR.
 3. **Delegacion Asignada:** Una vez leido el CBR, el Watchdog asignara el script de mitigacion al agente T correspondiente (ej. T3 Observability o T1) para que ejecute la cura con precision milimetrica sin inventar codigo nuevo.
+
+
+# 🛡️ MANDATO HITL (HUMAN-IN-THE-LOOP) Y CONFIANZA
+**REGLA DE ORO:** NINGÚN Agente Supervisor, Enjambre (T1-T10) o tú mismo como LLM, tienen permitido aplicar cambios técnicos en producción (como sobreescribir `regla_de_3`, modificar SL/TP del bot, alterar arquitecturas o configuraciones activas) de manera automática (auto-corregida).
+
+**Flujo Estricto:**
+1. Todo análisis o corrección detectada debe enviarse como una PROPUESTA a `cache_pending_ops_approvals`.
+2. Un operador humano debe revisar la propuesta en el Dashboard o Slack, y autorizarla explícitamente (con un check / botón de aprobar).
+3. **Modo Autónomo / Prueba de Confianza:** El sistema ejecutará automáticamente las propuestas (Trust Mode = True) ÚNICAMENTE cuando el humano dictamine explícitamente que los T y el Supervisor han pasado la `Prueba de Confianza`.
+4. Mientras la Prueba de Confianza no sea certificada, debes forzar `TRUST_MODE_ENABLED = False` en el código (ya implementado en mia_supervisor_agent.py y mia_system_ops_swarm.py).
