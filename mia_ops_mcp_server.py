@@ -132,6 +132,15 @@ OPS_TOOLS_REGISTRY = [
             "properties": {},
             "required": []
         }
+    },
+    {
+        "name": "mcp_quant_run_post_mortem",
+        "description": "QUANT SUPERVISOR: Ejecuta un Análisis Post-Mortem de los trades cerrados usando Gemini 1.5 Pro.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
     }
 ]
 
@@ -185,6 +194,12 @@ def execute_ops_tool(tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any
             "supported_channels": ["#back-office-y-backend", "#mia-chat"],
             "direct_api_enabled": has_token
         }
+
+    elif tool_name == "mcp_quant_run_post_mortem":
+        from mia_post_mortem_agent import MiaQuantSupervisor
+        agent = MiaQuantSupervisor()
+        agent.analyze_recent_losses()
+        return {"status": "SUCCESS", "message": "Análisis Post-Mortem ejecutado por Quant Supervisor"}
 
     else:
         raise ValueError(f"Herramienta MCP Ops desconocida: '{tool_name}'")
