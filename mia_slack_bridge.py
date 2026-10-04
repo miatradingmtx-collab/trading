@@ -38,6 +38,7 @@ class MiaSlackBridge:
         self.bot_token = bot_token or os.getenv("SLACK_BOT_TOKEN", "")
         self.chat_webhook_url = chat_webhook_url or os.getenv("SLACK_CHAT_WEBHOOK_URL", "")
         self.chat_bot_token = chat_bot_token or os.getenv("SLACK_MIA_CHAT_BOT_TOKEN", "")
+        self.quant_bot_token = os.getenv("SLACK_QUANT_BOT_TOKEN", "")
 
     def send_raw_message(self, text: str) -> bool:
         if not self.webhook_url:
