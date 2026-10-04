@@ -62,8 +62,16 @@ class MiaSlackBridge:
         """
         target_ch = str(channel or "").lower()
         is_mia_chat = ("chat" in target_ch or target_ch == "c0c4qczptph")
+        
+        quant_channel_id = str(os.getenv("SLACK_CHANNEL_INSIGHTS", "C0C6DUTQVEZ")).lower()
+        is_quant_channel = (target_ch == quant_channel_id)
 
-        token_to_use = self.chat_bot_token if (is_mia_chat and self.chat_bot_token) else self.bot_token
+        if is_quant_channel and self.quant_bot_token:
+            token_to_use = self.quant_bot_token
+        elif is_mia_chat and self.chat_bot_token:
+            token_to_use = self.chat_bot_token
+        else:
+            token_to_use = self.bot_token
 
         if token_to_use and channel:
             try:
