@@ -40,7 +40,7 @@ class MiaQuantSupervisor:
         Cruza la info del trade perdido con los casos históricos del CBR,
         las estrategias activas de mia_kb (regla de 3) y el estado de la Red Neuronal (TensorFlow).
         """
-        gemini_api_key = os.getenv("GEMINI_API_KEY")
+        gemini_api_key = os.getenv("GOOGLE_API_KEY", os.getenv("GEMINI_API_KEY"))
         
         # 1. Recolectar Contexto Operativo (Anti-429: Todo desde Upstash Hot Cache)
         estrategia_actual = "{}"
