@@ -158,18 +158,87 @@ class MiaQuantSupervisor:
         except Exception:
             pass
 
-        # 3. Notificar a Slack en el canal de Insights
-        if slack_bridge and slack_bridge.bot_token:
-            msg = (f"🌌 *MIA QUANT SUPERVISOR (Powered by Gemini Pro)*\n"
-                   f"🧠 *NUEVO APRENDIZAJE POST-MORTEM*\n"
-                   f"• *Trade:* {ticket} ({symbol})\n"
-                   f"• *Diagnóstico:* {gemini_analysis['diagnostico']}\n"
-                   f"• *Sugerencia Evolutiva:* {gemini_analysis['sugerencia']}\n"
-                   f"_(Guardado en CBR Quant como {case_id})_")
+        # 3. Notificar a Slack en el canal de Insights (Con Interfaz RLHF Block Kit)
+        if slack_bridge and (slack_bridge.bot_token or slack_bridge.quant_bot_token):
+            msg_fallback = f"MIA Quant: Análisis para {ticket} en {symbol}"
+            
+            blocks = [
+                {
+                    "type": "header",
+                    "text": {
+                        "type": "plain_text",
+                        "text": f"🌌 MIA QUANT: Post-Mortem Trade {ticket}",
+                        "emoji": True
+                    }
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*Símbolo:* {symbol}\n*Resultado:* {profit}\n\n*🧠 Diagnóstico Gemini Pro:*\n{gemini_analysis['diagnostico']}\n\n*🎯 Acción Propuesta para Enjambres:*\n{gemini_analysis['sugerencia']}"
+                    }
+                },
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": f"Caso CBR: `{case_id}` | Requiere validación humana (Mandato HITL) para sumar nivel de confianza."
+                        }
+                    ]
+                },
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "✅ Aprobar Aprendizaje",
+                                "emoji": True
+                            },
+                            "style": "primary",
+                            "value": f"approve_{case_id}",
+                            "action_id": f"quant_approve_{ticket}"
+                        },
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "❌ Rechazar Razonamiento",
+                                "emoji": True
+                            },
+                            "style": "danger",
+                            "value": f"reject_{case_id}",
+                            "action_id": f"quant_reject_{ticket}"
+                        },
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "🔍 Revisión Manual",
+                                "emoji": True
+                            },
+                            "value": f"review_{case_id}",
+                            "action_id": f"quant_review_{ticket}"
+                        }
+                    ]
+                },
+                {
+                    "type": "divider"
+                }
+            ]
+            
             try:
-                slack_bridge.send_channel_message(msg, channel=self.SLACK_INSIGHTS_CHANNEL, username="MIA Quant", icon_emoji=":brain:")
-            except Exception:
-                pass
+                slack_bridge.send_channel_message(
+                    text=msg_fallback, 
+                    channel=self.SLACK_INSIGHTS_CHANNEL, 
+                    username="MIA Quant Supervisor", 
+                    icon_emoji=":brain:",
+                    blocks=blocks
+                )
+            except Exception as e:
+                print(f"| QUANT AGENT | Error enviando Block Kit: {e}")
 
 if __name__ == "__main__":
     agent = MiaQuantSupervisor()
