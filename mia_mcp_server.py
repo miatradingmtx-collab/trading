@@ -191,12 +191,10 @@ def tool_scan_orderbook_depth(symbol: str = "EURUSD", current_price: float = 1.0
     cme_tickers = {
         "EURUSD": "6E (Euro FX Futures)",
         "GBPUSD": "6B (British Pound Futures)",
-        "USDJPY": "6J (Japanese Yen Futures)",
         "AUDUSD": "6A (Australian Dollar Futures)",
         "NZDUSD": "6N (New Zealand Dollar Futures)",
         "XAUUSD": "GC (COMEX Gold Futures)",
-        "GBPJPY": "GBP/JPY (Sintético Cruzado 6B/6J)",
-        "EURJPY": "EUR/JPY (Sintético Cruzado 6E/6J)"
+        "GBPJPY": "GBP/JPY (Sintético Cruzado 6B/6J)"
     }
     cme_contract = cme_tickers.get(sym, f"{sym}_FUTURES")
     
