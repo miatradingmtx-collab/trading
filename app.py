@@ -1842,17 +1842,24 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                 registrar_error_sistema("Botpress", str(e))
         background_tasks.add_task(avisar_mia)
     
-    # NUEVO: Disparar Agente Post-Mortem (Quant) de inmediato si es un cierre
-    if alert.accion == "CIERRE_TOTAL":
-        def disparar_quant():
+    # NUEVO: Disparar Agente Post-Mortem (Quant) de inmediato si hay movimiento de cierre
+    if alert.accion in ["CIERRE_TOTAL", "CERRAR_TP", "CIERRE_PARCIAL", "TRAILING_STOP", "PROTECCION_BE"]:
+        trade_data = {
+            'ticket': str(alert.ticket if alert.ticket else 'DESC'),
+            'symbol': alert.activo,
+            'profit': alert.pnl if alert.pnl else 0.0,
+            'type': alert.accion,
+            'motivo': alert.comentario if alert.comentario else 'Cierre de mercado'
+        }
+        def disparar_quant(trade_info):
             try:
                 from mia_post_mortem_agent import MiaQuantSupervisor
                 agent = MiaQuantSupervisor()
-                agent.analyze_recent_losses()
-                print(f"| QUANT TRIGGER | Agente Post-Mortem disparado exitosamente para {alert.activo}.")
+                agent._generate_and_register_case(trade_info)
+                print(f"| QUANT TRIGGER | Agente Post-Mortem disparado exitosamente para {trade_info['symbol']}.")
             except Exception as e:
                 print(f"| QUANT ERROR | Fallo al disparar agente post-mortem: {e}")
-        background_tasks.add_task(disparar_quant)
+        background_tasks.add_task(disparar_quant, trade_data)
     
     return {
         "resultado": "recibido",
