@@ -237,6 +237,7 @@ class MiaQuantSupervisor:
                     icon_emoji=":brain:",
                     blocks=blocks
                 )
+                print(f"| QUANT AGENT | Mensaje enviado a Slack con exito para {ticket}.")
             except Exception as e:
                 print(f"| QUANT AGENT | Error enviando Block Kit: {e}")
 
