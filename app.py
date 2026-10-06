@@ -1383,7 +1383,7 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                 else:
                     ind_data["trades_perdidos_con"] = ind_data.get("trades_perdidos_con", 0) + 1
                     
-                ind_data["pnl_acumulado"] = ind_data.get("pnl_acumulado", 0.0) + pnl
+                ind_data["pnl_acumulado"] = round(float(ind_data.get("pnl_acumulado", 0.0)) + float(pnl), 2)
                 if ind_data["trades_con_indicador"] > 0:
                     ind_data["win_rate_indicador"] = round(
                         (ind_data["trades_ganados_con"] / ind_data["trades_con_indicador"]) * 100, 2
