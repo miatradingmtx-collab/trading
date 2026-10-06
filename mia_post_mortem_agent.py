@@ -64,8 +64,25 @@ class MiaQuantSupervisor:
 
         try:
             genai.configure(api_key=gemini_api_key)
-            # Usar el modelo pro para mayor ventana de contexto y cruce de datos
-            model = genai.GenerativeModel('gemini-1.5-pro-latest')
+            
+            # Búsqueda automática del modelo soportado por la API KEY (Evita Error 404)
+            target_model_name = 'gemini-1.5-pro' # default fallback
+            try:
+                available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                if 'models/gemini-1.5-pro' in available_models:
+                    target_model_name = 'gemini-1.5-pro'
+                elif 'models/gemini-1.5-flash' in available_models:
+                    target_model_name = 'gemini-1.5-flash'
+                elif 'models/gemini-pro' in available_models:
+                    target_model_name = 'gemini-pro'
+                elif len(available_models) > 0:
+                    target_model_name = available_models[0].replace('models/', '')
+            except Exception as dyn_e:
+                print(f"| QUANT AGENT | No se pudo listar modelos, usando fallback: {dyn_e}")
+                target_model_name = 'gemini-pro' # Fallback mas seguro a nivel mundial
+
+            print(f"| QUANT AGENT | Usando modelo Gemini: {target_model_name}")
+            model = genai.GenerativeModel(target_model_name)
             
             prompt = f"""
             Eres MIA Quant Supervisor. Tu tarea es hacer un Análisis Post-Mortem de un trade perdedor.
