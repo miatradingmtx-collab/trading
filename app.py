@@ -781,10 +781,10 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                         
             # Inyectar el parcial si la alerta actual lo trae
             if alert.accion in ["CIERRE_PARCIAL", "TRAILING_STOP"]:
-                motivo_upper = (alert.motivo or "").upper()
-                if "50%" in motivo_upper or "TP2" in motivo_upper:
+                motivo_upper = ((alert.comentario if hasattr(alert, 'comentario') else '') or (alert.motivo if hasattr(alert, 'motivo') else '') or "").upper()
+                if any(x in motivo_upper for x in ["65%", "TP2", "50%", "TP65", "TP50"]):
                     audit_data["max_nivel_parcial"] = 2
-                elif "25%" in motivo_upper or "TP1" in motivo_upper:
+                elif any(x in motivo_upper for x in ["40%", "TP1", "25%", "TP40", "TP25"]):
                     audit_data["max_nivel_parcial"] = max(audit_data.get("max_nivel_parcial", 0), 1)
             
             # Solo actualizar la acciÃƒÆ’Ã‚Â³n principal si es apertura o cierre
@@ -1775,9 +1775,9 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
             
             # Checkmarks logic
             if "CIERRE_PARCIAL" in alert.accion:
-                if alert.comentario and "25%" in alert.comentario:
+                if alert.comentario and any(x in alert.comentario.upper() for x in ["25%", "40%", "TP1", "TP40", "TP25"]):
                     check_tp1 = " ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦"
-                elif alert.comentario and "50%" in alert.comentario:
+                elif alert.comentario and any(x in alert.comentario.upper() for x in ["50%", "65%", "TP2", "TP50", "TP65"]):
                     check_tp1 = " ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦"
                     check_tp2 = " ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦"
             elif "CIERRE_TOTAL" in alert.accion and alert.pnl > 0:
@@ -1792,8 +1792,8 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                 elif abs(alert.precio - tp1) < (distancia * 0.2) or (alert.precio > tp1 if es_buy else alert.precio < tp1):
                     check_tp1 = " ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦"
                     
-            msg_tg += f"ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¯ TP1 (25%): {tp1}{check_tp1}\n"
-            msg_tg += f"ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¯ TP2 (50%): {tp2}{check_tp2}\n"
+            msg_tg += f"ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¯ TP1 (25%/40%): {tp1}{check_tp1}\n"
+            msg_tg += f"ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¯ TP2 (50%/65%): {tp2}{check_tp2}\n"
             msg_tg += f"ÃƒÂ°Ã…Â¸Ã‚ÂÃ‚Â Full TP: {alert.take_profit}{check_full}\n"
         else:
             msg_tg += f"ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¯ TP: N/A\n"
