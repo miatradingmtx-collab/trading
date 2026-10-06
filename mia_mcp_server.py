@@ -505,6 +505,23 @@ MCP_TOOLS_REGISTRY = [
 # DISPATCHER DE HERRAMIENTAS
 # ====================================================================
 
+def tool_read_trading_cbr(symbol: str = "ALL", max_cases: int = 5) -> list:
+    """
+    Lee las lecciones aprendidas (Post-Mortem) del CBR para que Atlas y los enjambres 
+    validen si las condiciones actuales se parecen a un trade perdedor del pasado.
+    """
+    try:
+        req = requests.get(f"{UPSTASH_URL}/get/cache_trading_learning_kb", headers=UPSTASH_HEADERS, timeout=3)
+        data = req.json()
+        if data and data.get("result"):
+            history = json.loads(data["result"])
+            if symbol != "ALL":
+                history = [h for h in history if h.get("symbol") == symbol]
+            return history[:max_cases]
+    except Exception:
+        pass
+    return []
+
 def execute_tool_call(tool_name: str, arguments: Dict[str, Any]) -> Any:
     """Ejecuta una herramienta del registro por nombre"""
     if tool_name == "scan_footprint_delta":
