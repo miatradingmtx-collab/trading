@@ -92,3 +92,9 @@ A partir de este momento, el sistema cuenta con un **CBR de Mercado** (Case-Base
 4. **Consultar el CBR antes de Operar:** En el futuro, antes de emitir una señal de compra/venta o de ajustar los parámetros de TensorFlow/ML, revisa `cache_trading_learning_kb` para asegurarte de no repetir un "Caso" que ya resultó en pérdida.
 
 *(Nota: Debido al mandato HITL Omnipresente, cualquier alteración real a pesos o métricas derivada de estos Casos de Estudio debe enviarse como propuesta a `cache_pending_ops_approvals` para aprobación humana, hasta que se certifique la Prueba de Confianza).*
+
+# REGLA: TERMINOLOGÍA ESTRICTA PARA PARCIALES VS TRAILING STOP
+**REGLA DE ORO:** Está terminantemente PROHIBIDO confundir un Cierre Parcial (Take Profit Parcial) con un Trailing Stop. Son dos conceptos operativos matemáticamente distintos y su telemetría no debe cruzarse.
+- **PARCIAL (TP40, TP65, TP25, TP50):** Es una toma de liquidez estática programada a un nivel específico de ganancia. Los campos de la base de datos 	otal_hits_tp40 y 	otal_hits_tp65 DEBEN referirse exclusivamente a la ejecución de estos parciales. En el código, deben usarse constantes como TP_PARCIAL_40 o TP_PARCIAL_65.
+- **TRAILING STOP (TS):** Es el seguimiento dinámico del SL (Stop Loss) para proteger ganancias conforme el precio avanza. No es un TP estático. Golpear el Trailing Stop significa que el SL dinámico fue alcanzado en retroceso.
+Los LLMs y el Agente Quant/Post-Mortem deben aplicar siempre esta distinción ontológica al redactar sus diagnósticos y reglas en el CBR.

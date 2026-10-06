@@ -1318,8 +1318,8 @@ def determinar_tipo_salida_ticket(ticket: str):
     
     if nivel_parcial > 0:
         if abs(pnl) <= 1.5: return "PARCIAL_BE"
-        if nivel_parcial == 2: return "TRAILING_STOP_65" if is_new else "TRAILING_STOP_50"
-        if nivel_parcial == 1: return "TRAILING_STOP_40" if is_new else "TRAILING_STOP_25"
+        if nivel_parcial == 2: return "TP_PARCIAL_65" if is_new else "TP_PARCIAL_50"
+        if nivel_parcial == 1: return "TP_PARCIAL_40" if is_new else "TP_PARCIAL_25"
         return "TP_COMPLETO" if pnl > 0 else "SL_ORIGINAL"
     else:
         if pnl < 0: return "SL_ORIGINAL"
@@ -1431,15 +1431,15 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                     ses_data["total_hits_sl"] = ses_data.get("total_hits_sl", 0) + 1
                 elif tipo_salida == "TRAILING_STOP_60":
                     ses_data["total_hits_tp60"] = ses_data.get("total_hits_tp60", 0) + 1
-                elif tipo_salida == "TRAILING_STOP_65":
+                elif tipo_salida == "TP_PARCIAL_65":
                     ses_data["total_hits_tp65"] = ses_data.get("total_hits_tp65", 0) + 1
                 elif tipo_salida == "TRAILING_STOP_45":
                     ses_data["total_hits_tp45"] = ses_data.get("total_hits_tp45", 0) + 1
-                elif tipo_salida == "TRAILING_STOP_40":
+                elif tipo_salida == "TP_PARCIAL_40":
                     ses_data["total_hits_tp40"] = ses_data.get("total_hits_tp40", 0) + 1
-                elif tipo_salida == "TRAILING_STOP_50":
+                elif tipo_salida == "TP_PARCIAL_50":
                     ses_data["total_hits_tp50"] = ses_data.get("total_hits_tp50", 0) + 1
-                elif tipo_salida == "TRAILING_STOP_25":
+                elif tipo_salida == "TP_PARCIAL_25":
                     ses_data["total_hits_tp25"] = ses_data.get("total_hits_tp25", 0) + 1
                 elif tipo_salida == "PARCIAL_BE":
                     ses_data["total_hits_be"] = ses_data.get("total_hits_be", 0) + 1
