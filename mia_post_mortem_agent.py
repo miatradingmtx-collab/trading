@@ -85,10 +85,10 @@ class MiaQuantSupervisor:
             model = genai.GenerativeModel(target_model_name)
             
             prompt = f"""
-            Eres MIA Quant Supervisor. Tu tarea es hacer un Análisis Post-Mortem de un trade perdedor.
+            Eres MIA Quant Supervisor. Tu tarea es hacer un Análisis Cuantitativo y Post-Mortem de un trade cerrado.
             NO vas a ejecutar nada, solo darás un diagnóstico y una sugerencia para el CBR.
             
-            [TRADE PERDIDO]
+            [TRADE (GANANCIA, PERDIDA O BE)]
             {json.dumps(trade_context)}
             
             [ESTRATEGIAS ACTUALES (mia_kb / regla_de_3 / ML)]
@@ -97,13 +97,14 @@ class MiaQuantSupervisor:
             [ESTADO RED NEURONAL TENSORFLOW]
             {estado_tf}
             
-            [HISTORIAL CBR DE TRADING (Aprende de estos casos)]
-            {json.dumps(cbr_history[:10])} # Top 10 casos recientes
+            [HISTORIAL CBR DE TRADING (Aprende de estos casos previos)]
+            {json.dumps(cbr_history[:10])}
             
             Instrucciones:
-            1. Haz un cruce de información: ¿Por qué la estrategia actual y la red neuronal fallaron en este trade?
-            2. Revisa el Historial CBR: ¿Es un error repetido (Ej. Case 10)? Si es así, indícalo.
-            3. Devuelve estrictamente un JSON con las claves: "diagnostico" (qué falló) y "sugerencia" (qué hiperparámetros o reglas propones ajustar para el enjambre o TensorFlow).
+            1. Si el trade fue PERDEDOR (PNL negativo), descubre por qué falló la predicción (ej. barrido de liquidez, stop ajustado).
+            2. Si el trade fue GANADOR (PNL positivo), identifica el patrón clave que permitió el éxito para forzar a TensorFlow a darle más peso.
+            3. Si el trade fue BREAK-EVEN (PNL 0), analiza si el trailing stop cortó las ganancias muy temprano.
+            4. Devuelve estrictamente un JSON con las claves: "diagnostico" (qué pasó) y "sugerencia" (qué reglas matemáticas o parámetros propones ajustar a los enjambres T1-T10).
             """
             
             response = model.generate_content(prompt)
