@@ -131,10 +131,9 @@ def tool_calc_dynamic_atr(symbol: str = "EURUSD", period: int = 14, current_pric
     volatility_profiles = {
         "EURUSD": {"base_atr_pips": 16.5, "avg_spread_pips": 0.8},
         "GBPUSD": {"base_atr_pips": 24.2, "avg_spread_pips": 1.2},
-        "USDJPY": {"base_atr_pips": 22.0, "avg_spread_pips": 1.0},
         "AUDUSD": {"base_atr_pips": 15.0, "avg_spread_pips": 1.0},
-        "USDCAD": {"base_atr_pips": 18.5, "avg_spread_pips": 1.1},
-        "NZDUSD": {"base_atr_pips": 14.0, "avg_spread_pips": 1.2},
+        "GBPJPY": {"base_atr_pips": 32.0, "avg_spread_pips": 1.8},
+        "NZDCAD": {"base_atr_pips": 16.0, "avg_spread_pips": 1.5},
         "XAUUSD": {"base_atr_pips": 95.0, "avg_spread_pips": 3.0}
     }
     
@@ -192,9 +191,9 @@ def tool_scan_orderbook_depth(symbol: str = "EURUSD", current_price: float = 1.0
         "EURUSD": "6E (Euro FX Futures)",
         "GBPUSD": "6B (British Pound Futures)",
         "AUDUSD": "6A (Australian Dollar Futures)",
-        "NZDUSD": "6N (New Zealand Dollar Futures)",
-        "XAUUSD": "GC (COMEX Gold Futures)",
-        "GBPJPY": "GBP/JPY (Sintético Cruzado 6B/6J)"
+        "GBPJPY": "GBP/JPY (Sintético Cruzado 6B/6J)",
+        "NZDCAD": "NZD/CAD (Sintético Cruzado 6N/6C)",
+        "XAUUSD": "GC (COMEX Gold Futures)"
     }
     cme_contract = cme_tickers.get(sym, f"{sym}_FUTURES")
     
