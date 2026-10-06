@@ -18,9 +18,11 @@ print("Iniciando MGET Watchdog Sync (Herd T1 & T4)...")
 res_atlas = requests.get(f"{UPSTASH_URL}/get/cache_mia_atlas", headers=headers)
 if res_atlas.status_code == 200 and res_atlas.json().get('result'):
     atlas_data = json.loads(res_atlas.json().get('result'))
-    fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    doc_id = f"AB_SNAPSHOT_{fecha_hoy}"
-    db.collection('mia_atlas').document(doc_id).set(atlas_data)
+    fecha_corta = datetime.datetime.now().strftime('%Y-%m-%d')
+      doc_id = f"AB_SNAPSHOT_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+      
+      # Homologacion estricta de taxonomia: Agrupar por subcolecciones diarias para evitar desorden en raiz
+      db.collection('mia_atlas').document('snapshots_historicos').collection(fecha_corta).document(doc_id).set(atlas_data)
     db.collection('mia_atlas').document('latest_debate_ab').set(atlas_data)
     print(f"ATLAS homologado en Firebase: {doc_id}")
 

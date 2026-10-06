@@ -287,9 +287,13 @@ class AtlasResearcherAgent:
                     cred = credentials.Certificate("serviceAccountKey.json")
                     firebase_admin.initialize_app(cred)
             db = firestore.client()
-            doc_id = f"AB_SNAPSHOT_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-            db.collection("mia_atlas").document("state").set(ab_payload)
-            db.collection("mia_atlas").document(doc_id).set(ab_payload)
+            fecha_corta = datetime.datetime.now().strftime('%Y-%m-%d')
+              doc_id = f"AB_SNAPSHOT_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+              
+              db.collection("mia_atlas").document("state").set(ab_payload)
+              
+              # Homologacion de taxonomia: Agrupar en subcoleccion historica diaria
+              db.collection("mia_atlas").document("snapshots_historicos").collection(fecha_corta).document(doc_id).set(ab_payload)
             print(f"| ATLAS | Homologado pasivamente en Firestore: mia_atlas/{doc_id}")
         except Exception as e_fb:
             print(f"Persistencia pasiva Firestore mia_atlas: {e_fb}")
