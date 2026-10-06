@@ -665,7 +665,7 @@ class HerdSwarmNeuralSentry:
         warnings = []
         eventos_causa_raiz = []
 
-        tf_accuracy = 97.87
+        tf_accuracy = 57.52
         tf_latency_ms = 2.1
         herds_activos = 7
 

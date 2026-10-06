@@ -104,7 +104,7 @@ const AntopusDashboard = () => {
     { id: 'ZEPHR', name: 'HERD 3 (ZEPHR)', desc: 'BAYES & STATS', color: 'text-sky-400', border: 'border-sky-400', icon: <Map size={18}/>, pos: { top: '38%', left: '88%' } },
     { id: 'LUMEN', name: 'HERD 4 (LUMEN)', desc: 'SMC & ORDER BLOCKS', color: 'text-yellow-400', border: 'border-yellow-400', icon: <Eye size={18}/>, pos: { top: '68%', left: '82%' } },
     { id: 'RUNE', name: 'HERD 5 (RUNE)', desc: 'DEFENSIVE RISK', color: 'text-red-500', border: 'border-red-500', icon: <Shield size={18}/>, pos: { top: '90%', left: '50%' } },
-    { id: 'TENSORFLOW', name: 'HERD 6 (TF)', desc: 'NEURAL CORE (97.8%)', color: 'text-purple-400', border: 'border-purple-400', icon: <Zap size={18}/>, pos: { top: '68%', left: '18%' } },
+    { id: 'TENSORFLOW', name: 'HERD 6 (TF)', desc: 'NEURAL CORE (57.5%)', color: 'text-purple-400', border: 'border-purple-400', icon: <Zap size={18}/>, pos: { top: '68%', left: '18%' } },
     { id: 'ATLAS', name: 'HERD 7 (ATLAS)', desc: 'DOM, CVD & MCP', color: 'text-[#38bdf8]', border: 'border-[#38bdf8]', icon: <Briefcase size={18}/>, pos: { top: '38%', left: '12%' } },
     { id: 'MASTER', name: 'MASTER GATEKEEPER', desc: 'QUORUM CONSENSUS (>=70%)', color: 'text-emerald-400', border: 'border-emerald-400', icon: <ShieldCheck size={18}/>, pos: { top: '15%', left: '18%' } }
   ];

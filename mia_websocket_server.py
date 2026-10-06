@@ -118,7 +118,8 @@ async def websocket_endpoint(websocket: WebSocket):
             init_msg = f"MERCADO CERRADO (Fin de semana). Criosueño activo ({horas}h restantes para apertura dom 21:00 UTC). Consumo de tokens: 0."
             action_status = "STANDBY"
         else:
-            init_msg = "MERCADO EN VIVO. Enjambre HFT activo en OpenRouter (Llama 3.3 70B REST & TensorFlow 97.87%)."
+            # Precisión homologada real calibrada en 678 trades
+            init_msg = "MERCADO EN VIVO. Enjambre HFT activo en OpenRouter (Llama 3.3 70B REST & TensorFlow 57.52%)."
             action_status = "LIVE"
 
         await websocket.send_json({
