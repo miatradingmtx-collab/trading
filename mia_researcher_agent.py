@@ -288,16 +288,15 @@ class AtlasResearcherAgent:
                     firebase_admin.initialize_app(cred)
             db = firestore.client()
             fecha_corta = datetime.datetime.now().strftime('%Y-%m-%d')
-              doc_id = f"AB_SNAPSHOT_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-              
-              db.collection("mia_atlas").document("state").set(ab_payload)
-              
-              # Homologacion de taxonomia: Agrupar en subcoleccion historica diaria
-              db.collection("mia_atlas").document("snapshots_historicos").collection(fecha_corta).document(doc_id).set(ab_payload)
+            doc_id = f"AB_SNAPSHOT_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+            
+            db.collection("mia_atlas").document("state").set(ab_payload)
+            
+            # Homologacion de taxonomia: Agrupar en subcoleccion historica diaria
+            db.collection("mia_atlas").document("snapshots_historicos").collection(fecha_corta).document(doc_id).set(ab_payload)
             print(f"| ATLAS | Homologado pasivamente en Firestore: mia_atlas/{doc_id}")
         except Exception as e_fb:
             print(f"Persistencia pasiva Firestore mia_atlas: {e_fb}")
-
 
         return ab_payload
 
@@ -306,7 +305,7 @@ class AtlasResearcherAgent:
         Asigna a cada trade real de MT5 un ticket virtual #SHADOW_XXXXXX y corre
         un análisis contrafactual (What-If Analysis):
         - ¿Qué hubiera pasado con la operativa de los Enjambres Herds?
-        - ¿Qué hubiera pasado con la aprobación de TensorFlow (97.87%)?
+        - ¿Qué hubiera pasado con la aprobación de TensorFlow (57.52%)?
         - ¿Qué hubiera pasado con las reglas de absorción y ATR de ATLAS?
         Compara los WinRates resultantes de ambas ramas sin ejecutar ninguna orden en el broker.
         """
