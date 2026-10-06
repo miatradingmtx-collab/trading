@@ -2414,6 +2414,46 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             }
 
         # 1.5 VALIDACIÃƒÆ’Ã¢â‚¬Å“N DE SEMÃƒÆ’Ã‚ÂFORO Y LÃƒÆ’Ã‚ÂMITE DE TRADES (MÃƒÆ’Ã‚Â¡ximo 2 simultÃƒÆ’Ã‚Â¡neos por activo)
+        # 1.2 [FILTRO INSTITUCIONAL]: Matriz Optima de Sesiones por Activo
+        hora_utc_setup = datetime.datetime.now(datetime.timezone.utc).hour
+        sesiones_optimas_dict = {
+            "EURUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], # London + NY
+            "GBPUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], # London + NY
+            "EURGBP": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16], # London (Frankfurt)
+            "GBPJPY": [22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], # Asia + London + NY
+            "AUDUSD": [22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], # Asia + London
+            "NZDCAD": [21, 22, 23, 0, 1, 2, 3, 4, 5, 6], # Asia (Pacifico)
+            "XAUUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] # London + NY
+        }
+        if activo_normalizado in sesiones_optimas_dict and hora_utc_setup not in sesiones_optimas_dict[activo_normalizado]:
+            print(f"| RUNE RISK | Bloqueando {activo_normalizado} fuera de sesion optima (Hora UTC: {hora_utc_setup})")
+            return {
+                "authorized": False,
+                "reason": f"Filtro Institucional de Sesion: {activo_normalizado} vetado fuera de su horario optimo (Hora UTC: {hora_utc_setup}).",
+                "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
+            }
+
+        # 1.3 [DAILY PROFIT LOCK & DRAWDOWN LOCK] (+1.5% o -3%)
+        try:
+            r_mt5_lock = requests.get(f"{UPSTASH_URL}/get/cache_mt5", headers=UPSTASH_HEADERS, timeout=2)
+            if r_mt5_lock.status_code == 200 and r_mt5_lock.json().get('result'):
+                mt5_data = json.loads(r_mt5_lock.json()['result'])
+                pnl_hoy = float(mt5_data.get('pnl_cerrado_hoy', 0.0) or 0.0)
+                if pnl_hoy >= 75.0:
+                    return {
+                        "authorized": False,
+                        "reason": "Daily Profit Lock (+75 USD alcanzado). Bot protegido en ganancia.",
+                        "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
+                    }
+                if pnl_hoy <= -150.0:
+                    return {
+                        "authorized": False,
+                        "reason": "Daily Drawdown Lock (-150 USD alcanzado). Limite de perdida diario activado.",
+                        "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
+                    }
+        except Exception:
+            pass
+
         estado_actual = data.get("estado_ejecucion", "INACTIVO")
         operaciones_activas = data.get("operaciones_activas", [])
         
@@ -3558,45 +3598,6 @@ def api_dashboard_data():
 def get_cache_mget():
     """Retorna el contenido del slot fÃ­sico cache_mget en Upstash Redis (Consolidado MGET)."""
     try:
-        # [FILTRO INSTITUCIONAL]: Matriz Optima de Sesiones por Activo
-        from datetime import datetime
-        import requests
-        import json
-        
-        hora_utc = datetime.utcnow().hour
-        
-        # Obtener activo de forma segura
-        activo_upper = ""
-        if 'req' in locals() and hasattr(req, 'activo'): activo_upper = req.activo.upper()
-        elif 'alert' in locals() and hasattr(alert, 'activo'): activo_upper = alert.activo.upper()
-        
-        sesiones_optimas = {
-            "EURUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], # London + NY
-            "GBPUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], # London + NY
-            "GBPJPY": [23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], # Asia + London
-            "NZDCAD": [22, 23, 0, 1, 2, 3, 4, 5], # Asia (Pacifico)
-            "XAUUSD": [13, 14, 15, 16, 17, 18, 19, 20] # NY Principalmente
-        }
-        
-        if activo_upper in sesiones_optimas and hora_utc not in sesiones_optimas[activo_upper]:
-            print(f'| RUNE RISK | Bloqueando {activo_upper} fuera de sesion optima (UTC: {hora_utc})')
-            return {"status": "rejected", "razon": f"Activo {activo_upper} bloqueado fuera de sesion optima"}
-            
-        # [DAILY PROFIT LOCK]: Bloqueo de Ganancia / Perdida (+1.5% o -3%)
-        # Calculamos PNL del dia en tiempo real usando memoria interna (sin requests externos)
-        try:
-            pnl_res = api_pnl_hoy("MIA_INTERNAL_BYPASS")
-            pnl_hoy = pnl_res.get("pnl_hoy", 0.0) if isinstance(pnl_res, dict) else 0.0
-            
-            # Metas Conservadoras (Base $5000)
-            if pnl_hoy >= 75.0:
-                return {"status": "rejected", "razon": "Daily Profit Lock: Meta de ganancia diaria alcanzada"}
-            if pnl_hoy <= -150.0:
-                return {"status": "rejected", "razon": "Daily Drawdown Lock: Limite de perdida diaria alcanzado"}
-        except Exception as lock_err:
-            print(f"| DAILY LOCK ERROR | {lock_err}")
-            pass
-
         import requests, json
         up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
         session = requests.Session()
@@ -4677,6 +4678,56 @@ async def handle_slack_interaction(request: Request):
                     dispatch_slack_confirmation(f"❌ *Error al aplicar propuestas seleccionadas*: {e_sel}", response_url)
 
             asyncio.create_task(async_apply_selected())
+            return Response(content="OK", media_type="text/plain", status_code=200)
+
+        # 2.5 Botones de MIA Quant Supervisor (RLHF Post-Mortem y CBR Trading)
+        elif action_id.startswith("quant_approve_") or action_id.startswith("quant_reject_") or action_id.startswith("quant_review_"):
+            async def async_quant_interaction():
+                try:
+                    ticket_id = action_id.replace("quant_approve_", "").replace("quant_reject_", "").replace("quant_review_", "")
+                    action_type = "APROBADO" if "quant_approve_" in action_id else ("RECHAZADO" if "quant_reject_" in action_id else "REVISION")
+                    
+                    # 1. Actualizar Upstash CBR Trading
+                    try:
+                        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                        r_cbr = requests.get("https://certain-gnat-160816.upstash.io/get/cache_trading_learning_kb", headers=up_headers, timeout=3).json()
+                        cbr_data = json.loads(r_cbr.get("result", "[]")) if r_cbr.get("result") else []
+                        for caso in cbr_data:
+                            if str(caso.get("ticket")) == str(ticket_id):
+                                caso["veredicto_humano"] = action_type
+                                caso["aprobado_por"] = user_name
+                                caso["score_confianza"] = 1.0 if action_type == "APROBADO" else 0.0
+                                caso["timestamp_aprobacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                        requests.post("https://certain-gnat-160816.upstash.io/set/cache_trading_learning_kb", headers=up_headers, json=cbr_data[:50])
+                    except Exception as up_err:
+                        print(f"| QUANT CBR UPSTASH ERROR | {up_err}")
+                        
+                    # 2. Actualizar Firestore
+                    if firebase_inicializado and db:
+                        try:
+                            docs = db.collection("mia_trading_learning_history").where("ticket", "==", str(ticket_id)).limit(1).stream()
+                            for d in docs:
+                                d.reference.update({
+                                    "veredicto_humano": action_type,
+                                    "aprobado_por": user_name,
+                                    "score_confianza": 1.0 if action_type == "APROBADO" else 0.0,
+                                    "timestamp_aprobacion": datetime.datetime.now(datetime.timezone.utc).isoformat()
+                                })
+                        except Exception as fb_err:
+                            print(f"| QUANT CBR FIREBASE ERROR | {fb_err}")
+                            
+                    emoji_status = "✅" if action_type == "APROBADO" else ("❌" if action_type == "RECHAZADO" else "🔍")
+                    msg_quant = (
+                        f"{emoji_status} *MIA QUANT CBR:* Aprendizaje del trade `{ticket_id}` registrado como *{action_type}* por @{user_name}.\n"
+                        f"• *Confianza Sello Humano:* `{'100% (Verificado)' if action_type == 'APROBADO' else 'Descartado'}`.\n"
+                        f"• *Destino:* `cache_trading_learning_kb` y `mia_trading_learning_history` sincronizados con Gemini Pro y ATLAS."
+                    )
+                    dispatch_slack_confirmation(msg_quant, response_url)
+                except Exception as q_err:
+                    print(f"| QUANT INTERACTION ERROR | {q_err}")
+                    dispatch_slack_confirmation(f"❌ *Error al procesar interacción Quant*: {q_err}", response_url)
+            
+            asyncio.create_task(async_quant_interaction())
             return Response(content="OK", media_type="text/plain", status_code=200)
 
         # 3. Botón: Aprobar Todas

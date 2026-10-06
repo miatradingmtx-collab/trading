@@ -1036,6 +1036,47 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                         print(f"| GESTOR BE ERROR | No se pudo modificar ticket {ticket} a BE: {e}")
 
 
+        # D. CAPA 1: BLINDAJE INSTITUCIONAL DE SESIÓN ASIÁTICA (Session Flush & Acumulación Protegida en Break-Even)
+        # Al llegar la sesión de Asia (21:00 UTC a 06:00 UTC), pares europeos (EURUSD, GBPUSD, EURGBP)
+        # no deben tener Stop Loss expuesto en riesgo inicial.
+        try:
+            hora_utc_actual = datetime.datetime.now(datetime.timezone.utc).hour
+            es_par_europeo = activo in ["EURUSD", "GBPUSD", "EURGBP"]
+            es_noche_asiatica = (hora_utc_actual >= 21 or hora_utc_actual < 6)
+            
+            if es_par_europeo and es_noche_asiatica:
+                # 1. Si está en ganancia sólida (>= +$15 USD o >= 30% del recorrido):
+                # Cobrar a mercado de inmediato antes del rollover y chop asiático
+                distancia_total_d = abs(tp - entry_price) if tp > 0.0 else 0.0
+                distancia_recorrida_d = abs(current_price - entry_price)
+                recorrido_pct = (distancia_recorrida_d / distancia_total_d) if distancia_total_d > 0 else 0.0
+                
+                if profit_flotante >= 15.0 or (recorrido_pct >= 0.30 and en_ganancia):
+                    print(f"| SESSION FLUSH | Cobrando ganancias de {activo} ({ticket}) antes del cierre asiático: +${profit_flotante:.2f}")
+                    try:
+                        await connection.close_position(ticket)
+                        POSICIONES_ACTIVAS.pop(ticket, None)
+                        continue
+                    except Exception as e_flush:
+                        print(f"| SESSION FLUSH ERROR | Error al cerrar {ticket}: {e_flush}")
+                
+                # 2. Si está en rango plano o acumulación:
+                # Blindar en Break-Even estricto ($0.00) para permitir que la fase de acumulación asiática
+                # ocurra sin riesgo de pérdida, esperando la expansión de Londres.
+                sl_actual_d = POSICIONES_ACTIVAS[ticket].get("sl", 0.0)
+                if abs(sl_actual_d - entry_price) > 0.0001:
+                    if (es_buy and sl_actual_d < entry_price) or (not es_buy and sl_actual_d > entry_price):
+                        pips_dist = abs(current_price - entry_price) * (100 if "JPY" in activo else 10000)
+                        if en_ganancia or pips_dist <= 8.0:
+                            print(f"| SESSION ACCUMULATION LOCK | Protegiendo {activo} ({ticket}) en Break-Even para acumulación asiática pre-Londres.")
+                            try:
+                                await connection.modify_position(ticket, stop_loss=entry_price, take_profit=tp)
+                                POSICIONES_ACTIVAS[ticket]["sl"] = entry_price
+                            except Exception as e_be:
+                                print(f"| SESSION BE ERROR | {e_be}")
+        except Exception as e_ses_prot:
+            print(f"| SESSION PROTECT ERROR | {e_ses_prot}")
+
     # 2. DETECTAR POSICIONES CERRADAS TOTALMENTE
     tickets_cerrados = []
     for ticket, info in POSICIONES_ACTIVAS.items():
@@ -1388,6 +1429,21 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         es_escenario_6 = tiene_lux and not tiene_fvg and not tiene_retail
 
         # REGLA ESTRICTA DE 1 TRADE MÃXIMO POR ACTIVO
+        # REGLA INSTITUCIONAL DE SESIONES ÓPTIMAS
+        hora_utc_scan = datetime.datetime.now(datetime.timezone.utc).hour
+        sesiones_permitidas = {
+            "EURUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+            "GBPUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+            "EURGBP": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+            "GBPJPY": [22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+            "AUDUSD": [22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            "NZDCAD": [21, 22, 23, 0, 1, 2, 3, 4, 5, 6],
+            "XAUUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        }
+        if activo in sesiones_permitidas and hora_utc_scan not in sesiones_permitidas[activo]:
+            print(f"| REGLA SESION | {activo} vetado en escáner por estar fuera de sesión óptima (Hora UTC: {hora_utc_scan})")
+            continue
+
         if num_abiertos >= 1:
             print(f"| REGLA DE RIESGO | Ya existe {num_abiertos} posiciÃ³n activa para {activo}. Omitiendo para evitar doble trade.")
             continue
