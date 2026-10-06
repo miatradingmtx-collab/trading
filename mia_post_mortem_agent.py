@@ -65,7 +65,7 @@ class MiaQuantSupervisor:
         try:
             genai.configure(api_key=gemini_api_key)
             # Usar el modelo pro para mayor ventana de contexto y cruce de datos
-            model = genai.GenerativeModel('gemini-1.5-pro')
+            model = genai.GenerativeModel('gemini-1.5-pro-latest')
             
             prompt = f"""
             Eres MIA Quant Supervisor. Tu tarea es hacer un Análisis Post-Mortem de un trade perdedor.
