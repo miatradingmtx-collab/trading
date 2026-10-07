@@ -153,6 +153,29 @@ class MiaQuantSupervisor:
                 except Exception:
                     continue
 
+        # Intento 3: Failover de Gemini vía Gateway OpenRouter (google/gemini-2.5-flash) si Google directo da 429
+        if not texto and os.getenv("OPENROUTER_API_KEY"):
+            try:
+                or_key = os.getenv("OPENROUTER_API_KEY")
+                or_headers = {"Authorization": f"Bearer {or_key}", "Content-Type": "application/json"}
+                or_payload = {
+                    "model": "google/gemini-2.5-flash",
+                    "messages": [
+                        {"role": "system", "content": "Eres MIA Quant Supervisor (Gemini Pro). Devuelve estrictamente un objeto JSON."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": 0.2,
+                    "max_tokens": 1000
+                }
+                r_or = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=or_headers, json=or_payload, timeout=12)
+                if r_or.status_code == 200:
+                    choices = r_or.json().get("choices", [])
+                    if choices:
+                        texto = choices[0].get("message", {}).get("content", "")
+                        print(f"| QUANT AGENT | Inferencia Gemini completada exitosamente vía Gateway OpenRouter.")
+            except Exception as e_or:
+                print(f"| QUANT AGENT | Error en failover OpenRouter Gemini: {e_or}")
+
         if not texto:
             return {
                 "diagnostico": f"No se pudo completar la inferencia con Gemini para el trade {trade_context.get('ticket')}.",
@@ -160,20 +183,35 @@ class MiaQuantSupervisor:
                 "nota_infraestructura_t1_t10": "Infraestructura backend nominal."
             }
 
+        resultado = None
+        import re
         try:
-            limpio = texto.replace('```json', '').replace('```', '').strip()
-            resultado = json.loads(limpio)
+            m_json = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', texto)
+            if m_json:
+                resultado = json.loads(m_json.group(1))
+            else:
+                s_idx = texto.find('{')
+                e_idx = texto.rfind('}')
+                if s_idx != -1 and e_idx != -1 and e_idx > s_idx:
+                    resultado = json.loads(texto[s_idx:e_idx+1])
+                else:
+                    limpio = texto.replace('```json', '').replace('```', '').strip()
+                    resultado = json.loads(limpio)
+        except Exception as e_parse:
+            print(f"| QUANT AGENT | JSON parse error: {e_parse}")
+
+        if resultado and isinstance(resultado, dict):
             if "sugerencia" in resultado and "sugerencia_7_herds_trading" not in resultado:
                 resultado["sugerencia_7_herds_trading"] = resultado["sugerencia"]
             if "nota_infraestructura_t1_t10" not in resultado:
                 resultado["nota_infraestructura_t1_t10"] = "Infraestructura backend nominal."
             return resultado
-        except Exception as e_parse:
-            return {
-                "diagnostico": f"Respuesta de Gemini generada pero no parseable: {texto[:100]}",
-                "sugerencia_7_herds_trading": "Ajustar parámetros según confluencia de 7 Herds.",
-                "nota_infraestructura_t1_t10": "Infraestructura backend nominal."
-            }
+
+        return {
+            "diagnostico": texto[:400] if texto else "Diagnóstico no disponible.",
+            "sugerencia_7_herds_trading": "Ajustar parámetros según confluencia de 7 Herds.",
+            "nota_infraestructura_t1_t10": "Infraestructura backend nominal."
+        }
 
     def analyze_recent_losses(self):
         print("| QUANT SUPERVISOR | Iniciando escaneo post-mortem con Gemini...")
@@ -207,12 +245,24 @@ class MiaQuantSupervisor:
         except Exception:
             cbr_history = []
             
-        # 1. Llamada exclusiva a GEMINI PRO (Aislado de OpenRouter/Llama)
+        # 1. Llamada exclusiva a GEMINI (Aislado de Llama/Back-Office)
         gemini_analysis = self._llm_gemini_inference(trade, cbr_history)
         
-        sugerencia_trading = gemini_analysis.get("sugerencia_7_herds_trading") or gemini_analysis.get("sugerencia", "Sin sugerencia de trading.")
-        nota_infra = gemini_analysis.get("nota_infraestructura_t1_t10", "Infraestructura backend nominal.")
-        diagnostico = gemini_analysis.get("diagnostico", "Diagnóstico no disponible.")
+        sugerencia_raw = gemini_analysis.get("sugerencia_7_herds_trading") or gemini_analysis.get("sugerencia", "Sin sugerencia de trading.")
+        if isinstance(sugerencia_raw, dict):
+            sugerencia_trading = "\n".join([f"• *{k}:* {v}" for k, v in sugerencia_raw.items()])
+        elif isinstance(sugerencia_raw, list):
+            sugerencia_trading = "\n".join([f"• {item}" for item in sugerencia_raw])
+        else:
+            sugerencia_trading = str(sugerencia_raw)
+
+        diagnostico_raw = gemini_analysis.get("diagnostico", "Diagnóstico no disponible.")
+        if isinstance(diagnostico_raw, dict):
+            diagnostico = "\n".join([f"• *{k}:* {v}" for k, v in diagnostico_raw.items()])
+        else:
+            diagnostico = str(diagnostico_raw)
+
+        nota_infra = str(gemini_analysis.get("nota_infraestructura_t1_t10", "Infraestructura backend nominal."))
 
         case_id = f"TRADE_CASE_{ticket}_{int(datetime.datetime.now().timestamp())}"
         payload = {
