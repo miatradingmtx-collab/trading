@@ -1186,8 +1186,9 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
         sl = decision.get("stop_loss", precio_ejecucion - 200 if es_buy else precio_ejecucion + 200)
         tp = decision.get("take_profit", precio_ejecucion + 400 if es_buy else precio_ejecucion - 400)
         
-        # LOTAJE DINAMICO (Riesgo configurado sobre el balance diario real, 2% recomendado)
-        riesgo_pct = 2.0 
+        # LOTAJE DINAMICO (Riesgo institucional calibrado para distribuir el presupuesto de $115 USD en 3 sesiones)
+        # 0.60% de riesgo por trade (~$30 USD sobre $5000) permite entre 3 y 4 operaciones diarias holgadas
+        riesgo_pct = 0.60 
         lote = calcular_lotaje_dinamico(balance, riesgo_pct, precio_ejecucion, sl, simbolo_broker, presupuesto_restante)
         decision["lote"] = lote
 
