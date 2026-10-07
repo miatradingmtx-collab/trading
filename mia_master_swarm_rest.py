@@ -186,7 +186,7 @@ def run_hft_cycle():
         session = requests.Session()
         session.trust_env = False
         
-        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix/cache_researcher_insights/cache_regla_de_3"
+        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix/cache_researcher_insights/cache_regla_de_3/cache_trading_learning_kb"
         res_mget = session.get(mget_url, headers=upstash_headers, timeout=5)
         slots = res_mget.json().get("result", []) if res_mget.status_code == 200 else []
         
@@ -208,6 +208,18 @@ def run_hft_cycle():
         researcher_raw = slots[3] if len(slots) > 3 and slots[3] else {}
         researcher_data = json.loads(researcher_raw) if isinstance(researcher_raw, str) else (researcher_raw or {})
         researcher_brief = researcher_data.get("brief", "")
+
+        # 5. Memoria CBR de Trading (slot 5)
+        cbr_raw = slots[5] if len(slots) > 5 and slots[5] else []
+        cbr_list = json.loads(cbr_raw) if isinstance(cbr_raw, str) else (cbr_raw or [])
+        cbr_items = []
+        for c in cbr_list[:3]:
+            c_sym = c.get('symbol', 'N/A')
+            c_diag = c.get('diagnostico', '')[:70]
+            c_sol = c.get('solucion_aprendida', '')[:70]
+            c_ver = c.get('veredicto_humano', 'PENDIENTE')
+            cbr_items.append(f"[{c_sym} - Humano:{c_ver}]: {c_diag} -> Solución: {c_sol}")
+        cbr_summary = " | ".join(cbr_items) if cbr_items else "Sin precedentes críticos en CBR."
             
         # Extracción de liquidez y balance
         balance = mt5_json.get("balance_actual", 0.0)
@@ -333,6 +345,7 @@ def run_hft_cycle():
     5. INFERENCIA RED NEURONAL (TENSORFLOW): Accuracy={tf_acc*100:.1f}%
     6. BRIEF INTELIGENCIA EXTERNA ATLAS MCP: {researcher_brief}
     7. REGLAS MIA KB & RIESGO: {mia_rules}
+    8. MEMORIA CBR DE TRADING (CASOS PREVIOS APRENDIDOS): {cbr_summary}
     
     INSTRUCCIONES DE DELIBERACIÓN DE LA MALLA (7 HERDS ESPECIALIZADOS + MASTER):
     Genera el diálogo de debate, contrapuntos y consenso final entre los 7 Herds independientes:
@@ -342,9 +355,10 @@ def run_hft_cycle():
     **HERD 4 - LUMEN**: Smart Money Concepts (Order Blocks LuxAlgo, Fair Value Gaps y trampas de liquidez).
     **HERD 5 - RUNE**: Gestión de riesgo estricto (SL técnico defensivo, tamaño de lote y ratio R:R).
     **HERD 6 - TENSORFLOW**: Inferencia de red neuronal profunda (probabilidad continua de acierto).
-    **HERD 7 - ATLAS**: Microestructura de libro de órdenes DOM (CVD Delta, absorción y datos MCP externos).
+    **HERD 7 - ATLAS**: Microestructura de libro de órdenes DOM (CVD Delta, absorción, MCP y verificación del CBR).
     **MASTER**: Veredicto final del Quórum Calificado [APROBADO ✅ o VETADO ⛔] indicando el Score Ponderado (0.00 a 1.00, umbral >= 0.70).
     
+    (REGLA CBR: Si el activo coincide con un precedente perdedor del CBR sin nueva confluencia, el Quórum debe VETAR o exigir confirmación estricta).
     Responde estrictamente con exactamente una intervención por Herd (máximo 2 líneas por Herd, concisas y técnicas) y el veredicto del MASTER.
     """
     

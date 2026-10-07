@@ -496,6 +496,17 @@ MCP_TOOLS_REGISTRY = [
             },
             "required": ["insight_type", "title", "payload"]
         }
+    },
+    {
+        "name": "read_trading_cbr",
+        "description": "Lee las lecciones aprendidas y casos previos de trading del CBR (Upstash cache_trading_learning_kb) para contrastar confluencias con trades pasados.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "symbol": {"type": "string", "description": "Símbolo a consultar o 'ALL'", "default": "ALL"},
+                "max_cases": {"type": "integer", "description": "Número máximo de casos", "default": 5}
+            }
+        }
     }
 ]
 
@@ -557,6 +568,11 @@ def execute_tool_call(tool_name: str, arguments: Dict[str, Any]) -> Any:
             insight_type=arguments.get("insight_type", "GENERAL"),
             title=arguments.get("title", "Market Insight"),
             payload=arguments.get("payload", {})
+        )
+    elif tool_name == "read_trading_cbr":
+        return tool_read_trading_cbr(
+            symbol=arguments.get("symbol", "ALL"),
+            max_cases=int(arguments.get("max_cases", 5))
         )
     else:
         raise ValueError(f"Herramienta MCP desconocida: '{tool_name}'")
