@@ -334,7 +334,7 @@ trigger: always_on
 
 
 # 🛡️ MANDATO HITL (HUMAN-IN-THE-LOOP) Y CONFIANZA
-**REGLA DE ORO:** NINGÚN Agente Supervisor, Enjambre (T1-T10) o tú mismo como LLM, tienen permitido aplicar cambios técnicos en producción (como sobreescribir `regla_de_3`, modificar SL/TP del bot, alterar arquitecturas o configuraciones activas) de manera automática (auto-corregida).
+**REGLA DE ORO:** NINGÚN Agente Supervisor Watchdog, Herds de Infraestructura (T1-T10), Enjambre de Trading (7 Herds: TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS) o tú mismo como LLM, tienen permitido aplicar cambios técnicos en producción (como sobreescribir `regla_de_3`, modificar SL/TP del bot, alterar arquitecturas o configuraciones activas) de manera automática (auto-corregida).
 
 **Flujo Estricto:**
 1. Todo análisis o corrección detectada debe enviarse como una PROPUESTA a `cache_pending_ops_approvals`.
@@ -343,7 +343,7 @@ trigger: always_on
 4. Mientras la Prueba de Confianza no sea certificada, debes forzar `TRUST_MODE_ENABLED = False` en el código (ya implementado en mia_supervisor_agent.py y mia_system_ops_swarm.py).
 
 # 🛡️ MANDATO HITL OMNIPRESENTE (TODAS LAS COLECCIONES)
-**REGLA DE ORO:** Está terminantemente PROHIBIDO que los agentes (T1-T10, Supervisor, LLMs) realicen cambios estructurales, actualizaciones de pesos, reglas o estado operativo de forma autónoma.
+**REGLA DE ORO:** Está terminantemente PROHIBIDO que los agentes (Infraestructura T1-T10, 7 Herds de Trading, Supervisor Watchdog, LLMs) realicen cambios estructurales, actualizaciones de pesos, reglas o estado operativo de forma autónoma.
 Esto aplica a toda la base de datos estructural:
 - `mia_kb` (y subcolecciones como regla_de_3)
 - `mia_tensorflow` (Pesos y Tensores)
@@ -354,7 +354,7 @@ Esto aplica a toda la base de datos estructural:
 - `mia_kb_test_temp`
 
 **¿Qué pasa con los historiales?**
-Las colecciones de log (`mia_ops_audit_history`, `mia_herds_history`, `mia_swarm_rest_history`, `mia_audit_logs`, `mia_mget_history`, `mia_ml_history`, `mia_system_logs`, `swarm_history`) son **EXCEPCIONES DE SOLO ESCRITURA (APPEND-ONLY)**. Los agentes SÍ pueden guardar sus reportes ahí para no dejar el sistema ciego, pero NO pueden alterar datos del pasado.
+Las colecciones de log (`mia_ops_audit_history`, `mia_herds_history`, `mia_swarm_rest_history`, `mia_audit_logs`, `mia_mget_history`, `mia_ml_history`, `mia_system_logs`, `swarm_history`, `mia_trading_learning_history`) son **EXCEPCIONES DE SOLO ESCRITURA (APPEND-ONLY)**. Los agentes SÍ pueden guardar sus reportes ahí para no dejar el sistema ciego, pero NO pueden alterar datos del pasado.
 
 **Flujo Obligatorio:**
 Toda mejora o corrección sobre los parámetros del bot DEBE ser enviada como una propuesta JSON a `cache_pending_ops_approvals`. El humano la revisará (Check = Aprobado / X = Rechazado). Ningún agente asume el rol de aplicar cambios hasta que el humano declare: "Prueba de Confianza Superada".

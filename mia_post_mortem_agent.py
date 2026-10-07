@@ -85,9 +85,24 @@ class MiaQuantSupervisor:
             model = genai.GenerativeModel(target_model_name)
             
             prompt = f"""
-            Eres MIA Quant Supervisor. Tu tarea es hacer un Análisis Cuantitativo y Post-Mortem de un trade cerrado.
-            NO vas a ejecutar nada, solo darás un diagnóstico y una sugerencia para el CBR.
-            
+            Eres MIA Quant Supervisor (Gemini Pro). Tu tarea es hacer un Análisis Cuantitativo y Post-Mortem de un trade cerrado para alimentar el CBR de Trading.
+            NO vas a ejecutar nada en vivo. Emites un diagnóstico y una propuesta cuantitativa para la aprobación humana (HITL).
+
+            TAXONOMÍA Y ROLES EN EL ECOSISTEMA MIA:
+            1. LOS 7 HERDS DEL SWARM DE TRADING (FRONT-OFFICE / HFT / ANÁLISIS DE MERCADO):
+               - HERD 1 (TIDAL): Flujo macro, sesiones Londres/NY, volumen delta y filtro de horarios.
+               - HERD 2 (NORO): Matemáticas cuantitativas, POC dinámico y cadenas de Markov.
+               - HERD 3 (ZEPHR): Probabilidad bayesiana, Expected Value y ratio Sharpe.
+               - HERD 4 (LUMEN): Smart Money Concepts (SMC), Order Blocks LuxAlgo y Fair Value Gaps.
+               - HERD 5 (RUNE): Gestión de riesgo estricto, tamaño de lote defensivo, SL/TP y trailing stop dinámico.
+               - HERD 6 (TENSORFLOW): Inferencia neuronal profunda continua (Red Neuronal de 678 trades).
+               - HERD 7 (ATLAS): Microestructura institucional, Order Book DOM CME/OANDA, CVD Delta y MCP.
+               *Ellos son los ÚNICOS encargados de operar, analizar gráficos, calibrar SL/TP/Trailing Stop y confluencias de mercado.*
+
+            2. HERDS T1 AL T10 + WATCHDOG SUPERVISOR (BACK-OFFICE / INFRAESTRUCTURA TÉCNICA):
+               - Encargados EXCLUSIVOS de la estabilidad del backend, bases de datos (Firestore/Upstash), sincronización con MetaTrader 5, Uvicorn, latencia de red y CI/CD en Railway.
+               - ¡NO HACEN TRADING, NO TIENEN SL/TP, NI ANALIZAN VELAS NI PARES! NUNCA les propongas ajustar parámetros de trading a ellos.
+
             [TRADE (GANANCIA, PERDIDA O BE)]
             {json.dumps(trade_context)}
             
@@ -101,20 +116,28 @@ class MiaQuantSupervisor:
             {json.dumps(cbr_history[:10])}
             
             Instrucciones:
-            1. Si el trade fue PERDEDOR (PNL negativo), descubre por qué falló la predicción (ej. barrido de liquidez, stop ajustado).
-            2. Si el trade fue GANADOR (PNL positivo), identifica el patrón clave que permitió el éxito para forzar a TensorFlow a darle más peso.
-            3. Si el trade fue BREAK-EVEN (PNL 0), analiza si el trailing stop cortó las ganancias muy temprano.
-            4. Devuelve estrictamente un JSON con las claves: "diagnostico" (qué pasó) y "sugerencia" (qué reglas matemáticas o parámetros propones ajustar a los enjambres T1-T10).
+            1. Si el trade fue PERDEDOR (PNL negativo), descubre por qué falló la predicción (ej. barrido de liquidez, stop muy ajustado, contra-tendencia de sesión asiática, divergencia de CVD).
+            2. Si el trade fue GANADOR (PNL positivo), identifica el patrón clave que permitió el éxito para forzar a TensorFlow a darle más peso y a RUNE a proteger la posición.
+            3. Si el trade fue BREAK-EVEN (PNL 0) o cierre por Trailing Stop, analiza si el trailing stop cortó las ganancias prematuramente o si protegió correctamente el capital ante una reversión.
+            4. Devuelve estrictamente un JSON con las siguientes claves:
+               - "diagnostico": Explicación concisa y técnica de lo ocurrido con el precio y la confluencia de mercado.
+               - "sugerencia_7_herds_trading": Qué reglas matemáticas, parámetros de SL/TP, trailing stop (RUNE), pesos neuronales (TENSORFLOW), libro de órdenes DOM/CVD (ATLAS) o confluencias SMC (LUMEN/ZEPHR/NORO/TIDAL) propones ajustar a los 7 Herds del Swarm de Trading.
+               - "nota_infraestructura_t1_t10": Si el trade falló por una desconexión de red, error 500 o bug de sincronización técnica en el backend, indícalo aquí para los Herds T1-T10. Si fue un movimiento normal de mercado y la infraestructura operó perfectamente, pon exactamente: "Infraestructura backend nominal (sin fallas técnicas)."
             """
             
             response = model.generate_content(prompt)
             texto = response.text.replace('```json', '').replace('```', '').strip()
             resultado = json.loads(texto)
+            if "sugerencia" in resultado and "sugerencia_7_herds_trading" not in resultado:
+                resultado["sugerencia_7_herds_trading"] = resultado["sugerencia"]
+            if "nota_infraestructura_t1_t10" not in resultado:
+                resultado["nota_infraestructura_t1_t10"] = "Infraestructura backend nominal."
             return resultado
         except Exception as e:
             return {
                 "diagnostico": f"Error de inferencia Gemini: {e}",
-                "sugerencia": "Mantener configuraciones actuales. Fallo en procesamiento Quant."
+                "sugerencia_7_herds_trading": "Mantener configuraciones actuales de los 7 Herds. Fallo en procesamiento Quant.",
+                "nota_infraestructura_t1_t10": f"Alerta técnica para T1-T10: Fallo en llamada a Gemini ({e})"
             }
 
     def analyze_recent_losses(self):
@@ -152,14 +175,19 @@ class MiaQuantSupervisor:
         # 1. Llamada exclusiva a GEMINI PRO (Aislado de OpenRouter/Llama)
         gemini_analysis = self._llm_gemini_inference(trade, cbr_history)
         
+        sugerencia_trading = gemini_analysis.get("sugerencia_7_herds_trading") or gemini_analysis.get("sugerencia", "Sin sugerencia de trading.")
+        nota_infra = gemini_analysis.get("nota_infraestructura_t1_t10", "Infraestructura backend nominal.")
+        diagnostico = gemini_analysis.get("diagnostico", "Diagnóstico no disponible.")
+
         case_id = f"TRADE_CASE_{ticket}_{int(datetime.datetime.now().timestamp())}"
         payload = {
             "caso": f"Análisis Post-Mortem Quant Trade {ticket}",
             "fecha": datetime.datetime.now().isoformat(),
             "ticket": ticket,
             "symbol": symbol,
-            "diagnostico": gemini_analysis["diagnostico"],
-            "solucion_aprendida": gemini_analysis["sugerencia"],
+            "diagnostico": diagnostico,
+            "solucion_aprendida": sugerencia_trading,
+            "nota_infraestructura_t1_t10": nota_infra,
             "accion_ejecutada": "NINGUNA. SOLO REGISTRO DE CBR QUANT (HITL ACTIVO)."
         }
 
@@ -193,7 +221,11 @@ class MiaQuantSupervisor:
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"*Símbolo:* {symbol}\n*Resultado:* {profit}\n\n*🧠 Diagnóstico Gemini Pro:*\n{gemini_analysis['diagnostico']}\n\n*🎯 Acción Propuesta para Enjambres:*\n{gemini_analysis['sugerencia']}"
+                        "text": (
+                            f"*Símbolo:* {symbol} | *Resultado:* `{profit}`\n\n"
+                            f"*🧠 Diagnóstico Gemini Pro:*\n{diagnostico}\n\n"
+                            f"*🎯 Acción Propuesta para los 7 Herds de Trading (LUMEN, TIDAL, NORO, ZEPHR, RUNE, ATLAS, TENSORFLOW):*\n{sugerencia_trading}"
+                        )
                     }
                 },
                 {
@@ -201,7 +233,7 @@ class MiaQuantSupervisor:
                     "elements": [
                         {
                             "type": "mrkdwn",
-                            "text": f"Caso CBR: `{case_id}` | Requiere validación humana (Mandato HITL) para sumar nivel de confianza."
+                            "text": f"Caso CBR: `{case_id}` | 🛠️ *Infraestructura Backend (T1-T10)*: {nota_infra} | Mandato HITL Activo."
                         }
                     ]
                 },
