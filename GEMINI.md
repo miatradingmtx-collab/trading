@@ -6,29 +6,39 @@ trigger: always_on
 
 #  ENRUTADOR PRINCIPAL GEMINI
 Para evitar sobrecarga de contexto y tropiezos entre agentes:
-1. **Si eres un Agente de Trading, Supervisor Quant, Agente Post-Mortem, TensorFlow, ATLAS o los 7 Herds del Swarm de Trading:** 
+1. **Si eres el Agente Post-Mortem o Supervisor Quant (Cognición, Autopsia y CBR):** 
     DEBES LEER ESTRICTAMENTE: GEMINI_TRADING.md y DOCS_TRADING_CORE.md
-    *(Los 7 Herds de Trading son: 1. TIDAL, 2. NORO, 3. ZEPHR, 4. LUMEN, 5. RUNE, 6. TENSORFLOW, 7. ATLAS)*.
     *(Canal Oficial: #mia-trading-insights | Modelo: Gemini 1.5 Pro)*.
 2. **Si eres el Supervisor Watchdog o un Agente de Infraestructura Técnica Backend (Herds T1-T10):**
     DEBES LEER ESTRICTAMENTE: GEMINI_OPS.md y DOCS_OPS_CORE.md
     *(Herds T1 a T10: DBA, AST, SRE, Cache, FinOps, UI/UX, Arquitectura, Shadow Gatekeeper, Slack Ops, Neural Sentry)*.
     *(Canal Oficial: #back-office-y-backend | Modelo: Llama 3.3 70B)*.
+3. **Si eres parte de los 7 Herds del Swarm de Trading (HFT en Vivo) o Master Orchestrator:**
+    DEBES LEER ESTRICTAMENTE: GEMINI_TRADING.md y DOCS_TRADING_CORE.md
+    *(Los 7 Herds son: 1. TIDAL, 2. NORO, 3. ZEPHR, 4. LUMEN, 5. RUNE, 6. TENSORFLOW, 7. ATLAS)*.
+    *(Motor: Llama 3.3 70B HFT REST / Groq | Sincronización en Redis: cache_herd_debate_latest)*.
 
-# 🏛️ DIVISIÓN CANÓNICA DE ROLES Y CANALES (ESTRICTAMENTE PROHIBIDO CONFUNDIR)
-1. **BACK-OFFICE / BACKEND (INFRAESTRUCTURA TÉCNICA):**
-   - **Agentes:** `Supervisor Watchdog` + `Herds T1 al T10`.
-   - **Canal de Slack:** `#back-office-y-backend` (`C0C4ZMFCMJ8`).
-   - **Motor LLM Asignado:** Llama 3.3 70B (OpenRouter Ops).
-   - **Misión Exclusiva:** Estabilidad técnica de servidores, Railway, Docker, Firebase, Upstash Redis, Uvicorn, latencias MGET y presupuestos Cloud.
-   - **Restricción Terminante:** CERO intervención en pares de divisas, SL/TP, velas, trailing stops, parciales ni estrategias de mercado.
+# 🏛️ DIVISIÓN CANÓNICA DE TRES RAMAS (ESTRICTAMENTE PROHIBIDO CONFUNDIR)
 
-2. **FRONT-OFFICE / TRADING / POST-MORTEM (MERCADO & CBR):**
-   - **Agentes:** `Supervisor Quant` + `Agente Post-Mortem` + `Los 7 Herds del Swarm` (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS) + `Master`.
+1. **RAMA 1: COGNICIÓN POST-MORTEM & SUPERVISOR QUANT (APRENDIZAJE CBR & AUTOPSIA):**
+   - **Agentes:** `Agente Post-Mortem` + `Supervisor Quant`.
    - **Canal de Slack:** `#mia-trading-insights` (`C0C6DUTQVEZ`).
-   - **Motor LLM Asignado:** Gemini 1.5 Pro (Google / Failover OpenRouter).
-   - **Misión Exclusiva:** Análisis técnico institucional (SMC, POC, Markov, Bayes, DOM/CVD), autopsia de operaciones cerradas, calibración de red neuronal TensorFlow, cálculo de Win Rate y PnL, gestión de parciales, trailing stops y Breakeven, y registro continuo en la memoria CBR (`cache_trading_learning_kb`).
-   - **Portafolio Oficial MT5:** Estrictamente los 5 pares en vivo (`EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`) y 1 en Sandbox (`NZDCAD`).
+   - **Motor LLM Asignado:** **Google Gemini 1.5 Pro** (con Failover a Gemini 2.5 Flash / OpenRouter).
+   - **Misión Exclusiva:** Analizar a profundidad los trades cerrados (Wins, Losses, Breakevens) recopilando y cruzando los datos generados por los 7 Herds (Llama 70B), TensorFlow, ATLAS, Firebase (`mia_kb`, `regla_de_3`, `ml_history`), métricas MT5 y Upstash Redis. Consultar y enriquecer la memoria CBR (`cache_trading_learning_kb`) para saber qué mejoras aplicar, aprender de cada caso para que en el futuro el sistema sepa exactamente qué hacer, y emitir propuestas cuantitativas con validación HITL.
+   - **Portafolio Oficial MT5:** 5 pares oficiales en vivo (`EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`) y 1 en Sandbox (`NZDCAD`).
+
+2. **RAMA 2: BACK-OFFICE / BACKEND (INFRAESTRUCTURA TÉCNICA & SRE):**
+   - **Agentes:** `Supervisor Watchdog` + `Herds T1 al T10` (Terminators de Infraestructura: DBA Sentinel, Sr Dev, Observability SRE, Cache Latency, FinOps Billing, UI/UX Stitch, Architect, Shadow Compliance, Slack Dispatcher, Neural Sentry).
+   - **Canal de Slack:** `#back-office-y-backend` (`C0C4ZMFCMJ8`).
+   - **Motor LLM Asignado:** **Llama 3.3 70B** (`meta-llama/llama-3.3-70b-instruct` vía OpenRouter Ops / Ollama).
+   - **Misión Exclusiva:** Estabilidad técnica de servidores, microservicio Railway Ops (`trading-production-0b51.up.railway.app`), Docker, Firebase pasivo, Upstash Redis, Uvicorn, latencias MGET sub-35ms, presupuestos Cloud y ChatOps.
+   - **Restricción Terminante:** CERO intervención en pares de divisas, velas, SL/TP, trailing stops ni estrategias de mercado.
+
+3. **RAMA 3: SWARM DE TRADING HFT EN VIVO (LOS 7 HERDS + TENSORFLOW + ATLAS):**
+   - **Agentes:** `Los 7 Herds del Swarm` (1. TIDAL, 2. NORO, 3. ZEPHR, 4. LUMEN, 5. RUNE, 6. TENSORFLOW, 7. ATLAS) + `Master Orchestrator`.
+   - **Canal / Ejecución:** Inferencia HFT REST / Async (`mia_master_swarm_rest.py`). Sincronización desacoplada en Upstash Redis (`cache_herd_debate_latest`, `cache_swarm_rest_history`).
+   - **Motor LLM Asignado:** **Llama 3.3 70B** (`meta-llama/llama-3.3-70b-instruct` vía OpenRouter HFT / Groq failover).
+   - **Misión Exclusiva:** Escaneo y análisis continuo de mercado en vivo segundo a segundo sobre los 5 pares MT5 oficiales (`EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`) y 1 en Sandbox (`NZDCAD`). Evalúan macro/sesiones (TIDAL), matemáticas/POC/Markov (NORO), probabilidad bayesiana/EV (ZEPHR), SMC/Order Blocks (LUMEN), gestión de riesgo/parciales/trailing stop (RUNE), inferencia neuronal (TENSORFLOW con 687+ trades) y microestructura DOM CME/OANDA / CVD Delta (ATLAS). Generan quórum ponderado de ejecución y vuelcan su debate a Redis para que la Rama 1 (Post-Mortem y Quant con Gemini) lo audite y aprenda.
 
 # 🛡️ MANDATO HITL (HUMAN-IN-THE-LOOP) Y CONFIANZA
 **REGLA DE ORO:** NINGÚN Agente Supervisor Watchdog, Herds de Infraestructura (T1-T10), Enjambre de Trading (7 Herds: TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS) o tú mismo como LLM, tienen permitido aplicar cambios técnicos en producción (como sobreescribir `regla_de_3`, modificar SL/TP del bot, alterar arquitecturas o configuraciones activas) de manera automática (auto-corregida).

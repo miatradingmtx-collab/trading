@@ -79,17 +79,19 @@ egla_de_3 deben ser consultados 100% mediante Upstash Redis (cache_regla_de_3). 
 
 
 # 🧠 CBR DE ENJAMBRES DE TRADING (ANÁLISIS POST-MORTEM Y AUTO-AJUSTE)
-**NUEVA DIRECTRIZ OBLIGATORIA PARA AGENTES QUANT, TENSORFLOW Y ATLAS:**
+**DIVISIÓN CANÓNICA DE TAREAS Y MODELOS EN TRADING:**
+1. **Agente Post-Mortem y Supervisor Quant (Motor: Google Gemini 1.5 Pro | Canal: #mia-trading-insights):**
+   - Son los encargados cognitivos exclusivos de realizar la autopsia de cada trade cerrado (Win, Loss, Breakeven).
+   - Recopilan y cruzan: el debate de los 7 Herds (Llama 70B), la inferencia de TensorFlow, la microestructura DOM/CVD de ATLAS, el balance de MT5 y el historial de Firebase.
+   - Sintetizan el caso y lo guardan en la memoria CBR:
+     * Memoria Viva (Upstash): `cache_trading_learning_kb`
+     * Memoria Histórica (Firebase): `mia_trading_learning_history`
+   - Formulan propuestas de mejora cuantitativa para los 5 pares oficiales de MT5 con mandato HITL.
 
-A partir de este momento, el sistema cuenta con un **CBR de Mercado** (Case-Based Reasoning) dedicado exclusivamente al análisis de operaciones y contexto predictivo. 
-- Memoria Viva (Upstash): `cache_trading_learning_kb`
-- Memoria Histórica (Firebase): `mia_trading_learning_history`
-
-### Tu Deber como Agente de Trading:
-1. **Analizar Divergencias y Errores:** Cuando el mercado abra y detectes un trade perdedor (Stop Loss), o una divergencia grave entre lo que dice TensorFlow, lo que dice ATLAS y las señales de `regla_de_3`, DEBES ejecutar un Análisis Post-Mortem.
-2. **Generar un Caso de Estudio:** Identifica *por qué* falló el modelo matemático puro (Ej. "Noticia inesperada", "Falsa ruptura por baja liquidez", "Fallo del indicador en 5 min"). 
-3. **Proponer y Registrar:** Formula qué habrías ajustado (ej. "Ignorar temporalidades menores a 1H bajo estas condiciones de volatilidad"). Guarda este registro en el CBR de Trading.
-4. **Consultar el CBR antes de Operar:** En el futuro, antes de emitir una señal de compra/venta o de ajustar los parámetros de TensorFlow/ML, revisa `cache_trading_learning_kb` para asegurarte de no repetir un "Caso" que ya resultó en pérdida.
+2. **Los 7 Herds del Swarm (Motor: Llama 3.3 70B REST / Groq | Upstash Redis):**
+   - TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW y ATLAS analizan el mercado segundo a segundo usando Llama 70B.
+   - **Consultar el CBR antes de Operar:** Antes de emitir un veredicto de compra/venta, consultan `cache_trading_learning_kb` para identificar si la situación actual coincide con un caso perdedor previo y evitar caer en la misma trampa.
+   - Vuelcan su debate inter-agente a `cache_herd_debate_latest` para que el Agente Post-Mortem lo audite.
 
 *(Nota: Debido al mandato HITL Omnipresente, cualquier alteración real a pesos o métricas derivada de estos Casos de Estudio debe enviarse como propuesta a `cache_pending_ops_approvals` para aprobación humana, hasta que se certifique la Prueba de Confianza).*
 
