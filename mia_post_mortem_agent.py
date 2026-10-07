@@ -32,8 +32,9 @@ class MiaQuantSupervisor:
                 pass
         self.db = firestore.client() if firebase_admin._apps else None
         
-        self.UPSTASH_URL = "https://certain-gnat-160816.upstash.io"
-        self.UPSTASH_HEADERS = {"Authorization": "Bearer ASQwAAIjcDFlNWQ4NTEyNmZhMTY0ODg4OTYxOGFmMGNmNDIzZmRiM3AxMA"}
+        self.UPSTASH_URL = os.getenv("UPSTASH_REDIS_REST_URL", "https://certain-gnat-160816.upstash.io")
+        self.UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
+        self.UPSTASH_HEADERS = {"Authorization": f"Bearer {self.UPSTASH_TOKEN}"}
         self.SLACK_INSIGHTS_CHANNEL = os.getenv("SLACK_CHANNEL_INSIGHTS", "C0C6DUTQVEZ")
 
     def _llm_gemini_inference(self, trade_context, cbr_history):
@@ -267,7 +268,7 @@ class MiaQuantSupervisor:
                     "elements": [
                         {
                             "type": "mrkdwn",
-                            "text": f"Caso CBR: `{case_id}` | 🛠️ *Infraestructura Backend (T1-T10)*: {nota_infra} | Mandato HITL Activo."
+                            "text": f"Caso CBR: `{case_id}` | 🧠 *Memoria Viva:* `cache_trading_learning_kb` | Mandato HITL Activo."
                         }
                     ]
                 },
@@ -324,6 +325,19 @@ class MiaQuantSupervisor:
                 print(f"| QUANT AGENT | Mensaje enviado a Slack con exito para {ticket}.")
             except Exception as e:
                 print(f"| QUANT AGENT | Error enviando Block Kit: {e}")
+
+            # Bifurcación Estricta: Si hubo un error técnico de infraestructura, notificar exclusivamente a #back-office-y-backend
+            if "nominal" not in nota_infra.lower() and "sin fallas" not in nota_infra.lower():
+                try:
+                    slack_bridge.send_channel_message(
+                        text=f"🚨 *ALERTA TÉCNICA INFRAESTRUCTURA (T1-T10 / SRE)*: Trade `{ticket}` en {symbol} reportó anomalía técnica: {nota_infra}",
+                        channel=os.getenv("SLACK_CHANNEL_OPS", "C0C4ZMFCMJ8"),
+                        username="MIA SRE Watchdog",
+                        icon_emoji=":warning:"
+                    )
+                    print(f"| QUANT AGENT | Incidente técnico bifurcado a #back-office-y-backend para {ticket}.")
+                except Exception as e_ops:
+                    print(f"| QUANT AGENT | Error enviando alerta técnica a ops: {e_ops}")
 
 if __name__ == "__main__":
     agent = MiaQuantSupervisor()

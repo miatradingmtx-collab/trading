@@ -44,7 +44,7 @@ if res_mget.status_code == 200:
     # Enviar copia fresca a Upstash (Hot Cache) para que TF y Enjambres lo lean en milisegundos
     import requests
     UPSTASH_URL = os.getenv("UPSTASH_REDIS_REST_URL", "https://certain-gnat-160816.upstash.io")
-    UPSTASH_TOKEN = "ASQwAAIjcDFlNWQ4NTEyNmZhMTY0ODg4OTYxOGFmMGNmNDIzZmRiM3AxMA"
+    UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
     headers = {"Authorization": f"Bearer {UPSTASH_TOKEN}"}
     
     try:
