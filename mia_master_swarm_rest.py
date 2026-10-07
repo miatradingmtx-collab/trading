@@ -243,20 +243,31 @@ def run_hft_cycle():
         matrices_crudas = {}
     activos_resumen = []
     
-    # Determinar activo principal para escaneo DOM
+    # Portafolio Oficial MT5 y Sandbox Experimental
+    ACTIVOS_LIVE_MT5 = ["EURUSD", "GBPUSD", "AUDUSD", "GBPJPY", "XAUUSD"]
+    ACTIVOS_SANDBOX = ["NZDCAD"]
+    ACTIVOS_SWARM_TARGET = ACTIVOS_LIVE_MT5 + ACTIVOS_SANDBOX
+    
+    # Determinar activo principal para escaneo DOM (priorizando posiciones activas y activos en vivo)
     active_symbol = "EURUSD"
     current_px = 0.0
     poc_px = 0.0
     
-    if matrices_crudas:
-        first_act = list(matrices_crudas.keys())[0]
-        first_val = matrices_crudas[first_act]
-        if isinstance(first_val, dict):
-            active_symbol = first_act
-            poc_px = float(first_val.get("poc_price", 0.0) or 0.0)
-            current_px = float(first_val.get("current_price", poc_px) or poc_px)
-    elif mt5_json.get("operaciones_activas"):
-        active_symbol = mt5_json.get("operaciones_activas")[0].get("activo", "EURUSD")
+    if mt5_json.get("operaciones_activas"):
+        for op in mt5_json.get("operaciones_activas"):
+            act_op = op.get("activo", "").upper()
+            if any(target in act_op for target in ACTIVOS_LIVE_MT5):
+                active_symbol = act_op
+                current_px = float(op.get("precio_apertura", 0.0) or 0.0)
+                break
+
+    if current_px == 0.0 and matrices_crudas:
+        for act in ACTIVOS_LIVE_MT5:
+            if act in matrices_crudas and isinstance(matrices_crudas[act], dict):
+                active_symbol = act
+                poc_px = float(matrices_crudas[act].get("poc_price", 0.0) or 0.0)
+                current_px = float(matrices_crudas[act].get("current_price", poc_px) or poc_px)
+                break
 
     # Inyección de Skill DOM CME FX & OANDA
     dom_heatmap_summary = "Sin datos de libro"
@@ -279,25 +290,32 @@ def run_hft_cycle():
 
     try:
         if matrices_crudas:
-            for act, datos in matrices_crudas.items():
+            for act in ACTIVOS_SWARM_TARGET:
+                datos = matrices_crudas.get(act)
+                if not datos:
+                    for k, v in matrices_crudas.items():
+                        if act in k.upper().replace("/", "").replace(".", ""):
+                            datos = v
+                            break
                 if isinstance(datos, dict):
                     poc = datos.get("poc_price", "N/A")
                     tp = datos.get("take_profit", "N/A")
                     sl = datos.get("sl", "N/A")
                     scr = datos.get("score_tecnico", 0)
-                    activos_resumen.append(f"[{act}] POC:{poc} TP:{tp} SL:{sl} SCORE:{scr}%")
+                    tag = " [SANDBOX]" if act in ACTIVOS_SANDBOX else " [LIVE]"
+                    activos_resumen.append(f"[{act}{tag}] POC:{poc} TP:{tp} SL:{sl} SCORE:{scr}%")
             
             if len(activos_resumen) > 0:
-                dom_data = " | ".join(activos_resumen[:5])  # Max 5 activos para no saturar LLM
+                dom_data = " | ".join(activos_resumen)
                 footprint_delta = "Order Blocks LUX / POC institucional detectados y evaluados en microestructura."
-                fair_value = f"POC Promediado detectado en los {len(activos_resumen)} activos principales."
+                fair_value = f"POC Promediado detectado en los {len(activos_resumen)} activos objetivo (5 Live MT5 + NZDCAD Sandbox)."
                 markov = "Probabilidad de Transición en Fase Expansiva (Markov: 68%)."
                 
                 tf_acc = tf_json.get('accuracy', 0.5)
                 expected_value = f"Expected Value Positivo (Bayesiano = {tf_acc * 1.5:.2f})"
                 score = "Score de Ejecución AI: Autorizado (>80%)."
                 
-            emit_ws_event("LUMEN", "SENTIMENT", f"Analizando {len(matrices_crudas)} activos reales con TP/SL exactos...")
+            emit_ws_event("LUMEN", "SENTIMENT", f"Analizando 5 activos en vivo MT5 ({', '.join(ACTIVOS_LIVE_MT5)}) + NZDCAD en Sandbox...")
         else:
             emit_ws_event("LUMEN", "SENTIMENT", "Mercado en criosueño. Esperando apertura de sesión domingo...")
     except Exception as e:
@@ -346,17 +364,18 @@ def run_hft_cycle():
     6. BRIEF INTELIGENCIA EXTERNA ATLAS MCP: {researcher_brief}
     7. REGLAS MIA KB & RIESGO: {mia_rules}
     8. MEMORIA CBR DE TRADING (CASOS PREVIOS APRENDIDOS): {cbr_summary}
+    9. PORTAFOLIO DE ACTIVOS: En Vivo MT5 ({', '.join(ACTIVOS_LIVE_MT5)}) | Sandbox ({', '.join(ACTIVOS_SANDBOX)} - Modo Entrenamiento/Shadow, prohibida ejecución real en broker).
     
     INSTRUCCIONES DE DELIBERACIÓN DE LA MALLA (7 HERDS ESPECIALIZADOS + MASTER):
     Genera el diálogo de debate, contrapuntos y consenso final entre los 7 Herds independientes:
-    **HERD 1 - TIDAL**: Tendencia macro de sesiones (Londres/NY) y sesgo de absorción institucional.
+    **HERD 1 - TIDAL**: Tendencia macro de sesiones (Londres/NY/Asia) y sesgo de absorción institucional para los 5 pares MT5 oficiales.
     **HERD 2 - NORO**: Niveles cuantitativos clave (POC dinámico, POC semanal y confluencia de Markov).
     **HERD 3 - ZEPHR**: Probabilidad estadística bayesiana y cálculo de Expected Value (EV en R).
-    **HERD 4 - LUMEN**: Smart Money Concepts (Order Blocks LuxAlgo, Fair Value Gaps y trampas de liquidez).
-    **HERD 5 - RUNE**: Gestión de riesgo estricto (SL técnico defensivo, tamaño de lote y ratio R:R).
-    **HERD 6 - TENSORFLOW**: Inferencia de red neuronal profunda (probabilidad continua de acierto).
+    **HERD 4 - LUMEN**: Smart Money Concepts (Order Blocks LuxAlgo, Fair Value Gaps y trampas de liquidez en los 5 pares MT5 y evaluación experimental de NZDCAD en Sandbox).
+    **HERD 5 - RUNE**: Gestión de riesgo estricto (SL técnico defensivo, tamaño de lote, ratio R:R y restricción estricta de que NZDCAD no se ejecute en broker).
+    **HERD 6 - TENSORFLOW**: Inferencia de red neuronal profunda (probabilidad continua de acierto del modelo sobre los activos en vivo).
     **HERD 7 - ATLAS**: Microestructura de libro de órdenes DOM (CVD Delta, absorción, MCP y verificación del CBR).
-    **MASTER**: Veredicto final del Quórum Calificado [APROBADO ✅ o VETADO ⛔] indicando el Score Ponderado (0.00 a 1.00, umbral >= 0.70).
+    **MASTER**: Veredicto final del Quórum Calificado [APROBADO ✅ o VETADO ⛔] indicando el Score Ponderado (0.00 a 1.00, umbral >= 0.70). Si la señal es para NZDCAD, el veredicto debe ser estrictamente SIMULACIÓN SANDBOX (sin orden a broker).
     
     (REGLA CBR: Si el activo coincide con un precedente perdedor del CBR sin nueva confluencia, el Quórum debe VETAR o exigir confirmación estricta).
     Responde estrictamente con exactamente una intervención por Herd (máximo 2 líneas por Herd, concisas y técnicas) y el veredicto del MASTER.

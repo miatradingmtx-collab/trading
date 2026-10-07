@@ -1860,6 +1860,40 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
             except Exception as e:
                 print(f"| QUANT ERROR | Fallo al disparar agente post-mortem: {e}")
         background_tasks.add_task(disparar_quant, trade_data)
+
+        def reentrenar_tensorflow_en_cierre(trade_info_cierre):
+            try:
+                up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                t_id = str(trade_info_cierre.get('ticket', ''))
+                if t_id and t_id.isdigit():
+                    r_ds = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_dataset_tf", headers=up_headers, timeout=5)
+                    ds_list = []
+                    if r_ds.status_code == 200 and r_ds.json().get('result'):
+                        raw = r_ds.json().get('result')
+                        ds_list = json.loads(raw) if isinstance(raw, str) else (raw or [])
+                    
+                    tickets_exist = {str(x.get('ticket')) for x in ds_list if x.get('ticket')}
+                    if t_id not in tickets_exist:
+                        ds_list.append(trade_info_cierre)
+                        requests.post("https://certain-gnat-160816.upstash.io/set/cache_mia_dataset_tf", headers=up_headers, data=json.dumps(ds_list), timeout=5)
+                        print(f"| TENSORFLOW AUTO-LEARN | Ingestado Ticket {t_id} en cache_mia_dataset_tf ({len(ds_list)} trades).")
+                
+                train_tensorflow()
+                print(f"| TENSORFLOW AUTO-LEARN | Reentrenamiento continuo completado para {trade_info_cierre.get('activo')}.")
+            except Exception as e_re:
+                print(f"| TENSORFLOW AUTO-LEARN ERROR | {e_re}")
+
+        trade_cierre_dict = {
+            'ticket': str(alert.ticket if alert.ticket else 'DESC'),
+            'activo': alert.activo,
+            'accion': alert.accion,
+            'pnl': float(alert.pnl if alert.pnl else 0.0),
+            'motivo': alert.comentario if alert.comentario else 'Cierre MT5',
+            'timestamp': datetime.datetime.now().isoformat(),
+            'score': getattr(alert, 'score', 75.0) or 75.0,
+            'detalle_setup': getattr(alert, 'detalle_setup_string', '') or getattr(alert, 'estrategia', '')
+        }
+        background_tasks.add_task(reentrenar_tensorflow_en_cierre, trade_cierre_dict)
     
     return {
         "resultado": "recibido",
@@ -2433,6 +2467,15 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             }
 
         # 1.5 VALIDACIÃƒÆ’Ã¢â‚¬Å“N DE SEMÃƒÆ’Ã‚ÂFORO Y LÃƒÆ’Ã‚ÂMITE DE TRADES (MÃƒÆ’Ã‚Â¡ximo 2 simultÃƒÆ’Ã‚Â¡neos por activo)
+        # 1.1 [SANDBOX ISOLATION]: Confinamiento de NZDCAD para entrenamiento y simulacion experimental
+        if activo_normalizado in ["NZDCAD"]:
+            print(f"| RUNE RISK | Rechazada ejecucion en vivo de {activo_normalizado}: confinado a Sandbox/Entrenamiento.")
+            return {
+                "authorized": False,
+                "reason": "SANDBOX MODE: NZDCAD está confinado a modo entrenamiento y simulación experimental (Shadow Mode). Prohibida ejecución en vivo en broker MT5.",
+                "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
+            }
+
         # 1.2 [FILTRO INSTITUCIONAL]: Matriz Optima de Sesiones por Activo
         hora_utc_setup = datetime.datetime.now(datetime.timezone.utc).hour
         sesiones_optimas_dict = {
@@ -5451,10 +5494,41 @@ def train_tensorflow():
                     t_id = str(r_trade.get("ticket")) if r_trade.get("ticket") else None
                     if not t_id or t_id not in existing_tickets:
                         logs.append(r_trade)
+                        if t_id: existing_tickets.add(t_id)
         except Exception as e_rec:
             print(f"| TENSORFLOW WARN | Error leyendo cache_hist_mt5: {e_rec}")
 
-        # 1.3 Hidratación fallback si Upstash tiene pocos logs
+        # 1.3 Incorporar trades cerrados reales desde Firestore (mia_audit_logs)
+        nuevos_audit = 0
+        try:
+            existing_tickets = {str(t.get("ticket")) for t in logs if t.get("ticket")}
+            if db:
+                from firebase_admin import firestore
+                docs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(100).stream()
+                for doc in docs:
+                    d_dict = doc.to_dict()
+                    t_id = str(d_dict.get("ticket", doc.id))
+                    if t_id.isdigit() and len(t_id) >= 8:
+                        acc = d_dict.get("accion", "")
+                        pnl_val = float(d_dict.get("pnl", 0.0) or 0.0)
+                        if acc in ["CIERRE_TOTAL", "CERRAR_TP", "CIERRE_PARCIAL", "TRAILING_STOP", "PROTECCION_BE"] or pnl_val != 0.0:
+                            if t_id not in existing_tickets:
+                                logs.append(d_dict)
+                                existing_tickets.add(t_id)
+                                nuevos_audit += 1
+                if nuevos_audit > 0:
+                    print(f"| TENSORFLOW | Se incorporaron {nuevos_audit} trades cerrados reales desde Firestore.")
+        except Exception as e_fs:
+            print(f"| TENSORFLOW WARN | Error leyendo mia_audit_logs en Firestore: {e_fs}")
+
+        # 1.4 Persistir dataset consolidado en Upstash (crecimiento dinámico de trades aprendidos)
+        try:
+            upstash_ds_url = "https://certain-gnat-160816.upstash.io/set/cache_mia_dataset_tf"
+            requests.post(upstash_ds_url, headers=headers, data=json.dumps(logs, default=str), timeout=10)
+        except Exception as e_ds_save:
+            print(f"| TENSORFLOW WARN | Error guardando cache_mia_dataset_tf: {e_ds_save}")
+
+        # 1.5 Hidratación fallback si Upstash tiene pocos logs
         global GLOBAL_AUDIT_LOGS
         if len(logs) < 10:
             if GLOBAL_AUDIT_LOGS and len(GLOBAL_AUDIT_LOGS) >= 5:
@@ -5535,9 +5609,9 @@ def train_tensorflow():
         
         # 6. Desacoplamiento: Guardar en el nuevo Slot 5 de Upstash (cache_mia_tensorflow)
         upstash_write_url = "https://certain-gnat-160816.upstash.io/set/cache_mia_tensorflow"
-        requests.post(upstash_write_url, headers=headers, json=tf_payload, timeout=10)
+        requests.post(upstash_write_url, headers=headers, data=json.dumps(tf_payload), timeout=10)
         
-        # 7. HomologaciÃƒÆ’Ã‚Â³n: Guardar histÃƒÆ’Ã‚Â³rico en Firebase (mia_tensorflow)
+        # 7. Homologación: Guardar histórico en Firebase (mia_tensorflow)
         try:
             from datetime import datetime
             hoy_str = datetime.utcnow().strftime("%Y-%m-%d")
@@ -5553,7 +5627,9 @@ def train_tensorflow():
         return {
             "status": "success", 
             "accuracy": f"{accuracy*100:.2f}%", 
-            "message": "Modelo TensorFlow entrenado, cacheado en Upstash y homologado."
+            "trades_aprendidos": len(df),
+            "nuevos_incorporados": nuevos_audit,
+            "message": f"Modelo TensorFlow entrenado con {len(df)} trades, cacheado en Upstash y homologado."
         }
         
     except Exception as e:

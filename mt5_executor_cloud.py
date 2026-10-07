@@ -1172,6 +1172,10 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
 # 6. GESTOR DE OPERACIONES (Apertura de Ã“rdenes)
 # ------------------------------------------------------------------------------
 async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: float, decision: Dict, balance: float, presupuesto_restante: float = 150.0) -> bool:
+    if activo.upper() in [a.upper() for a in ACTIVOS_SANDBOX]:
+        print(f"| SANDBOX GATEWAY | 🚫 {activo} está confinado a Sandbox / Entrenamiento continuo. Prohibida ejecución real en MT5.")
+        return False
+
     simbolo_broker = MAPEO_BROKER.get(activo, activo)
     
     try:
