@@ -597,10 +597,17 @@ class MiaQuantSupervisor:
             except Exception:
                 pass
                 
-            resumen_ejecutivo = parsed_sintesis.get("resumen_ejecutivo", f"Jornada {today_str}: {total_trades} trades cerrados, Win Rate {win_rate:.1f}%, PnL ${total_pnl:.2f} USD.")
-            patrones_ganadores = parsed_sintesis.get("patrones_ganadores", "Confluencias SMC en Londres y NY.")
-            areas_oportunidad = parsed_sintesis.get("areas_de_oportunidad", "Gestión de buffer de SL en activos de alta volatilidad.")
-            propuesta_7_herds = parsed_sintesis.get("propuesta_calibracion_7_herds", "Ajustar trailing stop de RUNE y filtros de absorción en ATLAS.")
+            def _fmt_report_field(val, fallback="N/A"):
+                if isinstance(val, dict):
+                    return "\n".join([f"• *{k}:* {v}" for k, v in val.items()])
+                elif isinstance(val, list):
+                    return "\n".join([f"• {v}" for v in val])
+                return str(val) if val else fallback
+
+            resumen_ejecutivo = _fmt_report_field(parsed_sintesis.get("resumen_ejecutivo"), f"Jornada {today_str}: {total_trades} trades cerrados, Win Rate {win_rate:.1f}%, PnL ${total_pnl:.2f} USD.")
+            patrones_ganadores = _fmt_report_field(parsed_sintesis.get("patrones_ganadores"), "Confluencias SMC en Londres y NY.")
+            areas_oportunidad = _fmt_report_field(parsed_sintesis.get("areas_de_oportunidad"), "Gestión de buffer de SL en activos de alta volatilidad.")
+            propuesta_7_herds = _fmt_report_field(parsed_sintesis.get("propuesta_calibracion_7_herds"), "Ajustar trailing stop de RUNE y filtros de absorción en ATLAS.")
             
             # Notificar en Slack #mia-trading-insights
             if slack_bridge and (slack_bridge.bot_token or slack_bridge.quant_bot_token):
@@ -621,7 +628,19 @@ class MiaQuantSupervisor:
                     },
                     {
                         "type": "section",
-                        "text": {"type": "mrkdwn", "text": f"*🧠 Resumen Ejecutivo:*\n{resumen_ejecutivo}\n\n*💎 Patrones Ganadores Identificados:*\n{patrones_ganadores}\n\n*⚠️ Áreas de Oportunidad y Fugas:*\n{areas_oportunidad}\n\n*🎯 Propuesta de Calibración para los 7 Herds (HITL):*\n{propuesta_7_herds}"}
+                        "text": {"type": "mrkdwn", "text": f"*🧠 Resumen Ejecutivo:*\n{resumen_ejecutivo[:2800]}"}
+                    },
+                    {
+                        "type": "section",
+                        "text": {"type": "mrkdwn", "text": f"*💎 Patrones Ganadores Identificados:*\n{patrones_ganadores[:2800]}"}
+                    },
+                    {
+                        "type": "section",
+                        "text": {"type": "mrkdwn", "text": f"*⚠️ Áreas de Oportunidad y Fugas:*\n{areas_oportunidad[:2800]}"}
+                    },
+                    {
+                        "type": "section",
+                        "text": {"type": "mrkdwn", "text": f"*🎯 Propuesta de Calibración para los 7 Herds (HITL):*\n{propuesta_7_herds[:2800]}"}
                     },
                     {
                         "type": "context",
