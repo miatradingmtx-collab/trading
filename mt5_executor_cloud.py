@@ -57,7 +57,8 @@ SHADOW_MODE_GLOBAL = os.getenv("SHADOW_MODE_GLOBAL", "true").lower() == "true"
 POSICIONES_ACTIVAS = {}
 TICKETS_SINCRONIZADOS = set()
 
-ACTIVOS = ["EURUSD", "GBPUSD", "XAUUSD", "GBPJPY", "US30", "SP500", "AUDUSD", "NZDCAD"]
+ACTIVOS = ["EURUSD", "GBPUSD", "XAUUSD", "GBPJPY", "AUDUSD"]
+ACTIVOS_SANDBOX = ["NZDCAD"]  # Confinado a reentrenamiento en Sandbox (Shadow Mode)
 
 # Mapeo de nombres de activos locales a sÃ­mbolos del Broker
 MAPEO_BROKER = {
@@ -234,22 +235,23 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
     except Exception as e:
         print(f"| GESTOR RIESGO EXCEPTION | No se pudo verificar PNL diario: {e}")
         
-    # El balance al abrir el dÃ­a es el balance actual menos lo que ya se cerrÃ³ (ganancia o pÃ©rdida)
+    # El balance al abrir el día es el balance actual menos lo que ya se cerró
     balance_inicio_dia = balance - pnl_hoy
-    limite_usd = balance_inicio_dia * (limite_pct / 100.0)
+    # Límite Estricto de Drawdown Diario: -$115 USD (Asegura presupuesto holgado para 3 sesiones)
+    limite_usd = 115.0
     
     pnl_flotante = equity - balance
     pnl_total_dia = pnl_hoy + pnl_flotante
-    presupuesto_restante = limite_usd + pnl_total_dia
+    presupuesto_restante = max(0.0, limite_usd + pnl_total_dia)
     
-    # META DIARIA (+150 USD / Paridad 1:1 con Drawdown Diario)
+    # META DIARIA (+150 USD)
     META_DIARIA_USD = 150.0
     if pnl_total_dia >= META_DIARIA_USD:
         print(f"| GESTOR GANANCIAS | 🎯 META DIARIA ALCANZADA: PNL Total ${pnl_total_dia:.2f} >= +${META_DIARIA_USD:.2f}. Entradas bloqueadas por el día para proteger capital.")
         return True, 0.0
 
     if pnl_total_dia <= -limite_usd:
-        print(f"| GESTOR RIESGO ALERTA | ⛔ DRAWDOWN DIARIO ALCANZADO: PNL Total ${pnl_total_dia:.2f} <= Límite -${limite_usd:.2f} ({limite_pct}% de ${balance_inicio_dia:.2f}). Entradas bloqueadas.")
+        print(f"| GESTOR RIESGO ALERTA | ⛔ DRAWDOWN DIARIO ALCANZADO: PNL Total ${pnl_total_dia:.2f} <= Límite -${limite_usd:.2f}. Entradas bloqueadas.")
         return True, 0.0
         
     return False, presupuesto_restante
@@ -1335,11 +1337,11 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         return # Skip scanning
         
     killzone_activa = obtener_nombre_killzone()
-    # Mapeo institucional de especialización por Killzone (Mayor WinRate y PnL histórico)
+    # Mapeo institucional de especialización por Killzone (Exclusivo para los 5 pares oficiales)
     SESION_ACTIVOS_OPTIMOS = {
         "london": ["GBPUSD", "EURUSD", "GBPJPY"],
-        "new_york": ["EURUSD", "XAUUSD", "US30", "SP500"],
-        "asia": ["AUDUSD", "NZDCAD", "GBPJPY"]
+        "new_york": ["EURUSD", "XAUUSD"],
+        "asia": ["AUDUSD", "GBPJPY"]
     }
     
     activos_a_escanear = ACTIVOS

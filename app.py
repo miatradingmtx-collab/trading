@@ -2464,10 +2464,10 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
                         "reason": "Daily Profit Lock (+150 USD alcanzado). Bot protegido en ganancia (Paridad 1:1 con Drawdown).",
                         "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
                     }
-                if pnl_hoy <= -150.0:
+                if pnl_hoy <= -115.0:
                     return {
                         "authorized": False,
-                        "reason": "Daily Drawdown Lock (-150 USD alcanzado). Limite de perdida diario activado.",
+                        "reason": "Daily Drawdown Lock (-115 USD alcanzado). Limite de perdida diario activado (Presupuesto holgado multi-sesion).",
                         "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
                     }
         except Exception:
