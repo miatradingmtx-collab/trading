@@ -2,6 +2,8 @@ import os
 import datetime
 import json
 import requests
+from dotenv import load_dotenv
+load_dotenv()
 import firebase_admin
 try:
     import google.generativeai as genai
@@ -40,8 +42,8 @@ class MiaQuantSupervisor:
         Cruza la info del trade perdido con los casos históricos del CBR,
         las estrategias activas de mia_kb (regla de 3) y el estado de la Red Neuronal (TensorFlow).
         """
-        gemini_api_key = os.getenv("GOOGLE_API_KEY", os.getenv("GEMINI_API_KEY"))
-        
+        gemini_api_key = (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or "").strip("'").strip('"')
+
         # 1. Recolectar Contexto Operativo (Anti-429: Todo desde Upstash Hot Cache)
         estrategia_actual = "{}"
         estado_tf = "{}"
@@ -56,88 +58,120 @@ class MiaQuantSupervisor:
         except Exception:
             pass
 
-        if not genai or not gemini_api_key:
+        if not gemini_api_key:
             return {
                 "diagnostico": f"Evaluación simulada (Falta GEMINI_API_KEY): El trade {trade_context.get('ticket')} falló.",
-                "sugerencia": "Sugerencia: Configurar GEMINI_API_KEY en entorno para habilitar razonamiento avanzado."
+                "sugerencia_7_herds_trading": "Sugerencia: Configurar GEMINI_API_KEY en entorno para habilitar razonamiento avanzado de los 7 Herds.",
+                "nota_infraestructura_t1_t10": "Infraestructura backend nominal."
+            }
+
+        prompt = f"""
+        Eres MIA Quant Supervisor (Gemini Pro). Tu tarea es hacer un Análisis Cuantitativo y Post-Mortem de un trade cerrado para alimentar el CBR de Trading.
+        NO vas a ejecutar nada en vivo. Emites un diagnóstico y una propuesta cuantitativa para la aprobación humana (HITL).
+
+        TAXONOMÍA Y ROLES EN EL ECOSISTEMA MIA:
+        1. LOS 7 HERDS DEL SWARM DE TRADING (FRONT-OFFICE / HFT / ANÁLISIS DE MERCADO):
+           - HERD 1 (TIDAL): Flujo macro, sesiones Londres/NY, volumen delta y filtro de horarios.
+           - HERD 2 (NORO): Matemáticas cuantitativas, POC dinámico y cadenas de Markov.
+           - HERD 3 (ZEPHR): Probabilidad bayesiana, Expected Value y ratio Sharpe.
+           - HERD 4 (LUMEN): Smart Money Concepts (SMC), Order Blocks LuxAlgo y Fair Value Gaps.
+           - HERD 5 (RUNE): Gestión de riesgo estricto, tamaño de lote defensivo, SL/TP y trailing stop dinámico.
+           - HERD 6 (TENSORFLOW): Inferencia neuronal profunda continua (Red Neuronal de 678 trades).
+           - HERD 7 (ATLAS): Microestructura institucional, Order Book DOM CME/OANDA, CVD Delta y MCP.
+           *Ellos son los ÚNICOS encargados de operar, analizar gráficos, calibrar SL/TP/Trailing Stop y confluencias de mercado.*
+
+        2. HERDS T1 AL T10 + WATCHDOG SUPERVISOR (BACK-OFFICE / INFRAESTRUCTURA TÉCNICA):
+           - Encargados EXCLUSIVOS de la estabilidad del backend, bases de datos (Firestore/Upstash), sincronización con MetaTrader 5, Uvicorn, latencia de red y CI/CD en Railway.
+           - ¡NO HACEN TRADING, NO TIENEN SL/TP, NI ANALIZAN VELAS NI PARES! NUNCA les propongas ajustar parámetros de trading a ellos.
+
+        [TRADE (GANANCIA, PERDIDA O BE)]
+        {json.dumps(trade_context)}
+        
+        [ESTRATEGIAS ACTUALES (mia_kb / regla_de_3 / ML)]
+        {estrategia_actual}
+        
+        [ESTADO RED NEURONAL TENSORFLOW]
+        {estado_tf}
+        
+        [HISTORIAL CBR DE TRADING (Aprende de estos casos previos)]
+        {json.dumps(cbr_history[:10])}
+        
+        Instrucciones:
+        1. Si el trade fue PERDEDOR (PNL negativo), descubre por qué falló la predicción (ej. barrido de liquidez, stop muy ajustado, contra-tendencia de sesión asiática, divergencia de CVD).
+        2. Si el trade fue GANADOR (PNL positivo), identifica el patrón clave que permitió el éxito para forzar a TensorFlow a darle más peso y a RUNE a proteger la posición.
+        3. Si el trade fue BREAK-EVEN (PNL 0) o cierre por Trailing Stop, analiza si el trailing stop cortó las ganancias prematuramente o si protegió correctamente el capital ante una reversión.
+        4. Devuelve estrictamente un JSON con las siguientes claves:
+           - "diagnostico": Explicación concisa y técnica de lo ocurrido con el precio y la confluencia de mercado.
+           - "sugerencia_7_herds_trading": Qué reglas matemáticas, parámetros de SL/TP, trailing stop (RUNE), pesos neuronales (TENSORFLOW), libro de órdenes DOM/CVD (ATLAS) o confluencias SMC (LUMEN/ZEPHR/NORO/TIDAL) propones ajustar a los 7 Herds del Swarm de Trading.
+           - "nota_infraestructura_t1_t10": Si el trade falló por una desconexión de red, error 500 o bug de sincronización técnica en el backend, indícalo aquí para los Herds T1-T10. Si fue un movimiento normal de mercado y la infraestructura operó perfectamente, pon exactamente: "Infraestructura backend nominal (sin fallas técnicas)."
+        """
+
+        texto = None
+
+        # Intento 1: SDK oficial si está disponible
+        if genai:
+            try:
+                genai.configure(api_key=gemini_api_key)
+                target_model_name = 'gemini-1.5-pro'
+                try:
+                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    if 'models/gemini-1.5-pro' in available_models:
+                        target_model_name = 'gemini-1.5-pro'
+                    elif 'models/gemini-2.5-flash' in available_models:
+                        target_model_name = 'gemini-2.5-flash'
+                    elif 'models/gemini-flash-latest' in available_models:
+                        target_model_name = 'gemini-flash-latest'
+                    elif len(available_models) > 0:
+                        target_model_name = available_models[0].replace('models/', '')
+                except Exception as dyn_e:
+                    target_model_name = 'gemini-2.5-flash'
+
+                model = genai.GenerativeModel(target_model_name)
+                response = model.generate_content(prompt)
+                texto = response.text
+            except Exception as e_sdk:
+                print(f"| QUANT AGENT | SDK Gemini error: {e_sdk}, probando REST...")
+
+        # Intento 2: REST directo con failover de modelos
+        if not texto:
+            candidate_models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-pro-latest", "gemini-3.1-pro-preview"]
+            for m in candidate_models:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={gemini_api_key}"
+                payload = {
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1000}
+                }
+                try:
+                    r = requests.post(url, json=payload, timeout=12)
+                    if r.status_code == 200:
+                        cand = r.json().get("candidates", [])
+                        if cand:
+                            texto = cand[0].get("content", {}).get("parts", [])[0].get("text", "")
+                            if texto:
+                                break
+                except Exception:
+                    continue
+
+        if not texto:
+            return {
+                "diagnostico": f"No se pudo completar la inferencia con Gemini para el trade {trade_context.get('ticket')}.",
+                "sugerencia_7_herds_trading": "Mantener configuraciones actuales de los 7 Herds. Error temporal en API de Gemini.",
+                "nota_infraestructura_t1_t10": "Infraestructura backend nominal."
             }
 
         try:
-            genai.configure(api_key=gemini_api_key)
-            
-            # Búsqueda automática del modelo soportado por la API KEY (Evita Error 404)
-            target_model_name = 'gemini-1.5-pro' # default fallback
-            try:
-                available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                if 'models/gemini-1.5-pro' in available_models:
-                    target_model_name = 'gemini-1.5-pro'
-                elif 'models/gemini-1.5-flash' in available_models:
-                    target_model_name = 'gemini-1.5-flash'
-                elif 'models/gemini-pro' in available_models:
-                    target_model_name = 'gemini-pro'
-                elif len(available_models) > 0:
-                    target_model_name = available_models[0].replace('models/', '')
-            except Exception as dyn_e:
-                print(f"| QUANT AGENT | No se pudo listar modelos, usando fallback: {dyn_e}")
-                target_model_name = 'gemini-pro' # Fallback mas seguro a nivel mundial
-
-            print(f"| QUANT AGENT | Usando modelo Gemini: {target_model_name}")
-            model = genai.GenerativeModel(target_model_name)
-            
-            prompt = f"""
-            Eres MIA Quant Supervisor (Gemini Pro). Tu tarea es hacer un Análisis Cuantitativo y Post-Mortem de un trade cerrado para alimentar el CBR de Trading.
-            NO vas a ejecutar nada en vivo. Emites un diagnóstico y una propuesta cuantitativa para la aprobación humana (HITL).
-
-            TAXONOMÍA Y ROLES EN EL ECOSISTEMA MIA:
-            1. LOS 7 HERDS DEL SWARM DE TRADING (FRONT-OFFICE / HFT / ANÁLISIS DE MERCADO):
-               - HERD 1 (TIDAL): Flujo macro, sesiones Londres/NY, volumen delta y filtro de horarios.
-               - HERD 2 (NORO): Matemáticas cuantitativas, POC dinámico y cadenas de Markov.
-               - HERD 3 (ZEPHR): Probabilidad bayesiana, Expected Value y ratio Sharpe.
-               - HERD 4 (LUMEN): Smart Money Concepts (SMC), Order Blocks LuxAlgo y Fair Value Gaps.
-               - HERD 5 (RUNE): Gestión de riesgo estricto, tamaño de lote defensivo, SL/TP y trailing stop dinámico.
-               - HERD 6 (TENSORFLOW): Inferencia neuronal profunda continua (Red Neuronal de 678 trades).
-               - HERD 7 (ATLAS): Microestructura institucional, Order Book DOM CME/OANDA, CVD Delta y MCP.
-               *Ellos son los ÚNICOS encargados de operar, analizar gráficos, calibrar SL/TP/Trailing Stop y confluencias de mercado.*
-
-            2. HERDS T1 AL T10 + WATCHDOG SUPERVISOR (BACK-OFFICE / INFRAESTRUCTURA TÉCNICA):
-               - Encargados EXCLUSIVOS de la estabilidad del backend, bases de datos (Firestore/Upstash), sincronización con MetaTrader 5, Uvicorn, latencia de red y CI/CD en Railway.
-               - ¡NO HACEN TRADING, NO TIENEN SL/TP, NI ANALIZAN VELAS NI PARES! NUNCA les propongas ajustar parámetros de trading a ellos.
-
-            [TRADE (GANANCIA, PERDIDA O BE)]
-            {json.dumps(trade_context)}
-            
-            [ESTRATEGIAS ACTUALES (mia_kb / regla_de_3 / ML)]
-            {estrategia_actual}
-            
-            [ESTADO RED NEURONAL TENSORFLOW]
-            {estado_tf}
-            
-            [HISTORIAL CBR DE TRADING (Aprende de estos casos previos)]
-            {json.dumps(cbr_history[:10])}
-            
-            Instrucciones:
-            1. Si el trade fue PERDEDOR (PNL negativo), descubre por qué falló la predicción (ej. barrido de liquidez, stop muy ajustado, contra-tendencia de sesión asiática, divergencia de CVD).
-            2. Si el trade fue GANADOR (PNL positivo), identifica el patrón clave que permitió el éxito para forzar a TensorFlow a darle más peso y a RUNE a proteger la posición.
-            3. Si el trade fue BREAK-EVEN (PNL 0) o cierre por Trailing Stop, analiza si el trailing stop cortó las ganancias prematuramente o si protegió correctamente el capital ante una reversión.
-            4. Devuelve estrictamente un JSON con las siguientes claves:
-               - "diagnostico": Explicación concisa y técnica de lo ocurrido con el precio y la confluencia de mercado.
-               - "sugerencia_7_herds_trading": Qué reglas matemáticas, parámetros de SL/TP, trailing stop (RUNE), pesos neuronales (TENSORFLOW), libro de órdenes DOM/CVD (ATLAS) o confluencias SMC (LUMEN/ZEPHR/NORO/TIDAL) propones ajustar a los 7 Herds del Swarm de Trading.
-               - "nota_infraestructura_t1_t10": Si el trade falló por una desconexión de red, error 500 o bug de sincronización técnica en el backend, indícalo aquí para los Herds T1-T10. Si fue un movimiento normal de mercado y la infraestructura operó perfectamente, pon exactamente: "Infraestructura backend nominal (sin fallas técnicas)."
-            """
-            
-            response = model.generate_content(prompt)
-            texto = response.text.replace('```json', '').replace('```', '').strip()
-            resultado = json.loads(texto)
+            limpio = texto.replace('```json', '').replace('```', '').strip()
+            resultado = json.loads(limpio)
             if "sugerencia" in resultado and "sugerencia_7_herds_trading" not in resultado:
                 resultado["sugerencia_7_herds_trading"] = resultado["sugerencia"]
             if "nota_infraestructura_t1_t10" not in resultado:
                 resultado["nota_infraestructura_t1_t10"] = "Infraestructura backend nominal."
             return resultado
-        except Exception as e:
+        except Exception as e_parse:
             return {
-                "diagnostico": f"Error de inferencia Gemini: {e}",
-                "sugerencia_7_herds_trading": "Mantener configuraciones actuales de los 7 Herds. Fallo en procesamiento Quant.",
-                "nota_infraestructura_t1_t10": f"Alerta técnica para T1-T10: Fallo en llamada a Gemini ({e})"
+                "diagnostico": f"Respuesta de Gemini generada pero no parseable: {texto[:100]}",
+                "sugerencia_7_herds_trading": "Ajustar parámetros según confluencia de 7 Herds.",
+                "nota_infraestructura_t1_t10": "Infraestructura backend nominal."
             }
 
     def analyze_recent_losses(self):
