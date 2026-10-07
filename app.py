@@ -2458,10 +2458,10 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             if r_mt5_lock.status_code == 200 and r_mt5_lock.json().get('result'):
                 mt5_data = json.loads(r_mt5_lock.json()['result'])
                 pnl_hoy = float(mt5_data.get('pnl_cerrado_hoy', 0.0) or 0.0)
-                if pnl_hoy >= 75.0:
+                if pnl_hoy >= 150.0:
                     return {
                         "authorized": False,
-                        "reason": "Daily Profit Lock (+75 USD alcanzado). Bot protegido en ganancia.",
+                        "reason": "Daily Profit Lock (+150 USD alcanzado). Bot protegido en ganancia (Paridad 1:1 con Drawdown).",
                         "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
                     }
                 if pnl_hoy <= -150.0:

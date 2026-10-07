@@ -242,8 +242,14 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
     pnl_total_dia = pnl_hoy + pnl_flotante
     presupuesto_restante = limite_usd + pnl_total_dia
     
+    # META DIARIA (+150 USD / Paridad 1:1 con Drawdown Diario)
+    META_DIARIA_USD = 150.0
+    if pnl_total_dia >= META_DIARIA_USD:
+        print(f"| GESTOR GANANCIAS | 🎯 META DIARIA ALCANZADA: PNL Total ${pnl_total_dia:.2f} >= +${META_DIARIA_USD:.2f}. Entradas bloqueadas por el día para proteger capital.")
+        return True, 0.0
+
     if pnl_total_dia <= -limite_usd:
-        print(f"| GESTOR RIESGO ALERTA | â›” DRAWDOWN DIARIO ALCANZADO: PNL Total ${pnl_total_dia:.2f} <= LÃ­mite -${limite_usd:.2f} ({limite_pct}% de ${balance_inicio_dia:.2f}). Entradas bloqueadas.")
+        print(f"| GESTOR RIESGO ALERTA | ⛔ DRAWDOWN DIARIO ALCANZADO: PNL Total ${pnl_total_dia:.2f} <= Límite -${limite_usd:.2f} ({limite_pct}% de ${balance_inicio_dia:.2f}). Entradas bloqueadas.")
         return True, 0.0
         
     return False, presupuesto_restante
@@ -805,10 +811,8 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     toca_parcial = 3
                 elif distancia_total > 0 and porcentaje_recorrido >= 0.65 and nivel_parcial < 2:
                     toca_parcial = 2
-                elif ((distancia_total > 0 and porcentaje_recorrido >= 0.40) or profit_flotante >= 50.0) and nivel_parcial < 1:
+                elif distancia_total > 0 and porcentaje_recorrido >= 0.40 and nivel_parcial < 1:
                     toca_parcial = 1
-                    if profit_flotante >= 50.0:
-                        print(f"| GESTOR GANANCIAS | Ganancia de +${profit_flotante:.2f} detectada en {ticket}. Forzando TP1 (Parcial 25% y BE).")
                     
             if toca_parcial > 0:
                 # Extraer Volume Step y Min Volume real del Broker
@@ -846,7 +850,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 
                 # --- AJUSTE INTELIGENTE DE VOLUMEN ---
                 if lote_a_cerrar < min_volume:
-                    # Si el cÃ¡lculo da menos del mÃ­nimo, intentamos forzar al menos el mÃ­nimo
+                    # Si el cálculo da menos del mínimo, intentamos forzar al menos el mínimo
                     if volume - min_volume >= min_volume:
                         lote_a_cerrar = min_volume
                     else:
@@ -888,11 +892,11 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                             
                         await asyncio.sleep(1) # Breve pausa antes de modificar SL
                     except Exception as e:
-                        print(f"| GESTOR PARCIALES ERROR | FallÃ³ cierre parcial para {ticket}: {e}")
+                        print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial para {ticket}: {e}")
                         # No actualizamos nivel_parcial para que intente de nuevo en el siguiente ciclo
                         continue
                 else:
-                    print(f"| GESTOR PARCIALES INFO | Volumen muy pequeÃ±o para partir ({volume}). Se asegurarÃ¡ con SL.")
+                    print(f"| GESTOR PARCIALES INFO | Volumen muy pequeño para partir ({volume}). Se asegurará con SL.")
                     cobro_exitoso = True # Lo damos por exitoso para que avance a mover el SL
                     
                 # --- 2. MOVER STOP LOSS SIEMPRE (Excepto Cierre Total) ---
@@ -900,27 +904,23 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     buffer_be = 0.0001 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.01
                     
                     if toca_parcial == 1:
-                        # Al llegar al 40%, asegurar el 15% del recorrido en GANANCIA REAL (Trailing Seguro) en vez de BE $0.00
-                        distancia_segura = distancia_total * 0.15
-                        # Proteccion contra el override de $50 USD (si el precio aun no llega al 15%, forzar break-even puro)
-                        if distancia_recorrida < distancia_segura:
-                            distancia_segura = distancia_recorrida * 0.50 # Asegurar solo la mitad de lo que lleva
-                            desc_sl = "Nivel Seguro Dinamico (Rapido >$50)"
-                        else:
-                            desc_sl = "Nivel Seguro (+15% Profit Real)"
+                        # Al llegar al 40%, asegurar Break-Even holgado (+5% o buffer para comisiones)
+                        # Dejando 35-40% de respiro para que el precio absorba retrocesos normales en H1
+                        distancia_segura = distancia_total * 0.05
                         nuevo_sl = (entry_price + distancia_segura) if es_buy else (entry_price - distancia_segura)
+                        desc_sl = "Nivel Seguro BE (+5% Comisiones)"
                     elif toca_parcial == 2:
-                        # Al llegar al 65%, asegurar el 40% del recorrido
-                        distancia_tp1 = distancia_total * 0.40
+                        # Al llegar al 65%, asegurar el 25% del recorrido (Holgura del 40% hacia el precio actual)
+                        distancia_tp1 = distancia_total * 0.25
                         nuevo_sl = (entry_price + distancia_tp1) if es_buy else (entry_price - distancia_tp1)
-                        desc_sl = "Nivel Seguro TP1 (40%)"
+                        desc_sl = "Nivel Seguro TP1 (+25% Profit)"
                     else:
                         # Al llegar al 85%, asegurar el 65% del recorrido
                         distancia_tp2 = distancia_total * 0.65
                         nuevo_sl = (entry_price + distancia_tp2) if es_buy else (entry_price - distancia_tp2)
-                        desc_sl = "Nivel Seguro TP2 (65%)"
+                        desc_sl = "Nivel Seguro TP2 (+65% Profit)"
                         
-                    # Verificar si el SL ya estÃ¡ en la posiciÃ³n deseada (ej. por el Trailing Stop del 15%)
+                    # Verificar si el SL ya está en la posición deseada
                     sl_actual = POSICIONES_ACTIVAS[ticket].get("sl", 0.0)
                     if abs(sl_actual - nuevo_sl) < 0.00001:
                         print(f"| GESTOR RIESGO | SL ya estaba en {desc_sl} para {ticket}. Omitiendo modify_position.")
@@ -976,8 +976,8 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             else:
                 recorrido_maximo_favor = entry_price - price_max_historico
                 
-            # Solo permitir BE si el trade ha tocado al menos el 25% de la distancia al TP
-            ha_estado_en_buena_ganancia = (recorrido_maximo_favor >= (distancia_total_tp * 0.25))
+            # Solo permitir BE si el trade ha tocado al menos el 40% de la distancia al TP (tras asegurar TP1)
+            ha_estado_en_buena_ganancia = (recorrido_maximo_favor >= (distancia_total_tp * 0.40))
             
             distancia_tp1 = distancia_total_tp * 0.4
             rango_tolerancia = distancia_tp1 * 0.15
@@ -1335,8 +1335,19 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         return # Skip scanning
         
     killzone_activa = obtener_nombre_killzone()
-    if killzone_activa:
-        print(f"| ESCANER CLOUD | SesiÃ³n activa: {killzone_activa} | Escaneando {len(ACTIVOS)} activos en H1...")
+    # Mapeo institucional de especialización por Killzone (Mayor WinRate y PnL histórico)
+    SESION_ACTIVOS_OPTIMOS = {
+        "london": ["GBPUSD", "EURUSD", "GBPJPY"],
+        "new_york": ["EURUSD", "XAUUSD", "US30", "SP500"],
+        "asia": ["AUDUSD", "NZDCAD", "GBPJPY"]
+    }
+    
+    activos_a_escanear = ACTIVOS
+    if killzone_activa and killzone_activa in SESION_ACTIVOS_OPTIMOS:
+        activos_a_escanear = [act for act in ACTIVOS if act in SESION_ACTIVOS_OPTIMOS[killzone_activa]]
+        print(f"| ESCANER CLOUD | Sesión activa: {killzone_activa.upper()} | Filtrado Institucional ({len(activos_a_escanear)} activos): {activos_a_escanear}")
+    elif killzone_activa:
+        print(f"| ESCANER CLOUD | Sesión activa: {killzone_activa} | Escaneando {len(ACTIVOS)} activos en H1...")
     else:
         print("| ESCANER CLOUD | Fuera de horario de Killzones. Sincronizando pero entradas desactivadas.")
         
@@ -1345,10 +1356,10 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         simbolos_abiertos = [pos.get('symbol') for pos in posiciones_activas]
     except Exception as e:
         print(f"| ESCANER ERROR FATAL | No se pudieron obtener las posiciones activas desde MetaAPI: {e}")
-        print("| PROTECCIÃ“N ACTIVADA | Evitando abrir nuevas operaciones para no duplicar trades (Falla de lectura).")
-        return  # Aborta el ciclo completo hasta el prÃ³ximo tick
+        print("| PROTECCIÓN ACTIVADA | Evitando abrir nuevas operaciones para no duplicar trades (Falla de lectura).")
+        return  # Aborta el ciclo completo hasta el próximo tick
         
-    for activo in ACTIVOS:
+    for activo in activos_a_escanear:
         if not es_mercado_abierto(activo):
             print(f"| MERCADO CERRADO | {activo} en receso o fin de semana. Omitiendo escaneo.")
             continue
