@@ -254,16 +254,16 @@ async def system_ops_watchdog_loop():
             print(f"| SWARM OPS WATCHDOG ERROR | Error en ciclo de 10 minutos: {e}")
         await asyncio.sleep(600)  # 10 minutos
 
-async def daily_quant_reconciliation_watchdog_loop():
+async def daily_quant_reconciliation_service_loop():
     """
-    Vigilancia Perpetua y Calibración Continua de Trading (TensorFlow + Agente Quant / Post-Mortem):
+    Servicio Autónomo de Calibración Continua de Trading (Supervisor Quant + Post-Mortem + TensorFlow):
     - Corre cada 30 minutos (1800s).
     - Reconcilia trades cerrados de las últimas 48h con cache_mia_dataset_tf.
     - Si detecta trades faltantes, reentrena TensorFlow (actualizando trades_aprendidos y tensores para los 7 Herds).
     - Asegura que ningún trade quede sin análisis post-mortem en cache_trading_learning_kb y notifica a Slack (#mia-trading-insights).
     - Al cierre de la sesión de NY (17:00 EST / 21:00 UTC) emite el Reporte Diario Cuantitativo y de Áreas de Oportunidad.
     """
-    print("| QUANT RECONCILIATION WATCHDOG | Iniciando bucle de calibración continua (cada 30 minutos)...")
+    print("| QUANT RECONCILIATION SERVICE | Iniciando servicio de calibración continua (cada 30 minutos)...")
     await asyncio.sleep(40)  # Esperar que los servicios de red e inicio estén listos
     while True:
         try:
@@ -277,14 +277,14 @@ async def daily_quant_reconciliation_watchdog_loop():
             if hora_utc in [21, 22] and minuto < 35:
                 supervisor.generate_daily_quant_summary_report()
         except Exception as e:
-            print(f"| QUANT RECONCILIATION WATCHDOG ERROR | {e}")
+            print(f"| QUANT RECONCILIATION SERVICE ERROR | {e}")
         await asyncio.sleep(1800)  # Cada 30 minutos
 
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(upstash_cache_loop())
     asyncio.create_task(system_ops_watchdog_loop())
-    asyncio.create_task(daily_quant_reconciliation_watchdog_loop())
+    asyncio.create_task(daily_quant_reconciliation_service_loop())
     # Inicializar la base de datos de Firebase si está conectada
     global firebase_inicializado, db
     if firebase_inicializado and db is not None:

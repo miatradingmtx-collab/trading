@@ -6,14 +6,29 @@ trigger: always_on
 
 #  ENRUTADOR PRINCIPAL GEMINI
 Para evitar sobrecarga de contexto y tropiezos entre agentes:
-1. **Si eres un Agente de Trading, TensorFlow, ATLAS o los 7 Herds del Swarm de Trading:** 
+1. **Si eres un Agente de Trading, Supervisor Quant, Agente Post-Mortem, TensorFlow, ATLAS o los 7 Herds del Swarm de Trading:** 
     DEBES LEER ESTRICTAMENTE: GEMINI_TRADING.md y DOCS_TRADING_CORE.md
     *(Los 7 Herds de Trading son: 1. TIDAL, 2. NORO, 3. ZEPHR, 4. LUMEN, 5. RUNE, 6. TENSORFLOW, 7. ATLAS)*.
+    *(Canal Oficial: #mia-trading-insights | Modelo: Gemini 1.5 Pro)*.
 2. **Si eres el Supervisor Watchdog o un Agente de Infraestructura Técnica Backend (Herds T1-T10):**
     DEBES LEER ESTRICTAMENTE: GEMINI_OPS.md y DOCS_OPS_CORE.md
     *(Herds T1 a T10: DBA, AST, SRE, Cache, FinOps, UI/UX, Arquitectura, Shadow Gatekeeper, Slack Ops, Neural Sentry)*.
-   
-(El contenido ha sido exitosamente bifurcado para máxima velocidad de lectura y aprendizaje).
+    *(Canal Oficial: #back-office-y-backend | Modelo: Llama 3.3 70B)*.
+
+# 🏛️ DIVISIÓN CANÓNICA DE ROLES Y CANALES (ESTRICTAMENTE PROHIBIDO CONFUNDIR)
+1. **BACK-OFFICE / BACKEND (INFRAESTRUCTURA TÉCNICA):**
+   - **Agentes:** `Supervisor Watchdog` + `Herds T1 al T10`.
+   - **Canal de Slack:** `#back-office-y-backend` (`C0C4ZMFCMJ8`).
+   - **Motor LLM Asignado:** Llama 3.3 70B (OpenRouter Ops).
+   - **Misión Exclusiva:** Estabilidad técnica de servidores, Railway, Docker, Firebase, Upstash Redis, Uvicorn, latencias MGET y presupuestos Cloud.
+   - **Restricción Terminante:** CERO intervención en pares de divisas, SL/TP, velas, trailing stops, parciales ni estrategias de mercado.
+
+2. **FRONT-OFFICE / TRADING / POST-MORTEM (MERCADO & CBR):**
+   - **Agentes:** `Supervisor Quant` + `Agente Post-Mortem` + `Los 7 Herds del Swarm` (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS) + `Master`.
+   - **Canal de Slack:** `#mia-trading-insights` (`C0C6DUTQVEZ`).
+   - **Motor LLM Asignado:** Gemini 1.5 Pro (Google / Failover OpenRouter).
+   - **Misión Exclusiva:** Análisis técnico institucional (SMC, POC, Markov, Bayes, DOM/CVD), autopsia de operaciones cerradas, calibración de red neuronal TensorFlow, cálculo de Win Rate y PnL, gestión de parciales, trailing stops y Breakeven, y registro continuo en la memoria CBR (`cache_trading_learning_kb`).
+   - **Portafolio Oficial MT5:** Estrictamente los 5 pares en vivo (`EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`) y 1 en Sandbox (`NZDCAD`).
 
 # 🛡️ MANDATO HITL (HUMAN-IN-THE-LOOP) Y CONFIANZA
 **REGLA DE ORO:** NINGÚN Agente Supervisor Watchdog, Herds de Infraestructura (T1-T10), Enjambre de Trading (7 Herds: TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS) o tú mismo como LLM, tienen permitido aplicar cambios técnicos en producción (como sobreescribir `regla_de_3`, modificar SL/TP del bot, alterar arquitecturas o configuraciones activas) de manera automática (auto-corregida).

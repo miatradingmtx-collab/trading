@@ -45,19 +45,66 @@ class MiaQuantSupervisor:
         """
         gemini_api_key = (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or "").strip("'").strip('"')
 
-        # 1. Recolectar Contexto Operativo (Anti-429: Todo desde Upstash Hot Cache)
+        # 1. Recolectar Contexto Operativo Integral vía MGET Atómico (Anti-429: Todo desde Upstash Hot Cache en 1 llamada)
         estrategia_actual = "{}"
         estado_tf = "{}"
+        debate_7_herds = "Sin debate previo registrado"
+        microestructura_atlas = "Sin datos de libro CME/OANDA"
+        estado_mt5 = "{}"
+
         try:
-            r_kb = requests.get(f"{self.UPSTASH_URL}/get/cache_regla_de_3", headers=self.UPSTASH_HEADERS, timeout=3).json()
-            estrategia_actual = r_kb.get("result", "{}")
-            
-            r_tf = requests.get(f"{self.UPSTASH_URL}/get/cache_mia_tensorflow", headers=self.UPSTASH_HEADERS, timeout=3).json()
-            # Solo pasamos una radiografía ligera de TF para no reventar el token limit
-            tf_data = json.loads(r_tf.get("result", "{}")) if r_tf.get("result") else {}
-            estado_tf = json.dumps({"accuracy": tf_data.get("accuracy"), "trades_aprendidos": tf_data.get("trades_learned")})
-        except Exception:
-            pass
+            mget_url = f"{self.UPSTASH_URL}/mget/cache_regla_de_3/cache_mia_tensorflow/cache_herd_debate_latest/cache_mia_atlas/cache_mt5"
+            r_all = requests.get(mget_url, headers=self.UPSTASH_HEADERS, timeout=4).json()
+            slots = r_all.get("result", [])
+            if len(slots) >= 5:
+                # Slot 0: Regla de 3
+                if slots[0]:
+                    estrategia_actual = slots[0]
+                # Slot 1: TensorFlow
+                if slots[1]:
+                    tf_d = json.loads(slots[1]) if isinstance(slots[1], str) else slots[1]
+                    estado_tf = json.dumps({"accuracy": tf_d.get("accuracy"), "trades_aprendidos": tf_d.get("trades_aprendidos", tf_d.get("trades_learned", 687))})
+                # Slot 2: Debate de los 7 Herds
+                if slots[2]:
+                    deb_d = json.loads(slots[2]) if isinstance(slots[2], str) else slots[2]
+                    if isinstance(deb_d, dict):
+                        deb_dict = deb_d.get("debate", deb_d)
+                        debate_7_herds = json.dumps({
+                            "tidal": deb_dict.get("herd_1_tidal", "N/A"),
+                            "noro": deb_dict.get("herd_2_noro", "N/A"),
+                            "zephr": deb_dict.get("herd_3_zephr", "N/A"),
+                            "lumen": deb_dict.get("herd_4_lumen", "N/A"),
+                            "rune": deb_dict.get("herd_5_rune", "N/A"),
+                            "tensorflow": deb_dict.get("herd_6_tensorflow", "N/A"),
+                            "atlas": deb_dict.get("herd_7_atlas", "N/A"),
+                            "quorum_master": deb_dict.get("master_quorum", deb_d.get("veredicto", "N/A"))
+                        })
+                    else:
+                        debate_7_herds = str(deb_d)[:400]
+                # Slot 3: ATLAS DOM/CVD
+                if slots[3]:
+                    atl_d = json.loads(slots[3]) if isinstance(slots[3], str) else slots[3]
+                    if isinstance(atl_d, dict):
+                        microestructura_atlas = json.dumps({
+                            "cvd_delta": atl_d.get("cvd_delta", "N/A"),
+                            "flujo_comprador": atl_d.get("buyer_pct", atl_d.get("buyer_volume_pct", "N/A")),
+                            "flujo_vendedor": atl_d.get("seller_pct", atl_d.get("seller_volume_pct", "N/A")),
+                            "trampas_detectadas": atl_d.get("heatmap_resting_liquidity", atl_d.get("trampas", "N/A"))
+                        })
+                    else:
+                        microestructura_atlas = str(atl_d)[:300]
+                # Slot 4: MT5
+                if slots[4]:
+                    mt5_d = json.loads(slots[4]) if isinstance(slots[4], str) else slots[4]
+                    if isinstance(mt5_d, dict):
+                        estado_mt5 = json.dumps({
+                            "balance": mt5_d.get("balance"),
+                            "equity": mt5_d.get("equity"),
+                            "pnl_cerrado_hoy": mt5_d.get("pnl_cerrado_hoy"),
+                            "pnl_flotante": mt5_d.get("floating_pnl", mt5_d.get("pnl_flotante"))
+                        })
+        except Exception as e_mget:
+            print(f"| QUANT AGENT WARN | Error leyendo MGET Hot Cache: {e_mget}")
 
         if not gemini_api_key:
             return {
@@ -70,22 +117,26 @@ class MiaQuantSupervisor:
         Eres MIA Quant Supervisor (Gemini Pro). Tu tarea es hacer un Análisis Cuantitativo y Post-Mortem de un trade cerrado para alimentar el CBR de Trading.
         NO vas a ejecutar nada en vivo. Emites un diagnóstico y una propuesta cuantitativa para la aprobación humana (HITL).
 
-        TAXONOMÍA Y ROLES EN EL ECOSISTEMA MIA:
+        TAXONOMÍA Y ROLES EN EL ECOSISTEMA MIA (CANÓNICO - PROHIBIDO CONFUNDIR):
         1. LOS 7 HERDS DEL SWARM DE TRADING (FRONT-OFFICE / HFT / ANÁLISIS DE MERCADO):
-           - HERD 1 (TIDAL): Flujo macro, sesiones Londres/NY, volumen delta y filtro de horarios.
-           - HERD 2 (NORO): Matemáticas cuantitativas, POC dinámico y cadenas de Markov.
-           - HERD 3 (ZEPHR): Probabilidad bayesiana, Expected Value y ratio Sharpe.
-           - HERD 4 (LUMEN): Smart Money Concepts (SMC), Order Blocks LuxAlgo y Fair Value Gaps.
-           - HERD 5 (RUNE): Gestión de riesgo estricto, tamaño de lote defensivo, SL/TP y trailing stop dinámico.
-           - HERD 6 (TENSORFLOW): Inferencia neuronal profunda continua (Red Neuronal de 678 trades).
-           - HERD 7 (ATLAS): Microestructura institucional, Order Book DOM CME/OANDA, CVD Delta y MCP.
+           - HERD 1 (TIDAL): Flujo macro, sesiones Londres/NY/Asia, absorción y filtro de horarios óptimos.
+           - HERD 2 (NORO): Matemáticas cuantitativas, POC dinámico intradiario/semanal y cadenas de Markov.
+           - HERD 3 (ZEPHR): Probabilidad bayesiana, Expected Value (EV) y confluencias estadísticas.
+           - HERD 4 (LUMEN): Smart Money Concepts (SMC), Order Blocks LuxAlgo, ChoCh y Fair Value Gaps.
+           - HERD 5 (RUNE): Gestión de riesgo estricto, tamaño de lote defensivo, SL/TP, Parciales (TP40/TP65) y Trailing Stop escalonado (40%, 65%, 85%, 95%).
+           - HERD 6 (TENSORFLOW): Inferencia neuronal profunda continua (Red Neuronal calibrada con 687+ trades aprendidos).
+           - HERD 7 (ATLAS): Microestructura institucional, Order Book DOM CME/OANDA, CVD Delta acumulado y verificación con CBR.
            *Ellos son los ÚNICOS encargados de operar, analizar gráficos, calibrar SL/TP/Trailing Stop y confluencias de mercado.*
 
         2. HERDS T1 AL T10 + WATCHDOG SUPERVISOR (BACK-OFFICE / INFRAESTRUCTURA TÉCNICA):
-           - Encargados EXCLUSIVOS de la estabilidad del backend, bases de datos (Firestore/Upstash), sincronización con MetaTrader 5, Uvicorn, latencia de red y CI/CD en Railway.
+           - Encargados EXCLUSIVOS de la estabilidad del backend, bases de datos (Firestore/Upstash), Docker/Railway, Uvicorn, latencia MGET y CI/CD.
            - ¡NO HACEN TRADING, NO TIENEN SL/TP, NI ANALIZAN VELAS NI PARES! NUNCA les propongas ajustar parámetros de trading a ellos.
 
-        [TRADE (GANANCIA, PERDIDA O BE)]
+        PORTAFOLIO OFICIAL EN BROKER MT5:
+        - EN VIVO (5 PARES): EURUSD, GBPUSD, AUDUSD, GBPJPY, XAUUSD.
+        - SANDBOX EXPERIMENTAL: NZDCAD (Modo Entrenamiento / Shadow, prohibida ejecución en broker).
+
+        [TRADE CERRADO A EVALUAR]
         {json.dumps(trade_context)}
         
         [ESTRATEGIAS ACTUALES (mia_kb / regla_de_3 / ML)]
@@ -93,18 +144,32 @@ class MiaQuantSupervisor:
         
         [ESTADO RED NEURONAL TENSORFLOW]
         {estado_tf}
+
+        [ÚLTIMO DICTAMEN DE LOS 7 HERDS DEL SWARM (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS)]
+        {debate_7_herds}
+
+        [MICROESTRUCTURA INSTITUCIONAL ATLAS DOM & CVD DELTA]
+        {microestructura_atlas}
+
+        [ESTADO FINANCIERO Y BALANCE MT5]
+        {estado_mt5}
         
         [HISTORIAL CBR DE TRADING (Aprende de estos casos previos)]
         {json.dumps(cbr_history[:10])}
         
         Instrucciones:
-        1. Si el trade fue PERDEDOR (PNL negativo), descubre por qué falló la predicción (ej. barrido de liquidez, stop muy ajustado, contra-tendencia de sesión asiática, divergencia de CVD).
-        2. Si el trade fue GANADOR (PNL positivo), identifica el patrón clave que permitió el éxito para forzar a TensorFlow a darle más peso y a RUNE a proteger la posición.
-        3. Si el trade fue BREAK-EVEN (PNL 0) o cierre por Trailing Stop, analiza si el trailing stop cortó las ganancias prematuramente o si protegió correctamente el capital ante una reversión.
-        4. Devuelve estrictamente un JSON con las siguientes claves:
+        1. Si el trade fue PERDEDOR (PNL negativo), descubre por qué falló la confluencia (ej. barrido de liquidez, stop muy ceñido sin buffer ATR, reversión prematura contra CVD, contra-tendencia de sesión).
+        2. Si el trade fue GANADOR (PNL positivo), identifica el patrón institucional clave (Order Block respetado, confluencia de POC, sesión óptima) para calibrar a TensorFlow y RUNE.
+        3. Si el trade fue BREAK-EVEN (PNL 0) o cierre por Trailing Stop, evalúa si el SL a BE se activó prematuramente cortando la expansión o si protegió correctamente el capital.
+        4. Formula recomendaciones concretas para los 7 Herds que apliquen a los 5 pares oficiales de MT5 (EURUSD, GBPUSD, AUDUSD, GBPJPY, XAUUSD):
+           - SL defensivo con buffer ATR.
+           - Toma de Parcial 1 (TP40) asegurando beneficio.
+           - Retrasar el movimiento a Breakeven hasta que el precio supere el 40% del recorrido.
+           - Trailing stop escalonado holgado (40%, 65%, 85%, 95%).
+        5. Devuelve estrictamente un JSON con las siguientes claves:
            - "diagnostico": Explicación concisa y técnica de lo ocurrido con el precio y la confluencia de mercado.
-           - "sugerencia_7_herds_trading": Qué reglas matemáticas, parámetros de SL/TP, trailing stop (RUNE), pesos neuronales (TENSORFLOW), libro de órdenes DOM/CVD (ATLAS) o confluencias SMC (LUMEN/ZEPHR/NORO/TIDAL) propones ajustar a los 7 Herds del Swarm de Trading.
-           - "nota_infraestructura_t1_t10": Si el trade falló por una desconexión de red, error 500 o bug de sincronización técnica en el backend, indícalo aquí para los Herds T1-T10. Si fue un movimiento normal de mercado y la infraestructura operó perfectamente, pon exactamente: "Infraestructura backend nominal (sin fallas técnicas)."
+           - "sugerencia_7_herds_trading": Qué reglas matemáticas, parámetros de SL/TP, trailing stop (RUNE), pesos neuronales (TENSORFLOW), libro de órdenes DOM/CVD (ATLAS) o confluencias SMC (LUMEN/ZEPHR/NORO/TIDAL) propones ajustar a los 7 Herds para los 5 pares operados.
+           - "nota_infraestructura_t1_t10": Si el trade falló por una desconexión técnica, bug de sincronización o error 500 en backend, indícalo aquí para T1-T10. Si fue movimiento normal de mercado y la infraestructura operó perfectamente, pon exactamente: "Infraestructura backend nominal (sin fallas técnicas)."
         """
 
         texto = None
