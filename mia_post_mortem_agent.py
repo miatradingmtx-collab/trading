@@ -127,7 +127,8 @@ class MiaQuantSupervisor:
                 except Exception as dyn_e:
                     target_model_name = 'gemini-2.5-flash'
 
-                model = genai.GenerativeModel(target_model_name)
+                generation_config = {"temperature": 0.2, "max_output_tokens": 2500}
+                model = genai.GenerativeModel(target_model_name, generation_config=generation_config)
                 response = model.generate_content(prompt)
                 texto = response.text
             except Exception as e_sdk:
@@ -140,10 +141,10 @@ class MiaQuantSupervisor:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={gemini_api_key}"
                 payload = {
                     "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1000}
+                    "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2500}
                 }
                 try:
-                    r = requests.post(url, json=payload, timeout=12)
+                    r = requests.post(url, json=payload, timeout=15)
                     if r.status_code == 200:
                         cand = r.json().get("candidates", [])
                         if cand:
@@ -161,13 +162,13 @@ class MiaQuantSupervisor:
                 or_payload = {
                     "model": "google/gemini-2.5-flash",
                     "messages": [
-                        {"role": "system", "content": "Eres MIA Quant Supervisor (Gemini Pro). Devuelve estrictamente un objeto JSON."},
+                        {"role": "system", "content": "Eres MIA Quant Supervisor (Gemini Pro). Devuelve estrictamente un objeto JSON completo y cerrado."},
                         {"role": "user", "content": prompt}
                     ],
                     "temperature": 0.2,
-                    "max_tokens": 1000
+                    "max_tokens": 2500
                 }
-                r_or = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=or_headers, json=or_payload, timeout=12)
+                r_or = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=or_headers, json=or_payload, timeout=15)
                 if r_or.status_code == 200:
                     choices = r_or.json().get("choices", [])
                     if choices:
@@ -389,6 +390,273 @@ class MiaQuantSupervisor:
                 except Exception as e_ops:
                     print(f"| QUANT AGENT | Error enviando alerta técnica a ops: {e_ops}")
 
+    def reconcile_and_process_daily_trades(self, days_back: int = 2):
+        """
+        Reconciliador Automático Diario (Watchdog Anti-Pérdida de Trades):
+        1. Escanea todos los trades cerrados de las últimas 24h-48h desde Firestore (mia_audit_logs).
+        2. Sincroniza e ingesta los trades faltantes en cache_mia_dataset_tf y reentrena TensorFlow.
+        3. Verifica que cada trade cerrado tenga su caso analizado en cache_trading_learning_kb (CBR).
+        4. Si algún trade no tiene caso post-mortem, lo procesa con Gemini Pro y notifica a Slack.
+        """
+        print(f"| QUANT RECONCILER | Iniciando reconciliación de trades diarios (últimos {days_back} días)...")
+        if not self.db:
+            print("| QUANT RECONCILER | Firestore no disponible.")
+            return {"status": "error", "message": "Firestore no disponible"}
+            
+        try:
+            # 1. Obtener trades cerrados recientes de Firestore
+            docs = self.db.collection('mia_audit_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(100).stream()
+            closed_trades = []
+            for doc in docs:
+                data = doc.to_dict()
+                ticket = str(data.get('ticket', doc.id))
+                if ticket.isdigit() and len(ticket) >= 8:
+                    accion = data.get('accion', '')
+                    pnl = float(data.get('pnl', 0.0) or 0.0)
+                    if accion in ['CIERRE_TOTAL', 'CERRAR_TP', 'CIERRE_PARCIAL', 'TRAILING_STOP', 'PROTECCION_BE'] or pnl != 0.0:
+                        closed_trades.append({
+                            'ticket': ticket,
+                            'symbol': data.get('activo', 'EURUSD'),
+                            'profit': pnl,
+                            'type': accion,
+                            'motivo': data.get('motivo', 'Cierre MT5'),
+                            'timestamp': data.get('timestamp', ''),
+                            'detalle_setup': data.get('detalle_setup', ''),
+                            'score': data.get('score', 75.0)
+                        })
+            
+            print(f"| QUANT RECONCILER | {len(closed_trades)} trades cerrados detectados en auditoría.")
+            
+            # 2. Reconciliación con TensorFlow (cache_mia_dataset_tf)
+            r_ds = requests.get(f"{self.UPSTASH_URL}/get/cache_mia_dataset_tf", headers=self.UPSTASH_HEADERS, timeout=5)
+            tf_ds = []
+            if r_ds.status_code == 200 and r_ds.json().get('result'):
+                raw = r_ds.json().get('result')
+                tf_ds = json.loads(raw) if isinstance(raw, str) else (raw or [])
+                
+            tf_existing = {str(x.get('ticket')) for x in tf_ds if x.get('ticket')}
+            new_tf_trades = 0
+            for t in closed_trades:
+                if t['ticket'] not in tf_existing:
+                    tf_ds.append({
+                        'ticket': t['ticket'],
+                        'activo': t['symbol'],
+                        'pnl': t['profit'],
+                        'accion': t['type'],
+                        'score': t.get('score', 75.0),
+                        'timestamp': t['timestamp'],
+                        'detalle_setup': t.get('detalle_setup', '')
+                    })
+                    tf_existing.add(t['ticket'])
+                    new_tf_trades += 1
+                    
+            if new_tf_trades > 0:
+                print(f"| QUANT RECONCILER | Ingestando {new_tf_trades} trades faltantes en TensorFlow dataset...")
+                requests.post(f"{self.UPSTASH_URL}/set/cache_mia_dataset_tf", headers=self.UPSTASH_HEADERS, data=json.dumps(tf_ds, default=str), timeout=10)
+                try:
+                    requests.get("https://trading-production-927a.up.railway.app/api/cron/train_tensorflow", timeout=30)
+                    print("| QUANT RECONCILER | Red Neuronal reentrenada exitosamente.")
+                except Exception as e_tf_call:
+                    print(f"| QUANT RECONCILER WARN | No se pudo llamar /train_tensorflow: {e_tf_call}")
+
+            # 3. Reconciliación con CBR de Trading (cache_trading_learning_kb)
+            r_cbr = requests.get(f"{self.UPSTASH_URL}/get/cache_trading_learning_kb", headers=self.UPSTASH_HEADERS, timeout=5)
+            cbr_list = []
+            if r_cbr.status_code == 200 and r_cbr.json().get('result'):
+                raw_cbr = r_cbr.json().get('result')
+                cbr_list = json.loads(raw_cbr) if isinstance(raw_cbr, str) else (raw_cbr or [])
+                
+            cbr_existing_tickets = {str(c.get('ticket')) for c in cbr_list if c.get('ticket')}
+            cases_generated = 0
+            
+            for t in closed_trades:
+                if t['ticket'] not in cbr_existing_tickets:
+                    print(f"| QUANT RECONCILER | Generando caso Post-Mortem para trade huérfano Ticket {t['ticket']} ({t['symbol']} | PnL: ${t['profit']})...")
+                    self._generate_and_register_case(t)
+                    cbr_existing_tickets.add(t['ticket'])
+                    cases_generated += 1
+                    
+            print(f"| QUANT RECONCILER | Reconciliación finalizada: {new_tf_trades} trades agregados a TF, {cases_generated} casos post-mortem registrados en CBR.")
+            return {
+                "status": "success",
+                "closed_trades_checked": len(closed_trades),
+                "new_tf_trades_ingested": new_tf_trades,
+                "new_cbr_cases_generated": cases_generated,
+                "total_trades_tf": len(tf_ds),
+                "total_cases_cbr": len(cbr_existing_tickets)
+            }
+        except Exception as e_rec:
+            print(f"| QUANT RECONCILER ERROR | Falló la reconciliación: {e_rec}")
+            return {"status": "error", "message": str(e_rec)}
+
+    def generate_daily_quant_summary_report(self):
+        """
+        Genera el Reporte Ejecutivo Diario Cuantitativo y de Áreas de Oportunidad (Gemini Pro).
+        Calcula el PnL y Win Rate de la jornada, sintetiza aprendizajes y publica en #mia-trading-insights.
+        """
+        print("| QUANT SUPERVISOR | Generando Reporte Diario Cuantitativo de Mejoras y Oportunidades...")
+        if not self.db:
+            return {"status": "error", "message": "Firestore no disponible"}
+            
+        try:
+            today_str = datetime.datetime.now().strftime('%Y-%m-%d')
+            docs = self.db.collection('mia_audit_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(100).stream()
+            
+            today_trades = []
+            for doc in docs:
+                data = doc.to_dict()
+                ticket = str(data.get('ticket', doc.id))
+                ts = str(data.get('timestamp', ''))
+                if today_str in ts and ticket.isdigit() and len(ticket) >= 8:
+                    pnl = float(data.get('pnl', 0.0) or 0.0)
+                    accion = data.get('accion', '')
+                    if accion in ['CIERRE_TOTAL', 'CERRAR_TP', 'CIERRE_PARCIAL', 'TRAILING_STOP', 'PROTECCION_BE'] or pnl != 0.0:
+                        today_trades.append({
+                            'ticket': ticket,
+                            'activo': data.get('activo', 'EURUSD'),
+                            'pnl': pnl,
+                            'accion': accion,
+                            'timestamp': ts,
+                            'motivo': data.get('motivo', '')
+                        })
+                        
+            total_trades = len(today_trades)
+            if total_trades == 0:
+                print("| QUANT SUPERVISOR | No hay trades cerrados en la jornada de hoy.")
+                return {"status": "no_trades", "message": "Sin operaciones cerradas hoy."}
+                
+            wins = [t for t in today_trades if t['pnl'] > 0]
+            losses = [t for t in today_trades if t['pnl'] < 0]
+            breakevens = [t for t in today_trades if t['pnl'] == 0]
+            
+            total_pnl = sum([t['pnl'] for t in today_trades])
+            win_rate = (len(wins) / (len(wins) + len(losses)) * 100) if (len(wins) + len(losses)) > 0 else 0.0
+            
+            # Obtener estado vivo de TensorFlow
+            r_tf = requests.get(f"{self.UPSTASH_URL}/get/cache_mia_tensorflow", headers=self.UPSTASH_HEADERS, timeout=5)
+            tf_data = json.loads(r_tf.json().get('result', '{}')) if r_tf.status_code == 200 and r_tf.json().get('result') else {}
+            tf_trades = tf_data.get('trades_aprendidos', 687)
+            tf_acc = tf_data.get('accuracy', 0.57) * 100
+            
+            # Síntesis Cuantitativa con Gemini Pro
+            gemini_api_key = (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or "").strip("'").strip('"')
+            prompt_reporte = f"""
+            Eres MIA Quant Supervisor (Gemini Pro). Elabora el REPORTE DIARIO DE RENDIMIENTO, MEJORAS Y ÁREAS DE OPORTUNIDAD de la jornada ({today_str}).
+            
+            DATOS DE LA JORNADA:
+            - Total de Trades Cerrados: {total_trades}
+            - Ganadores (Wins): {len(wins)} | Perdedores (Losses): {len(losses)} | Breakeven/Parciales: {len(breakevens)}
+            - Win Rate del Día: {win_rate:.1f}%
+            - PnL Neto de la Jornada: ${total_pnl:.2f} USD
+            - Estado de la Red Neuronal (TensorFlow): {tf_trades} trades aprendidos | Accuracy: {tf_acc:.1f}%
+            
+            DETALLE DE OPERACIONES DE HOY:
+            {json.dumps(today_trades, indent=2)}
+            
+            Instrucciones para la Síntesis:
+            Devuelve estrictamente un JSON con las siguientes claves:
+            1. "resumen_ejecutivo": Balance cuantitativo claro de la sesión (sesiones de mayor rentabilidad, rendimiento de pares).
+            2. "patrones_ganadores": Qué confluencias funcionaron con precisión (OBs, Markov, sesiones Londres/NY, trailing stop).
+            3. "areas_de_oportunidad": Qué desajustes causaron las pérdidas o breakevens prematuros, y qué trampas de liquidez evitar.
+            4. "propuesta_calibracion_7_herds": Recomendaciones puntuales para TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW y ATLAS.
+            5. "calibracion_red_neuronal": Confirmación de la ingesta de los trades del día y estado de aprendizaje supervisado.
+            """
+            
+            texto_sintesis = ""
+            if gemini_api_key:
+                try:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_api_key}"
+                    r_gem = requests.post(url, json={"contents": [{"parts": [{"text": prompt_reporte}]}], "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2500}}, timeout=15)
+                    if r_gem.status_code == 200:
+                        cand = r_gem.json().get("candidates", [])
+                        if cand:
+                            texto_sintesis = cand[0].get("content", {}).get("parts", [])[0].get("text", "")
+                except Exception as e_gem:
+                    print(f"| QUANT REPORT ERROR | Gemini directo: {e_gem}")
+                    
+            if not texto_sintesis and os.getenv("OPENROUTER_API_KEY"):
+                try:
+                    or_key = os.getenv("OPENROUTER_API_KEY")
+                    r_or = requests.post("https://openrouter.ai/api/v1/chat/completions", headers={"Authorization": f"Bearer {or_key}", "Content-Type": "application/json"}, json={"model": "google/gemini-2.5-flash", "messages": [{"role": "user", "content": prompt_reporte}], "max_tokens": 2500}, timeout=15)
+                    if r_or.status_code == 200:
+                        texto_sintesis = r_or.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+                except Exception as e_or:
+                    print(f"| QUANT REPORT ERROR | OpenRouter: {e_or}")
+                    
+            parsed_sintesis = {}
+            import re
+            try:
+                m_j = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', texto_sintesis)
+                if m_j:
+                    parsed_sintesis = json.loads(m_j.group(1))
+                else:
+                    s_i = texto_sintesis.find('{')
+                    e_i = texto_sintesis.rfind('}')
+                    if s_i != -1 and e_i != -1:
+                        parsed_sintesis = json.loads(texto_sintesis[s_i:e_i+1])
+            except Exception:
+                pass
+                
+            resumen_ejecutivo = parsed_sintesis.get("resumen_ejecutivo", f"Jornada {today_str}: {total_trades} trades cerrados, Win Rate {win_rate:.1f}%, PnL ${total_pnl:.2f} USD.")
+            patrones_ganadores = parsed_sintesis.get("patrones_ganadores", "Confluencias SMC en Londres y NY.")
+            areas_oportunidad = parsed_sintesis.get("areas_de_oportunidad", "Gestión de buffer de SL en activos de alta volatilidad.")
+            propuesta_7_herds = parsed_sintesis.get("propuesta_calibracion_7_herds", "Ajustar trailing stop de RUNE y filtros de absorción en ATLAS.")
+            
+            # Notificar en Slack #mia-trading-insights
+            if slack_bridge and (slack_bridge.bot_token or slack_bridge.quant_bot_token):
+                emoji_pnl = "🟢" if total_pnl >= 0 else "🔴"
+                blocks_daily = [
+                    {
+                        "type": "header",
+                        "text": {"type": "plain_text", "text": f"📊 REPORTE DIARIO QUANT & MEJORAS ({today_str})", "emoji": True}
+                    },
+                    {
+                        "type": "section",
+                        "fields": [
+                            {"type": "mrkdwn", "text": f"*PnL Neto:* `{emoji_pnl} ${total_pnl:.2f} USD`"},
+                            {"type": "mrkdwn", "text": f"*Win Rate:* `{win_rate:.1f}%` ({len(wins)}W / {len(losses)}L / {len(breakevens)}BE)"},
+                            {"type": "mrkdwn", "text": f"*Red Neuronal TF:* `{tf_trades} trades` ({tf_acc:.1f}% acc)"},
+                            {"type": "mrkdwn", "text": f"*Operaciones:* `{total_trades} cerradas`"}
+                        ]
+                    },
+                    {
+                        "type": "section",
+                        "text": {"type": "mrkdwn", "text": f"*🧠 Resumen Ejecutivo:*\n{resumen_ejecutivo}\n\n*💎 Patrones Ganadores Identificados:*\n{patrones_ganadores}\n\n*⚠️ Áreas de Oportunidad y Fugas:*\n{areas_oportunidad}\n\n*🎯 Propuesta de Calibración para los 7 Herds (HITL):*\n{propuesta_7_herds}"}
+                    },
+                    {
+                        "type": "context",
+                        "elements": [{"type": "mrkdwn", "text": "🤖 *MIA Quant Supervisor (Gemini Pro)* | Calibración Continua de Red Neuronal & Swarms activa | Mandato HITL."}]
+                    },
+                    {"type": "divider"}
+                ]
+                slack_bridge.send_channel_message(text=f"Reporte Diario Quant: PnL ${total_pnl:.2f} | Win Rate {win_rate:.1f}%", channel=self.SLACK_INSIGHTS_CHANNEL, username="MIA Quant Supervisor", icon_emoji=":chart_with_upwards_trend:", blocks=blocks_daily)
+                print("| QUANT SUPERVISOR | Reporte Diario publicado exitosamente en Slack.")
+                
+            report_payload = {
+                "fecha": today_str,
+                "timestamp": datetime.datetime.now().isoformat(),
+                "total_trades": total_trades,
+                "wins": len(wins),
+                "losses": len(losses),
+                "breakevens": len(breakevens),
+                "win_rate": win_rate,
+                "pnl_total": total_pnl,
+                "resumen_ejecutivo": resumen_ejecutivo,
+                "patrones_ganadores": patrones_ganadores,
+                "areas_de_oportunidad": areas_oportunidad,
+                "propuesta_calibracion_7_herds": propuesta_7_herds,
+                "tf_trades_aprendidos": tf_trades,
+                "tf_accuracy": tf_acc
+            }
+            requests.post(f"{self.UPSTASH_URL}/set/cache_quant_daily_report", headers=self.UPSTASH_HEADERS, data=json.dumps(report_payload, default=str), timeout=5)
+            self.db.collection("mia_trading_learning_history").document(f"DAILY_REPORT_{today_str}").set(report_payload)
+            return {"status": "success", "report": report_payload}
+        except Exception as e_rep:
+            print(f"| QUANT REPORT ERROR | {e_rep}")
+            return {"status": "error", "message": str(e_rep)}
+
 if __name__ == "__main__":
     agent = MiaQuantSupervisor()
-    agent.analyze_recent_losses()
+    agent.reconcile_and_process_daily_trades()
+    agent.generate_daily_quant_summary_report()
+

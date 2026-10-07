@@ -254,10 +254,37 @@ async def system_ops_watchdog_loop():
             print(f"| SWARM OPS WATCHDOG ERROR | Error en ciclo de 10 minutos: {e}")
         await asyncio.sleep(600)  # 10 minutos
 
+async def daily_quant_reconciliation_watchdog_loop():
+    """
+    Vigilancia Perpetua y Calibración Continua de Trading (TensorFlow + Agente Quant / Post-Mortem):
+    - Corre cada 30 minutos (1800s).
+    - Reconcilia trades cerrados de las últimas 48h con cache_mia_dataset_tf.
+    - Si detecta trades faltantes, reentrena TensorFlow (actualizando trades_aprendidos y tensores para los 7 Herds).
+    - Asegura que ningún trade quede sin análisis post-mortem en cache_trading_learning_kb y notifica a Slack (#mia-trading-insights).
+    - Al cierre de la sesión de NY (17:00 EST / 21:00 UTC) emite el Reporte Diario Cuantitativo y de Áreas de Oportunidad.
+    """
+    print("| QUANT RECONCILIATION WATCHDOG | Iniciando bucle de calibración continua (cada 30 minutos)...")
+    await asyncio.sleep(40)  # Esperar que los servicios de red e inicio estén listos
+    while True:
+        try:
+            from mia_post_mortem_agent import MiaQuantSupervisor
+            supervisor = MiaQuantSupervisor()
+            supervisor.reconcile_and_process_daily_trades()
+            
+            # Chequear ventana de cierre de mercado para emitir reporte diario (21:00 - 22:00 UTC)
+            hora_utc = datetime.datetime.now(datetime.timezone.utc).hour
+            minuto = datetime.datetime.now(datetime.timezone.utc).minute
+            if hora_utc in [21, 22] and minuto < 35:
+                supervisor.generate_daily_quant_summary_report()
+        except Exception as e:
+            print(f"| QUANT RECONCILIATION WATCHDOG ERROR | {e}")
+        await asyncio.sleep(1800)  # Cada 30 minutos
+
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(upstash_cache_loop())
     asyncio.create_task(system_ops_watchdog_loop())
+    asyncio.create_task(daily_quant_reconciliation_watchdog_loop())
     # Inicializar la base de datos de Firebase si está conectada
     global firebase_inicializado, db
     if firebase_inicializado and db is not None:
@@ -5685,6 +5712,26 @@ def get_swarm_history():
         
     except Exception as e:
         print(f"| SWARM HISTORY ERROR | {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/quant/reconcile_and_report")
+@app.post("/api/quant/reconcile_and_report")
+def api_quant_reconcile_and_report():
+    """
+    Endpoint bajo demanda para forzar la reconciliación de trades diarios,
+    calibración de TensorFlow y generación del Reporte Ejecutivo Cuantitativo de Mejoras.
+    """
+    try:
+        from mia_post_mortem_agent import MiaQuantSupervisor
+        supervisor = MiaQuantSupervisor()
+        res_rec = supervisor.reconcile_and_process_daily_trades()
+        res_rep = supervisor.generate_daily_quant_summary_report()
+        return {
+            "status": "success",
+            "reconciliation": res_rec,
+            "daily_report": res_rep
+        }
+    except Exception as e:
         return {"status": "error", "message": str(e)}
 
 
