@@ -2522,22 +2522,24 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
                 "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
             }
 
-        # 1.3 [DAILY PROFIT LOCK & DRAWDOWN LOCK] (+1.5% o -3%)
+        # 1.3 [DAILY PROFIT LOCK & DRAWDOWN LOCK] (+150 USD o -115 USD)
         try:
             r_mt5_lock = requests.get(f"{UPSTASH_URL}/get/cache_mt5", headers=UPSTASH_HEADERS, timeout=2)
             if r_mt5_lock.status_code == 200 and r_mt5_lock.json().get('result'):
                 mt5_data = json.loads(r_mt5_lock.json()['result'])
-                pnl_hoy = float(mt5_data.get('pnl_cerrado_hoy', 0.0) or 0.0)
-                if pnl_hoy >= 150.0:
+                pnl_hoy = float(mt5_data.get('pnl_total_hoy', mt5_data.get('pnl_cerrado_hoy', 0.0)) or 0.0)
+                bloqueado_pl = mt5_data.get('bloqueado_profit_lock', False) or (pnl_hoy >= 150.0)
+                bloqueado_dd = mt5_data.get('bloqueado_drawdown', False) or (pnl_hoy <= -115.0)
+                if bloqueado_pl:
                     return {
                         "authorized": False,
-                        "reason": "Daily Profit Lock (+150 USD alcanzado). Bot protegido en ganancia (Paridad 1:1 con Drawdown).",
+                        "reason": f"Daily Profit Lock (+150 USD alcanzado, PnL hoy: ${pnl_hoy:.2f}). Bot protegido en ganancia (Paridad 1:1 con Drawdown).",
                         "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
                     }
-                if pnl_hoy <= -115.0:
+                if bloqueado_dd:
                     return {
                         "authorized": False,
-                        "reason": "Daily Drawdown Lock (-115 USD alcanzado). Limite de perdida diario activado (Presupuesto holgado multi-sesion).",
+                        "reason": f"Daily Drawdown Lock (-115 USD alcanzado, PnL hoy: ${pnl_hoy:.2f}). Limite de perdida diario activado (Presupuesto holgado multi-sesion).",
                         "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
                     }
         except Exception:
@@ -3193,11 +3195,16 @@ class UpdateBalancePayload(BaseModel):
     balance: float
     equity: float = 0.0
     floating_pnl: float = 0.0
+    balance_inicio_dia: Optional[float] = None
+    pnl_cerrado_hoy: Optional[float] = None
+    pnl_total_hoy: Optional[float] = None
+    bloqueado_drawdown: Optional[bool] = False
+    bloqueado_profit_lock: Optional[bool] = False
 
 @app.post("/webhook_update_balance")
 def webhook_update_balance(payload: UpdateBalancePayload, authorization: Optional[str] = Header(None)):
     """
-    Recibe el balance en vivo desde el MT5 Executor (Nube) y lo guarda en Firebase para el Dashboard.
+    Recibe el balance en vivo y métricas de riesgo desde el MT5 Executor (Nube) y lo homologa en Firebase.
     """
     verificar_token(authorization)
     
@@ -3207,24 +3214,28 @@ def webhook_update_balance(payload: UpdateBalancePayload, authorization: Optiona
         
     try:
         from datetime import datetime
-        # Actualizamos una cachÃƒÆ’Ã‚Â© en RAM global en Railway para evitar tocar Firebase a cada segundo y no invalidar la cachÃƒÆ’Ã‚Â© del Dashboard
         global ULTIMO_BROKER_STATE
         ULTIMO_BROKER_STATE = {
+            "balance": payload.balance,
+            "balance_actual": payload.balance,
             "live_balance": payload.balance,
             "equity": payload.equity,
             "floating_pnl": payload.floating_pnl,
+            "balance_inicio_dia": payload.balance_inicio_dia,
+            "pnl_cerrado_hoy": payload.pnl_cerrado_hoy,
+            "pnl_total_hoy": payload.pnl_total_hoy,
+            "bloqueado_drawdown": payload.bloqueado_drawdown,
+            "bloqueado_profit_lock": payload.bloqueado_profit_lock,
             "timestamp": datetime.now().isoformat()
         }
         
-        # Opcional: Escribimos asÃƒÆ’Ã‚Â­ncronamente en Firestore sÃƒÆ’Ã‚Â³lo de fondo o evitamos el set si la cuota estÃƒÆ’Ã‚Â¡ agotada
+        # Guardar en Firestore colección system_memory/broker_state
         try:
             db.collection("system_memory").document("broker_state").set(ULTIMO_BROKER_STATE, merge=True)
         except Exception as fe:
-            # Si da error 429 Quota Exceeded, lo ignoramos para mantener el bot operativo en memoria
             pass
             
-        # IMPORTANTE: Eliminamos invalidar_cache_dashboard() de aquÃƒÆ’Ã‚Â­ para que la cachÃƒÆ’Ã‚Â© de 3 min del Dashboard proteja las lecturas
-        return {"status": "success", "mensaje": "Balance actualizado en memoria de Railway"}
+        return {"status": "success", "mensaje": "Balance y estado de riesgo homologados en Railway y Firestore"}
     except Exception as e:
         print(f"| GESTOR BALANCE ERROR | {e}")
         raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
@@ -3232,10 +3243,31 @@ def webhook_update_balance(payload: UpdateBalancePayload, authorization: Optiona
 @app.get("/api/pnl_hoy")
 def api_pnl_hoy(authorization: Optional[str] = Header(None)):
     """
-    Devuelve la suma total del PNL de todas las operaciones cerradas el dÃƒÆ’Ã‚Â­a de hoy.
+    Devuelve la suma total del PNL de hoy desde cache_mt5 (Watermark MT5) con fallback a auditoría de Firebase.
     """
     if authorization != "MIA_INTERNAL_BYPASS":
         verificar_token(authorization)
+    
+    # 1. Fuente Primaria: cache_mt5 en Upstash Redis (Watermark Institucional en tiempo real)
+    try:
+        r_cache = requests.get(f"{UPSTASH_URL}/get/cache_mt5", headers=UPSTASH_HEADERS, timeout=2)
+        if r_cache.status_code == 200 and r_cache.json().get("result"):
+            mt5_data = json.loads(r_cache.json()["result"])
+            pnl_tot = float(mt5_data.get("pnl_total_hoy", mt5_data.get("pnl_cerrado_hoy", 0.0)) or 0.0)
+            return {
+                "status": "success",
+                "pnl_hoy": pnl_tot,
+                "pnl_cerrado_hoy": float(mt5_data.get("pnl_cerrado_hoy", 0.0) or 0.0),
+                "pnl_total_hoy": pnl_tot,
+                "balance_inicio_dia": mt5_data.get("balance_inicio_dia"),
+                "bloqueado_drawdown": mt5_data.get("bloqueado_drawdown", False),
+                "bloqueado_profit_lock": mt5_data.get("bloqueado_profit_lock", False),
+                "source": "cache_mt5_watermark"
+            }
+    except Exception:
+        pass
+
+    # 2. Fallback Secundario: Auditoría de Firebase / logs en memoria
     global firebase_inicializado, db
     if not firebase_inicializado or db is None:
         raise HTTPException(status_code=503, detail="Firebase no inicializado")
@@ -3252,18 +3284,14 @@ def api_pnl_hoy(authorization: Optional[str] = Header(None)):
             for data in GLOBAL_AUDIT_LOGS:
                 fecha_doc = data.get("fecha", "")
                 if fecha_doc.startswith(hoy_str):
-                    # Solo sumar si es un CIERRE_TOTAL (o PARCIAL si se incluye)
                     accion = data.get("accion", "")
                     if accion in ["CIERRE_TOTAL", "CIERRE_PARCIAL_80", "CIERRE_PARCIAL"]:
                         pnl_val = float(data.get("pnl", 0.0))
-                        # FILTRO ANTI-CORRUPCION: Ignorar PNL imposibles de cierres manuales (SL=0, TP=0)
-                        # Un trade normal nunca pierde mas de $5000 en una sola operacion
                         if abs(pnl_val) > 5000.0:
-                            print(f"| PNL FILTER | PNL anomalo ignorado: ${pnl_val:.2f} (ticket: {data.get('ticket','?')}) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Probable cierre manual sin registro.")
                             continue
                         pnl_total += pnl_val
                     
-        return {"status": "success", "pnl_hoy": pnl_total}
+        return {"status": "success", "pnl_hoy": pnl_total, "source": "global_audit_logs"}
     except Exception as e:
         print(f"| API ERROR | Error calculando PNL de hoy: {e}")
         return {"status": "error", "pnl_hoy": 0.0, "detalle": str(e)}

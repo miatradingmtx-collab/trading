@@ -221,39 +221,77 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
     
     return lotes
 
+# Estado global en memoria para Watermark Institucional de Drawdown y Meta Diaria
+ESTADO_DIARIO_WATERMARK = {
+    "dia_utc": None,
+    "balance_inicio_dia": None,
+    "pnl_cerrado_acumulado": 0.0,
+    "bloqueado_drawdown": False,
+    "bloqueado_profit_lock": False
+}
+
 async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: float = 3.0) -> Tuple[bool, float]:
-    """Consulta el backend para ver si el PNL de hoy supera la pÃ©rdida mÃ¡xima permitida dinÃ¡mica en %."""
-    url = f"{FASTAPI_URL}/api/pnl_hoy"
-    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
-    pnl_hoy = 0.0
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                pnl_hoy = float(data.get("pnl_hoy", 0.0))
-    except Exception as e:
-        print(f"| GESTOR RIESGO EXCEPTION | No se pudo verificar PNL diario: {e}")
-        
-    # El balance al abrir el día es el balance actual menos lo que ya se cerró
-    balance_inicio_dia = balance - pnl_hoy
-    # Límite Estricto de Drawdown Diario: -$115 USD (Asegura presupuesto holgado para 3 sesiones)
-    limite_usd = 115.0
+    """
+    Control de Riesgo Institucional basado en Watermark Diario UTC.
+    Garantiza cumplimiento estricto de:
+    - Drawdown Diario: -$115 USD máximo (pnl_total_dia <= -115.0)
+    - Profit Lock Diario: +$150 USD meta (pnl_total_dia >= +150.0)
+    """
+    global ESTADO_DIARIO_WATERMARK
+    hoy_utc = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
     
+    # 1. Si cambió de día UTC o es el primer arranque, inicializar Watermark
+    if ESTADO_DIARIO_WATERMARK.get("dia_utc") != hoy_utc or ESTADO_DIARIO_WATERMARK.get("balance_inicio_dia") is None:
+        balance_inicio = balance
+        # Intentar recuperar el balance_inicio_dia persistido en cache_mt5 (Upstash Redis) para resiliencia ante reinicios
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                r_cache = await client.get(
+                    "https://certain-gnat-160816.upstash.io/get/cache_mt5",
+                    headers={"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                )
+                if r_cache.status_code == 200 and r_cache.json().get("result"):
+                    d_c = json.loads(r_cache.json()["result"])
+                    if d_c.get("dia_utc") == hoy_utc and float(d_c.get("balance_inicio_dia", 0.0)) > 0:
+                        balance_inicio = float(d_c.get("balance_inicio_dia"))
+                        print(f"| GESTOR RIESGO | Watermark recuperado de cache_mt5 para {hoy_utc}: ${balance_inicio:.2f}")
+        except Exception:
+            pass
+
+        ESTADO_DIARIO_WATERMARK = {
+            "dia_utc": hoy_utc,
+            "balance_inicio_dia": balance_inicio,
+            "pnl_cerrado_acumulado": balance - balance_inicio,
+            "bloqueado_drawdown": False,
+            "bloqueado_profit_lock": False
+        }
+        print(f"| GESTOR RIESGO | Inicia ciclo diario UTC {hoy_utc}. Balance Inicial Watermark: ${balance_inicio:.2f}")
+
+    balance_inicio_dia = ESTADO_DIARIO_WATERMARK["balance_inicio_dia"]
+    limite_usd = 115.0
+    META_DIARIA_USD = 150.0
+    
+    pnl_cerrado_hoy = balance - balance_inicio_dia
     pnl_flotante = equity - balance
-    pnl_total_dia = pnl_hoy + pnl_flotante
+    pnl_total_dia = equity - balance_inicio_dia
     presupuesto_restante = max(0.0, limite_usd + pnl_total_dia)
     
+    ESTADO_DIARIO_WATERMARK["pnl_cerrado_acumulado"] = pnl_cerrado_hoy
+
     # META DIARIA (+150 USD)
-    META_DIARIA_USD = 150.0
     if pnl_total_dia >= META_DIARIA_USD:
+        ESTADO_DIARIO_WATERMARK["bloqueado_profit_lock"] = True
         print(f"| GESTOR GANANCIAS | 🎯 META DIARIA ALCANZADA: PNL Total ${pnl_total_dia:.2f} >= +${META_DIARIA_USD:.2f}. Entradas bloqueadas por el día para proteger capital.")
         return True, 0.0
 
+    # LÍMITE ESTRICTO DE DRAWDOWN DIARIO (-115 USD)
     if pnl_total_dia <= -limite_usd:
+        ESTADO_DIARIO_WATERMARK["bloqueado_drawdown"] = True
         print(f"| GESTOR RIESGO ALERTA | ⛔ DRAWDOWN DIARIO ALCANZADO: PNL Total ${pnl_total_dia:.2f} <= Límite -${limite_usd:.2f}. Entradas bloqueadas.")
         return True, 0.0
         
+    ESTADO_DIARIO_WATERMARK["bloqueado_drawdown"] = False
+    ESTADO_DIARIO_WATERMARK["bloqueado_profit_lock"] = False
     return False, presupuesto_restante
 
 async def obtener_velas_cloud(account, simbolo: str, temporalidad: str, cantidad: int = 100) -> Optional[pd.DataFrame]:
@@ -1326,9 +1364,24 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
     if not skip_risk:
         try:
             if FASTAPI_URL and balance > 0:
-
+                b_inicio = ESTADO_DIARIO_WATERMARK.get("balance_inicio_dia", balance) or balance
+                pnl_cerr = round(balance - b_inicio, 2)
+                pnl_tot = round(equity - b_inicio, 2)
                 async with httpx.AsyncClient() as client:
-                    await client.post(f"{FASTAPI_URL}/webhook_update_balance", json={"balance": balance, "equity": equity, "floating_pnl": equity - balance}, headers={"Authorization": f"Bearer {ACCESS_TOKEN}"})
+                    await client.post(
+                        f"{FASTAPI_URL}/webhook_update_balance",
+                        json={
+                            "balance": balance,
+                            "equity": equity,
+                            "floating_pnl": equity - balance,
+                            "balance_inicio_dia": b_inicio,
+                            "pnl_cerrado_hoy": pnl_cerr,
+                            "pnl_total_hoy": pnl_tot,
+                            "bloqueado_drawdown": ESTADO_DIARIO_WATERMARK.get("bloqueado_drawdown", False),
+                            "bloqueado_profit_lock": ESTADO_DIARIO_WATERMARK.get("bloqueado_profit_lock", False)
+                        },
+                        headers={"Authorization": f"Bearer {ACCESS_TOKEN}"}
+                    )
         except Exception as e:
             print(f"| GESTOR BALANCE | Error al enviar webhook_update_balance: {e}")
         
@@ -1477,22 +1530,40 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             # previene entrar a destiempo y ser barrido por la volatilidad inicial.
             
             
-                        # REGLA ESTRICTA DE TENDENCIA (EMA 50/200) + AMD + RSI 80/20
-            # Tendencia macro define la direcciÃ³n base
+            # MOTOR ICT / AMD (Acumulación, Manipulación, Distribución)
             tendencia_alcista = precio_actual > ema_50 and precio_actual > ema_200
             tendencia_bajista = precio_actual < ema_50 and precio_actual < ema_200
             
-            es_alcista = conf_1h.get("bullish_signal", False) or conf_4h.get("bullish_signal", False)
-            es_bajista = conf_1h.get("bearish_signal", False) or conf_4h.get("bearish_signal", False)
+            sweep_alcista = conf_1h.get("bullish_signal", False) or conf_4h.get("bullish_signal", False)
+            sweep_bajista = conf_1h.get("bearish_signal", False) or conf_4h.get("bearish_signal", False)
             
-            # REGLA ESTRICTA DE TENDENCIA
             if tendencia_alcista:
+                # Distribución Alcista confirmada por EMAs macro
+                if sweep_bajista and not sweep_alcista:
+                    print(f"| AMD ICT | {activo} en tendencia alcista macro pero con rechazo bajista en resistencia. Omitiendo entrada.")
+                    continue
                 accion = "COMPRA"
             elif tendencia_bajista:
+                # Distribución Bajista confirmada por EMAs macro
+                if sweep_alcista and not sweep_bajista:
+                    print(f"| AMD ICT | {activo} en tendencia bajista macro pero con rechazo alcista en soporte. Omitiendo entrada.")
+                    continue
                 accion = "VENTA"
             else:
-                # Si el precio estÃ¡ consolidando entre las EMAs, usamos las seÃ±ales SMC
-                accion = "COMPRA" if es_alcista else "VENTA"
+                # PRECIO ENTRE EMAs: FASE DE ACUMULACIÓN LATERAL (A de AMD)
+                # Regla Institucional de Oro: PROHIBIDO operar en rango sin confirmación de Manipulación (M: Liquidity Sweep)
+                if sweep_alcista and not sweep_bajista:
+                    # Manipulación bajista (barrido de lows) completada -> Arranca Distribución Alcista
+                    accion = "COMPRA"
+                    print(f"| AMD ICT | {activo} en Fase A->M->D: Sweep de mínimos completado. Entrada en COMPRA autorizada.")
+                elif sweep_bajista and not sweep_alcista:
+                    # Manipulación alcista (barrido de highs) completada -> Arranca Distribución Bajista
+                    accion = "VENTA"
+                    print(f"| AMD ICT | {activo} en Fase A->M->D: Sweep de máximos completado. Entrada en VENTA autorizada.")
+                else:
+                    # Acumulación pura sin manipulación confirmada: NO SE OPERA
+                    print(f"| AMD ICT FILTRO | {activo} en Acumulación lateral (entre EMAs) sin Sweep/Manipulación confirmado. Omitiendo trade.")
+                    continue
 
             
             # Solicitar autorizaciÃ³n al cerebro (Mia)
@@ -1539,9 +1610,24 @@ async def run_escaner_loop():
             # ya que el Firebase Cache Bug fue resuelto y la API estÃ¡ a salvo.
             if FASTAPI_URL and balance > 0:
                 try:
-
+                    b_inicio = ESTADO_DIARIO_WATERMARK.get("balance_inicio_dia", balance) or balance
+                    pnl_cerr = round(balance - b_inicio, 2)
+                    pnl_tot = round(equity - b_inicio, 2)
                     async with httpx.AsyncClient() as client:
-                        await client.post(f"{FASTAPI_URL}/webhook_update_balance", json={"balance": balance, "equity": equity, "floating_pnl": equity - balance}, headers={"Authorization": f"Bearer {ACCESS_TOKEN}"})
+                        await client.post(
+                            f"{FASTAPI_URL}/webhook_update_balance",
+                            json={
+                                "balance": balance,
+                                "equity": equity,
+                                "floating_pnl": equity - balance,
+                                "balance_inicio_dia": b_inicio,
+                                "pnl_cerrado_hoy": pnl_cerr,
+                                "pnl_total_hoy": pnl_tot,
+                                "bloqueado_drawdown": ESTADO_DIARIO_WATERMARK.get("bloqueado_drawdown", False),
+                                "bloqueado_profit_lock": ESTADO_DIARIO_WATERMARK.get("bloqueado_profit_lock", False)
+                            },
+                            headers={"Authorization": f"Bearer {ACCESS_TOKEN}"}
+                        )
                 except Exception as e:
                     pass
                     
@@ -1555,11 +1641,20 @@ async def run_escaner_loop():
             except Exception as e:
                 print(f"| GESTOR POSICIONES ERROR | {e}")
                 
-            # SINCRONIZACION DIRECTA A UPSTASH (CACHE MT5 DASHBOARD)
+            # SINCRONIZACION DIRECTA A UPSTASH (CACHE MT5 DASHBOARD UNIFICADA)
             try:
                 import datetime
                 info = await connection.get_account_information()
+                balance_val = float(info.get('balance', 0.0))
+                equity_val = float(info.get('equity', 0.0))
                 positions = await connection.get_positions()
+                
+                # Evaluar y sincronizar Watermark Diario
+                await verificar_drawdown_diario(balance_val, equity_val)
+                b_inicio = ESTADO_DIARIO_WATERMARK.get("balance_inicio_dia", balance_val) or balance_val
+                pnl_cerr = round(balance_val - b_inicio, 2)
+                pnl_tot = round(equity_val - b_inicio, 2)
+                
                 ops_activas = []
                 for p in positions:
                     pos = p if isinstance(p, dict) else getattr(p, '__dict__', {})
@@ -1579,9 +1674,18 @@ async def run_escaner_loop():
                     })
                 
                 payload_upstash = {
-                    "balance_actual": float(info.get('balance', 0.0)),
-                    "equity": float(info.get('equity', 0.0)),
-                    "floating_pnl": float(info.get('equity', 0.0)) - float(info.get('balance', 0.0)),
+                    "balance": balance_val,
+                    "balance_actual": balance_val,
+                    "equity": equity_val,
+                    "floating_pnl": round(equity_val - balance_val, 2),
+                    "balance_inicio_dia": b_inicio,
+                    "pnl_cerrado_hoy": pnl_cerr,
+                    "pnl_total_hoy": pnl_tot,
+                    "drawdown_limite_usd": 115.0,
+                    "profit_meta_usd": 150.0,
+                    "dia_utc": ESTADO_DIARIO_WATERMARK.get("dia_utc"),
+                    "bloqueado_drawdown": ESTADO_DIARIO_WATERMARK.get("bloqueado_drawdown", False),
+                    "bloqueado_profit_lock": ESTADO_DIARIO_WATERMARK.get("bloqueado_profit_lock", False),
                     "margen": float(info.get('margin', 0.0)),
                     "margen_libre": float(info.get('freeMargin', 0.0)),
                     "nivel_margen": float(info.get('marginLevel', 0.0)),
@@ -1592,9 +1696,16 @@ async def run_escaner_loop():
                 }
                 
                 async with httpx.AsyncClient(timeout=3.0) as client:
+                    # 1. Slot principal unificado cache_mt5
                     await client.post(
                         "https://certain-gnat-160816.upstash.io/set/cache_mt5",
                         json=payload_upstash,
+                        headers={"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                    )
+                    # 2. Clave simple balance_actual sincronizada para retrocompatibilidad
+                    await client.post(
+                        "https://certain-gnat-160816.upstash.io/set/balance_actual",
+                        content=str(balance_val),
                         headers={"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
                     )
             except Exception as e_up:
