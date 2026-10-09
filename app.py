@@ -993,6 +993,18 @@ def recalcular_score_ponderado(data: dict) -> float:
     if 2 in smc_codes: score += w_fvg
     if 3 in smc_codes: score += w_breaker
     if 4 in smc_codes: score += w_sweep
+    
+    # 4.1 Vectorización AMD Dinámica Multi-Timeframe (1H, 2H, 3H, 4H, 8H)
+    w_amd_macro = pesos.get("amd_confluencia_macro", 45.0)
+    w_amd_3h = pesos.get("amd_sweep_3h", 35.0)
+    w_amd_intra = pesos.get("amd_sweep_intradia", 25.0)
+    
+    if 20 in smc_codes or tech.get("amd_confluencia_macro", False):
+        score += w_amd_macro
+    if 21 in smc_codes or tech.get("amd_sweep_3h", False):
+        score += w_amd_3h
+    if 22 in smc_codes or tech.get("amd_sweep_intradia", False):
+        score += w_amd_intra
         
     # Firebase es el ÃƒÆ’Ã‚Âºnico juez de la validaciÃƒÆ’Ã‚Â³n. Permitimos scores > 100% para mostrar fuerza extrema.
     return score
@@ -2208,6 +2220,7 @@ class MT5SetupRequest(BaseModel):
     accion: str
     precio: float
     estrategia: str
+    amd_context: Optional[dict] = None
 
 class SystemErrorLog(BaseModel):
     componente: str
@@ -2352,7 +2365,8 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
             1: "ORDER BLOCK", 2: "FVG", 3: "BREAKER BLOCK", 4: "AMD (SWEEP LIQUIDEZ)", 5: "iFVG",
             6: "MEDIAS MOVILES", 7: "RSI", 8: "SOPORTE/RESISTENCIA", 9: "POC PRICE",
             10: "LUX OB 1H", 11: "LUX OB 2H", 12: "LUX OB 3H", 13: "LUX OB 4H", 14: "LUX OB 8H",
-            15: "LUX LIQ 1H", 16: "LUX LIQ 2H", 17: "LUX LIQ 3H", 18: "LUX LIQ 4H", 19: "LUX LIQ 8H"
+            15: "LUX LIQ 1H", 16: "LUX LIQ 2H", 17: "LUX LIQ 3H", 18: "LUX LIQ 4H", 19: "LUX LIQ 8H",
+            20: "AMD CONFLUENCIA MACRO A++", 21: "AMD SWEEP 3H VALIDADO", 22: "AMD SWEEP INTRADIA 1H/2H", 23: "AMD FILTRO ANTI-TRAMPA"
         }
         for k, v in update.confirmaciones_tecnicas.items():
             if k == "smc_codes" and isinstance(v, list):
@@ -2958,7 +2972,8 @@ class MetaApiExecution(BaseModel):
     take_profit: Optional[float] = 0.0
     ejecutada_mt5: bool = True
     motivo: str = "Cumple parÃƒâ€¡Ã‚Â­metros de matriz tÃƒâ€¡Ã‚Â¸cnica y de riesgo"
-    estrategia: str = "SMC Setup" 
+    estrategia: str = "SMC Setup"
+    amd_context: Optional[dict] = None 
 
 @app.post("/webhook_marcar_ejecutado")
 def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optional[str] = Header(None)):
@@ -3002,7 +3017,8 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
             1: "ORDER BLOCK", 2: "FVG", 3: "BREAKER BLOCK", 4: "AMD (SWEEP LIQUIDEZ)", 5: "iFVG",
             6: "MEDIAS MOVILES", 7: "RSI", 8: "SOPORTE/RESISTENCIA", 9: "POC PRICE",
             10: "LUX OB 1H", 11: "LUX OB 2H", 12: "LUX OB 3H", 13: "LUX OB 4H", 14: "LUX OB 8H",
-            15: "LUX LIQ 1H", 16: "LUX LIQ 2H", 17: "LUX LIQ 3H", 18: "LUX LIQ 4H", 19: "LUX LIQ 8H"
+            15: "LUX LIQ 1H", 16: "LUX LIQ 2H", 17: "LUX LIQ 3H", 18: "LUX LIQ 4H", 19: "LUX LIQ 8H",
+            20: "AMD CONFLUENCIA MACRO A++", 21: "AMD SWEEP 3H VALIDADO", 22: "AMD SWEEP INTRADIA 1H/2H", 23: "AMD FILTRO ANTI-TRAMPA"
         }
         
         activas = []
@@ -3064,10 +3080,19 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
             "detalle_setup": detalle_str,
             "confirmaciones_tecnicas": data.get("confirmaciones_tecnicas", {}),
             "confirmaciones_fundamentales": data.get("confirmaciones_fundamentales", {}),
-            "confirmaciones_institucionales": data.get("confirmaciones_institucionales", {})
+            "confirmaciones_institucionales": data.get("confirmaciones_institucionales", {}),
+            "amd_context": ejecucion.amd_context or data.get("confirmaciones_tecnicas", {}).get("amd_context", {})
         }
         
         audit_ref.set(audit_data_dict, merge=True)
+        
+        # Homologación Histórica Append-Only en mia_kb para AMD Multi-Timeframe (1H, 2H, 3H, 4H, 8H)
+        try:
+            if ejecucion.amd_context:
+                amd_ref = db.collection("mia_kb").document("amd_mtf_history").collection("trades").document(str(ejecucion.ticket))
+                amd_ref.set(audit_data_dict, merge=True)
+        except Exception as e_amd_kb:
+            print(f"| MIA KB WARNING | No se pudo respaldar AMD MTF en mia_kb: {e_amd_kb}")
             
         # Actualizar CachÃƒÆ’Ã‚Â© en RAM directamente para no depender de Firebase (previene error si el webhook llega despuÃƒÆ’Ã‚Â©s y hay lÃƒÆ’Ã‚Â­mite 429)
         global GLOBAL_AUDIT_LOGS
@@ -3617,7 +3642,11 @@ def api_dashboard_data():
                     "liquidity_pool_sweep": 1.4800,
                     "volume_poc_price": 1.4500,
                     "ma_alineada": 1.2500,
-                    "rsi_extremo": 1.1500
+                    "rsi_extremo": 1.1500,
+                    "amd_confluencia_macro": 1.9500,
+                    "amd_sweep_3h": 1.7500,
+                    "amd_sweep_intradia": 1.4000,
+                    "amd_trampa_macro_evitada": 2.1000
                 }
                 if ml_data:
                     for ind in ml_data.get("indicadores", []):

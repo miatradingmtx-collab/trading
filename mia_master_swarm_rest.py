@@ -186,7 +186,7 @@ def run_hft_cycle():
         session = requests.Session()
         session.trust_env = False
         
-        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix/cache_researcher_insights/cache_regla_de_3/cache_trading_learning_kb"
+        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix/cache_researcher_insights/cache_regla_de_3/cache_trading_learning_kb/cache_ml_history"
         res_mget = session.get(mget_url, headers=upstash_headers, timeout=5)
         slots = res_mget.json().get("result", []) if res_mget.status_code == 200 else []
         
@@ -220,6 +220,16 @@ def run_hft_cycle():
             c_ver = c.get('veredicto_humano', 'PENDIENTE')
             cbr_items.append(f"[{c_sym} - Humano:{c_ver}]: {c_diag} -> Solución: {c_sol}")
         cbr_summary = " | ".join(cbr_items) if cbr_items else "Sin precedentes críticos en CBR."
+
+        # 6. Pesos y Vectores Dinámicos de Machine Learning (slot 6)
+        ml_raw = slots[6] if len(slots) > 6 and slots[6] else {}
+        ml_json = json.loads(ml_raw) if isinstance(ml_raw, str) else (ml_raw or {})
+        ml_dyn_weights = ml_json.get("kpis", {}).get("dynamic_weights", {})
+        w_amd_macro = ml_dyn_weights.get("amd_confluencia_macro", 1.95)
+        w_amd_3h = ml_dyn_weights.get("amd_sweep_3h", 1.75)
+        w_amd_intra = ml_dyn_weights.get("amd_sweep_intradia", 1.40)
+        w_amd_trampa = ml_dyn_weights.get("amd_trampa_macro_evitada", 2.10)
+        amd_ml_vector_str = f"AMD Macro Sweep Weight={w_amd_macro} | AMD 3H Weight={w_amd_3h} | AMD Intradía Weight={w_amd_intra} | Anti-Trampa Weight={w_amd_trampa}"
             
         # Extracción de liquidez y balance
         balance = mt5_json.get("balance_actual", 0.0)
@@ -364,15 +374,16 @@ def run_hft_cycle():
     6. BRIEF INTELIGENCIA EXTERNA ATLAS MCP: {researcher_brief}
     7. REGLAS MIA KB & RIESGO: {mia_rules}
     8. MEMORIA CBR DE TRADING (CASOS PREVIOS APRENDIDOS): {cbr_summary}
-    9. PORTAFOLIO DE ACTIVOS: En Vivo MT5 ({', '.join(ACTIVOS_LIVE_MT5)}) | Sandbox ({', '.join(ACTIVOS_SANDBOX)} - Modo Entrenamiento/Shadow, prohibida ejecución real en broker).
+    9. VECTORES DINÁMICOS ML / ICT AMD: {amd_ml_vector_str}
+    10. PORTAFOLIO DE ACTIVOS: En Vivo MT5 ({', '.join(ACTIVOS_LIVE_MT5)}) | Sandbox ({', '.join(ACTIVOS_SANDBOX)} - Modo Entrenamiento/Shadow, prohibida ejecución real en broker).
     
     INSTRUCCIONES DE DELIBERACIÓN DE LA MALLA (7 HERDS ESPECIALIZADOS + MASTER):
     Genera el diálogo de debate, contrapuntos y consenso final entre los 7 Herds independientes:
-    **HERD 1 - TIDAL**: Tendencia macro de sesiones (Londres/NY/Asia) y sesgo de absorción institucional para los 5 pares MT5 oficiales.
+    **HERD 1 - TIDAL**: Tendencia macro de sesiones (Londres/NY/Asia), sesgo de absorción y validación de confluencia macro AMD (4H/8H).
     **HERD 2 - NORO**: Niveles cuantitativos clave (POC dinámico, POC semanal y confluencia de Markov).
-    **HERD 3 - ZEPHR**: Probabilidad estadística bayesiana y cálculo de Expected Value (EV en R).
-    **HERD 4 - LUMEN**: Smart Money Concepts (Order Blocks LuxAlgo, Fair Value Gaps y trampas de liquidez en los 5 pares MT5 y evaluación experimental de NZDCAD en Sandbox).
-    **HERD 5 - RUNE**: Gestión de riesgo estricto (SL técnico defensivo, tamaño de lote, ratio R:R y restricción estricta de que NZDCAD no se ejecute en broker).
+    **HERD 3 - ZEPHR**: Probabilidad estadística bayesiana y cálculo de Expected Value (EV en R) ponderado por vectores de ML.
+    **HERD 4 - LUMEN**: Smart Money Concepts (Order Blocks LuxAlgo, Fair Value Gaps y barridos AMD Multi-Timeframe 1H, 2H, 3H, 4H, 8H. Bloquear entradas contra liquidez macro pendiente sin barrer).
+    **HERD 5 - RUNE**: Gestión de riesgo estricto (SL técnico defensivo, trailing escalonado 3 fases: BE al 40%, +25% al 65%, +65% al 85%, y restricción estricta de que NZDCAD no se ejecute en broker).
     **HERD 6 - TENSORFLOW**: Inferencia de red neuronal profunda (probabilidad continua de acierto del modelo sobre los activos en vivo).
     **HERD 7 - ATLAS**: Microestructura de libro de órdenes DOM (CVD Delta, absorción, MCP y verificación del CBR).
     **MASTER**: Veredicto final del Quórum Calificado [APROBADO ✅ o VETADO ⛔] indicando el Score Ponderado (0.00 a 1.00, umbral >= 0.70). Si la señal es para NZDCAD, el veredicto debe ser estrictamente SIMULACIÓN SANDBOX (sin orden a broker).
