@@ -19,7 +19,7 @@ import pandas as pd
 import numpy as np
 import httpx
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -403,6 +403,8 @@ def actualizar_memoria_obs_liquidez(activo: str, dfs: dict, precio_actual: float
     resultado = {}
     for t in tfs_soportados:
         resultado[f"lux_algo_ob_{t}"] = False
+        resultado[f"lux_algo_ob_{t}_alcista"] = False
+        resultado[f"lux_algo_ob_{t}_bajista"] = False
         resultado[f"alineamiento_liquidez_{t}"] = False
         
     margen = precio_actual * 0.0015 # Tolerancia
@@ -420,9 +422,9 @@ def actualizar_memoria_obs_liquidez(activo: str, dfs: dict, precio_actual: float
 
         # 2. Guardar Order Blocks Nuevos
         if df['close'].iloc[i-1] < df['open'].iloc[i-1] and df['close'].iloc[i] > df['high'].iloc[i-1]:
-            MEMORIA_OBS_NO_MITIGADOS[activo].append({"tf": tf, "high": df['high'].iloc[i-1], "low": df['low'].iloc[i-1], "tipo": "ALCISTA"})
+            MEMORIA_OBS_NO_MITIGADOS[activo].append({"tf": tf, "high": float(df['high'].iloc[i-1]), "low": float(df['low'].iloc[i-1]), "tipo": "ALCISTA"})
         if df['close'].iloc[i-1] > df['open'].iloc[i-1] and df['close'].iloc[i] < df['low'].iloc[i-1]:
-            MEMORIA_OBS_NO_MITIGADOS[activo].append({"tf": tf, "high": df['high'].iloc[i-1], "low": df['low'].iloc[i-1], "tipo": "BAJISTA"})
+            MEMORIA_OBS_NO_MITIGADOS[activo].append({"tf": tf, "high": float(df['high'].iloc[i-1]), "low": float(df['low'].iloc[i-1]), "tipo": "BAJISTA"})
 
     # Limpiar y Mitigar
     MEMORIA_OBS_NO_MITIGADOS[activo] = MEMORIA_OBS_NO_MITIGADOS[activo][-30:]
@@ -434,6 +436,7 @@ def actualizar_memoria_obs_liquidez(activo: str, dfs: dict, precio_actual: float
         if ob["low"] <= precio_actual <= ob["high"]: 
             tf_ob = ob["tf"]
             resultado[f"lux_algo_ob_{tf_ob}"] = True
+            resultado[f"lux_algo_ob_{tf_ob}_{ob['tipo'].lower()}"] = True
         obs_sobrevivientes.append(ob)
         
     MEMORIA_OBS_NO_MITIGADOS[activo] = obs_sobrevivientes
@@ -464,48 +467,60 @@ def actualizar_memoria_obs_liquidez(activo: str, dfs: dict, precio_actual: float
 # ------------------------------------------------------------------------------
 # 3. DETECCIÃ“N DE PATRONES SMC / ICT
 # ------------------------------------------------------------------------------
-def analizar_smc_ict(df: pd.DataFrame) -> Dict[str, bool]:
+def analizar_smc_ict(df: pd.DataFrame, tf: str = "1h") -> Dict[str, Any]:
     confirmaciones = {
+        "tf": tf,
         "smc_order_block": False,
         "fvg_detectado": False,
         "breaker_block_detectado": False,
         "sweep_liquidez_detectado": False,
         "bullish_signal": False,
-        "bearish_signal": False
+        "bearish_signal": False,
+        "swing_high": 0.0,
+        "swing_low": 0.0,
+        "distancia_high_pct": 999.0,
+        "distancia_low_pct": 999.0
     }
     
     if len(df) < 5:
         return confirmaciones
 
     i = len(df) - 1
+    precio_actual = float(df['close'].iloc[i])
+    
+    # Fair Value Gap (FVG)
     if df['low'].iloc[i] > df['high'].iloc[i-2]:
         confirmaciones["fvg_detectado"] = True
     elif df['high'].iloc[i] < df['low'].iloc[i-2]:
         confirmaciones["fvg_detectado"] = True
 
-    # DetecciÃ³n de Barrido de Liquidez (Sweep Liquidity) real
-    # Buscamos si el precio actual o de la vela anterior barriÃ³ mÃ­nimos/mÃ¡ximos pasados (pools de liquidez) y regresÃ³
+    # Detección de Barrido de Liquidez (Sweep Liquidity) y Swing Highs/Lows
     if i >= 15:
-        minimo_previo = df['low'].iloc[i-15:i-2].min()
-        maximo_previo = df['high'].iloc[i-15:i-2].max()
+        minimo_previo = float(df['low'].iloc[i-15:i-2].min())
+        maximo_previo = float(df['high'].iloc[i-15:i-2].max())
+        confirmaciones["swing_high"] = maximo_previo
+        confirmaciones["swing_low"] = minimo_previo
         
-        # Barrido Bajista (Toma liquidez de Sell Stops y rechaza al alza)
+        if maximo_previo > precio_actual:
+            confirmaciones["distancia_high_pct"] = round(((maximo_previo - precio_actual) / precio_actual) * 100.0, 3)
+        if precio_actual > minimo_previo and minimo_previo > 0:
+            confirmaciones["distancia_low_pct"] = round(((precio_actual - minimo_previo) / precio_actual) * 100.0, 3)
+
+        # Barrido Bajista (Toma liquidez de Sell Stops y rechaza al alza -> Manipulación Bajista de AMD)
         if df['low'].iloc[i] < minimo_previo and df['close'].iloc[i] > minimo_previo:
             confirmaciones["sweep_liquidez_detectado"] = True
             confirmaciones["bullish_signal"] = True
             
-        # Barrido Alcista (Toma liquidez de Buy Stops y rechaza a la baja)
+        # Barrido Alcista (Toma liquidez de Buy Stops y rechaza a la baja -> Manipulación Alcista de AMD)
         if df['high'].iloc[i] > maximo_previo and df['close'].iloc[i] < maximo_previo:
             confirmaciones["sweep_liquidez_detectado"] = True
             confirmaciones["bearish_signal"] = True
-            
-        # Barrido Alcista (Toma liquidez de Buy Stops y rechaza a la baja)
-        if df['high'].iloc[i] > maximo_previo and df['close'].iloc[i] < maximo_previo:
-            confirmaciones["sweep_liquidez_detectado"] = True
 
+    # Order Block SMC
     if df['close'].iloc[i-1] < df['open'].iloc[i-1] and df['close'].iloc[i] > df['high'].iloc[i-1]:
         confirmaciones["smc_order_block"] = True
 
+    # Breaker Block SMC
     if df['close'].iloc[i] > df['high'].iloc[i-2] and df['close'].iloc[i-2] < df['open'].iloc[i-2]:
          confirmaciones["breaker_block_detectado"] = True
 
@@ -1469,19 +1484,28 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
                 soporte_activo = True
                 break
                 
-        # 2. SMC Institucional FusiÃ³n (1H + 4H)
-        conf_1h = analizar_smc_ict(df_1h)
-        conf_4h = analizar_smc_ict(df_4h)
+        # 2. SMC Institucional Fusión Multi-Temporal Dinámica (1H, 2H, 3H, 4H, 8H)
+        dfs_mtf = {"1h": df_1h, "2h": df_2h, "3h": df_3h, "4h": df_4h, "8h": df_8h}
+        smc_mtf = {}
+        for tf, df_tf in dfs_mtf.items():
+            if df_tf is not None and not df_tf.empty and len(df_tf) >= 5:
+                smc_mtf[tf] = analizar_smc_ict(df_tf, tf)
+            else:
+                smc_mtf[tf] = {
+                    "tf": tf, "smc_order_block": False, "fvg_detectado": False,
+                    "breaker_block_detectado": False, "sweep_liquidez_detectado": False,
+                    "bullish_signal": False, "bearish_signal": False,
+                    "swing_high": 0.0, "swing_low": 0.0, "distancia_high_pct": 999.0, "distancia_low_pct": 999.0
+                }
         
         # 2.5 Memoria Institucional LuxAlgo (OBs No Mitigados y Heatmap)
-        dfs_mtf = {"1h": df_1h, "2h": df_2h, "3h": df_3h, "4h": df_4h, "8h": df_8h}
         memoria_inst = actualizar_memoria_obs_liquidez(activo, dfs_mtf, precio_actual)
         
         confirmaciones = {
-            "smc_order_block": conf_1h["smc_order_block"] or conf_4h["smc_order_block"],
-            "fvg_detectado": conf_1h["fvg_detectado"] or conf_4h["fvg_detectado"],
-            "breaker_block_detectado": conf_1h["breaker_block_detectado"] or conf_4h["breaker_block_detectado"],
-            "sweep_liquidez_detectado": conf_1h["sweep_liquidez_detectado"] or conf_4h["sweep_liquidez_detectado"],
+            "smc_order_block": any(smc_mtf[tf]["smc_order_block"] for tf in ["1h", "2h", "3h", "4h", "8h"]),
+            "fvg_detectado": any(smc_mtf[tf]["fvg_detectado"] for tf in ["1h", "2h", "3h", "4h", "8h"]),
+            "breaker_block_detectado": any(smc_mtf[tf]["breaker_block_detectado"] for tf in ["1h", "2h", "3h", "4h", "8h"]),
+            "sweep_liquidez_detectado": any(smc_mtf[tf]["sweep_liquidez_detectado"] for tf in ["1h", "2h", "3h", "4h", "8h"]),
         }
         
         # Mezclar las claves multi-temporales de Lux
@@ -1499,7 +1523,7 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         tiene_retail = confirmaciones.get("smc_order_block", False) or bool(soporte_activo)
         es_escenario_6 = tiene_lux and not tiene_fvg and not tiene_retail
 
-        # REGLA ESTRICTA DE 1 TRADE MÃXIMO POR ACTIVO
+        # REGLA ESTRICTA DE 1 TRADE MÃ XIMO POR ACTIVO
         # REGLA INSTITUCIONAL DE SESIONES ÓPTIMAS
         hora_utc_scan = datetime.datetime.now(datetime.timezone.utc).hour
         sesiones_permitidas = {
@@ -1523,46 +1547,88 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         direccion_abierta = None
 
         if gatillo_autorizado:
-            # ðŸ›¡ï¸ El filtro Anti-Stop Hunt (Sweep) ahora estÃ¡ vectorizado matemÃ¡ticamente en app.py (Score = 45).
-            # Ya no requerimos un if manual aquÃ­. El backend solo aprobarÃ¡ (Score >= 80) si las matemÃ¡ticas lo avalan.
+            # -------------------------------------------------------------------------
+            # MOTOR DINÁMICO ICT / AMD MULTI-TEMPORAL (1H, 2H, 3H, 4H, 8H)
+            # -------------------------------------------------------------------------
+            # 1. Jerarquía Macro (4H y 8H)
+            macro_sweep_alcista = smc_mtf["4h"]["bullish_signal"] or smc_mtf["8h"]["bullish_signal"]
+            macro_sweep_bajista = smc_mtf["4h"]["bearish_signal"] or smc_mtf["8h"]["bearish_signal"]
             
-            # ðŸ›¡ï¸ HIPÃ“TESIS DEL USUARIO: Entrar antes de la apertura si el Score >= 80% 
-            # previene entrar a destiempo y ser barrido por la volatilidad inicial.
+            # Swing Highs y Lows Macro (Pools de Liquidez Institucional Mayor)
+            highs_macro = [smc_mtf[tf]["swing_high"] for tf in ["4h", "8h"] if smc_mtf[tf]["swing_high"] > 0]
+            lows_macro = [smc_mtf[tf]["swing_low"] for tf in ["4h", "8h"] if smc_mtf[tf]["swing_low"] > 0]
             
+            macro_high_cercano = min([h for h in highs_macro if h > precio_actual], default=0.0)
+            macro_low_cercano = max([l for l in lows_macro if l < precio_actual], default=0.0)
             
-            # MOTOR ICT / AMD (Acumulación, Manipulación, Distribución)
+            dist_macro_high_pct = ((macro_high_cercano - precio_actual) / precio_actual * 100.0) if macro_high_cercano > 0 else 999.0
+            dist_macro_low_pct = ((precio_actual - macro_low_cercano) / precio_actual * 100.0) if macro_low_cercano > 0 else 999.0
+
+            # 2. Señales Intradía y Gatillos Intermedios (1H, 2H, 3H)
+            intra_sweep_alcista = smc_mtf["1h"]["bullish_signal"] or smc_mtf["2h"]["bullish_signal"] or smc_mtf["3h"]["bullish_signal"]
+            intra_sweep_bajista = smc_mtf["1h"]["bearish_signal"] or smc_mtf["2h"]["bearish_signal"] or smc_mtf["3h"]["bearish_signal"]
+            
+            ob_3h_alcista = confirmaciones.get("lux_algo_ob_3h_alcista", False) or (smc_mtf["3h"]["smc_order_block"] and smc_mtf["3h"]["bullish_signal"])
+            ob_3h_bajista = confirmaciones.get("lux_algo_ob_3h_bajista", False) or (smc_mtf["3h"]["smc_order_block"] and smc_mtf["3h"]["bearish_signal"])
+
+            # -------------------------------------------------------------------------
+            # FILTRO DINÁMICO DE LIQUIDEZ MACRO PENDIENTE (ICT MAGNET PRINCIPLE):
+            # Si hay una posible entrada en 3H (o menor), pero en MACRO aún no se ha
+            # barrido la liquidez (Swing High/Low a menos de 0.35% de distancia sin sweep),
+            # se bloquea la entrada prematura para evitar ser cazado por el algoritmo bancario.
+            # -------------------------------------------------------------------------
+            UMBRAL_IMAN_LIQUIDEZ_PCT = 0.35 # ~25-35 pips en FX
+            
+            if (intra_sweep_bajista or ob_3h_bajista) and not macro_sweep_bajista:
+                if dist_macro_high_pct < UMBRAL_IMAN_LIQUIDEZ_PCT:
+                    print(f"| AMD MTF FILTRO | ⛔ Posible VENTA en 3H/Intradía BLOQUEADA para {activo}: "
+                          f"En Macro (4H/8H) aún NO hay barrido de liquidez y el Swing High está a solo {dist_macro_high_pct:.2f}%. "
+                          f"El mercado irá primero a liquidar los Buy Stops macro. Omitiendo entrada.")
+                    continue
+
+            if (intra_sweep_alcista or ob_3h_alcista) and not macro_sweep_alcista:
+                if dist_macro_low_pct < UMBRAL_IMAN_LIQUIDEZ_PCT:
+                    print(f"| AMD MTF FILTRO | ⛔ Posible COMPRA en 3H/Intradía BLOQUEADA para {activo}: "
+                          f"En Macro (4H/8H) aún NO hay barrido de liquidez y el Swing Low está a solo {dist_macro_low_pct:.2f}%. "
+                          f"El mercado irá primero a liquidar los Sell Stops macro. Omitiendo entrada.")
+                    continue
+
+            # Señales globales consolidadas
+            sweep_alcista_global = macro_sweep_alcista or intra_sweep_alcista
+            sweep_bajista_global = macro_sweep_bajista or intra_sweep_bajista
+
+            if macro_sweep_alcista:
+                print(f"| AMD MTF ALINEACIÓN A++ | {activo} completó Barrido de Liquidez Macro (4H/8H SSL). Confluencia alcista activada.")
+            if macro_sweep_bajista:
+                print(f"| AMD MTF ALINEACIÓN A++ | {activo} completó Barrido de Liquidez Macro (4H/8H BSL). Confluencia bajista activada.")
+
+            # Tendencia macro (EMA 50/200)
             tendencia_alcista = precio_actual > ema_50 and precio_actual > ema_200
             tendencia_bajista = precio_actual < ema_50 and precio_actual < ema_200
             
-            sweep_alcista = conf_1h.get("bullish_signal", False) or conf_4h.get("bullish_signal", False)
-            sweep_bajista = conf_1h.get("bearish_signal", False) or conf_4h.get("bearish_signal", False)
-            
             if tendencia_alcista:
                 # Distribución Alcista confirmada por EMAs macro
-                if sweep_bajista and not sweep_alcista:
+                if sweep_bajista_global and not sweep_alcista_global:
                     print(f"| AMD ICT | {activo} en tendencia alcista macro pero con rechazo bajista en resistencia. Omitiendo entrada.")
                     continue
                 accion = "COMPRA"
             elif tendencia_bajista:
                 # Distribución Bajista confirmada por EMAs macro
-                if sweep_alcista and not sweep_bajista:
+                if sweep_alcista_global and not sweep_bajista_global:
                     print(f"| AMD ICT | {activo} en tendencia bajista macro pero con rechazo alcista en soporte. Omitiendo entrada.")
                     continue
                 accion = "VENTA"
             else:
                 # PRECIO ENTRE EMAs: FASE DE ACUMULACIÓN LATERAL (A de AMD)
-                # Regla Institucional de Oro: PROHIBIDO operar en rango sin confirmación de Manipulación (M: Liquidity Sweep)
-                if sweep_alcista and not sweep_bajista:
-                    # Manipulación bajista (barrido de lows) completada -> Arranca Distribución Alcista
+                # Requiere Manipulación (M: Liquidity Sweep) confirmada en cualquiera de las TFs (1H a 8H)
+                if sweep_alcista_global and not sweep_bajista_global:
                     accion = "COMPRA"
-                    print(f"| AMD ICT | {activo} en Fase A->M->D: Sweep de mínimos completado. Entrada en COMPRA autorizada.")
-                elif sweep_bajista and not sweep_alcista:
-                    # Manipulación alcista (barrido de highs) completada -> Arranca Distribución Bajista
+                    print(f"| AMD ICT | {activo} en Fase A->M->D: Sweep de mínimos confirmado. Entrada en COMPRA autorizada.")
+                elif sweep_bajista_global and not sweep_alcista_global:
                     accion = "VENTA"
-                    print(f"| AMD ICT | {activo} en Fase A->M->D: Sweep de máximos completado. Entrada en VENTA autorizada.")
+                    print(f"| AMD ICT | {activo} en Fase A->M->D: Sweep de máximos confirmado. Entrada en VENTA autorizada.")
                 else:
-                    # Acumulación pura sin manipulación confirmada: NO SE OPERA
-                    print(f"| AMD ICT FILTRO | {activo} en Acumulación lateral (entre EMAs) sin Sweep/Manipulación confirmado. Omitiendo trade.")
+                    print(f"| AMD ICT FILTRO | {activo} en Acumulación lateral (entre EMAs) sin Sweep/Manipulación confirmado en MTF (1H-8H). Omitiendo trade.")
                     continue
 
             
