@@ -1339,15 +1339,23 @@ def recalcular_memoria_colectiva():
             cat_ind = {}
             for idoc in db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream():
                 idt = idoc.to_dict()
+                t_val = idt.get("trades") or idt.get("trades_con_indicador") or idt.get("ocurrencias") or 0
+                g_val = idt.get("ganados") or idt.get("trades_ganados_con") or 0
+                p_val = idt.get("perdidos") or idt.get("trades_perdidos_con") or 0
+                pnl_val = idt.get("pnl_acumulado") if idt.get("pnl_acumulado") is not None else idt.get("pnl_generado", 0.0)
+                wr_val = idt.get("win_rate_indicador") if idt.get("win_rate_indicador") is not None else idt.get("win_rate", 0.0)
                 cat_ind[idoc.id] = {
                     "nombre": idoc.id,
-                    "win_rate": idt.get("win_rate_indicador", idt.get("win_rate", 0.0)),
-                    "trades": idt.get("trades_con_indicador", idt.get("trades", 0)),
-                    "pnl_acumulado": idt.get("pnl_acumulado", 0.0)
+                    "trades": int(t_val),
+                    "ganados": int(g_val),
+                    "perdidos": int(p_val),
+                    "win_rate": round(float(wr_val), 2),
+                    "pnl_acumulado": round(float(pnl_val), 2),
+                    "categoria": "INDICADOR_TECNICO"
                 }
-            rank_ind_sorted = sorted([k for k, v in cat_ind.items()], key=lambda k: cat_ind[k]["win_rate"], reverse=True)
+            rank_ind_sorted = sorted([k for k, v in cat_ind.items()], key=lambda k: (cat_ind[k]["win_rate"], cat_ind[k]["trades"]), reverse=True)
             db.collection("mia_kb").document("indicadores_impacto").set({
-                "estado": "ACTIVO",
+                "estado": "ACTIVO_VECTORIZADO",
                 "descripcion": "Catálogo cuantitativo de osciladores, medias móviles, perfiles de volumen y algoritmos comerciales",
                 "total_indicadores": len(cat_ind),
                 "catalogo_vectores": cat_ind,
@@ -1360,19 +1368,27 @@ def recalcular_memoria_colectiva():
             cat_pat = {}
             for pdoc in db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream():
                 pdt = pdoc.to_dict()
+                t_val = pdt.get("trades") or pdt.get("ocurrencias") or pdt.get("trades_con_indicador") or 0
+                g_val = pdt.get("ganados") or pdt.get("trades_ganados_con") or 0
+                p_val = pdt.get("perdidos") or pdt.get("trades_perdidos_con") or 0
+                pnl_val = pdt.get("pnl_acumulado") if pdt.get("pnl_acumulado") is not None else pdt.get("pnl_generado", 0.0)
+                wr_val = pdt.get("win_rate") if pdt.get("win_rate") is not None else pdt.get("win_rate_indicador", 0.0)
                 cat_pat[pdoc.id] = {
                     "nombre": pdoc.id,
-                    "win_rate": pdt.get("win_rate", pdt.get("win_rate_indicador", 0.0)),
-                    "ocurrencias": pdt.get("ocurrencias", pdt.get("trades_con_indicador", 0)),
-                    "pnl_generado": pdt.get("pnl_generado", pdt.get("pnl_acumulado", 0.0))
+                    "trades": int(t_val),
+                    "ganados": int(g_val),
+                    "perdidos": int(p_val),
+                    "win_rate": round(float(wr_val), 2),
+                    "pnl_acumulado": round(float(pnl_val), 2),
+                    "metodologia": "ICT/SMC",
+                    "categoria": "PATRON_ICT_SMC"
                 }
-            rank_pat_sorted = sorted([k for k, v in cat_pat.items()], key=lambda k: cat_pat[k]["win_rate"], reverse=True)
+            rank_pat_sorted = sorted([k for k, v in cat_pat.items()], key=lambda k: (cat_pat[k]["win_rate"], cat_pat[k]["trades"]), reverse=True)
             db.collection("mia_kb").document("patrones_ict_smc").set({
-                "estado": "ACTIVO",
+                "estado": "ACTIVO_VECTORIZADO",
                 "descripcion": "Base de Conocimiento de Patrones Institucionales Smart Money Concepts (SMC) e Inner Circle Trader (ICT)",
                 "metodologia": "ICT/SMC",
                 "total_patrones": len(cat_pat),
-                "catalogo_patrones": list(cat_pat.keys()),
                 "catalogo_vectores": cat_pat,
                 "ranking_ordenado": rank_pat_sorted,
                 "patron_estrella": patron_estrella,
