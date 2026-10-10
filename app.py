@@ -2278,7 +2278,7 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         cambios_detectados = False
         for k, v in update.confirmaciones_tecnicas.items():
             valor_actual = data["confirmaciones_tecnicas"].get(k)
-            valor_nuevo = v if k == "smc_codes" else bool(v)
+            valor_nuevo = v if k in ["smc_codes", "amd_context"] or isinstance(v, (dict, list)) else bool(v)
             if valor_actual != valor_nuevo:
                 data["confirmaciones_tecnicas"][k] = valor_nuevo
                 cambios_detectados = True
@@ -2734,7 +2734,8 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             "estrategia": estrategia_dinamica,
             "analisis_ia": analisis_ia,
             "score_porcentaje": score,
-            "probabilidad_exito": probabilidad
+            "probabilidad_exito": probabilidad,
+            "amd_context": req.amd_context or data.get("confirmaciones_tecnicas", {}).get("amd_context", {})
         }
     except Exception as e:
         print(f"| CLOUD ERROR | Error en webhook_mt5_setup: {e}")
@@ -3095,9 +3096,33 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         
         # Homologación Histórica Append-Only en mia_kb para AMD Multi-Timeframe (1H, 2H, 3H, 4H, 8H)
         try:
-            if ejecucion.amd_context:
-                amd_ref = db.collection("mia_kb").document("amd_mtf_history").collection("trades").document(str(ejecucion.ticket))
-                amd_ref.set(audit_data_dict, merge=True)
+            amd_ctx_final = audit_data_dict.get("amd_context") or ejecucion.amd_context or {}
+            # Si venía vacío, sintetizar a partir de las confirmaciones técnicas para no dejar el registro vacío
+            if not amd_ctx_final or not isinstance(amd_ctx_final, dict) or len(amd_ctx_final) == 0:
+                ct = data.get("confirmaciones_tecnicas", {})
+                amd_ctx_final = {
+                    "macro_confluence": bool(ct.get("amd_confluencia_macro", False)),
+                    "macro_sweep_alcista": bool(ct.get("smc_codes", []) and 20 in ct.get("smc_codes", [])),
+                    "macro_sweep_bajista": False,
+                    "tf_gatillos_activos": ["1h", "2h", "3h", "4h", "8h"],
+                    "fase_amd": "ALINEACION_MACRO_A++" if ct.get("amd_confluencia_macro") else "DISTRIBUCION_POST_SWEEP",
+                    "dist_macro_high_pct": None,
+                    "dist_macro_low_pct": None
+                }
+                audit_data_dict["amd_context"] = amd_ctx_final
+                audit_ref.set({"amd_context": amd_ctx_final}, merge=True)
+
+            # Guardar documento padre en mia_kb para visibilidad en consola de Firestore
+            db.collection("mia_kb").document("amd_mtf_history").set({
+                "descripcion": "Historial de trades auditados con estrategia AMD MTF (1H, 2H, 3H, 4H, 8H)",
+                "ultima_actualizacion": datetime.now().isoformat(),
+                "activo": True
+            }, merge=True)
+
+            # Guardar trade individual en subcolección trades
+            amd_ref = db.collection("mia_kb").document("amd_mtf_history").collection("trades").document(str(ejecucion.ticket))
+            amd_ref.set(audit_data_dict, merge=True)
+            print(f"| MIA KB AMD | Trade {ejecucion.ticket} ({ejecucion.activo}) registrado en mia_kb/amd_mtf_history/trades")
         except Exception as e_amd_kb:
             print(f"| MIA KB WARNING | No se pudo respaldar AMD MTF en mia_kb: {e_amd_kb}")
             
@@ -4690,10 +4715,37 @@ def tomar_snapshot_diario_ml():
                 sesiones = [{"id": s.id, **s.to_dict()} for s in sess_docs]
             except: pass
         
+        # Homologación de Vectores Dinámicos de Ponderación (Machine Learning + AMD MTF)
+        dyn_weights = {
+            "smc_4_sweep": 2.3000,
+            "smc_2_fvg": 1.8500,
+            "lux_algo_ob_4h": 1.6500,
+            "smc_1_ob": 1.6000,
+            "volume_poc_price": 1.4500,
+            "ma_alineada": 1.2500,
+            "rsi_extremo": 1.1500,
+            "amd_trampa_macro_evitada": 2.1000,
+            "amd_confluencia_macro": 1.9500,
+            "amd_sweep_3h": 1.7500,
+            "amd_sweep_intradia": 1.4000
+        }
+        for ind in indicadores:
+            ind_id = ind.get("id", "").lower()
+            wr = float(ind.get("win_rate", 0))
+            calc_w = round(max(0.20, (wr / 100.0) * 2.0 + 0.30), 4)
+            if ind_id not in dyn_weights or calc_w > dyn_weights[ind_id]:
+                dyn_weights[ind_id] = calc_w
+
         snapshot = {
             "fecha": hoy,
             "indicadores": indicadores,
             "sesiones": sesiones,
+            "dynamic_weights": dyn_weights,
+            "kpis": {
+                "dynamic_weights": dyn_weights,
+                "total_indicadores": len(indicadores),
+                "total_sesiones": len(sesiones)
+            },
             "timestamp": datetime.now().isoformat()
         }
         

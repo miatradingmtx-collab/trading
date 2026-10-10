@@ -1512,11 +1512,55 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         # 2.5 Memoria Institucional LuxAlgo (OBs No Mitigados y Heatmap)
         memoria_inst = actualizar_memoria_obs_liquidez(activo, dfs_mtf, precio_actual)
         
+        # -------------------------------------------------------------------------
+        # MOTOR DINÁMICO ICT / AMD MULTI-TEMPORAL (1H, 2H, 3H, 4H, 8H) PRE-SINCRONIZACIÓN
+        # -------------------------------------------------------------------------
+        # 1. Jerarquía Macro (4H y 8H)
+        macro_sweep_alcista = bool(smc_mtf["4h"]["bullish_signal"] or smc_mtf["8h"]["bullish_signal"])
+        macro_sweep_bajista = bool(smc_mtf["4h"]["bearish_signal"] or smc_mtf["8h"]["bearish_signal"])
+        
+        # Swing Highs y Lows Macro (Pools de Liquidez Institucional Mayor)
+        highs_macro = [smc_mtf[tf]["swing_high"] for tf in ["4h", "8h"] if smc_mtf[tf]["swing_high"] > 0]
+        lows_macro = [smc_mtf[tf]["swing_low"] for tf in ["4h", "8h"] if smc_mtf[tf]["swing_low"] > 0]
+        
+        macro_high_cercano = min([h for h in highs_macro if h > precio_actual], default=0.0)
+        macro_low_cercano = max([l for l in lows_macro if l < precio_actual], default=0.0)
+        
+        dist_macro_high_pct = ((macro_high_cercano - precio_actual) / precio_actual * 100.0) if macro_high_cercano > 0 else 999.0
+        dist_macro_low_pct = ((precio_actual - macro_low_cercano) / precio_actual * 100.0) if macro_low_cercano > 0 else 999.0
+
+        # 2. Señales Intradía y Gatillos Intermedios (1H, 2H, 3H)
+        intra_sweep_alcista = bool(smc_mtf["1h"]["bullish_signal"] or smc_mtf["2h"]["bullish_signal"] or smc_mtf["3h"]["bullish_signal"])
+        intra_sweep_bajista = bool(smc_mtf["1h"]["bearish_signal"] or smc_mtf["2h"]["bearish_signal"] or smc_mtf["3h"]["bearish_signal"])
+        
+        ob_3h_alcista = bool(memoria_inst.get("lux_algo_ob_3h_alcista", False) or (smc_mtf["3h"]["smc_order_block"] and smc_mtf["3h"]["bullish_signal"]))
+        ob_3h_bajista = bool(memoria_inst.get("lux_algo_ob_3h_bajista", False) or (smc_mtf["3h"]["smc_order_block"] and smc_mtf["3h"]["bearish_signal"]))
+
+        amd_confluencia_macro = bool(macro_sweep_alcista or macro_sweep_bajista)
+        amd_sweep_3h = bool(smc_mtf["3h"]["bullish_signal"] or smc_mtf["3h"]["bearish_signal"] or smc_mtf["3h"]["sweep_liquidez_detectado"] or ob_3h_alcista or ob_3h_bajista)
+        amd_sweep_intradia = bool(intra_sweep_alcista or intra_sweep_bajista)
+
+        tf_gatillos_activos = [tf for tf in ["1h", "2h", "3h", "4h", "8h"] if smc_mtf[tf]["bullish_signal"] or smc_mtf[tf]["bearish_signal"] or memoria_inst.get(f"lux_algo_ob_{tf}", False)]
+
+        amd_context = {
+            "macro_sweep_alcista": macro_sweep_alcista,
+            "macro_sweep_bajista": macro_sweep_bajista,
+            "macro_confluence": amd_confluencia_macro,
+            "dist_macro_high_pct": round(dist_macro_high_pct, 2) if dist_macro_high_pct < 999 else None,
+            "dist_macro_low_pct": round(dist_macro_low_pct, 2) if dist_macro_low_pct < 999 else None,
+            "tf_gatillos_activos": tf_gatillos_activos,
+            "fase_amd": "ALINEACION_MACRO_A++" if amd_confluencia_macro else ("DISTRIBUCION_POST_SWEEP" if amd_sweep_intradia else "ACUMULACION_LATERAL")
+        }
+
         confirmaciones = {
             "smc_order_block": any(smc_mtf[tf]["smc_order_block"] for tf in ["1h", "2h", "3h", "4h", "8h"]),
             "fvg_detectado": any(smc_mtf[tf]["fvg_detectado"] for tf in ["1h", "2h", "3h", "4h", "8h"]),
             "breaker_block_detectado": any(smc_mtf[tf]["breaker_block_detectado"] for tf in ["1h", "2h", "3h", "4h", "8h"]),
             "sweep_liquidez_detectado": any(smc_mtf[tf]["sweep_liquidez_detectado"] for tf in ["1h", "2h", "3h", "4h", "8h"]),
+            "amd_confluencia_macro": amd_confluencia_macro,
+            "amd_sweep_3h": amd_sweep_3h,
+            "amd_sweep_intradia": amd_sweep_intradia,
+            "amd_context": amd_context
         }
         
         # Mezclar las claves multi-temporales de Lux
@@ -1558,29 +1602,9 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         direccion_abierta = None
 
         if gatillo_autorizado:
-            # -------------------------------------------------------------------------
-            # MOTOR DINÁMICO ICT / AMD MULTI-TEMPORAL (1H, 2H, 3H, 4H, 8H)
-            # -------------------------------------------------------------------------
-            # 1. Jerarquía Macro (4H y 8H)
-            macro_sweep_alcista = smc_mtf["4h"]["bullish_signal"] or smc_mtf["8h"]["bullish_signal"]
-            macro_sweep_bajista = smc_mtf["4h"]["bearish_signal"] or smc_mtf["8h"]["bearish_signal"]
-            
-            # Swing Highs y Lows Macro (Pools de Liquidez Institucional Mayor)
-            highs_macro = [smc_mtf[tf]["swing_high"] for tf in ["4h", "8h"] if smc_mtf[tf]["swing_high"] > 0]
-            lows_macro = [smc_mtf[tf]["swing_low"] for tf in ["4h", "8h"] if smc_mtf[tf]["swing_low"] > 0]
-            
-            macro_high_cercano = min([h for h in highs_macro if h > precio_actual], default=0.0)
-            macro_low_cercano = max([l for l in lows_macro if l < precio_actual], default=0.0)
-            
-            dist_macro_high_pct = ((macro_high_cercano - precio_actual) / precio_actual * 100.0) if macro_high_cercano > 0 else 999.0
-            dist_macro_low_pct = ((precio_actual - macro_low_cercano) / precio_actual * 100.0) if macro_low_cercano > 0 else 999.0
-
-            # 2. Señales Intradía y Gatillos Intermedios (1H, 2H, 3H)
-            intra_sweep_alcista = smc_mtf["1h"]["bullish_signal"] or smc_mtf["2h"]["bullish_signal"] or smc_mtf["3h"]["bullish_signal"]
-            intra_sweep_bajista = smc_mtf["1h"]["bearish_signal"] or smc_mtf["2h"]["bearish_signal"] or smc_mtf["3h"]["bearish_signal"]
-            
-            ob_3h_alcista = confirmaciones.get("lux_algo_ob_3h_alcista", False) or (smc_mtf["3h"]["smc_order_block"] and smc_mtf["3h"]["bullish_signal"])
-            ob_3h_bajista = confirmaciones.get("lux_algo_ob_3h_bajista", False) or (smc_mtf["3h"]["smc_order_block"] and smc_mtf["3h"]["bearish_signal"])
+            # Utilizar variables pre-calculadas en la etapa de escáner:
+            # macro_sweep_alcista, macro_sweep_bajista, dist_macro_high_pct, dist_macro_low_pct,
+            # intra_sweep_alcista, intra_sweep_bajista, ob_3h_alcista, ob_3h_bajista, amd_context
 
             # -------------------------------------------------------------------------
             # FILTRO DINÁMICO DE LIQUIDEZ MACRO PENDIENTE (ICT MAGNET PRINCIPLE):
