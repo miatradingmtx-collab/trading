@@ -169,8 +169,8 @@ def auto_inicializar_activo(activo: str) -> bool:
         esquema_activo = {
             "activo": activo_norm,
             "estado_ejecucion": "INACTIVO",
-            "ultimo_update": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "score_porcentaje": 0.0,
+            "ultima_actualizacion": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "score": 0.0,
             "gatillo_entrada": False,
             "precio_referencia": precio_ref,
             "confirmaciones_tecnicas": {
@@ -743,7 +743,7 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 global GLOBAL_MATRICES_CACHE_FULL
                 if activo_norm in GLOBAL_MATRICES_CACHE_FULL:
                     m_data = GLOBAL_MATRICES_CACHE_FULL[activo_norm]
-                    score = m_data.get("score_porcentaje", 0)
+                    score = m_data.get("score", m_data.get("score_porcentaje", 0))
                     poc_price = m_data.get("confirmaciones_tecnicas", {}).get("poc_price", 0.0)
             except: pass
             
@@ -916,7 +916,7 @@ def notificar_botpress_mia(activo: str, data: dict):
     
     payload = {
         "activo": activo,
-        "score": data.get("score_porcentaje", 0),
+        "score": data.get("score", data.get("score_porcentaje", 0)),
         "fundamental": data.get("confirmaciones_fundamentales", {}),
         "tecnico": data.get("confirmaciones_tecnicas", {})
     }
@@ -1072,15 +1072,19 @@ def procesar_anomalia_firestore(anomaly: MarketAnomaly):
             
         # Calcular el Score Porcentaje total basado en el nuevo modelo Institucional (100 pts)
         score = recalcular_score_ponderado(data)
-        data["score_porcentaje"] = round(score, 2)
+        data["score"] = round(score, 2)
+        if "score_porcentaje" in data:
+            del data["score_porcentaje"]
         
         # El umbral configurado por el usuario es del 80% al 90%
-        # Usamos 80% como umbral mÃƒÆ’Ã‚Â­nimo para activar el gatillo
+        # Usamos 80% como umbral mínimo para activar el gatillo
         data["gatillo_entrada"] = score >= 80.0
-        data["ultimo_update"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
+        data["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
+        if "ultimo_update" in data:
+            del data["ultimo_update"]
         
         doc_ref.set(data)
-        print(f"| FIREBASE SUCCESS | Matriz de {activo_normalizado} actualizada. Score: {data['score_porcentaje']}% | Gatillo: {data['gatillo_entrada']}")
+        print(f"| FIREBASE SUCCESS | Matriz de {activo_normalizado} actualizada. Score: {data['score']}% | Gatillo: {data['gatillo_entrada']}")
         return True
     except Exception as e:
         print(f"| FIREBASE ERROR | Error al procesar anomalÃƒÆ’Ã‚Â­a en Firestore: {e}")
