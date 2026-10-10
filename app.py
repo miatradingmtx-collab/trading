@@ -1332,7 +1332,64 @@ def recalcular_memoria_colectiva():
             )
         }
         db.collection("system_memory").document("mia_collective").set(resumen)
-        print(f"| KB MIA | Memoria colectiva recalculada exitosamente.")
+        
+        # Sincronizar documentos raíz de mia_kb (evitar documentos fantasmas) y slots Upstash
+        try:
+            now_iso_rec = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
+            cat_ind = {}
+            for idoc in db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream():
+                idt = idoc.to_dict()
+                cat_ind[idoc.id] = {
+                    "nombre": idoc.id,
+                    "win_rate": idt.get("win_rate_indicador", idt.get("win_rate", 0.0)),
+                    "trades": idt.get("trades_con_indicador", idt.get("trades", 0)),
+                    "pnl_acumulado": idt.get("pnl_acumulado", 0.0)
+                }
+            rank_ind_sorted = sorted([k for k, v in cat_ind.items()], key=lambda k: cat_ind[k]["win_rate"], reverse=True)
+            db.collection("mia_kb").document("indicadores_impacto").set({
+                "estado": "ACTIVO",
+                "descripcion": "Catálogo cuantitativo de osciladores, medias móviles, perfiles de volumen y algoritmos comerciales",
+                "total_indicadores": len(cat_ind),
+                "catalogo_vectores": cat_ind,
+                "ranking_ordenado": rank_ind_sorted,
+                "mejor_indicador": mejor_indicador,
+                "peor_indicador": peor_indicador,
+                "ultima_actualizacion": now_iso_rec
+            })
+            
+            cat_pat = {}
+            for pdoc in db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream():
+                pdt = pdoc.to_dict()
+                cat_pat[pdoc.id] = {
+                    "nombre": pdoc.id,
+                    "win_rate": pdt.get("win_rate", pdt.get("win_rate_indicador", 0.0)),
+                    "ocurrencias": pdt.get("ocurrencias", pdt.get("trades_con_indicador", 0)),
+                    "pnl_generado": pdt.get("pnl_generado", pdt.get("pnl_acumulado", 0.0))
+                }
+            rank_pat_sorted = sorted([k for k, v in cat_pat.items()], key=lambda k: cat_pat[k]["win_rate"], reverse=True)
+            db.collection("mia_kb").document("patrones_ict_smc").set({
+                "estado": "ACTIVO",
+                "descripcion": "Base de Conocimiento de Patrones Institucionales Smart Money Concepts (SMC) e Inner Circle Trader (ICT)",
+                "metodologia": "ICT/SMC",
+                "total_patrones": len(cat_pat),
+                "catalogo_patrones": list(cat_pat.keys()),
+                "catalogo_vectores": cat_pat,
+                "ranking_ordenado": rank_pat_sorted,
+                "patron_estrella": patron_estrella,
+                "ultima_actualizacion": now_iso_rec
+            })
+            
+            try:
+                import requests
+                up_url = "https://certain-gnat-160816.upstash.io"
+                up_h = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                requests.post(f"{up_url}/set/cache_vector_indicadores", headers=up_h, json=cat_ind, timeout=2)
+                requests.post(f"{up_url}/set/cache_vector_patrones", headers=up_h, json=cat_pat, timeout=2)
+            except Exception: pass
+        except Exception as e_upd:
+            print(f"| KB MIA WARN | Error sincronizando raíces KB: {e_upd}")
+
+        print(f"| KB MIA | Memoria colectiva y raíces KB recalculadas exitosamente.")
     except Exception as e:
         print(f"| KB MIA ERROR | Error recalculando memoria colectiva: {e}")
         registrar_error_sistema("Mia KB (Collective)", str(e))
@@ -1413,32 +1470,64 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
         else:
             sesion = "asia"
             
-        # 3. Actualizar Indicadores de Impacto
-        for indicador in confirmaciones_activas:
+        # 3. Actualizar Indicadores de Impacto y Patrones SMC/ICT (Separación Estricta Canónica)
+        PATRONES_SMC_ICT_SET = {
+            "amd_sweep_liquidez", "sweep_liquidez", "smc_sweep", "sweep_liquidez_detectado",
+            "breaker_block", "breaker_block_detectado", "brk_fvg",
+            "fvg", "fvg_detectado", "fvg_rebalance",
+            "smc_order_block", "order_block", "order_block_zona_2h",
+            "smc_order_block_4h", "smc_order_block_fvg", "smc_order_block_fvg_sweep",
+            "smc_order_block_sr_sma", "sweep_smc_order_block_rsi",
+            "alineamiento_liquidez_1h", "alineamiento_liquidez_2h",
+            "alineamiento_liquidez_3h", "alineamiento_liquidez_4h",
+            "alineamiento_liquidez_8h", "alineamiento_liquidez"
+        }
+
+        for confirmacion in confirmaciones_activas:
+            conf_norm = str(confirmacion).lower().strip()
+            es_patron = conf_norm in PATRONES_SMC_ICT_SET
+            
             try:
-                ind_ref = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").document(indicador)
-                ind_doc = ind_ref.get()
-                if ind_doc.exists:
-                    ind_data = ind_doc.to_dict()
+                if es_patron:
+                    pat_id = conf_norm
+                    if pat_id == "fvg_detectado": pat_id = "fvg"
+                    elif pat_id == "breaker_block_detectado": pat_id = "breaker_block"
+                    elif pat_id == "order_block": pat_id = "smc_order_block"
+                    elif pat_id == "sweep_liquidez_detectado": pat_id = "sweep_liquidez"
+                    target_ref = db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").document(pat_id)
                 else:
-                    ind_data = {"trades_con_indicador": 0, "trades_ganados_con": 0, "trades_perdidos_con": 0, "pnl_acumulado": 0.0, "win_rate_indicador": 0.0}
+                    target_ref = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").document(conf_norm)
                     
-                ind_data["trades_con_indicador"] = ind_data.get("trades_con_indicador", 0) + 1
+                target_doc = target_ref.get()
+                if target_doc.exists:
+                    t_data = target_doc.to_dict()
+                else:
+                    t_data = {
+                        "trades_con_indicador": 0, "trades_ganados_con": 0, "trades_perdidos_con": 0,
+                        "pnl_acumulado": 0.0, "win_rate_indicador": 0.0,
+                        "ocurrencias": 0, "ganados": 0, "perdidos": 0, "win_rate": 0.0, "pnl_generado": 0.0
+                    }
+                    
+                t_data["trades_con_indicador"] = t_data.get("trades_con_indicador", t_data.get("ocurrencias", 0)) + 1
+                t_data["ocurrencias"] = t_data["trades_con_indicador"]
                 if es_ganado:
-                    ind_data["trades_ganados_con"] = ind_data.get("trades_ganados_con", 0) + 1
+                    t_data["trades_ganados_con"] = t_data.get("trades_ganados_con", t_data.get("ganados", 0)) + 1
+                    t_data["ganados"] = t_data["trades_ganados_con"]
                 else:
-                    ind_data["trades_perdidos_con"] = ind_data.get("trades_perdidos_con", 0) + 1
+                    t_data["trades_perdidos_con"] = t_data.get("trades_perdidos_con", t_data.get("perdidos", 0)) + 1
+                    t_data["perdidos"] = t_data["trades_perdidos_con"]
                     
-                ind_data["pnl_acumulado"] = round(float(ind_data.get("pnl_acumulado", 0.0)) + float(pnl), 2)
-                if ind_data["trades_con_indicador"] > 0:
-                    ind_data["win_rate_indicador"] = round(
-                        (ind_data["trades_ganados_con"] / ind_data["trades_con_indicador"]) * 100, 2
-                    )
-                ind_data["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
-                ind_ref.set(ind_data)
+                t_data["pnl_acumulado"] = round(float(t_data.get("pnl_acumulado", t_data.get("pnl_generado", 0.0))) + float(pnl), 2)
+                t_data["pnl_generado"] = t_data["pnl_acumulado"]
+                if t_data["trades_con_indicador"] > 0:
+                    wr_calc = round((t_data["trades_ganados_con"] / t_data["trades_con_indicador"]) * 100, 2)
+                    t_data["win_rate_indicador"] = wr_calc
+                    t_data["win_rate"] = wr_calc
+                t_data["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
+                target_ref.set(t_data)
             except Exception as e:
-                print(f"| KB MIA WARN | Error actualizando indicador {indicador}: {e}")
-                registrar_error_sistema("Mia KB (Indicador)", str(e))
+                print(f"| KB MIA WARN | Error actualizando {'patrón' if es_patron else 'indicador'} {confirmacion}: {e}")
+                registrar_error_sistema("Mia KB (Taxonomía)", str(e))
                 
         # 4. Actualizar Sesion de Rendimiento
         try:
@@ -1498,21 +1587,20 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
             print(f"| KB MIA WARN | Error actualizando sesion {sesion}: {e}")
             registrar_error_sistema("Mia KB (SesiÃƒÆ’Ã‚Â³n)", str(e))
             
-        # 5. Detectar y Actualizar Patrones ICT/SMC
+        # 5. Detectar y Actualizar Combos de Patrones ICT/SMC (Puros SMC/ICT, sin LuxAlgo ni indicadores)
         ict_fields = {
             "smc_order_block": "SMC_OB",
+            "order_block": "SMC_OB",
             "fvg_detectado": "FVG",
+            "fvg": "FVG",
             "breaker_block_detectado": "BRK",
+            "breaker_block": "BRK",
             "sweep_liquidez_detectado": "SWEEP",
-            "soporte_resistencia_activo": "SR",
-            "lux_algo_ob_1h": "LUX_OB_1H",
-            "lux_algo_ob_2h": "LUX_OB_2H",
-            "lux_algo_ob_3h": "LUX_OB_3H",
-            "lux_algo_ob_4h": "LUX_OB_4H",
-            "lux_algo_ob_8h": "LUX_OB_8H",
+            "sweep_liquidez": "SWEEP",
+            "amd_sweep_liquidez": "AMD_SWEEP",
             "alineamiento_liquidez": "LIQ_FLOW"
         }
-        patron_key_parts = sorted([ict_fields[f] for f in confirmaciones_activas if f in ict_fields])
+        patron_key_parts = sorted(list(set([ict_fields[f.lower()] for f in confirmaciones_activas if f.lower() in ict_fields])))
         if patron_key_parts:
             patron_key = "_".join(patron_key_parts)
             try:
