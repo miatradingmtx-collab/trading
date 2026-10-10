@@ -4,9 +4,23 @@ from firebase_admin import credentials, firestore
 import firebase_admin
 
 if not firebase_admin._apps:
-    cred = credentials.Certificate('serviceAccountKey.json')
-    firebase_admin.initialize_app(cred)
-db = firestore.client()
+    if os.path.exists('serviceAccountKey.json'):
+        try:
+            cred = credentials.Certificate('serviceAccountKey.json')
+            firebase_admin.initialize_app(cred)
+        except Exception:
+            pass
+    if not firebase_admin._apps:
+        for env_var in ["FIREBASE_SERVICE_ACCOUNT_JSON", "FIREBASE_SERVICE_ACCOUNT", "SERVICE_ACCOUNT_KEY"]:
+            val = os.getenv(env_var)
+            if val:
+                try:
+                    cred = credentials.Certificate(json.loads(val.strip()))
+                    firebase_admin.initialize_app(cred)
+                    break
+                except Exception:
+                    pass
+db = firestore.client() if firebase_admin._apps else None
 
 UPSTASH_URL = "https://certain-gnat-160816.upstash.io"
 UPSTASH_TOKEN = "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"
@@ -14,17 +28,13 @@ headers = {"Authorization": f"Bearer {UPSTASH_TOKEN}"}
 
 print("Iniciando MGET Watchdog Sync (Herd T1 & T4)...")
 
-# 1. Sync ATLAS
-res_atlas = requests.get(f"{UPSTASH_URL}/get/cache_mia_atlas", headers=headers)
-if res_atlas.status_code == 200 and res_atlas.json().get('result'):
-    atlas_data = json.loads(res_atlas.json().get('result'))
-    fecha_corta = datetime.datetime.now().strftime('%Y-%m-%d')
-    doc_id = f"AB_SNAPSHOT_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    
-    # Homologacion estricta de taxonomia: Agrupar por subcolecciones diarias para evitar desorden en raiz
-    db.collection('mia_atlas').document('snapshots_historicos').collection(fecha_corta).document(doc_id).set(atlas_data)
-    db.collection('mia_atlas').document('latest_debate_ab').set(atlas_data)
-    print(f"ATLAS homologado en Firebase: {doc_id}")
+# 1. Sync ATLAS vía Autocuración Reconciliadora
+try:
+    from mia_researcher_agent import atlas_researcher
+    res_recon = atlas_researcher.reconcile_and_sync_atlas_snapshots(db_client=db, days_lookback=14)
+    print(f"ATLAS homologado en Firebase snapshots_historicos: {res_recon}")
+except Exception as e_atl:
+    print(f"Error sincronizando ATLAS: {e_atl}")
 
 # 2. Sync MGET History
 res_mget = requests.get(f"https://trading-production-1fd4.up.railway.app/api/cache_mget")

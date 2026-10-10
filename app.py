@@ -271,6 +271,13 @@ async def daily_quant_reconciliation_service_loop():
             supervisor = MiaQuantSupervisor()
             supervisor.reconcile_and_process_daily_trades()
             
+            # Reconciliación y Autocuración Continua de Snapshots ATLAS día a día en mia_atlas/snapshots_historicos
+            try:
+                from mia_researcher_agent import atlas_researcher
+                atlas_researcher.reconcile_and_sync_atlas_snapshots(db_client=db, days_lookback=14)
+            except Exception as e_atl:
+                print(f"| QUANT SERVICE WARN | Error sincronizando snapshots ATLAS: {e_atl}")
+            
             # Chequear ventana de cierre de mercado para emitir reporte diario (21:00 - 22:00 UTC)
             hora_utc = datetime.datetime.now(datetime.timezone.utc).hour
             minuto = datetime.datetime.now(datetime.timezone.utc).minute
@@ -4422,12 +4429,33 @@ async def scheduler_daily_ai_cron():
             except Exception as e:
                 print(f"Error TensorFlow Cron: {e}")
 
-            print("| DAILY AI CRON | Disparando Watchdog Sync (ATLAS y MGET)...")
+            print("| DAILY AI CRON | Disparando Watchdog Sync (ATLAS y MGET) In-Process...")
             try:
-                import subprocess
-                subprocess.Popen(["python", "ops_sync_watchdog.py"])
-            except Exception as e:
-                print(f"Error Watchdog Cron: {e}")
+                from mia_researcher_agent import atlas_researcher
+                atlas_researcher.reconcile_and_sync_atlas_snapshots(db_client=db, days_lookback=14)
+                print("| DAILY AI CRON | Snapshots de ATLAS reconciliados y sincronizados exitosamente.")
+            except Exception as e_atl:
+                print(f"Error ATLAS Snapshot Cron: {e_atl}")
+
+            try:
+                # Sincronización MGET In-Process
+                res_mget = requests.get("https://trading-production-1fd4.up.railway.app/api/cache_mget", timeout=5)
+                if res_mget.status_code == 200 and db is not None:
+                    mget_data = res_mget.json().get('data', {})
+                    fecha_hoy = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+                    fecha_corta = datetime.now().strftime('%Y-%m-%d')
+                    doc_id = f"MGET_SNAPSHOT_{fecha_hoy}"
+                    payload_mget = {
+                        "balance_actual": mget_data.get("balance_actual", 0),
+                        "kpis": json.loads(mget_data.get("kpis", "{}")) if isinstance(mget_data.get("kpis"), str) else mget_data.get("kpis", {}),
+                        "timestamp": str(datetime.now(timezone.utc))
+                    }
+                    db.collection('mia_mget_history').document(fecha_corta).collection('snapshots').document(doc_id).set(payload_mget)
+                    headers_up = {"Authorization": f"Bearer {UPSTASH_TOKEN}"}
+                    requests.post(f"{UPSTASH_URL}/set/cache_mia_mget_latest", headers=headers_up, json=payload_mget, timeout=3)
+                    print(f"| MGET CRON | MGET_HISTORY homologado en Firebase ({fecha_corta})")
+            except Exception as e_mget:
+                print(f"Error MGET Snapshot Cron: {e_mget}")
                 
             await asyncio.sleep(3600)
         except Exception as err:
@@ -5791,8 +5819,19 @@ def api_quant_reconcile_and_report():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-
-
-
+@app.get("/api/atlas/sync_snapshots")
+@app.post("/api/atlas/sync_snapshots")
+def api_atlas_sync_snapshots(days_lookback: int = 14):
+    """
+    Endpoint bajo demanda para forzar la sincronización, autocuración y
+    registro día a día de los snapshots históricos de ATLAS en mia_atlas/snapshots_historicos.
+    """
+    try:
+        from mia_researcher_agent import atlas_researcher
+        global db
+        res = atlas_researcher.reconcile_and_sync_atlas_snapshots(db_client=db, days_lookback=days_lookback)
+        return res
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 # HFT REDIS MIGRATION COMMIT

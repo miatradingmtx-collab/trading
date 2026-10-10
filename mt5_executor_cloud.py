@@ -564,13 +564,22 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
     if confirmaciones.get("alineamiento_liquidez_4h"): smc_codes.append(18)
     if confirmaciones.get("alineamiento_liquidez_8h"): smc_codes.append(19)
 
+    # Vectores Especializados de Machine Learning para AMD Multi-Temporal
+    if confirmaciones.get("amd_confluencia_macro"): smc_codes.append(20)
+    if confirmaciones.get("amd_sweep_3h"): smc_codes.append(21)
+    if confirmaciones.get("amd_sweep_intradia"): smc_codes.append(22)
+
     tecnicas = {
         "smc_codes": smc_codes,
         # Mantener booleanos originales temporalmente por retrocompatibilidad con otras funciones
         "soporte_resistencia_activo": bool(soporte_activo),
         "medias_moviles_alineadas": bool(ma_alineada),
         "rsi_sobrecompra_sobreventa": bool(rsi_val >= 80 or rsi_val <= 20),
-        "poc_price": poc_price
+        "poc_price": poc_price,
+        "amd_confluencia_macro": bool(confirmaciones.get("amd_confluencia_macro", False)),
+        "amd_sweep_3h": bool(confirmaciones.get("amd_sweep_3h", False)),
+        "amd_sweep_intradia": bool(confirmaciones.get("amd_sweep_intradia", False)),
+        "amd_context": confirmaciones.get("amd_context", {})
     }
     
     for tf in ["1h", "2h", "3h", "4h", "8h"]:
@@ -612,7 +621,7 @@ async def reportar_error_nube(componente: str, mensaje: str):
     except:
         pass
 
-async def solicitar_autorizacion_trade(activo: str, accion: str, precio: float) -> Optional[Dict]:
+async def solicitar_autorizacion_trade(activo: str, accion: str, precio: float, amd_context: Optional[Dict] = None) -> Optional[Dict]:
     url = f"{FASTAPI_URL}/webhook_mt5_setup"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
@@ -623,7 +632,8 @@ async def solicitar_autorizacion_trade(activo: str, accion: str, precio: float) 
         "activo": activo,
         "accion": accion,
         "precio": precio,
-        "estrategia": "SMC_ICT_Leona"
+        "estrategia": "SMC_ICT_Leona",
+        "amd_context": amd_context or {}
     }
     
     try:
@@ -1224,7 +1234,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
 # ------------------------------------------------------------------------------
 # 6. GESTOR DE OPERACIONES (Apertura de Ã“rdenes)
 # ------------------------------------------------------------------------------
-async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: float, decision: Dict, balance: float, presupuesto_restante: float = 150.0) -> bool:
+async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: float, decision: Dict, balance: float, presupuesto_restante: float = 150.0, amd_context: Optional[Dict] = None) -> bool:
     if activo.upper() in [a.upper() for a in ACTIVOS_SANDBOX]:
         print(f"| SANDBOX GATEWAY | 🚫 {activo} está confinado a Sandbox / Entrenamiento continuo. Prohibida ejecución real en MT5.")
         return False
@@ -1284,7 +1294,8 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
                 "take_profit": float(tp),
                 "ejecutada_mt5": True,
                 "motivo": "Ejecutada por Escaner Cloud",
-                "estrategia": decision.get("estrategia", "SMC_ICT_Leona")
+                "estrategia": decision.get("estrategia", "SMC_ICT_Leona"),
+                "amd_context": amd_context or decision.get("amd_context", {})
             }
             async with httpx.AsyncClient() as client:
                 await client.post(url, headers=headers, json=payload, timeout=5)
@@ -1632,12 +1643,23 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
                     continue
 
             
+            # Construcción del contexto AMD enriquecido
+            amd_context = {
+                "macro_sweep_alcista": macro_sweep_alcista,
+                "macro_sweep_bajista": macro_sweep_bajista,
+                "macro_confluence": bool((accion == "COMPRA" and macro_sweep_alcista) or (accion == "VENTA" and macro_sweep_bajista)),
+                "dist_macro_high_pct": round(dist_macro_high_pct, 2) if dist_macro_high_pct < 999 else None,
+                "dist_macro_low_pct": round(dist_macro_low_pct, 2) if dist_macro_low_pct < 999 else None,
+                "tf_gatillos_activos": [tf for tf in ["1h", "2h", "3h", "4h", "8h"] if smc_mtf[tf]["bullish_signal"] or smc_mtf[tf]["bearish_signal"] or confirmaciones.get(f"lux_algo_ob_{tf}", False)],
+                "fase_amd": "ALINEACION_MACRO_A++" if ((accion == "COMPRA" and macro_sweep_alcista) or (accion == "VENTA" and macro_sweep_bajista)) else ("DISTRIBUCION_TENDENCIAL" if (tendencia_alcista or tendencia_bajista) else "DISTRIBUCION_POST_SWEEP")
+            }
+            
             # Solicitar autorizaciÃ³n al cerebro (Mia)
-            decision = await solicitar_autorizacion_trade(activo, accion, precio_actual)
+            decision = await solicitar_autorizacion_trade(activo, accion, precio_actual, amd_context)
             
             if decision and decision.get("authorized") is True:
                 print(f"| LEONA DE LA LIQUIDEZ CLOUD | Â¡Gatillo Cruzado Exitoso! Entrando al mercado...")
-                exito = await ejecutar_orden_cloud(connection, activo, accion, precio_actual, decision, balance, presupuesto_restante)
+                exito = await ejecutar_orden_cloud(connection, activo, accion, precio_actual, decision, balance, presupuesto_restante, amd_context)
                 if not exito:
                     print(f"| GATILLO RECHAZADO | FallÃ³ la ejecuciÃ³n en el broker.")
             else:
