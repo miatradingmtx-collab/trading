@@ -4813,8 +4813,12 @@ def tomar_snapshot_diario_ml():
             "ma_alineada": 1.2500,
             "rsi_extremo": 1.1500,
             "amd_trampa_macro_evitada": 2.1000,
+            "amd_macro_8h_sweep": 2.2000,
+            "amd_macro_4h_sweep": 2.0500,
             "amd_confluencia_macro": 1.9500,
             "amd_sweep_3h": 1.7500,
+            "amd_sweep_2h": 1.6000,
+            "amd_sweep_1h": 1.4500,
             "amd_sweep_intradia": 1.4000
         }
         for ind in indicadores:
@@ -4848,6 +4852,38 @@ def tomar_snapshot_diario_ml():
         
         res = requests.post(upstash_url, headers=upstash_headers, json=snapshot, timeout=5)
         if res.status_code == 200:
+            print("| UPSTASH | Snapshot ML sincronizado exitosamente con Redis")
+
+        # 3.1 Empujar Slot Dedicado cache_amd_mtf_history a Upstash Redis para los 7 Herds y TensorFlow
+        try:
+            recent_amd_trades = []
+            if db is not None:
+                r_docs = db.collection("mia_kb").document("amd_mtf_history").collection("trades").limit(10).stream()
+                recent_amd_trades = [d.to_dict() for d in r_docs]
+            
+            amd_cache_payload = {
+                "metadata": {
+                    "descripcion": "Memoria Histórica y Ponderación de Estrategia AMD MTF (1H, 2H, 3H, 4H, 8H)",
+                    "temporalidades": ["1h", "2h", "3h", "4h", "8h"],
+                    "vectores_ponderacion": {
+                        "amd_macro_8h_sweep": 2.2000,
+                        "amd_macro_4h_sweep": 2.0500,
+                        "amd_confluencia_macro": 1.9500,
+                        "amd_sweep_3h": 1.7500,
+                        "amd_sweep_2h": 1.6000,
+                        "amd_sweep_1h": 1.4500,
+                        "amd_sweep_intradia": 1.4000,
+                        "amd_trampa_macro_evitada": 2.1000
+                    },
+                    "total_trades": len(recent_amd_trades),
+                    "ultima_actualizacion": datetime.now().isoformat()
+                },
+                "ultimos_trades": recent_amd_trades
+            }
+            requests.post("https://certain-gnat-160816.upstash.io/set/cache_amd_mtf_history", headers=upstash_headers, json=amd_cache_payload, timeout=5)
+            print("| UPSTASH | cache_amd_mtf_history sincronizado exitosamente con Redis")
+        except Exception as e_amd_c:
+            print(f"| UPSTASH WARN | Error sincronizando cache_amd_mtf_history: {e_amd_c}")
             print("| UPSTASH | Snapshot ML sincronizado exitosamente con Redis")
             
         return {"status": "success", "fecha": hoy, "message": "Snapshot y espejo creados"}
@@ -5811,6 +5847,17 @@ def train_tensorflow():
 
             score = float(trade.get("score", trade.get("score_porcentaje", trade.get("score_estrategia", 50))) or 50)
 
+            # Extraer características AMD MTF y vectorización
+            ctx = trade.get("amd_context", {}) or {}
+            ct = trade.get("confirmaciones_tecnicas", {}) or {}
+            vec_mtf = ctx.get("vector_caracteristicas_mtf") or ct.get("amd_vector_mtf") or []
+
+            sw_8h = 1 if (ct.get("amd_sweep_8h_alcista") or ct.get("amd_sweep_8h_bajista") or (len(vec_mtf) >= 2 and (vec_mtf[0] > 0 or vec_mtf[1] > 0))) else 0
+            sw_4h = 1 if (ct.get("amd_sweep_4h_alcista") or ct.get("amd_sweep_4h_bajista") or ctx.get("macro_sweep_alcista") or ctx.get("macro_sweep_bajista") or (len(vec_mtf) >= 4 and (vec_mtf[2] > 0 or vec_mtf[3] > 0))) else 0
+            sw_3h = 1 if (ct.get("amd_sweep_3h") or ct.get("amd_sweep_3h_alcista") or ct.get("amd_sweep_3h_bajista") or (len(vec_mtf) >= 6 and (vec_mtf[4] > 0 or vec_mtf[5] > 0))) else 0
+            sw_intra = 1 if (ct.get("amd_sweep_intradia") or ct.get("amd_sweep_1h_alcista") or ct.get("amd_sweep_2h_alcista")) else 0
+            dist_macro = float(ctx.get("dist_macro_high_pct") or (vec_mtf[10] if len(vec_mtf) >= 11 else 0.40))
+
             df_data.append({
                 "hora_utc": hora,
                 "score_original": score,
@@ -5818,6 +5865,11 @@ def train_tensorflow():
                 "ind_lux_2h": 1 if any(k in detalle for k in ["lux ob 2h", "lux_2h", "lux ob zona 2h", "2h"]) else 0,
                 "ind_rsi": 1 if "rsi" in detalle else 0,
                 "ind_fvg": 1 if "fvg" in detalle else 0,
+                "amd_sw_8h": sw_8h,
+                "amd_sw_4h": sw_4h,
+                "amd_sw_3h": sw_3h,
+                "amd_sw_intra": sw_intra,
+                "amd_dist_macro": dist_macro,
                 "EXITO": exito
             })
 
@@ -5825,7 +5877,7 @@ def train_tensorflow():
             return {"status": "error", "message": f"Insuficientes datos ({len(df_data)}) en Upstash para entrenar TF"}
             
         df = pd.DataFrame(df_data).fillna(0)
-        X = df[['hora_utc', 'score_original', 'ind_lux_1h', 'ind_lux_2h', 'ind_rsi', 'ind_fvg']].values
+        X = df[['hora_utc', 'score_original', 'ind_lux_1h', 'ind_lux_2h', 'ind_rsi', 'ind_fvg', 'amd_sw_8h', 'amd_sw_4h', 'amd_sw_3h', 'amd_sw_intra', 'amd_dist_macro']].values
         y = df['EXITO'].values
         
         # 3. Entrenar TensorFlow Keras Model en Memoria RAM

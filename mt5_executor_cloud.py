@@ -568,6 +568,10 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
     if confirmaciones.get("amd_confluencia_macro"): smc_codes.append(20)
     if confirmaciones.get("amd_sweep_3h"): smc_codes.append(21)
     if confirmaciones.get("amd_sweep_intradia"): smc_codes.append(22)
+    if confirmaciones.get("amd_sweep_8h_alcista") or confirmaciones.get("amd_sweep_8h_bajista"): smc_codes.append(23)
+    if confirmaciones.get("amd_sweep_4h_alcista") or confirmaciones.get("amd_sweep_4h_bajista"): smc_codes.append(24)
+    if confirmaciones.get("amd_sweep_2h_alcista") or confirmaciones.get("amd_sweep_2h_bajista"): smc_codes.append(25)
+    if confirmaciones.get("amd_sweep_1h_alcista") or confirmaciones.get("amd_sweep_1h_bajista"): smc_codes.append(26)
 
     tecnicas = {
         "smc_codes": smc_codes,
@@ -579,6 +583,17 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
         "amd_confluencia_macro": bool(confirmaciones.get("amd_confluencia_macro", False)),
         "amd_sweep_3h": bool(confirmaciones.get("amd_sweep_3h", False)),
         "amd_sweep_intradia": bool(confirmaciones.get("amd_sweep_intradia", False)),
+        "amd_sweep_8h_alcista": bool(confirmaciones.get("amd_sweep_8h_alcista", False)),
+        "amd_sweep_8h_bajista": bool(confirmaciones.get("amd_sweep_8h_bajista", False)),
+        "amd_sweep_4h_alcista": bool(confirmaciones.get("amd_sweep_4h_alcista", False)),
+        "amd_sweep_4h_bajista": bool(confirmaciones.get("amd_sweep_4h_bajista", False)),
+        "amd_sweep_3h_alcista": bool(confirmaciones.get("amd_sweep_3h_alcista", False)),
+        "amd_sweep_3h_bajista": bool(confirmaciones.get("amd_sweep_3h_bajista", False)),
+        "amd_sweep_2h_alcista": bool(confirmaciones.get("amd_sweep_2h_alcista", False)),
+        "amd_sweep_2h_bajista": bool(confirmaciones.get("amd_sweep_2h_bajista", False)),
+        "amd_sweep_1h_alcista": bool(confirmaciones.get("amd_sweep_1h_alcista", False)),
+        "amd_sweep_1h_bajista": bool(confirmaciones.get("amd_sweep_1h_bajista", False)),
+        "amd_vector_mtf": confirmaciones.get("amd_vector_mtf", []),
         "amd_context": confirmaciones.get("amd_context", {})
     }
     
@@ -1525,31 +1540,88 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         
         macro_high_cercano = min([h for h in highs_macro if h > precio_actual], default=0.0)
         macro_low_cercano = max([l for l in lows_macro if l < precio_actual], default=0.0)
-        
-        dist_macro_high_pct = ((macro_high_cercano - precio_actual) / precio_actual * 100.0) if macro_high_cercano > 0 else 999.0
-        dist_macro_low_pct = ((precio_actual - macro_low_cercano) / precio_actual * 100.0) if macro_low_cercano > 0 else 999.0
 
-        # 2. Señales Intradía y Gatillos Intermedios (1H, 2H, 3H)
-        intra_sweep_alcista = bool(smc_mtf["1h"]["bullish_signal"] or smc_mtf["2h"]["bullish_signal"] or smc_mtf["3h"]["bullish_signal"])
-        intra_sweep_bajista = bool(smc_mtf["1h"]["bearish_signal"] or smc_mtf["2h"]["bearish_signal"] or smc_mtf["3h"]["bearish_signal"])
+        # Fallback robusto a velas de 4H/8H para que las distancias NUNCA sean null
+        if macro_high_cercano <= 0:
+            for tf in ["4h", "8h"]:
+                if dfs_mtf.get(tf) is not None and not dfs_mtf[tf].empty:
+                    c_high = float(dfs_mtf[tf]["high"].max())
+                    if c_high > precio_actual and (macro_high_cercano == 0 or c_high < macro_high_cercano):
+                        macro_high_cercano = c_high
         
-        ob_3h_alcista = bool(memoria_inst.get("lux_algo_ob_3h_alcista", False) or (smc_mtf["3h"]["smc_order_block"] and smc_mtf["3h"]["bullish_signal"]))
-        ob_3h_bajista = bool(memoria_inst.get("lux_algo_ob_3h_bajista", False) or (smc_mtf["3h"]["smc_order_block"] and smc_mtf["3h"]["bearish_signal"]))
+        if macro_low_cercano <= 0:
+            for tf in ["4h", "8h"]:
+                if dfs_mtf.get(tf) is not None and not dfs_mtf[tf].empty:
+                    c_low = float(dfs_mtf[tf]["low"].min())
+                    if c_low < precio_actual and (macro_low_cercano == 0 or c_low > macro_low_cercano):
+                        macro_low_cercano = c_low
 
-        amd_confluencia_macro = bool(macro_sweep_alcista or macro_sweep_bajista)
-        amd_sweep_3h = bool(smc_mtf["3h"]["bullish_signal"] or smc_mtf["3h"]["bearish_signal"] or smc_mtf["3h"]["sweep_liquidez_detectado"] or ob_3h_alcista or ob_3h_bajista)
-        amd_sweep_intradia = bool(intra_sweep_alcista or intra_sweep_bajista)
+        # Calcular distancias en porcentaje garantizando valor numérico real > 0.0 (nunca null)
+        if macro_high_cercano > precio_actual:
+            dist_macro_high_pct = round(((macro_high_cercano - precio_actual) / precio_actual) * 100.0, 3)
+        else:
+            dist_macro_high_pct = 0.50 # Bounded default si el precio está en máximos
+            
+        if macro_low_cercano > 0 and precio_actual > macro_low_cercano:
+            dist_macro_low_pct = round(((precio_actual - macro_low_cercano) / precio_actual) * 100.0, 3)
+        else:
+            dist_macro_low_pct = 0.50 # Bounded default si el precio está en mínimos
+
+        # 2. Desglose Completo Multi-Temporal (8H, 4H, 3H, 2H, 1H)
+        sweep_8h_alcista = bool(smc_mtf["8h"]["bullish_signal"])
+        sweep_8h_bajista = bool(smc_mtf["8h"]["bearish_signal"])
+        sweep_4h_alcista = bool(smc_mtf["4h"]["bullish_signal"])
+        sweep_4h_bajista = bool(smc_mtf["4h"]["bearish_signal"])
+        sweep_3h_alcista = bool(smc_mtf["3h"]["bullish_signal"] or memoria_inst.get("lux_algo_ob_3h_alcista", False))
+        sweep_3h_bajista = bool(smc_mtf["3h"]["bearish_signal"] or memoria_inst.get("lux_algo_ob_3h_bajista", False))
+        sweep_2h_alcista = bool(smc_mtf["2h"]["bullish_signal"] or memoria_inst.get("lux_algo_ob_2h_alcista", False))
+        sweep_2h_bajista = bool(smc_mtf["2h"]["bearish_signal"] or memoria_inst.get("lux_algo_ob_2h_bajista", False))
+        sweep_1h_alcista = bool(smc_mtf["1h"]["bullish_signal"] or memoria_inst.get("lux_algo_ob_1h_alcista", False))
+        sweep_1h_bajista = bool(smc_mtf["1h"]["bearish_signal"] or memoria_inst.get("lux_algo_ob_1h_bajista", False))
+
+        ob_3h_alcista = sweep_3h_alcista
+        ob_3h_bajista = sweep_3h_bajista
+        intra_sweep_alcista = bool(sweep_1h_alcista or sweep_2h_alcista or sweep_3h_alcista)
+        intra_sweep_bajista = bool(sweep_1h_bajista or sweep_2h_bajista or sweep_3h_bajista)
+
+        amd_confluencia_macro = bool(sweep_8h_alcista or sweep_8h_bajista or sweep_4h_alcista or sweep_4h_bajista)
+        amd_sweep_3h = bool(sweep_3h_alcista or sweep_3h_bajista or smc_mtf["3h"]["sweep_liquidez_detectado"])
+        amd_sweep_intradia = bool(sweep_1h_alcista or sweep_1h_bajista or sweep_2h_alcista or sweep_2h_bajista)
 
         tf_gatillos_activos = [tf for tf in ["1h", "2h", "3h", "4h", "8h"] if smc_mtf[tf]["bullish_signal"] or smc_mtf[tf]["bearish_signal"] or memoria_inst.get(f"lux_algo_ob_{tf}", False)]
 
+        # Vector Numérico Denso Normalizado (12 Dimensiones) para TensorFlow y los 7 Herds
+        vector_mtf_12d = [
+            1.0 if sweep_8h_alcista else 0.0,
+            1.0 if sweep_8h_bajista else 0.0,
+            1.0 if sweep_4h_alcista else 0.0,
+            1.0 if sweep_4h_bajista else 0.0,
+            1.0 if sweep_3h_alcista else 0.0,
+            1.0 if sweep_3h_bajista else 0.0,
+            1.0 if sweep_2h_alcista else 0.0,
+            1.0 if sweep_2h_bajista else 0.0,
+            1.0 if sweep_1h_alcista else 0.0,
+            1.0 if sweep_1h_bajista else 0.0,
+            float(dist_macro_high_pct),
+            float(dist_macro_low_pct)
+        ]
+
         amd_context = {
-            "macro_sweep_alcista": macro_sweep_alcista,
-            "macro_sweep_bajista": macro_sweep_bajista,
+            "macro_sweep_alcista": bool(sweep_8h_alcista or sweep_4h_alcista),
+            "macro_sweep_bajista": bool(sweep_8h_bajista or sweep_4h_bajista),
             "macro_confluence": amd_confluencia_macro,
-            "dist_macro_high_pct": round(dist_macro_high_pct, 2) if dist_macro_high_pct < 999 else None,
-            "dist_macro_low_pct": round(dist_macro_low_pct, 2) if dist_macro_low_pct < 999 else None,
+            "dist_macro_high_pct": float(dist_macro_high_pct),
+            "dist_macro_low_pct": float(dist_macro_low_pct),
             "tf_gatillos_activos": tf_gatillos_activos,
-            "fase_amd": "ALINEACION_MACRO_A++" if amd_confluencia_macro else ("DISTRIBUCION_POST_SWEEP" if amd_sweep_intradia else "ACUMULACION_LATERAL")
+            "fase_amd": "ALINEACION_MACRO_A++" if amd_confluencia_macro else ("DISTRIBUCION_POST_SWEEP" if (amd_sweep_3h or amd_sweep_intradia) else "ACUMULACION_LATERAL"),
+            "sweeps_por_temporalidad": {
+                "8h": {"alcista": sweep_8h_alcista, "bajista": sweep_8h_bajista},
+                "4h": {"alcista": sweep_4h_alcista, "bajista": sweep_4h_bajista},
+                "3h": {"alcista": sweep_3h_alcista, "bajista": sweep_3h_bajista},
+                "2h": {"alcista": sweep_2h_alcista, "bajista": sweep_2h_bajista},
+                "1h": {"alcista": sweep_1h_alcista, "bajista": sweep_1h_bajista}
+            },
+            "vector_caracteristicas_mtf": vector_mtf_12d
         }
 
         confirmaciones = {
@@ -1560,6 +1632,17 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             "amd_confluencia_macro": amd_confluencia_macro,
             "amd_sweep_3h": amd_sweep_3h,
             "amd_sweep_intradia": amd_sweep_intradia,
+            "amd_sweep_8h_alcista": sweep_8h_alcista,
+            "amd_sweep_8h_bajista": sweep_8h_bajista,
+            "amd_sweep_4h_alcista": sweep_4h_alcista,
+            "amd_sweep_4h_bajista": sweep_4h_bajista,
+            "amd_sweep_3h_alcista": sweep_3h_alcista,
+            "amd_sweep_3h_bajista": sweep_3h_bajista,
+            "amd_sweep_2h_alcista": sweep_2h_alcista,
+            "amd_sweep_2h_bajista": sweep_2h_bajista,
+            "amd_sweep_1h_alcista": sweep_1h_alcista,
+            "amd_sweep_1h_bajista": sweep_1h_bajista,
+            "amd_vector_mtf": vector_mtf_12d,
             "amd_context": amd_context
         }
         
