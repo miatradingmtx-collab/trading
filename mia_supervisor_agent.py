@@ -114,24 +114,27 @@ class MiaSupervisorAgent:
         # Si Firebase está disponible, consultar métricas vivas
         if self.db is not None:
             try:
-                ind_docs = self.db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream()
                 ranking = []
-                for d in ind_docs:
-                    data = d.to_dict()
-                    wr = float(data.get("win_rate_indicador", 0.0) or data.get("win_rate", 0.0) or 0.0)
-                    total = int(data.get("trades_con_indicador", 0) or data.get("ocurrencias", 0) or 0)
-                    if total >= 50:  # Mínimo 10 muestras para significancia estadística
-                        ranking.append({
-                            "indicador": d.id,
-                            "win_rate": wr,
-                            "total": total
-                        })
-                ranking.sort(key=lambda x: (x["win_rate"], x["total"]), reverse=True)
+                for coll_name in ["indicadores_impacto", "patrones_ict_smc"]:
+                    ind_docs = self.db.collection("mia_kb").document(coll_name).collection("detalle").stream()
+                    for d in ind_docs:
+                        data = d.to_dict() or {}
+                        wr = float(data.get("win_rate_indicador", 0.0) or data.get("win_rate_patron", 0.0) or data.get("win_rate", 0.0) or 0.0)
+                        total = int(data.get("trades_con_indicador", 0) or data.get("trades_con_patron", 0) or data.get("trades", 0) or data.get("ocurrencias", 0) or 0)
+                        pnl = float(data.get("pnl_acumulado", 0.0) or data.get("pnl_generado", 0.0) or 0.0)
+                        if total >= 50:  # Mínimo 50 muestras para significancia estadística (anti-suerte)
+                            ranking.append({
+                                "indicador": d.id,
+                                "win_rate": wr,
+                                "total": total,
+                                "pnl": pnl
+                            })
+                ranking.sort(key=lambda x: (x["win_rate"], x["pnl"]), reverse=True)
                 if len(ranking) >= 3:
                     top_candidatos = [
-                        {"indicador": ranking[0]["indicador"], "peso": 35, "win_rate_asociado": int(round(ranking[0]["win_rate"]))},
-                        {"indicador": ranking[1]["indicador"], "peso": 30, "win_rate_asociado": int(round(ranking[1]["win_rate"]))},
-                        {"indicador": ranking[2]["indicador"], "peso": 25, "win_rate_asociado": int(round(ranking[2]["win_rate"]))}
+                        {"indicador": ranking[0]["indicador"], "peso": 35, "win_rate_asociado": round(ranking[0]["win_rate"], 2), "trades_muestra": ranking[0]["total"]},
+                        {"indicador": ranking[1]["indicador"], "peso": 30, "win_rate_asociado": round(ranking[1]["win_rate"], 2), "trades_muestra": ranking[1]["total"]},
+                        {"indicador": ranking[2]["indicador"], "peso": 25, "win_rate_asociado": round(ranking[2]["win_rate"], 2), "trades_muestra": ranking[2]["total"]}
                     ]
             except Exception as e:
                 print(f"| SUPERVISOR | Error leyendo ranking dinámico de indicadores: {e}")
@@ -142,6 +145,7 @@ class MiaSupervisorAgent:
             "top_1": top_candidatos[0],
             "top_2": top_candidatos[1],
             "top_3": top_candidatos[2],
+            "filtro_antisuertemin_trades": 50,
             "filtro_trampa_noticias": {
                 "tiempo_espera_reversion_post_noticia_min": 8,
                 "ventana_bloqueo_pre_noticia_min": 15,
