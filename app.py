@@ -278,6 +278,13 @@ async def daily_quant_reconciliation_service_loop():
             except Exception as e_atl:
                 print(f"| QUANT SERVICE WARN | Error sincronizando snapshots ATLAS: {e_atl}")
             
+            # Reconciliación y Autocuración Continua de Snapshots MGET día a día en mia_mget_history
+            try:
+                from mia_mget_manager import reconcile_and_sync_mget_history
+                reconcile_and_sync_mget_history(db_client=db, days_lookback=14)
+            except Exception as e_mget:
+                print(f"| QUANT SERVICE WARN | Error sincronizando snapshots MGET: {e_mget}")
+            
             # Chequear ventana de cierre de mercado para emitir reporte diario (21:00 - 22:00 UTC)
             hora_utc = datetime.datetime.now(datetime.timezone.utc).hour
             minuto = datetime.datetime.now(datetime.timezone.utc).minute
@@ -334,6 +341,19 @@ async def startup_event():
     # Reemplaza la dependencia del flujo Mia_Machine_Learning_Loop de N8N
     asyncio.create_task(scheduler_ml_semanal())
     asyncio.create_task(scheduler_daily_ai_cron())
+
+    # Sincronización inicial en background de ATLAS y MGET (espera 15s para no bloquear arranque del server)
+    async def initial_recon_task():
+        await asyncio.sleep(15)
+        try:
+            from mia_researcher_agent import atlas_researcher
+            from mia_mget_manager import reconcile_and_sync_mget_history
+            atlas_researcher.reconcile_and_sync_atlas_snapshots(db_client=db, days_lookback=14)
+            reconcile_and_sync_mget_history(db_client=db, days_lookback=14)
+            print("| STARTUP RECON | Reconciliación inicial de ATLAS y MGET completada con éxito.")
+        except Exception as e_recon:
+            print(f"| STARTUP RECON WARN | Error en reconciliación inicial: {e_recon}")
+    asyncio.create_task(initial_recon_task())
 
 
 
@@ -3900,6 +3920,16 @@ def get_cache_mget():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/mget/reconcile")
+def api_mget_reconcile():
+    """Fuerza la auditoría, autocuración y reconciliación de la bóveda histórica MGET."""
+    global db
+    from mia_mget_manager import reconcile_and_sync_mget_history
+    return reconcile_and_sync_mget_history(db_client=db, days_lookback=14)
+
+# Exponer la función para compatibilidad hacia atrás
+from mia_mget_manager import reconcile_and_sync_mget_history
+
 @app.get("/api/herds/latest")
 def api_herds_latest():
     """Devuelve el debate mÃ¡s reciente entre los enjambres desde Upstash Redis."""
@@ -4571,22 +4601,10 @@ async def scheduler_daily_ai_cron():
                 print(f"Error ATLAS Snapshot Cron: {e_atl}")
 
             try:
-                # Sincronización MGET In-Process
-                res_mget = requests.get("https://trading-production-1fd4.up.railway.app/api/cache_mget", timeout=5)
-                if res_mget.status_code == 200 and db is not None:
-                    mget_data = res_mget.json().get('data', {})
-                    fecha_hoy = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-                    fecha_corta = datetime.now().strftime('%Y-%m-%d')
-                    doc_id = f"MGET_SNAPSHOT_{fecha_hoy}"
-                    payload_mget = {
-                        "balance_actual": mget_data.get("balance_actual", 0),
-                        "kpis": json.loads(mget_data.get("kpis", "{}")) if isinstance(mget_data.get("kpis"), str) else mget_data.get("kpis", {}),
-                        "timestamp": str(datetime.now(timezone.utc))
-                    }
-                    db.collection('mia_mget_history').document(fecha_corta).collection('snapshots').document(doc_id).set(payload_mget)
-                    headers_up = {"Authorization": f"Bearer {UPSTASH_TOKEN}"}
-                    requests.post(f"{UPSTASH_URL}/set/cache_mia_mget_latest", headers=headers_up, json=payload_mget, timeout=3)
-                    print(f"| MGET CRON | MGET_HISTORY homologado en Firebase ({fecha_corta})")
+                # Sincronización MGET In-Process con Autocuración Continua
+                from mia_mget_manager import reconcile_and_sync_mget_history
+                res_mget_recon = reconcile_and_sync_mget_history(db_client=db, days_lookback=14)
+                print(f"| MGET CRON | MGET_HISTORY reconciliado y homologado exitosamente: {res_mget_recon.get('fechas_verificadas')} verificadas, {len(res_mget_recon.get('fechas_autocuradas', []))} autocuradas")
             except Exception as e_mget:
                 print(f"Error MGET Snapshot Cron: {e_mget}")
                 
