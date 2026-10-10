@@ -312,17 +312,13 @@ class AtlasResearcherAgent:
         try:
             db = self._get_db(db_client)
             if db is not None:
-                if target_date:
-                    fecha_corta = target_date
-                    doc_id = f"AB_SNAPSHOT_{target_date}_23-55-00"
-                else:
-                    fecha_corta = datetime.datetime.now().strftime('%Y-%m-%d')
-                    doc_id = f"AB_SNAPSHOT_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+                fecha_corta = target_date if target_date else datetime.datetime.now().strftime('%Y-%m-%d')
+                doc_id = f"AB_SNAPSHOT_{fecha_corta}"
                 
                 db.collection("mia_atlas").document("state").set(ab_payload)
                 db.collection("mia_atlas").document("latest_debate_ab").set(ab_payload)
                 
-                # Homologacion de taxonomia: Agrupar en subcoleccion historica diaria
+                # Homologacion de taxonomia: Agrupar en subcoleccion historica diaria (ID Canónico e Idempotente)
                 db.collection("mia_atlas").document("snapshots_historicos").collection(fecha_corta).document(doc_id).set(ab_payload)
                 print(f"| ATLAS | Homologado pasivamente en Firestore: mia_atlas/snapshots_historicos/{fecha_corta}/{doc_id}")
         except Exception as e_fb:
@@ -334,7 +330,7 @@ class AtlasResearcherAgent:
         """
         Reconciliación y Autocuración Continua de Snapshots Históricos ATLAS:
         - Examina los últimos `days_lookback` días hasta hoy.
-        - Para cada fecha, verifica si existe su subcolección en `mia_atlas/snapshots_historicos/<fecha>`.
+        - Para cada fecha, verifica si existe su documento canónico `AB_SNAPSHOT_<fecha>` en `mia_atlas/snapshots_historicos/<fecha>`.
         - Si alguna fecha pasada está ausente, genera y guarda su snapshot con los datos de esa jornada (Auto-Backfill).
         - Para la fecha actual (hoy), genera/actualiza el snapshot diario.
         - Actualiza el slot 'cache_mia_atlas' en Upstash Redis para que el Dashboard y MGET operen en sub-30ms.
@@ -371,10 +367,10 @@ class AtlasResearcherAgent:
         for fecha in dates_to_check:
             try:
                 subcoll = doc_ref.collection(fecha)
-                docs = list(subcoll.limit(1).stream())
-                if not docs:
-                    # Falta snapshot de este día -> Autocuración / Backfill inmediato
-                    print(f"| ATLAS SELF-HEALING | Snapshot faltante detectado para {fecha}. Generando...")
+                canonical_doc = subcoll.document(f"AB_SNAPSHOT_{fecha}").get()
+                if not canonical_doc.exists:
+                    # Falta snapshot canónico de este día -> Autocuración / Backfill inmediato
+                    print(f"| ATLAS SELF-HEALING | Snapshot canónico faltante detectado para {fecha}. Generando...")
                     self.generate_ab_backtest_matrix(db_client=db, target_date=fecha)
                     backfilled.append(fecha)
                 else:
