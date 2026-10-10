@@ -1242,3 +1242,14 @@ egla_de_3 deben ser consultados 100% mediante Upstash Redis (cache_regla_de_3). 
 - **Auditoría Dinámica de Créditos en Herd T5 FinOps (`mia_system_ops_swarm.py`):**
   - Consulta en tiempo real el saldo neto vía `https://openrouter.ai/api/v1/credits`.
   - Dispara alerta preventiva y botón interactivo `T5_PAY_OPENROUTER_AI` en `#back-office-y-backend` si el saldo es menor a $0.20 USD.
+
+### [Update 2026-10-10 - Sesión 35] - Blindaje de la Regla de 3: Filtro Anti-Suerte (>= 50 Trades) y Homologación Absoluta
+- **Auditoría de Gobernanza Técnica en Back-Office / Watchdog:**
+  - Sincronización canónica de `mia_kb/regla_de_3` en Firestore y `cache_regla_de_3` en Upstash Redis.
+  - Implementación del filtro de significancia estadística institucional `filtro_antisuertemin_trades: 50`.
+  - Queda prohibido en Herds T1 a T10 y Supervisor Watchdog alterar la Regla de 3 basándose en rachas cortas de suerte de un día o una semana.
+- **Top 3 Validado:**
+  1. `rsi_sobrecompra_sobreventa` (67 trades | 83.58% WR | +$466.47 PnL | Peso 35).
+  2. `order_block_zona_2h` (158 trades | 80.38% WR | -$39.22 PnL | Peso 30).
+  3. `lux_algo_ob_2h` (106 trades | 61.32% WR | +$113.76 PnL | Peso 25).
+- **Código en Producción:** Actualizados `app.py` y `mia_supervisor_agent.py` para consultar tanto `indicadores_impacto` como `patrones_ict_smc` bajo el umbral mínimo de 50 trades reales.

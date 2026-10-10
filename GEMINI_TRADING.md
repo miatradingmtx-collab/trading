@@ -46,9 +46,13 @@ description: Regla para la actualizacin perpetua de la Regla de 3 y el rol del A
 trigger: always_on
 ---
 
-#  REGLA: REGLA DE 3 DINMICA Y AGENTE SUPERVISOR WATCHDOG
-1. **Regla de 3 Dinmica:** La coleccin `mia_kb/regla_de_3` y el slot `cache_regla_de_3` no pueden permanecer con fechas estticas. El Top 1, Top 2 y Top 3 deben recalibrarse automticamente segn el WinRate real de `indicadores_impacto`, actualizando el timestamp `ultima_actualizacion` en tiempo real.
-2. **MIA Supervisor Watchdog (`mia_supervisor_agent.py`):** Un agente autnomo en segundo plano monitorea la integridad de los datos, previene rfagas masivas duplicadas de reportes HFT en Firestore y mantiene sincronizado el Dashboard sin necesidad de intervencin manual o nuevos prompts.
+# ⚖️ REGLA: REGLA DE 3 DINÁMICA CON FILTRO ANTI-SUERTE (>= 50 TRADES) Y AGENTE SUPERVISOR
+1. **Regla de 3 Dinámica con Filtro Anti-Suerte:** La colección `mia_kb/regla_de_3` y el slot `cache_regla_de_3` se rigen por la **Ley Institucional de Significancia Estadística (>= 50 Trades)**. Queda ESTRICTAMENTE PROHIBIDO que el Machine Learning, agentes LLM o supervisores alteren o propongan alterar el Top 1, Top 2 o Top 3 basándose en rachas de corto plazo, el 'día de suerte' o la 'semana de suerte' (< 50 trades). Todo candidato DEBE contar con al menos 50 confirmaciones históricas reales cerradas en `indicadores_impacto` o `patrones_ict_smc`, ordenándose por Win Rate real y expectativa matemática positiva ($PnL > 0$).
+2. **Top 3 Institucional Validado:**
+   - **Top 1:** `rsi_sobrecompra_sobreventa` (67 trades | 83.58% Win Rate | +$466.47 PnL | Peso 35).
+   - **Top 2:** `order_block_zona_2h` (158 trades | 80.38% Win Rate | -$39.22 PnL | Peso 30).
+   - **Top 3:** `lux_algo_ob_2h` (106 trades | 61.32% Win Rate | +$113.76 PnL | Peso 25).
+3. **MIA Supervisor Watchdog (`mia_supervisor_agent.py`):** Monitorea la integridad de los datos, previene ráfagas masivas duplicadas de reportes HFT en Firestore y mantiene sincronizado el Dashboard respetando estrictamente el umbral de 50 trades. Toda propuesta de ajuste requiere autorización HITL explícita.
 
 ---
 name: arquitectura_dual_swarms_desacoplados

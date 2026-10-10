@@ -173,6 +173,8 @@ class MiaQuantSupervisor:
            - "diagnostico": Explicación concisa y técnica de lo ocurrido con el precio y la confluencia de mercado.
            - "sugerencia_7_herds_trading": Qué reglas matemáticas, parámetros de SL/TP, trailing stop (RUNE), pesos neuronales (TENSORFLOW), libro de órdenes DOM/CVD (ATLAS) o confluencias SMC (LUMEN/ZEPHR/NORO/TIDAL) propones ajustar a los 7 Herds para los 5 pares operados.
            - "nota_infraestructura_t1_t10": Si el trade falló por una desconexión técnica, bug de sincronización o error 500 en backend, indícalo aquí para T1-T10. Si fue movimiento normal de mercado y la infraestructura operó perfectamente, pon exactamente: "Infraestructura backend nominal (sin fallas técnicas)."
+        6. REGLA INQUEBRANTABLE (FILTRO ANTI-SUERTE >= 50 TRADES):
+           Está terminantemente PROHIBIDO sugerir o alterar el Top 1, Top 2 o Top 3 de la 'Regla de 3' (mia_kb/regla_de_3) basándote en rachas de corto plazo, el 'día de suerte' o la 'semana de suerte'. Para que cualquier indicador o patrón sea considerado o sugerido para la Regla de 3, DEBE tener un mínimo absoluto de 50 trades históricos reales cerrados con Win Rate validado y expectativa matemática positiva (PnL > 0).
         """
 
         texto = None

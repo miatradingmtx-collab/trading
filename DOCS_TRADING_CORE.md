@@ -84,25 +84,21 @@ El "Stored Procedure" (SP) programado en el Backend (`app.py`, lnea 1228) que ti
 
 **Datos Validados en vivo en Firebase:**
 
-1. **Patrones Evaluados:** La metodologa de purga ha encontrado y analizado un histrico masivo. Ejemplos crudos encontrados en la base de datos de produccin:
+1. **Patrones e Indicadores Evaluados:** Auditoría cuantitativa integral sobre la base de datos histórica de producción (`indicadores_impacto` y `patrones_ict_smc`):
+   - `rsi_sobrecompra_sobreventa`: **Win Rate 83.58%** (67 trades reales | PnL +$466.47 USD).
+   - `order_block_zona_2h`: **Win Rate 80.38%** (158 trades reales | PnL -$39.22 USD).
+   - `lux_algo_ob_2h`: **Win Rate 61.32%** (106 trades reales | PnL +$113.76 USD).
+   - `medias_moviles_alineadas`: **Win Rate 45.73%** (1567 trades | PnL -$5,908.50 USD).
+   - `poc_price`: **Win Rate 44.97%** (1687 trades | PnL -$6,634.58 USD).
+   - `soporte_resistencia_activo`: **Win Rate 32.15%** (448 trades | PnL -$622.39 USD).
 
-   - `SMC Sweep (Stop Hunt)`: **Win Rate 85.5%** (12 ocurrencias detectadas).
+2. **Construcción Canónica de la Regla de 3 (Filtro Anti-Suerte >= 50 Trades):**
+   - **Ley de Significancia Estadística:** Queda terminantemente PROHIBIDO considerar cualquier indicador o patrón que no cuente con un mínimo de **50 trades históricos reales cerrados**. Se descartan rachas de corto plazo, días de suerte o semanas de suerte.
+   - **Top 1:** `rsi_sobrecompra_sobreventa` (Win Rate: 83.58% | Peso: 35 | Muestra: 67 trades).
+   - **Top 2:** `order_block_zona_2h` (Win Rate: 80.38% | Peso: 30 | Muestra: 158 trades).
+   - **Top 3:** `lux_algo_ob_2h` (Win Rate: 61.32% | Peso: 25 | Muestra: 106 trades).
 
-   - `FVG Rebalance`: **Win Rate 78.0%** (8 ocurrencias detectadas).
-
-   - `Order Block 4H`: **Win Rate 72.5%** (5 ocurrencias detectadas).
-
-   - `Soporte/Resistencia (SR)`: **Win Rate 41.52%** (460 ocurrencias, clasificadas como ineficientes por el bot).
-
-2. **Construccin de la Regla de 3:** El algoritmo interno ya calcul las estrategias dominantes (`regla_de_3`) en el Top 3 y lo empuj a la base de datos:
-
-   - Top 1: `smc_2_fvg`
-
-   - Top 2: `ma_alineada`
-
-   - Top 3: `order_block_zona_1h`
-
-**Veredicto:** El SP est inyectando exitosamente la inteligencia a `mia_kb`. La Fase 2 del Ecosistema Multi-Agente (Swarm de Gemini Pro) ya tiene **materia prima suficiente** para arrancar en modo lectura, sin tener que esperar a recabar informacin desde cero.
+**Veredicto Institucional:** La 'Regla de 3' solo puede ser modificada cuando un nuevo setup supere de forma comprobada a los actuales y tenga **50 o más trades auditados**. Cualquier intento de alteración con menor muestra es rechazado por el sistema.
 
 ---
 
@@ -418,8 +414,18 @@ trigger: always_on
 ---
 
 ## REGLA DE ROLLBACK - AUTORIZACION OBLIGATORIA
-- **Todo rollback de c�digo, configuraci�n, red neuronal, pesos ML, endpoints o infraestructura REQUIERE autorizaci�n expl�cita del usuario.**
-- El monitor de rendimiento (performance_monitor.py) puede DETECTAR y RECOMENDAR rollbacks cuando el Health Score baje, pero NUNCA ejecutarlos autom�ticamente.
+- **Todo rollback de cdigo, configuracin, red neuronal, pesos ML, endpoints o infraestructura REQUIERE autorizacin explcita del usuario.**
+- El monitor de rendimiento (performance_monitor.py) puede DETECTAR y RECOMENDAR rollbacks cuando el Health Score baje, pero NUNCA ejecutarlos automticamente.
 - Solo el usuario puede dar la orden de revertir a un snapshot anterior.
 - Los snapshots se almacenan en Logs/performance_metrics.json como puntos de referencia.
-- El dashboard visual est� en Diagramas/monitor_rendimiento.html.
+- El dashboard visual est en Diagramas/monitor_rendimiento.html.
+
+### [Update 2026-10-10 - Sesión 35] - Blindaje de la Regla de 3: Filtro Anti-Suerte (>= 50 Trades) y Homologación Absoluta
+- **Auditoría Cuantitativa de Muestra Estadística:**
+  - Se identificó un desfase en el cual candidatos con baja efectividad o rachas cortas de suerte eran propuestos por fórmulas relativas.
+  - Se estableció por mandato de gobernanza institucional el **Filtro Anti-Suerte de 50 Trades Mínimos**. Ningún setup entra al Top 1-3 sin al menos 50 confirmaciones cerradas.
+- **Top 3 Validado Canónico:**
+  1. `rsi_sobrecompra_sobreventa`: 67 trades | 83.58% WR | +$466.47 PnL | Peso 35.
+  2. `order_block_zona_2h`: 158 trades | 80.38% WR | -$39.22 PnL | Peso 30.
+  3. `lux_algo_ob_2h`: 106 trades | 61.32% WR | +$113.76 PnL | Peso 25.
+- **Gobernanza HITL:** Inyección sincronizada en Firestore (`mia_kb/regla_de_3`) y Upstash Redis (`cache_regla_de_3`). Reescritura del motor de aprendizaje en `app.py` y `mia_supervisor_agent.py` para bloquear cualquier modificación sin la muestra mínima de 50 trades.

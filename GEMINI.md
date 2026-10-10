@@ -64,3 +64,14 @@ Las colecciones de log (`mia_ops_audit_history`, `mia_herds_history`, `mia_swarm
 
 **Flujo Obligatorio:**
 Toda mejora o corrección sobre los parámetros del bot DEBE ser enviada como una propuesta JSON a `cache_pending_ops_approvals` (o validada vía Slack Block Kit en `#mia-trading-insights`). El humano la revisará (Check = Aprobado / X = Rechazado). Ningún agente asume el rol de aplicar cambios hasta que el humano declare: "Prueba de Confianza Superada".
+
+# 🛡️ REGLA DE ORO: FILTRO ANTI-SUERTE INSTITUCIONAL PARA LA REGLA DE 3 (>= 50 TRADES)
+**REGLA INQUEBRANTABLE:** Queda terminantemente PROHIBIDO que cualquier Agente LLM, Supervisor Quant, Agente Post-Mortem, Watchdog de Infraestructura (T1-T10) o algoritmo de Machine Learning altere o proponga alterar la 'Regla de 3' (`mia_kb/regla_de_3` o `cache_regla_de_3`) basándose en rachas de corto plazo, el 'día de suerte' o la 'semana de suerte'.
+- **Umbral Obligatorio de Significancia Estadística:** Para que cualquier confirmación técnica o patrón SMC/ICT sea elegible como candidato al Top 1, Top 2 o Top 3, DEBE contar con un MÍNIMO de **50 trades históricos reales cerrados** en la base de datos auditada (`indicadores_impacto` o `patrones_ict_smc`). Muestras menores a 50 trades son descartadas automáticamente por falta de significancia estadística.
+- **Criterio de Ranking:** Los candidatos maduros (>= 50 trades) se ordenan por su Win Rate real comprobado (`trades_ganados / trades_totales * 100`) y expectativa matemática positiva ($PnL > 0$).
+- **Top 3 Validado Canónico:**
+  1. **Top 1:** `rsi_sobrecompra_sobreventa` (67 trades | 83.58% Win Rate | +$466.47 PnL | Peso 35)
+  2. **Top 2:** `order_block_zona_2h` (158 trades | 80.38% Win Rate | -$39.22 PnL | Peso 30)
+  3. **Top 3:** `lux_algo_ob_2h` (106 trades | 61.32% Win Rate | +$113.76 PnL | Peso 25)
+- **Mandato HITL:** Ningún agente puede sobreescribir la Regla de 3 automáticamente; cualquier recalibración debe cumplir el umbral de >= 50 trades y presentarse para autorización HITL explícita.
+

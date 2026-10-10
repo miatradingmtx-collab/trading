@@ -352,8 +352,9 @@ def run_hft_cycle():
             mia_rules = mia_core_reader_tool.func()
         except Exception:
             mia_rules = (
-                "REGLAS DE ORO MIA CORE: Score >= 0.70 APROBADO. Setups Order Block Zona 2H y Lux Algo OB máxima prioridad. "
-                "Cierre parcial al 40% (+15% seguro) y SL en BE. Filtro noticias 15m pre / 8m post."
+                "REGLAS DE ORO MIA CORE (REGLA DE 3 ANTI-SUERTE >= 50 TRADES): "
+                "Top 1 RSI Sobrecompra/Sobreventa (83.58% WR, Peso 35), Top 2 Order Block 2H (80.38% WR, Peso 30), Top 3 Lux Algo OB 2H (61.32% WR, Peso 25). "
+                "Cierre parcial al 40% (+15% seguro) y SL en BE. Filtro noticias 15m pre / 8m post. Score >= 0.70 APROBADO."
             )
 
     # 2. Generar el Debate y Veredicto de los Sub-Enjambres (Herds Deliberation)
