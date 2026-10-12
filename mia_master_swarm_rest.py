@@ -455,9 +455,11 @@ def run_hft_cycle():
                 "estado": estado,
                 "bifurcacion_ab": {
                     "decision_champion_sin_atlas": decision_sin_atlas,
-                    "decision_challenger_con_atlas": estado.replace(" ⛔", "").replace(" ✅", ""),
-                    "modo_atlas": "APRENDIZ_SANDBOX_SIMULACION",
-                    "ejecucion_mt5_restringida_a_champion": True
+                    "decision_challenger_con_enjambres": estado.replace(" ⛔", "").replace(" ✅", ""),
+                    "modo_enjambres": "CANARY_TRIAL_LIVE",
+                    "cuarentena_anti_contaminacion": True,
+                    "sesion_activa": ("NUEVA_YORK" if (12 <= datetime.datetime.now(datetime.timezone.utc).hour < 19) else ("LONDRES" if (7 <= datetime.datetime.now(datetime.timezone.utc).hour < 12) else "ASIA")),
+                    "comparativo_dual_activo": True
                 }
             },
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
