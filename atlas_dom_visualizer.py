@@ -206,44 +206,48 @@ def render_dom_terminal(symbol="EURUSD", override_price=None):
     digits = dom["digits"]
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    # Especificación institucional de contrato
+    contract_info = "1 Lote = 100 oz" if "XAU" in dom["symbol"] else ("1 Lote = 100k" if "JPY" not in dom["symbol"] else "1 Lote = 100k")
+
     sys.stdout.write(CLEAR)
-    sys.stdout.write(f"{CYAN}{BOLD}==============================================================================={RESET}\n")
-    sys.stdout.write(f"{BOLD}    LIBRO DE ÓRDENES (DOM LEVEL 2) · ATLAS CVD SINTÉTICO INSTITUCIONAL         {RESET}\n")
-    sys.stdout.write(f"  Activo: {YELLOW}{dom['symbol']}{RESET} | Spread: {YELLOW}{dom['spread_label']}{RESET} | Tiempo: {CYAN}{now_str}{RESET} | Fuente: {GREEN}CME Proxy + Tick Flow{RESET}\n")
-    sys.stdout.write(f"{CYAN}{BOLD}==============================================================================={RESET}\n")
-    sys.stdout.write(f"{BOLD}{'PRECIO':>14s}  |  {'CANTIDAD (LOTES)':>18s}  |  {'TOTAL ACUMULADO':>16s}  |  PROFUNDIDAD{RESET}\n")
-    sys.stdout.write(f"{DIM}-------------------------------------------------------------------------------{RESET}\n")
+    sys.stdout.write(f"{CYAN}{BOLD}========================================================================{RESET}\n")
+    sys.stdout.write(f"{BOLD}   LIBRO DE ÓRDENES (DOM LEVEL 2) · ATLAS CVD SINTÉTICO INSTITUCIONAL   {RESET}\n")
+    sys.stdout.write(f"  Activo: {YELLOW}{dom['symbol']}{RESET} | Spread: {YELLOW}{dom['spread_label']}{RESET} | {CYAN}{contract_info}{RESET} | {GREEN}MT5 / CME Proxy{RESET}\n")
+    sys.stdout.write(f"  Tiempo: {DIM}{now_str}{RESET} | Apalancamiento Ref: {YELLOW}1:100 (Margen: 1%){RESET}\n")
+    sys.stdout.write(f"{CYAN}{BOLD}========================================================================{RESET}\n")
+    sys.stdout.write(f"{BOLD}{'PRECIO':>10s} | {'LOTES':>9s} | {'ACUMULADO':>10s} | {'PROFUNDIDAD':<12s}{RESET}\n")
+    sys.stdout.write(f"{DIM}------------------------------------------------------------------------{RESET}\n")
 
     # Render Asks (Rojo)
     for a in dom["asks"]:
-        bar_len = int((a["cumulative"] / max_c) * 16)
-        bar = f"{RED}{'█' * bar_len}{DIM}{'░' * (16 - bar_len)}{RESET}"
-        wall_tag = f" {YELLOW}{BOLD}[MURO ASK LIQUIDEZ]{RESET}" if a["is_wall"] else ""
-        price_fmt = f"{a['price']:14.{digits}f}"
-        sys.stdout.write(f"{RED}{price_fmt}{RESET}  |  {a['quantity']:18.3f}  |  {a['cumulative']:16.3f}  |  {bar}{wall_tag}\n")
+        bar_len = int((a["cumulative"] / max_c) * 12)
+        bar = f"{RED}{'█' * bar_len}{DIM}{'░' * (12 - bar_len)}{RESET}"
+        wall_tag = f" {YELLOW}{BOLD}[MURO ASK]{RESET}" if a["is_wall"] else ""
+        price_fmt = f"{a['price']:10.{digits}f}"
+        sys.stdout.write(f"{RED}{price_fmt}{RESET} | {a['quantity']:9.3f} | {a['cumulative']:10.3f} | {bar}{wall_tag}\n")
 
     # Spread & Precio Spot Actual
-    sys.stdout.write(f"{DIM}-------------------------------------------------------------------------------{RESET}\n")
+    sys.stdout.write(f"{DIM}------------------------------------------------------------------------{RESET}\n")
     cur_fmt = f"{dom['current_price']:.{digits}f}"
     bid_fmt = f"{dom['best_bid']:.{digits}f}"
     ask_fmt = f"{dom['best_ask']:.{digits}f}"
-    sys.stdout.write(f"  >>> {GREEN}{BOLD}PRECIO ACTUAL MERCADO: {cur_fmt} USD{RESET}  (Bid: {bid_fmt} / Ask: {ask_fmt})\n")
-    sys.stdout.write(f"{DIM}-------------------------------------------------------------------------------{RESET}\n")
+    sys.stdout.write(f" >>> {GREEN}{BOLD}PRECIO SPOT: {cur_fmt} USD{RESET} (Bid: {bid_fmt} / Ask: {ask_fmt})\n")
+    sys.stdout.write(f"{DIM}------------------------------------------------------------------------{RESET}\n")
 
     # Render Bids (Verde)
     for b in dom["bids"]:
-        bar_len = int((b["cumulative"] / max_c) * 16)
-        bar = f"{GREEN}{'█' * bar_len}{DIM}{'░' * (16 - bar_len)}{RESET}"
-        wall_tag = f" {YELLOW}{BOLD}[MURO BID ABSORCIÓN]{RESET}" if b["is_wall"] else ""
-        price_fmt = f"{b['price']:14.{digits}f}"
-        sys.stdout.write(f"{GREEN}{price_fmt}{RESET}  |  {b['quantity']:18.3f}  |  {b['cumulative']:16.3f}  |  {bar}{wall_tag}\n")
+        bar_len = int((b["cumulative"] / max_c) * 12)
+        bar = f"{GREEN}{'█' * bar_len}{DIM}{'░' * (12 - bar_len)}{RESET}"
+        wall_tag = f" {YELLOW}{BOLD}[MURO BID]{RESET}" if b["is_wall"] else ""
+        price_fmt = f"{b['price']:10.{digits}f}"
+        sys.stdout.write(f"{GREEN}{price_fmt}{RESET} | {b['quantity']:9.3f} | {b['cumulative']:10.3f} | {bar}{wall_tag}\n")
 
-    sys.stdout.write(f"{CYAN}{BOLD}==============================================================================={RESET}\n")
-    sys.stdout.write(f"{BOLD}DICTAMEN DE MICROESTRUCTURA ATLAS:{RESET} ")
+    sys.stdout.write(f"{CYAN}{BOLD}========================================================================{RESET}\n")
+    sys.stdout.write(f"{BOLD}DICTAMEN ATLAS:{RESET} ")
     ask_wall_p = [a['price'] for a in dom['asks'] if a['is_wall']][0]
     bid_wall_p = [b['price'] for b in dom['bids'] if b['is_wall']][0]
-    sys.stdout.write(f"Soporte Clave: {GREEN}{bid_wall_p:.{digits}f}{RESET} | Resistencia Clave: {RED}{ask_wall_p:.{digits}f}{RESET}\n")
-    sys.stdout.write(f"{DIM}Presiona Ctrl+C para detener el monitor | Refresco en tiempo real: 2.0s{RESET}\n")
+    sys.stdout.write(f"Soporte: {GREEN}{bid_wall_p:.{digits}f}{RESET} | Resistencia: {RED}{ask_wall_p:.{digits}f}{RESET}\n")
+    sys.stdout.write(f"{DIM}Ctrl+C para salir | Refresco continuo en tiempo real: 2.0s{RESET}\n")
     sys.stdout.flush()
 
 if __name__ == "__main__":
