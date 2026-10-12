@@ -1327,6 +1327,66 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
         await reportar_rechazo(activo, f"Rechazado por Broker (MetaAPI): {error_str}")
         return False
 
+
+async def procesar_cola_ejecucion_pending(account, connection, balance: float):
+    """
+    Lee cache_mt5_pending_execution de Upstash Redis.
+    Si el Master Orchestrator y RUNE autorizaron un trade (Score >= 0.70 y Tolerancia validada):
+    1. Verifica que el activo no este abierto ya en el broker.
+    2. Ejecuta la orden en MetaAPI en la cuenta 112472341.
+    3. Elimina la orden de la cola de Upstash Redis para no duplicar.
+    4. Notifica la ejecucion a /webhook_marcar_ejecutado.
+    """
+    UPSTASH_URL = os.getenv("UPSTASH_URL", "https://certain-gnat-160816.upstash.io")
+    UPSTASH_TOKEN = os.getenv("UPSTASH_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
+    headers = {"Authorization": f"Bearer {UPSTASH_TOKEN}"}
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{UPSTASH_URL}/get/cache_mt5_pending_execution", headers=headers, timeout=3.0)
+            if resp.status_code != 200:
+                return
+            result_raw = resp.json().get("result")
+            if not result_raw:
+                return
+            order = json.loads(result_raw) if isinstance(result_raw, str) else result_raw
+            if not isinstance(order, dict) or not order.get("activo"):
+                return
+                
+            activo = order.get("activo", "")
+            accion = order.get("accion", "COMPRA").upper()
+            lote = float(order.get("lote", 0.1))
+            sl = float(order.get("sl", 0.0))
+            tp = float(order.get("tp", 0.0))
+            
+            # 1. Comprobar posiciones abiertas en MetaAPI
+            positions = await connection.get_positions()
+            simbolo_broker = MAPEO_BROKER.get(activo, activo)
+            simbolos_abiertos = [p.get('symbol') for p in positions]
+            if simbolo_broker in simbolos_abiertos:
+                print(f"| COLA EJECUCION | {simbolo_broker} ya tiene una posicion activa. Omitiendo y purgando cola.")
+                await client.get(f"{UPSTASH_URL}/del/cache_mt5_pending_execution", headers=headers, timeout=2.0)
+                return
+                
+            # 2. Ejecutar la orden
+            decision = {
+                "stop_loss": sl,
+                "take_profit": tp,
+                "lote": lote,
+                "estrategia": "Swarm_7Herds_Master",
+                "amd_context": order.get("amd_context", {"cuarentena_tf": True})
+            }
+            print(f"| COLA EJECUCION CLOUD | Master Orchestrator y RUNE ordenan ejecutar {accion} en {simbolo_broker}! Lote: {lote} SL: {sl} TP: {tp}")
+            exito = await ejecutar_orden_cloud(connection, activo, accion, order.get("precio", 0.0), decision, balance)
+            
+            # 3. Purgar la cola para no reejecutar
+            await client.get(f"{UPSTASH_URL}/del/cache_mt5_pending_execution", headers=headers, timeout=2.0)
+            if exito:
+                print(f"| COLA EJECUCION SUCCESS | Orden de {activo} ejecutada con exito y purgada de Redis.")
+    except Exception as e:
+        pass
+
+
 # ------------------------------------------------------------------------------
 # 7. HORARIO DE KILLZONES
 # ------------------------------------------------------------------------------
@@ -1835,6 +1895,12 @@ async def run_escaner_loop():
                 await gestionar_posiciones_activas(account, connection, balance)
             except Exception as e:
                 print(f"| GESTOR POSICIONES ERROR | {e}")
+
+            # Procesar cola de ejecucion despachada por Master Orchestrator y RUNE (Swarm 7 Herds)
+            try:
+                await procesar_cola_ejecucion_pending(account, connection, balance)
+            except Exception as e_cola:
+                pass
                 
             # SINCRONIZACION DIRECTA A UPSTASH (CACHE MT5 DASHBOARD UNIFICADA)
             try:

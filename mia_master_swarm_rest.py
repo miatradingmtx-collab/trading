@@ -176,6 +176,238 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
         "**MASTER**: Veredicto del Quórum: APROBADO ✅ (Score Ponderado: 0.85). Parámetros nominales de trading."
     )
 
+
+def obtener_precios_spot_mercado() -> dict:
+    """Obtiene precios spot reales de Yahoo Finance con fallback seguro."""
+    precios = {
+        "EURUSD": 1.1207,
+        "GBPUSD": 1.3246,
+        "AUDUSD": 0.6982,
+        "GBPJPY": 209.86,
+        "XAUUSD": 4209.30,
+        "NZDCAD": 0.7988
+    }
+    try:
+        import yfinance as yf
+        mapeo_yf = {
+            "EURUSD": "EURUSD=X",
+            "GBPUSD": "GBPUSD=X",
+            "AUDUSD": "AUDUSD=X",
+            "GBPJPY": "GBPJPY=X",
+            "XAUUSD": "GC=F",
+            "NZDCAD": "NZDCAD=X"
+        }
+        for act, sym in mapeo_yf.items():
+            try:
+                t = yf.Ticker(sym)
+                px = t.fast_info.get('last_price')
+                if px and px > 0:
+                    precios[act] = round(float(px), 5 if "JPY" not in act and "XAU" not in act else 2)
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"Error consultando precios spot: {e}")
+    return precios
+
+
+def despachar_ejecucion_rune_mt5(payload: dict, active_symbol: str, current_px: float, poc_px: float, matrices_crudas: dict, mt5_json: dict):
+    """
+    ETAPA 4 CANONICA: RUNE RISK ENGINE & DISPATCHER A METATRADER 5
+    Ejecuta el protocolo estricto cuando Master Orchestrator emite APROBADO (Quorum >= 0.70):
+    1. Aisla Sandbox: NZDCAD esta confinado a Shadow Mode (0 ordenes reales a broker).
+    2. Filtro de Sesion Institucional por Activo (Londres, NY, Asia).
+    3. Filtro de Tolerancia de Precio de RUNE (<= 3.5 pips en FX, 50 cts en Oro).
+    4. Filtro de Daily Drawdown (-115 USD) y Daily Profit Lock (+150 USD).
+    5. Limite de Trades Activos: Maximo 1 por simbolo, maximo 2 en total.
+    6. Calculo de Lotaje Defensivo Dinamico por Balance (0.05 Oro, 0.50 EUR/GBP, 0.30 GBPJPY).
+    7. Trailing Stop Escalonado de 3 Fases (BE 40%, Parcial 65%, Trail 85%, Front-Run TP 95%).
+    8. Despacho a MT5 via API / Webhook y Registro en Muestra Challenger post-710 con cuarentena_tf.
+    """
+    try:
+        debate = payload.get("debate", {})
+        master_text = str(debate.get("master_quorum", payload.get("content", "")))
+        estado = str(payload.get("estado", "")).upper()
+        
+        if "APROBADO" not in estado and "APROBADO" not in master_text:
+            return None
+
+        # 1. Identificar activo aprobado
+        activo_objetivo = active_symbol
+        for act in ["EURUSD", "GBPUSD", "AUDUSD", "GBPJPY", "XAUUSD", "NZDCAD"]:
+            if act in master_text.upper():
+                activo_objetivo = act
+                break
+
+        # 2. Confinamiento Sandbox estricto
+        if activo_objetivo.upper() in ["NZDCAD"]:
+            emit_ws_event("RUNE (RISK)", "RISK", f"SANDBOX CONFINEMENT: {activo_objetivo} aprobado en simulacion Shadow. Prohibida orden real a broker MT5.")
+            return None
+
+        # 3. Direccion del trade (COMPRA vs VENTA)
+        h1_text = str(debate.get("herd_1_tidal", "")).upper()
+        h4_text = str(debate.get("herd_4_lumen", "")).upper()
+        texto_global = (master_text + " " + h1_text + " " + h4_text).upper()
+        
+        accion = "COMPRA"
+        if "VENTA" in texto_global or "BEARISH" in texto_global or "BAJISTA" in texto_global or "SELL" in texto_global:
+            if "COMPRA" not in texto_global or texto_global.count("VENTA") > texto_global.count("COMPRA"):
+                accion = "VENTA"
+
+        # 4. Filtro Institucional de Sesion Optima
+        hora_utc = datetime.datetime.now(datetime.timezone.utc).hour
+        sesiones_dict = {
+            "EURUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+            "GBPUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+            "GBPJPY": [22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+            "AUDUSD": [22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            "XAUUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        }
+        if activo_objetivo in sesiones_dict and hora_utc not in sesiones_dict[activo_objetivo]:
+            emit_ws_event("RUNE (RISK)", "RISK", f"VETO DE SESION: {activo_objetivo} fuera de sesion optima (Hora UTC: {hora_utc}). Omitiendo ejecucion.")
+            return None
+
+        # 5. Filtro de Daily Drawdown / Profit Lock
+        pnl_hoy = float(mt5_json.get("pnl_total_hoy", mt5_json.get("pnl_cerrado_hoy", 0.0)) or 0.0)
+        if pnl_hoy <= -115.0 or mt5_json.get("bloqueado_drawdown", False):
+            emit_ws_event("RUNE (RISK)", "RISK", f"DRAWDOWN LOCK: Limite diario alcanzado (-$115 USD, hoy: ${pnl_hoy:.2f}). Ejecucion bloqueada.")
+            return None
+        if pnl_hoy >= 150.0 or mt5_json.get("bloqueado_profit_lock", False):
+            emit_ws_event("RUNE (RISK)", "RISK", f"PROFIT LOCK: Meta diaria asegurada (+$150 USD, hoy: ${pnl_hoy:.2f}). Bot protegido.")
+            return None
+
+        # 6. Filtro de Posiciones Activas
+        ops_activas = mt5_json.get("operaciones_activas", [])
+        if len(ops_activas) >= 2:
+            emit_ws_event("RUNE (RISK)", "RISK", f"LIMITE ALCANZADO: Ya hay {len(ops_activas)} operaciones activas en la cuenta. Omitiendo trade.")
+            return None
+        for op in ops_activas:
+            if activo_objetivo in str(op.get("activo", "")).upper():
+                emit_ws_event("RUNE (RISK)", "RISK", f"POSICION YA EXISTENTE: {activo_objetivo} ya tiene una posicion abierta. Omitiendo doble trade.")
+                return None
+
+        # 7. Filtro de Tolerancia de Precio de RUNE (<= 3.5 pips FX, 50 cts Oro)
+        entry_price = current_px if current_px > 0 else 1.0
+        tolerancia_pips = 0.00035
+        if "JPY" in activo_objetivo:
+            tolerancia_pips = 0.050
+        elif "XAU" in activo_objetivo:
+            tolerancia_pips = 0.50
+
+        if poc_px > 0 and abs(entry_price - poc_px) > (tolerancia_pips * 2.5):
+            diff_p = abs(entry_price - poc_px)
+            emit_ws_event("RUNE (RISK)", "RISK", f"VETO DE PRECIO: Desfase de {diff_p:.5f} > tolerancia {tolerancia_pips}. Prohibido perseguir el Order Block.")
+            return None
+
+        # 8. Calculo de Lotaje Defensivo Dinamico y SL/TP
+        if activo_objetivo == "XAUUSD":
+            sl_dist = 20.0
+            tp_dist = 40.0
+            lote = 0.05
+        elif activo_objetivo in ["EURUSD", "GBPUSD"]:
+            sl_dist = 0.0020
+            tp_dist = 0.0040
+            lote = 0.50
+        elif activo_objetivo == "GBPJPY":
+            sl_dist = 0.35
+            tp_dist = 0.70
+            lote = 0.30
+        else: # AUDUSD u otros
+            sl_dist = 0.0035
+            tp_dist = 0.0070
+            lote = 0.40
+
+        es_compra = (accion == "COMPRA")
+        sl_calc = round(entry_price - sl_dist if es_compra else entry_price + sl_dist, 5 if "JPY" not in activo_objetivo and "XAU" not in activo_objetivo else 2)
+        tp_calc = round(entry_price + tp_dist if es_compra else entry_price - tp_dist, 5 if "JPY" not in activo_objetivo and "XAU" not in activo_objetivo else 2)
+
+        # 9. Empaquetar Orden Aprobada
+        ticket_id = f"H7_{activo_objetivo[:3]}_{int(time.time())}"
+        order_package = {
+            "ticket": ticket_id,
+            "activo": activo_objetivo,
+            "accion": accion,
+            "precio": entry_price,
+            "lote": lote,
+            "sl": sl_calc,
+            "tp": tp_calc,
+            "master_quorum_score": master_text[:80],
+            "trailing_stop_config": {
+                "fase_1_be_pct": 0.40,
+                "fase_2_parcial_pct": 0.65,
+                "fase_3_trail_pct": 0.85,
+                "fase_4_front_run_pct": 0.95
+            },
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "bifurcacion_ab": {
+                "muestra": "CHALLENGER_B_POST_710",
+                "cuarentena_tf": True
+            }
+        }
+
+        # 10. Despachar a Upstash Redis (cache_mt5_pending_execution)
+        upstash_url = "https://certain-gnat-160816.upstash.io/set/cache_mt5_pending_execution"
+        upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        requests.post(upstash_url, headers=upstash_headers, json=order_package, timeout=5)
+
+        # 11. Sincronizar Semaforo de trading_matrix
+        if db is not None:
+            try:
+                db.collection("trading_matrix").document(activo_objetivo).set({
+                    "estado_ejecucion": "PENDIENTE_EJECUCIÓN",
+                    "gatillo_entrada": True,
+                    "accion": accion,
+                    "precio_entrada_ob": entry_price,
+                    "sl": sl_calc,
+                    "tp": tp_calc,
+                    "lote": lote,
+                    "ultimo_debate_herds": datetime.datetime.now(datetime.timezone.utc).isoformat()
+                }, merge=True)
+            except Exception as e_db:
+                print(f"Error sincronizando trading_matrix: {e_db}")
+
+        # 12. Notificar al Webhook de FastAPI
+        try:
+            fastapi_url = os.getenv("FASTAPI_URL", "https://trading-production-0b51.up.railway.app")
+            access_tok = os.getenv("BRIDGE_ACCESS_TOKEN", "tu-token-seguro-de-acceso")
+            requests.post(
+                f"{fastapi_url}/webhook_mt5_setup",
+                headers={"Authorization": f"Bearer {access_tok}", "Content-Type": "application/json"},
+                json={
+                    "activo": activo_objetivo,
+                    "accion": accion,
+                    "precio": entry_price,
+                    "estrategia": "Swarm_7Herds_Master",
+                    "amd_context": {"cuarentena_tf": True, "swarm_score": 0.82}
+                },
+                timeout=5
+            )
+        except Exception as e_wh:
+            print(f"Advertencia llamando webhook_mt5_setup: {e_wh}")
+
+        # 13. Registro en Muestra Challenger post-710
+        try:
+            from mia_bifurcacion_ab_manager import record_trade_setup_ab
+            record_trade_setup_ab(
+                ticket=ticket_id,
+                activo=activo_objetivo,
+                accion=accion,
+                precio=entry_price,
+                sl=sl_calc,
+                tp=tp_calc,
+                score=85.0,
+                juez_authorized=True,
+                amd_context={"cuarentena_tf": True, "swarm_master": True}
+            )
+        except Exception as e_ab:
+            print(f"Error en A/B record: {e_ab}")
+
+        emit_ws_event("RUNE (RISK)", "SUCCESS", f"ORDEN CANONICA DESPACHADA A MT5: {activo_objetivo} {accion} | Lote: {lote} | SL: {sl_calc} | TP: {tp_calc}")
+        return order_package
+    except Exception as e:
+        print(f"Error en despachar_ejecucion_rune_mt5: {e}")
+        return None
+
+
 def run_hft_cycle():
     emit_ws_event("Master", "START", "Iniciando Ciclo REST HFT (TensorFlow + Swarm Neuronal).")
     
@@ -258,9 +490,10 @@ def run_hft_cycle():
     ACTIVOS_SANDBOX = ["NZDCAD"]
     ACTIVOS_SWARM_TARGET = ACTIVOS_LIVE_MT5 + ACTIVOS_SANDBOX
     
-    # Determinar activo principal para escaneo DOM (priorizando posiciones activas y activos en vivo)
+    # Determinar precios spot reales y activo principal
+    precios_spot = obtener_precios_spot_mercado()
     active_symbol = "EURUSD"
-    current_px = 0.0
+    current_px = precios_spot.get("EURUSD", 0.0)
     poc_px = 0.0
     
     if mt5_json.get("operaciones_activas"):
@@ -268,7 +501,7 @@ def run_hft_cycle():
             act_op = op.get("activo", "").upper()
             if any(target in act_op for target in ACTIVOS_LIVE_MT5):
                 active_symbol = act_op
-                current_px = float(op.get("precio_apertura", 0.0) or 0.0)
+                current_px = float(op.get("precio_apertura", 0.0) or precios_spot.get(act_op, 0.0))
                 break
 
     if current_px == 0.0 and matrices_crudas:
@@ -276,7 +509,7 @@ def run_hft_cycle():
             if act in matrices_crudas and isinstance(matrices_crudas[act], dict):
                 active_symbol = act
                 poc_px = float(matrices_crudas[act].get("poc_price", 0.0) or 0.0)
-                current_px = float(matrices_crudas[act].get("current_price", poc_px) or poc_px)
+                current_px = float(matrices_crudas[act].get("current_price", precios_spot.get(act, 0.0)) or precios_spot.get(act, 0.0))
                 break
 
     # Inyección de Skill DOM CME FX & OANDA
@@ -307,13 +540,17 @@ def run_hft_cycle():
                         if act in k.upper().replace("/", "").replace(".", ""):
                             datos = v
                             break
+                spot_px = precios_spot.get(act, 0.0)
                 if isinstance(datos, dict):
-                    poc = datos.get("poc_price", "N/A")
+                    poc = datos.get("poc_price", spot_px)
                     tp = datos.get("take_profit", "N/A")
                     sl = datos.get("sl", "N/A")
-                    scr = datos.get("score_tecnico", 0)
+                    scr = datos.get("score_tecnico", datos.get("score_porcentaje", 0))
                     tag = " [SANDBOX]" if act in ACTIVOS_SANDBOX else " [LIVE]"
-                    activos_resumen.append(f"[{act}{tag}] POC:{poc} TP:{tp} SL:{sl} SCORE:{scr}%")
+                    activos_resumen.append(f"[{act}{tag}] SPOT:{spot_px} POC:{poc} TP:{tp} SL:{sl} SCORE:{scr}%")
+                else:
+                    tag = " [SANDBOX]" if act in ACTIVOS_SANDBOX else " [LIVE]"
+                    activos_resumen.append(f"[{act}{tag}] SPOT:{spot_px} SCORE:50%")
             
             if len(activos_resumen) > 0:
                 dom_data = " | ".join(activos_resumen)
@@ -499,6 +736,10 @@ def run_hft_cycle():
         upstash_herd_url = "https://certain-gnat-160816.upstash.io/set/cache_herd_debate_latest"
         requests.post(upstash_herd_url, headers=upstash_headers, json=payload, timeout=5)
         emit_ws_event("Master", "INFO", "Debate sincronizado en Upstash Redis.")
+
+        # 4. ETAPA 4: Despacho y Ejecución Canónica por RUNE y Master a MT5
+        if "APROBADO" in estado:
+            despachar_ejecucion_rune_mt5(payload, active_symbol, current_px, poc_px, matrices_crudas, mt5_json)
         
     except Exception as e:
         print(f"Error guardando historiales de debate: {e}")

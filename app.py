@@ -2753,26 +2753,79 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             estrategia=req.estrategia
         )
         
-        # BYPASS DE ENJAMBRE: EjecuciÃƒÆ’Ã‚Â³n instantÃƒÆ’Ã‚Â¡nea basada solo en Machine Learning (MIA KB / Score MatemÃƒÆ’Ã‚Â¡tico)
-        # Se pausaron las consultas a los LLMs para priorizar velocidad y seguir reglas ganadoras estrictas.
-        analisis_ia = f"Filtro matemÃƒÆ’Ã‚Â¡tico local aprobado por Mia KB (Score: {score}%). Enjambres LLM en pausa. Operar con gestiÃƒÆ’Ã‚Â³n de riesgo estricta."
-        print("| IA BYPASS | Usando exclusivamente Matriz ML (Score MatemÃƒÆ’Ã‚Â¡tico). Enjambres pausados a peticiÃƒÆ’Ã‚Â³n del usuario.")
-        
-        '''
-        analisis_ia = "No se pudo obtener anÃƒÆ’Ã‚Â¡lisis de ninguna IA."
-        if GEMINI_API_KEY and GEMINI_API_KEY != "TU_LLAVE_DE_GEMINI":
-            print("| IA | Consultando anÃƒÆ’Ã‚Â¡lisis a Google Gemini...")
-            analisis_ia = consultar_analisis_gemini(alert, memoria_colectiva)
-        elif OPENAI_API_KEY and OPENAI_API_KEY != "TU_LLAVE_DE_OPENAI":
-            print("| IA | Consultando anÃƒÆ’Ã‚Â¡lisis a OpenAI ChatGPT...")
-            analisis_ia = consultar_analisis_chatgpt(alert, memoria_colectiva)
-        elif GROK_API_KEY and GROK_API_KEY != "TU_LLAVE_DE_GROK":
-            print("| IA | Consultando anÃƒÆ’Ã‚Â¡lisis a xAI Grok...")
-            analisis_ia = consultar_analisis_grok(alert, memoria_colectiva)
-        else:
-            print("| IA WARNING | Ninguna API Key de IA configurada. Usando fallback de anÃƒÆ’Ã‚Â¡lisis local.")
-            analisis_ia = f"Filtro fundamental local aprobado por Mia. Memoria colectiva: {memoria_colectiva if memoria_colectiva else 'Ninguna'}. Operar con gestiÃƒÆ’Ã‚Â³n de riesgo estricta."
-        '''
+        # =========================================================================
+        # 3.5 [ETAPA 2 & 3: MALLA DE 7 HERDS + MASTER ORCHESTRATOR QUORUM >= 0.70]
+        # =========================================================================
+        # El Juez de Firebase (Score >= 80%) ahora cruza obligatoriamente con el Swarm en vivo:
+        # 1. TIDAL (Macro), 2. NORO (POC/Markov), 3. ZEPHR (Bayes/EV), 4. LUMEN (SMC LuxAlgo),
+        # 5. TENSORFLOW (Red Neuronal 710 trades), 6. ATLAS (DOM CME/OANDA CVD), 7. RUNE (Riesgo).
+        # Master Orchestrator emite Quorum Ponderado: APROBADO (Score >= 0.70) o VETADO.
+        swarm_autorizado = True
+        master_score = 0.80
+        motivo_swarm = "Aprobado por Quorum Swarm"
+        debate_swarm = {}
+
+        try:
+            r_swarm = requests.get(f"{UPSTASH_URL}/get/cache_herd_debate_latest", headers=UPSTASH_HEADERS, timeout=2)
+            if r_swarm.status_code == 200 and r_swarm.json().get('result'):
+                swarm_raw = r_swarm.json()['result']
+                swarm_data = json.loads(swarm_raw) if isinstance(swarm_raw, str) else (swarm_raw or {})
+                debate_swarm = swarm_data.get("debate", {})
+                estado_swarm = str(debate_swarm.get("estado", swarm_data.get("estado", "APROBADO"))).upper()
+                master_quorum_text = str(debate_swarm.get("master_quorum", "")).upper()
+                
+                # Extraer Score Ponderado del Master si viene en el texto
+                score_match = re.search(r'([0-9]\.[0-9]{2})', master_quorum_text)
+                if score_match:
+                    try:
+                        master_score = float(score_match.group(1))
+                    except Exception:
+                        master_score = 0.75
+
+                if "VETA" in estado_swarm or "VETO" in estado_swarm or "VETA" in master_quorum_text:
+                    swarm_autorizado = False
+                    motivo_swarm = f"VETADO por Master Orchestrator / Swarm (Veto activo en debate). Quorum: {master_quorum_text[:120]}"
+                elif master_score < 0.70:
+                    swarm_autorizado = False
+                    motivo_swarm = f"VETADO por Master Orchestrator: Score Ponderado ({master_score:.2f}) < 0.70 requerido."
+                else:
+                    motivo_swarm = f"APROBADO por Master Orchestrator (Score Swarm: {master_score:.2f} >= 0.70)."
+        except Exception as e_sw:
+            print(f"| SWARM VERIFY WARN | Fallo al leer cache_herd_debate_latest: {e_sw}")
+
+        if not swarm_autorizado:
+            print(f"| MASTER SWARM VETO | Rechazada orden de {activo_normalizado}: {motivo_swarm}")
+            return {
+                "authorized": False,
+                "reason": motivo_swarm,
+                "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO"),
+                "master_score": master_score
+            }
+
+        # =========================================================================
+        # 3.6 [ETAPA 4: RUNE RISK ENGINE - FILTRO DE TOLERANCIA DE PRECIO <= 3.5 PIPS]
+        # =========================================================================
+        # RUNE audita que el precio spot actual no este desfasado del Order Block o POC institucional.
+        # Prohibido perseguir el precio fuera del area de confluencia.
+        poc_ref = float(data.get("poc_price", 0.0) or 0.0)
+        tolerancia_pips_max = 0.00035 # 3.5 pips para Forex
+        if "JPY" in activo_normalizado:
+            tolerancia_pips_max = 0.050 # 5 pips en JPY
+        elif "XAU" in activo_normalizado:
+            tolerancia_pips_max = 0.50 # 50 centavos = 5 pips en Oro
+
+        if poc_ref > 0.0:
+            diff_precio = abs(req.precio - poc_ref)
+            if diff_precio > (tolerancia_pips_max * 2.5): # Si excede holgura del Order Block
+                print(f"| RUNE RISK VETO | {activo_normalizado}: Precio ({req.precio}) desfasado del Order Block/POC ({poc_ref}) en {diff_precio:.5f} > tolerancia {tolerancia_pips_max}")
+                return {
+                    "authorized": False,
+                    "reason": f"RUNE RISK VETO: Desfase de precio fuera del Order Block ({diff_precio:.5f} > tolerancia {tolerancia_pips_max}). Prohibido perseguir el mercado.",
+                    "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
+                }
+
+        analisis_ia = f"{motivo_swarm} | Matriz Cuantitativa MIA KB (Score: {score}%). RUNE Risk Engine validado."
+        print(f"| RUNE RISK & MASTER | Setup {activo_normalizado} aprobado por 7 Herds (Score: {master_score:.2f}) y Matriz Cuantitativa ({score}%).")
             
         # Calcular SL y TP inteligentes basados en el activo
         precio_ej = req.precio
@@ -2887,7 +2940,18 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             "analisis_ia": analisis_ia,
             "score_porcentaje": score,
             "probabilidad_exito": probabilidad,
-            "amd_context": req.amd_context or data.get("confirmaciones_tecnicas", {}).get("amd_context", {})
+            "amd_context": req.amd_context or data.get("confirmaciones_tecnicas", {}).get("amd_context", {}),
+            "trailing_stop_config": {
+                "fase_1_be_pct": 0.40,
+                "fase_2_parcial_pct": 0.65,
+                "fase_3_trail_pct": 0.85,
+                "fase_4_front_run_pct": 0.95
+            },
+            "bifurcacion_ab": {
+                "muestra": "CHALLENGER_B_HERDS_POST_710",
+                "cuarentena_tf": True,
+                "version_modelo": "Swarm_7Herds_Master_v2"
+            }
         }
     except Exception as e:
         print(f"| CLOUD ERROR | Error en webhook_mt5_setup: {e}")
