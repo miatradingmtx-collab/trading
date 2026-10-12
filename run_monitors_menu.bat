@@ -13,11 +13,13 @@ echo  [3] Libro de Ordenes DOM Level 2 - GBPUSD (atlas_dom_visualizer.py)
 echo  [4] Libro de Ordenes DOM Level 2 - XAUUSD (atlas_dom_visualizer.py)
 echo  [5] Libro de Ordenes DOM Level 2 - GBPJPY (atlas_dom_visualizer.py)
 echo  [6] Libro de Ordenes DOM Level 2 - AUDUSD (atlas_dom_visualizer.py)
-echo  [7] Iniciar Swarm REST (7 Herds + TensorFlow + ATLAS en Vivo)
-echo  [8] Salir
+echo  [7] Monitor Herds Master · Deliberación Inter-Agente en Vivo (herds_master_monitor.py)
+echo  [8] Iniciar Motor Swarm REST · 7 Herds + TF + ATLAS (mia_master_swarm_rest.py)
+echo  [9] Consola WebSocket Streaming Inter-Agente (mia_herds_cli.py)
+echo  [10] Salir
 echo.
 echo ========================================================================
-set /p OPCION="Selecciona una opción [1-8]: "
+set /p OPCION="Selecciona una opción [1-10]: "
 
 if "%OPCION%"=="1" (
     cls
@@ -57,11 +59,23 @@ if "%OPCION%"=="6" (
 )
 if "%OPCION%"=="7" (
     cls
-    python mia_master_swarm_rest.py
+    python herds_master_monitor.py
     pause
     goto MENU
 )
 if "%OPCION%"=="8" (
+    cls
+    python mia_master_swarm_rest.py
+    pause
+    goto MENU
+)
+if "%OPCION%"=="9" (
+    cls
+    python mia_herds_cli.py
+    pause
+    goto MENU
+)
+if "%OPCION%"=="10" (
     exit
 )
 
