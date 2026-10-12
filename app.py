@@ -1488,6 +1488,13 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
             
         data = doc.to_dict()
         es_ganado = pnl > 0.0
+
+        # Registro paralelo de cierre en evaluación A/B bifurcada (Challenger vs Champion)
+        try:
+            from mia_bifurcacion_ab_manager import record_trade_close_ab
+            record_trade_close_ab(ticket=ticket or activo_normalizado, pnl=pnl, accion="CIERRE")
+        except Exception as e_ab_close:
+            pass
         
         # 1. Snapshot de confirmaciones
         confirmaciones_activas = []
@@ -2848,7 +2855,24 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         # Cambiar el semÃƒÆ’Ã‚Â¡foro a EJECUTADO
         data["estado_ejecucion"] = "EJECUTADO"
         doc_ref.set(data)
-        
+
+        # Registro paralelo en evaluación A/B bifurcada (Challenger Herds vs Champion Control)
+        try:
+            from mia_bifurcacion_ab_manager import record_trade_setup_ab
+            record_trade_setup_ab(
+                ticket=getattr(req, 'ticket', None) or f"setup_{activo_normalizado}_{int(time.time())}",
+                activo=activo_normalizado,
+                accion=req.accion,
+                precio=req.precio,
+                sl=sl,
+                tp=tp,
+                score=score,
+                juez_authorized=True,
+                amd_context=req.amd_context or data.get("confirmaciones_tecnicas", {}).get("amd_context", {})
+            )
+        except Exception as e_ab_setup:
+            print(f"| AB TRACKER WARN | {e_ab_setup}")
+
         print(f"| DECISIÃƒÆ’Ã¢â‚¬Å“N CLOUD | Trade AUTORIZADO para {activo_normalizado}. Score: {score}%. Probabilidad: {probabilidad}%. SL: {sl} | TP: {tp} | Estrategia: {estrategia_dinamica}")
         
         return {
@@ -3221,8 +3245,23 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         }
         
         audit_ref.set(audit_data_dict, merge=True)
-        
-        # Homologación Histórica Append-Only en mia_kb para AMD Multi-Timeframe (1H, 2H, 3H, 4H, 8H)
+
+        # Registro paralelo en evaluación A/B bifurcada (Challenger Herds 7 vs Champion Control)
+        try:
+            from mia_bifurcacion_ab_manager import record_trade_setup_ab
+            record_trade_setup_ab(
+                ticket=ejecucion.ticket,
+                activo=ejecucion.activo,
+                accion=ejecucion.accion,
+                precio=ejecucion.precio_ejecucion,
+                sl=ejecucion.stop_loss,
+                tp=ejecucion.take_profit,
+                score=ejecucion.score,
+                juez_authorized=True,
+                amd_context=ejecucion.amd_context or data.get("confirmaciones_tecnicas", {}).get("amd_context", {})
+            )
+        except Exception as e_ab_exec:
+            print(f"| AB TRACKER WARN | Error registrando ejecucion AB: {e_ab_exec}")
         try:
             amd_ctx_final = audit_data_dict.get("amd_context") or ejecucion.amd_context or {}
             # Si venía vacío, sintetizar a partir de las confirmaciones técnicas para no dejar el registro vacío
@@ -3968,6 +4007,15 @@ def api_herds_sync_firebase():
                 else:
                     return {"status": "warning", "message": "Firebase no inicializado en este nodo local. Sincronizado en Upstash.", "data": data}
         return {"status": "error", "message": "No hay debate en Upstash"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/herds/ab_comparison")
+def api_herds_ab_comparison():
+    """Retorna el reporte de evaluación A/B en vivo entre Champion (sin enjambres) y Challenger (7 Herds + TF + ATLAS)."""
+    try:
+        from mia_bifurcacion_ab_manager import generate_ab_report
+        return generate_ab_report()
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -5877,6 +5925,9 @@ def train_tensorflow():
                     d_dict = doc.to_dict()
                     t_id = str(d_dict.get("ticket", doc.id))
                     if t_id.isdigit() and len(t_id) >= 8:
+                        # Filtro Anti-Contaminación: Ignorar trades en cuarentena de los enjambres
+                        if d_dict.get("cuarentena_tf", False) or d_dict.get("bifurcacion") == "challenger_herds_7":
+                            continue
                         acc = d_dict.get("accion", "")
                         pnl_val = float(d_dict.get("pnl", 0.0) or 0.0)
                         if acc in ["CIERRE_TOTAL", "CERRAR_TP", "CIERRE_PARCIAL", "TRAILING_STOP", "PROTECCION_BE"] or pnl_val != 0.0:

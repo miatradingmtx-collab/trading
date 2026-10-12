@@ -15,6 +15,24 @@ try:
 except Exception:
     pass
 
+def enable_vt_mode():
+    if os.name == 'nt':
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            h_out = kernel32.GetStdHandle(-11)
+            mode = ctypes.c_ulong()
+            if kernel32.GetConsoleMode(h_out, ctypes.byref(mode)):
+                kernel32.SetConsoleMode(h_out, mode.value | 0x0004)
+        except Exception:
+            pass
+        try:
+            os.system('')
+        except Exception:
+            pass
+
+enable_vt_mode()
+
 # Códigos ANSI para visualización estilo Terminal Cuántica
 CYAN = "\033[96m"
 GREEN = "\033[92m"
