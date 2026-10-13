@@ -191,7 +191,7 @@ try:
     dim_x = vec_20d[0:4]
     dim_y_reg = vec_20d[4:8]
     dim_y_smc = vec_20d[8:16]
-    dim_z = vec_20d[16:20]
+    dim_z = vec_20d[16:]
     
     # Inferencia de propagación
     score_base = (sum(dim_x) * 0.15) + (sum(dim_y_reg) * 0.20) + (sum(dim_y_smc) * 0.40) + (sum(dim_z) * 0.25)

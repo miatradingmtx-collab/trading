@@ -73,11 +73,12 @@ class MiaSupervisorAgent:
                 ops_filtradas.append(op)
 
             flotante_total = round(sum(float(o.get("pnl", 0.0) or 0.0) for o in ops_filtradas), 2)
-            balance = float(d.get("balance_actual", 4325.09))
-            equity = round(balance + flotante_total, 2)
-            margen_estimado = round(len(ops_filtradas) * 274.60, 2)
-            margen_libre = round(equity - margen_estimado, 2)
-            nivel_margen = round((equity / max(1.0, margen_estimado)) * 100, 2)
+            balance = float(d.get("balance_actual") or d.get("balance") or 3874.84)
+            equity = float(d.get("equity") or round(balance + flotante_total, 2))
+            margen_real = float(d.get("margen", 0.0))
+            margen_estimado = margen_real if margen_real > 0 else round(len(ops_filtradas) * 115.0, 2)
+            margen_libre = float(d.get("margen_libre") or round(equity - margen_estimado, 2))
+            nivel_margen = float(d.get("nivel_margen") or round((equity / max(1.0, margen_estimado)) * 100, 2))
             
             d["operaciones_activas"] = ops_filtradas
             d["floating_pnl"] = flotante_total

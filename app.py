@@ -2701,6 +2701,44 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         except Exception:
             pass
 
+        # 1.4 [RUNE BASKET RISK]: Control de Canasta USD (Máximo 2 posiciones vivas con USD en toda la cuenta)
+        PARES_USD_DIRECTOS = ["EURUSD", "GBPUSD", "AUDUSD", "XAUUSD"]
+        if activo_normalizado in PARES_USD_DIRECTOS:
+            try:
+                r_mt5_ops = requests.get(f"{UPSTASH_URL}/get/cache_mt5", headers=UPSTASH_HEADERS, timeout=2)
+                if r_mt5_ops.status_code == 200 and r_mt5_ops.json().get('result'):
+                    raw_res = r_mt5_ops.json()['result']
+                    mt5_ops_data = json.loads(raw_res) if isinstance(raw_res, str) else raw_res
+                    ops_vivas = mt5_ops_data.get('operaciones_activas', [])
+                    ops_usd_totales = [op for op in ops_vivas if any(u in str(op.get('activo', '')).upper() for u in PARES_USD_DIRECTOS)]
+                    if len(ops_usd_totales) >= 2:
+                        return {
+                            "authorized": False,
+                            "reason": f"RUNE BASKET CAP: Ya existen {len(ops_usd_totales)} posiciones abiertas vinculadas a USD en MT5. Máximo 2 permitido para evitar sobre-correlación.",
+                            "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
+                        }
+            except Exception as e_bask:
+                pass
+
+        # 1.5 [DXY SMT VETO]: Detección de divergencia institucional inter-mercado
+        if activo_normalizado in PARES_USD_DIRECTOS:
+            try:
+                from dxy_smt_sensor import dxy_sensor
+                smt_eval = dxy_sensor.evaluar_divergencia_smt(
+                    symbol=activo_normalizado,
+                    accion=req.accion,
+                    precio_actual=req.precio,
+                    precios_spot={"EURUSD": 1.1195, "GBPUSD": 1.3235, "AUDUSD": 0.6980, "XAUUSD": 4160.0}
+                )
+                if smt_eval.get("veto_entrada") is True:
+                    return {
+                        "authorized": False,
+                        "reason": f"VETO DXY SMT: {smt_eval.get('motivo')}",
+                        "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
+                    }
+            except Exception as e_smt:
+                pass
+
         estado_actual = data.get("estado_ejecucion", "INACTIVO")
         operaciones_activas = data.get("operaciones_activas", [])
         

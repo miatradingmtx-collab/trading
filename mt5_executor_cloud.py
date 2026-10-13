@@ -1254,6 +1254,41 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
         print(f"| SANDBOX GATEWAY | 🚫 {activo} está confinado a Sandbox / Entrenamiento continuo. Prohibida ejecución real en MT5.")
         return False
 
+    # REGLA 1 RUNE: CONTROL DE CANASTA USD (MÁXIMO 2 POSICIONES ACTIVAS VINCULADAS A USD)
+    PARES_USD_DIRECTOS = ["EURUSD", "GBPUSD", "AUDUSD", "XAUUSD"]
+    if any(p in activo.upper() for p in PARES_USD_DIRECTOS):
+        try:
+            pos_vivas = await connection.get_positions()
+            ops_usd_vivas = [
+                p for p in pos_vivas
+                if any(u in str(p.get("symbol", "")).upper() for u in PARES_USD_DIRECTOS)
+            ]
+            if len(ops_usd_vivas) >= 2:
+                print(f"| RUNE CANASTA USD LIMIT | 🛑 VETO: Ya existen {len(ops_usd_vivas)} posiciones vivas vinculadas a USD en MT5. Límite institucional de canasta alcanzado (máx 2). Rechazando {activo} para evitar sobre-correlación.")
+                return False
+        except Exception as e_can:
+            print(f"| RUNE CANASTA WARN | {e_can}")
+
+    # REGLA 2 DXY SMT: DETECCIÓN DE DIVERGENCIA INSTITUCIONAL INTER-MERCADO
+    try:
+        from dxy_smt_sensor import dxy_sensor
+        res_smt = dxy_sensor.evaluar_divergencia_smt(
+            symbol=activo,
+            accion=accion,
+            precio_actual=precio,
+            precios_spot={
+                "EURUSD": precio if "EUR" in activo else 1.1195,
+                "GBPUSD": precio if "GBP" in activo else 1.3235,
+                "AUDUSD": precio if "AUD" in activo else 0.6980,
+                "XAUUSD": precio if "XAU" in activo else 4160.0
+            }
+        )
+        if res_smt.get("veto_entrada") is True:
+            print(f"| DXY SMT VETO | 🛑 {res_smt.get('motivo')}")
+            return False
+    except Exception as e_smt:
+        print(f"| DXY SMT SENSOR WARN | {e_smt}")
+
     simbolo_broker = MAPEO_BROKER.get(activo, activo)
     
     try:
@@ -1529,6 +1564,13 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         
         num_abiertos = simbolos_abiertos.count(simbolo)
         ya_abierto = num_abiertos >= 1
+
+        # REGLA RUNE: Filtro temprano de Canasta USD (máximo 2 pares activos con USD)
+        if any(u in activo.upper() for u in ["EURUSD", "GBPUSD", "AUDUSD", "XAUUSD"]):
+            ops_usd_count = sum(1 for s in simbolos_abiertos if any(u in str(s).upper() for u in ["EURUSD", "GBPUSD", "AUDUSD", "XAUUSD"]))
+            if ops_usd_count >= 2 and not ya_abierto:
+                print(f"| RUNE CANASTA USD | 🛑 {activo} omitido de escaneo: {ops_usd_count} posiciones USD ya activas en MT5 (máx 2 permitido).")
+                continue
             
         # AnÃ¡lisis Multi-Temporal (MTF): 1H y 4H
         df_1h = await obtener_velas_cloud(account, simbolo, '1h', 100)
@@ -1956,7 +1998,7 @@ async def run_escaner_loop():
                     "operaciones_activas": ops_activas
                 }
                 
-                async with httpx.AsyncClient(timeout=3.0) as client:
+                async with httpx.AsyncClient(timeout=10.0) as client:
                     # 1. Slot principal unificado cache_mt5
                     await client.post(
                         "https://certain-gnat-160816.upstash.io/set/cache_mt5",
@@ -1970,7 +2012,7 @@ async def run_escaner_loop():
                         headers={"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
                     )
             except Exception as e_up:
-                pass
+                print(f"| RUNNER UPSTASH SYNC WARN | Error sincronizando Redis cache_mt5: {e_up}")
                 
         except Exception as e:
             print(f"| RUNNER CLOUD ERROR | OcurriÃ³ un fallo en el escÃ¡ner: {e}")

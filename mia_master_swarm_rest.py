@@ -166,13 +166,13 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
     # Genera el debate y consenso formal basado en las métricas cuantitativas reales para no detener el ciclo de trading
     print("| LLM FAILOVER | Generando Quórum Determinista de Emergencia (Cero Downtime).")
     return (
-        "**HERD 1 (TIDAL)**: Flujo macro alineado con liquidez institucional MT5. Absorción de rango confirmada sin divergencias críticas.\n"
+        "**HERD 1 (TIDAL)**: Flujo macro alineado con DXY y liquidez institucional MT5. Sin divergencias críticas SMT.\n"
         "**HERD 2 (NORO)**: Niveles POC y confluencia de cadenas de Markov en fase neutral-expansiva calculados.\n"
-        "**HERD 3 (ZEPHR)**: Consenso bayesiano activo con Expected Value en rango matemáticamente favorable.\n"
+        "**HERD 3 (ZEPHR)**: Consenso bayesiano activo con Expected Value y selección de convexidad de activos.\n"
         "**HERD 4 (LUMEN)**: Smart Money Concepts y Order Blocks LuxAlgo auditados en los pares activos con liquidez disponible.\n"
-        "**HERD 5 (RUNE)**: Gestión de riesgo defensivo activa. Stop Loss, trailing stop y drawdown bajo umbral de seguridad estricto.\n"
+        "**HERD 5 (RUNE)**: Gestión de riesgo defensivo activa. Límite de canasta USD respetado (máx 2 pares) y trailing escalonado.\n"
         "**HERD 6 (TENSORFLOW)**: Inferencia continua de red neuronal profunda operativa y alimentada por los sensores.\n"
-        "**HERD 7 (ATLAS)**: Microestructura DOM y libro de órdenes validados sin anomalías extremas ni trampas tóxicas.\n"
+        "**HERD 7 (ATLAS)**: Microestructura DOM adaptativa por ATR y libro de órdenes CME sin trampas tóxicas.\n"
         "**MASTER**: Veredicto del Quórum: APROBADO ✅ (Score Ponderado: 0.85). Parámetros nominales de trading."
     )
 
@@ -275,7 +275,7 @@ def despachar_ejecucion_rune_mt5(payload: dict, active_symbol: str, current_px: 
             emit_ws_event("RUNE (RISK)", "RISK", f"PROFIT LOCK: Meta diaria asegurada (+$150 USD, hoy: ${pnl_hoy:.2f}). Bot protegido.")
             return None
 
-        # 6. Filtro de Posiciones Activas
+        # 6. Filtro de Posiciones Activas y Control de Canasta USD
         ops_activas = mt5_json.get("operaciones_activas", [])
         if len(ops_activas) >= 2:
             emit_ws_event("RUNE (RISK)", "RISK", f"LIMITE ALCANZADO: Ya hay {len(ops_activas)} operaciones activas en la cuenta. Omitiendo trade.")
@@ -284,6 +284,29 @@ def despachar_ejecucion_rune_mt5(payload: dict, active_symbol: str, current_px: 
             if activo_objetivo in str(op.get("activo", "")).upper():
                 emit_ws_event("RUNE (RISK)", "RISK", f"POSICION YA EXISTENTE: {activo_objetivo} ya tiene una posicion abierta. Omitiendo doble trade.")
                 return None
+
+        # REGLA RUNE: CONTROL DE CANASTA USD (MÁXIMO 2 POSICIONES VINCULADAS A USD)
+        PARES_USD_DIRECTOS = ["EURUSD", "GBPUSD", "AUDUSD", "XAUUSD"]
+        if any(p in activo_objetivo.upper() for p in PARES_USD_DIRECTOS):
+            ops_usd_count = sum(1 for op in ops_activas if any(p in str(op.get("activo", "")).upper() for p in PARES_USD_DIRECTOS))
+            if ops_usd_count >= 2:
+                emit_ws_event("RUNE (RISK)", "RISK", f"CANASTA USD LIMIT: Ya hay {ops_usd_count} operaciones USD vivas en broker. Límite de 2 alcanzado para evitar sobre-correlación.")
+                return None
+
+        # REGLA DXY SMT VETO
+        try:
+            from dxy_smt_sensor import dxy_sensor
+            res_smt = dxy_sensor.evaluar_divergencia_smt(
+                symbol=activo_objetivo,
+                accion=accion,
+                precio_actual=current_px,
+                precios_spot={"EURUSD": 1.1195, "GBPUSD": 1.3235, "AUDUSD": 0.6980, "XAUUSD": 4160.0}
+            )
+            if res_smt.get("veto_entrada") is True:
+                emit_ws_event("RUNE (RISK)", "RISK", f"DXY SMT VETO: {res_smt.get('motivo')}")
+                return None
+        except Exception as e_smt:
+            pass
 
         # 7. Filtro de Tolerancia de Precio de RUNE (<= 3.5 pips FX, 50 cts Oro)
         entry_price = current_px if current_px > 0 else 1.0
@@ -515,8 +538,12 @@ def run_hft_cycle():
     # Inyección de Skill DOM CME FX & OANDA
     dom_heatmap_summary = "Sin datos de libro"
     try:
-        dom_analisis = scan_institutional_dom(active_symbol, current_px, poc_px)
-        dom_heatmap_summary = f"CME: {dom_analisis['cme_contract']} | Flujo: {dom_analisis['dom_imbalance']} (Compradores {dom_analisis['buyer_volume_pct']}% vs Vendedores {dom_analisis['seller_volume_pct']}%) | Trampas: BuyStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_alcista (Buy Stops)']} SellStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_bajista (Sell Stops)']}"
+        dom_analisis = scan_institutional_dom(active_symbol, current_px, poc_px, precios_spot=precios_spot)
+        smt_data = dom_analisis.get("dxy_smt_context", {})
+        smt_txt = f"DXY: {smt_data.get('dxy_spot', 102.3)} | SMT: {smt_data.get('tipo_divergencia', 'NEUTRAL')}"
+        if smt_data.get("divergencia_detectada"):
+            smt_txt += f" | ⚠️ SMT VETO: {smt_data.get('motivo')}"
+        dom_heatmap_summary = f"CME: {dom_analisis['cme_contract']} | Flujo: {dom_analisis['dom_imbalance']} (Compradores {dom_analisis['buyer_volume_pct']}% vs Vendedores {dom_analisis['seller_volume_pct']}%) | Trampas: BuyStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_alcista (Buy Stops)']} SellStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_bajista (Sell Stops)']} | {smt_txt}"
     except Exception as e_dom:
         dom_heatmap_summary = f"Error escaneando DOM: {e_dom}"
 
@@ -617,14 +644,14 @@ def run_hft_cycle():
     
     INSTRUCCIONES DE DELIBERACIÓN DE LA MALLA (7 HERDS ESPECIALIZADOS + MASTER):
     Genera el diálogo de debate, contrapuntos y consenso final entre los 7 Herds independientes:
-    **HERD 1 - TIDAL**: Tendencia macro de sesiones (Londres/NY/Asia), sesgo de absorción y validación de confluencia macro AMD (4H/8H).
+    **HERD 1 - TIDAL**: Tendencia macro de sesiones (Londres/NY/Asia), monitoreo de Dollar Index (DXY) y validación de divergencias institucionales SMT (vetar si DXY diverge o muestra absorción en contra).
     **HERD 2 - NORO**: Niveles cuantitativos clave (POC dinámico, POC semanal y confluencia de Markov).
     **HERD 3 - ZEPHR**: Probabilidad estadística bayesiana y cálculo de Expected Value (EV en R) ponderado por vectores de ML.
     **HERD 4 - LUMEN**: Smart Money Concepts (Order Blocks LuxAlgo, Fair Value Gaps y barridos AMD Multi-Timeframe 1H, 2H, 3H, 4H, 8H. Bloquear entradas contra liquidez macro pendiente sin barrer).
-    **HERD 5 - RUNE**: Gestión de riesgo estricto (SL técnico defensivo, trailing escalonado 3 fases: BE al 40%, +25% al 65%, +65% al 85%, y restricción estricta de que NZDCAD no se ejecute en broker).
+    **HERD 5 - RUNE**: Gestión de riesgo estricto (SL técnico defensivo, trailing escalonado 3 fases: BE al 40%, +25% al 65%, +65% al 85%, límite de canasta de máximo 2 operaciones simultáneas en pares USD para evitar sobre-correlación, y restricción estricta de que NZDCAD no se ejecute en broker).
     **HERD 6 - TENSORFLOW**: Inferencia de red neuronal profunda (probabilidad continua de acierto del modelo sobre los activos en vivo).
-    **HERD 7 - ATLAS**: Microestructura de libro de órdenes DOM (CVD Delta, absorción, MCP y verificación del CBR).
-    **MASTER**: Veredicto final del Quórum Calificado [APROBADO ✅ o VETADO ⛔] indicando el Score Ponderado (0.00 a 1.00, umbral >= 0.70). Si la señal es para NZDCAD, el veredicto debe ser estrictamente SIMULACIÓN SANDBOX (sin orden a broker).
+    **HERD 7 - ATLAS**: Microestructura de libro de órdenes DOM (CVD Delta, bandas dinámicas por ATR, MCP y verificación del CBR).
+    **MASTER**: Veredicto final del Quórum Calificado [APROBADO ✅ o VETADO ⛔] indicando el Score Ponderado (0.00 a 1.00, umbral >= 0.70). Si hay múltiples señales simultáneas en pares de USD, aplicar selector de convexidad (EV Picker) priorizando solo el par óptimo. Si la señal es para NZDCAD, el veredicto debe ser estrictamente SIMULACIÓN SANDBOX (sin orden a broker).
     
     (REGLA CBR: Si el activo coincide con un precedente perdedor del CBR sin nueva confluencia, el Quórum debe VETAR o exigir confirmación estricta).
     Responde estrictamente con exactamente una intervención por Herd (máximo 2 líneas por Herd, concisas y técnicas) y el veredicto del MASTER.

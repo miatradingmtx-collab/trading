@@ -86,24 +86,30 @@ class HerdDBAExpert:
         conf_set = set(str(c).upper() for c in conf_activas)
         vec_conf = [1.0 if c in conf_set else 0.0 for c in cls.VOCABULARIO_CONFIRMACIONES]
 
-        # 4. Métricas Numéricas Normalizadas Min-Max [0.0, 1.0] (4D)
+        # 4. Métricas Numéricas Normalizadas Min-Max [0.0, 1.0] (5D)
+        # Met Z0: Ponderación Top 1 / Volatilidad Dinámica
+        # Met Z1: RSI Extremo Normalizado (Divergencia Endógena Local)
+        # Met Z2: Spread Broker Normalizado
+        # Met Z3: DXY SMT Correlation Ratio (Divergencia Exógena Macro)
+        # Met Z4: TensorFlow Neural Confidence (Inferencia Deep Learning con 710 Trades)
         w_top1 = float(record.get("top_1", {}).get("peso", 35)) / 100.0
-        w_top2 = float(record.get("top_2", {}).get("peso", 30)) / 100.0
-        w_top3 = float(record.get("top_3", {}).get("peso", 25)) / 100.0
+        rsi_norm = min(1.0, max(0.0, float(record.get("rsi_norm", record.get("top_2", {}).get("peso", 30) / 100.0))))
         spread_norm = min(1.0, max(0.0, float(record.get("spread", 1.2)) / 5.0))
-        vec_num = [round(w_top1, 2), round(w_top2, 2), round(w_top3, 2), round(spread_norm, 2)]
+        dxy_smt_norm = min(1.0, max(0.0, float(record.get("dxy_smt_ratio", 0.65))))
+        tf_conf_norm = min(1.0, max(0.0, float(record.get("tf_confidence", 0.58))))
+        vec_num = [round(w_top1, 2), round(rsi_norm, 2), round(spread_norm, 2), round(dxy_smt_norm, 2), round(tf_conf_norm, 2)]
 
-        # Concatenación final (20D)
-        tensor_20d = vec_sesion + vec_regimen + vec_conf + vec_num
+        # Concatenación final (21D)
+        tensor_21d = vec_sesion + vec_regimen + vec_conf + vec_num
 
         return {
-            "tensor_1d": tensor_20d,
-            "dimension": len(tensor_20d),
+            "tensor_1d": tensor_21d,
+            "dimension": len(tensor_21d),
             "estructura": {
                 "sesion_one_hot_indices": [0, 3],
                 "regimen_one_hot_indices": [4, 7],
                 "confirmaciones_multihot_indices": [8, 15],
-                "metricas_normalizadas_indices": [16, 19]
+                "metricas_normalizadas_indices": [16, 20]
             },
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "estado": "TENSOR_VECTORIZADO_OPTIMO"

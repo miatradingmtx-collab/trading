@@ -65,15 +65,15 @@ def render_tensor_matrix():
         # Segmentación Tridimensional (X, Y, Z)
         # X: Dimensión Temporal y Sesión (Indices 0..3)
         # Y: Dimensión Espacial / Estructura SMC y Régimen (Indices 4..15)
-        # Z: Dimensión Cuantitativa Continua (Indices 16..19)
+        # Z: Dimensión Cuantitativa Continua (Indices 16..20)
         dim_x = raw_vec[0:4]
         dim_y_reg = raw_vec[4:8]
         dim_y_smc = raw_vec[8:16]
-        dim_z = raw_vec[16:20]
+        dim_z = raw_vec[16:21] if len(raw_vec) >= 21 else (raw_vec[16:20] + [accuracy / 100.0])
 
         sys.stdout.write(CLEAR)
         sys.stdout.write(f"{CYAN}{BOLD}========================================================================================{RESET}\n")
-        sys.stdout.write(f"{MAGENTA}{BOLD}   MIA TENSORFLOW NEURAL ENGINE · MONITOR TRIDIMENSIONAL EN VIVO (20D TENSOR MATRIX)   {RESET}\n")
+        sys.stdout.write(f"{MAGENTA}{BOLD}   MIA TENSORFLOW NEURAL ENGINE · MONITOR TRIDIMENSIONAL EN VIVO (21D TENSOR MATRIX)   {RESET}\n")
         sys.stdout.write(f"{CYAN}{BOLD}========================================================================================{RESET}\n")
         sys.stdout.write(f"{DIM}Timestamp: {ts} | Trades Aprendidos: {GREEN}{trades_learned}{RESET} | Precision Modelo: {GREEN}{accuracy:.2f}%{RESET} | Balance: {GREEN}${balance:.2f}{RESET}\n\n")
 
@@ -102,12 +102,19 @@ def render_tensor_matrix():
             sys.stdout.write(f"    SMC Y{i+4:02d} [{smc_labels[i]:24s}]: {node}\n")
 
         # 3. EJE Z: MATRIZ CUANTITATIVA CONTINUA (MÉTRICAS NORMALIZADAS)
-        z_labels = ["ATR Dinamico Normalizado", "RSI Extremo Normalizado", "Spread Broker Normalizado", "CVD Delta Absorción"]
+        z_labels = [
+            "ATR Dinamico Normalizado",
+            "RSI Extremo Normalizado (Endógeno)",
+            "Spread Broker Normalizado",
+            "DXY SMT Correlation Ratio (Macro)",
+            "TensorFlow Neural Confidence (710 Trades)"
+        ]
         sys.stdout.write(f"\n{YELLOW}{BOLD}[EJE Z: MÉTRICAS CUANTITATIVAS CONTINUAS (0.00 - 1.00)]{RESET}\n")
         for i, val in enumerate(dim_z):
+            label_text = z_labels[i] if i < len(z_labels) else f"Met Z{i} Continua"
             length = int(val * 20)
             gauge = f"{GREEN}{'█' * length}{DIM}{'░' * (20 - length)}{RESET}"
-            sys.stdout.write(f"  Met Z{i} | {z_labels[i]:25s} : [{gauge}] {val:.2f}\n")
+            sys.stdout.write(f"  Met Z{i} | {label_text:42s} : [{gauge}] {val:.2f}\n")
 
         # 4. CÁLCULO DE PROPAGACIÓN NEURONAL HACIA ADELANTE
         # Z_net = sum(W * X)
