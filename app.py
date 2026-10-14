@@ -822,7 +822,9 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 "poc_price": poc_price,
                 "ejecutada_mt5": ejecutada_flag,
                 "motivo": motivo_final,
-                "detalle_setup": detalle_str
+                "detalle_setup": detalle_str,
+                "cuarentena_tf": exist_data.get("cuarentena_tf", True) if exist_data else True,
+                "bifurcacion": exist_data.get("bifurcacion", "challenger_herds_7") if exist_data else "challenger_herds_7"
             }
             
             # Recargar max_nivel_parcial de la memoria para que sobreviva al CIERRE_TOTAL
@@ -2678,14 +2680,14 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
                 "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
             }
 
-        # 1.3 [DAILY PROFIT LOCK & DRAWDOWN LOCK] (+150 USD o -115 USD)
+        # 1.3 [DAILY PROFIT LOCK & DRAWDOWN LOCK] (+150 USD o -150 USD)
         try:
             r_mt5_lock = requests.get(f"{UPSTASH_URL}/get/cache_mt5", headers=UPSTASH_HEADERS, timeout=2)
             if r_mt5_lock.status_code == 200 and r_mt5_lock.json().get('result'):
                 mt5_data = json.loads(r_mt5_lock.json()['result'])
                 pnl_hoy = float(mt5_data.get('pnl_total_hoy', mt5_data.get('pnl_cerrado_hoy', 0.0)) or 0.0)
                 bloqueado_pl = mt5_data.get('bloqueado_profit_lock', False) or (pnl_hoy >= 150.0)
-                bloqueado_dd = mt5_data.get('bloqueado_drawdown', False) or (pnl_hoy <= -115.0)
+                bloqueado_dd = mt5_data.get('bloqueado_drawdown', False) or (pnl_hoy <= -150.0)
                 if bloqueado_pl:
                     return {
                         "authorized": False,
@@ -2695,7 +2697,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
                 if bloqueado_dd:
                     return {
                         "authorized": False,
-                        "reason": f"Daily Drawdown Lock (-115 USD alcanzado, PnL hoy: ${pnl_hoy:.2f}). Limite de perdida diario activado (Presupuesto holgado multi-sesion).",
+                        "reason": f"Daily Drawdown Lock (-150 USD alcanzado, PnL hoy: ${pnl_hoy:.2f}). Limite de perdida diario activado (Paridad simetrica 1:1 con Profit Lock).",
                         "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
                     }
         except Exception:
@@ -3343,7 +3345,9 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
             "confirmaciones_tecnicas": data.get("confirmaciones_tecnicas", {}),
             "confirmaciones_fundamentales": data.get("confirmaciones_fundamentales", {}),
             "confirmaciones_institucionales": data.get("confirmaciones_institucionales", {}),
-            "amd_context": ejecucion.amd_context or data.get("confirmaciones_tecnicas", {}).get("amd_context", {})
+            "amd_context": ejecucion.amd_context or data.get("confirmaciones_tecnicas", {}).get("amd_context", {}),
+            "cuarentena_tf": True,
+            "bifurcacion": "challenger_herds_7"
         }
         
         audit_ref.set(audit_data_dict, merge=True)

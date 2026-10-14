@@ -166,25 +166,27 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
     objetivo_8_pct = base_mensual * 1.08
     remanente = balance - objetivo_8_pct
 
-    if balance < 4200.0:
-        # ESCUDO DE DRAWDOWN (balance < 4200)
-        # Se reduce matemÃ¡ticamente el lotaje a la mitad (0.5%)
-        riesgo_defensivo = 0.50
+    # RECALIBRACIÓN INSTITUCIONAL: Eliminación del cuello de botella estático (< 4200).
+    # Se sustituye el bloqueo rígido por una Gestión Escalonada Dinámica:
+    # 1. Si el presupuesto diario restante está comprometido (<= $75 USD), se activa Escudo Defensivo (0.65%).
+    # 2. Si remanente mensual > 0 (> 8% de la base), operamos con House Money institucional.
+    # 3. En régimen normal de crecimiento, operamos al 1.30% calibrado (~$50.13 USD para balance actual).
+    if presupuesto_restante <= 75.0 and presupuesto_restante > 0:
+        riesgo_defensivo = riesgo_pct / 2.0  # 0.65% defensivo
         riesgo_dinero = balance * (riesgo_defensivo / 100.0)
-        print(f"| GESTOR RIESGO WARN | Drawdown Activo (Balance < 4200). Riesgo reducido a {riesgo_defensivo}%.")
+        print(f"| GESTOR RIESGO WARN | Presupuesto diario restante comprometido (<=$75 USD). Modo defensivo intradía activo ({riesgo_defensivo:.2f}% = ${riesgo_dinero:.2f}).")
     elif remanente > 0:
-        # MODO AGRESIVO CON REMANENTE: Se alcanzÃ³ el +8% / +10% de la base.
+        # MODO AGRESIVO CON REMANENTE: Se alcanzó el +8% / +10% de la base.
         # Operamos el remanente a favor sin sobrepasar lo ya ganado en la cuenta principal.
         riesgo_dinero = balance * (riesgo_pct / 100.0) * 1.5
-        # Regla estricta: Nunca afectar la cuenta mÃ¡s allÃ¡ del remanente ganado
+        # Regla estricta: Nunca afectar la cuenta más allá del remanente ganado
         if riesgo_dinero > (remanente * 0.35):
             riesgo_dinero = remanente * 0.35
-        print(f"| GESTOR RIESGO | ðŸ”¥ MODO AGRESIVO (Remanente). Objetivo 8-10% superado. Remanente a favor: ${remanente:.2f}.")
+        print(f"| GESTOR RIESGO | 🔥 MODO AGRESIVO (Remanente). Objetivo 8-10% superado. Remanente a favor: ${remanente:.2f}.")
     else:
-        # ZONA DE RECUPERACIÃ“N / CRECIMIENTO (>= 4200)
-        # Entradas con el 1%, 2%, 3% conforme aumenta la cuenta
+        # RÉGIMEN NOMINAL CALIBRADO (1.30% = ~$50.13 USD para balance de ~$3,856 USD)
         riesgo_dinero = balance * (riesgo_pct / 100.0)
-        print(f"| GESTOR RIESGO | Zona de RecuperaciÃ³n/Crecimiento (Balance: ${balance:.2f}). Riesgo normal: {riesgo_pct}%.")
+        print(f"| GESTOR RIESGO | Régimen Nominal Calibrado (Balance: ${balance:.2f}). Riesgo: {riesgo_pct}%. Riesgo Nominal: ${riesgo_dinero:.2f}.")
 
     # ----- REGLA ESTRICTA DE DRAWDOWN DIARIO -----
     if riesgo_dinero > presupuesto_restante and presupuesto_restante > 0:
@@ -234,7 +236,7 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
     """
     Control de Riesgo Institucional basado en Watermark Diario UTC.
     Garantiza cumplimiento estricto de:
-    - Drawdown Diario: -$115 USD máximo (pnl_total_dia <= -115.0)
+    - Drawdown Diario: -$150 USD máximo (pnl_total_dia <= -150.0)
     - Profit Lock Diario: +$150 USD meta (pnl_total_dia >= +150.0)
     """
     global ESTADO_DIARIO_WATERMARK
@@ -268,7 +270,7 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
         print(f"| GESTOR RIESGO | Inicia ciclo diario UTC {hoy_utc}. Balance Inicial Watermark: ${balance_inicio:.2f}")
 
     balance_inicio_dia = ESTADO_DIARIO_WATERMARK["balance_inicio_dia"]
-    limite_usd = 115.0
+    limite_usd = 150.0
     META_DIARIA_USD = 150.0
     
     pnl_cerrado_hoy = balance - balance_inicio_dia
@@ -284,7 +286,7 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
         print(f"| GESTOR GANANCIAS | 🎯 META DIARIA ALCANZADA: PNL Total ${pnl_total_dia:.2f} >= +${META_DIARIA_USD:.2f}. Entradas bloqueadas por el día para proteger capital.")
         return True, 0.0
 
-    # LÍMITE ESTRICTO DE DRAWDOWN DIARIO (-115 USD)
+    # LÍMITE ESTRICTO DE DRAWDOWN DIARIO (-150 USD)
     if pnl_total_dia <= -limite_usd:
         ESTADO_DIARIO_WATERMARK["bloqueado_drawdown"] = True
         print(f"| GESTOR RIESGO ALERTA | ⛔ DRAWDOWN DIARIO ALCANZADO: PNL Total ${pnl_total_dia:.2f} <= Límite -${limite_usd:.2f}. Entradas bloqueadas.")
@@ -1303,9 +1305,10 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
         sl = decision.get("stop_loss", precio_ejecucion - 200 if es_buy else precio_ejecucion + 200)
         tp = decision.get("take_profit", precio_ejecucion + 400 if es_buy else precio_ejecucion - 400)
         
-        # LOTAJE DINAMICO (Riesgo institucional calibrado para distribuir el presupuesto de $115 USD en 3 sesiones)
-        # 0.60% de riesgo por trade (~$30 USD sobre $5000) permite entre 3 y 4 operaciones diarias holgadas
-        riesgo_pct = 0.60 
+        # LOTAJE DINAMICO (Riesgo institucional calibrado para distribuir el presupuesto de $150 USD en 2-3 trades de alta convicción)
+        # 1.30% de riesgo por trade (~$50.13 USD sobre balance actual de ~$3,856 USD)
+        # Paridad simétrica 1:1 con Daily Profit Lock (+$150 USD) y Drawdown Lock (-$150 USD)
+        riesgo_pct = 1.30 
         lote = calcular_lotaje_dinamico(balance, riesgo_pct, precio_ejecucion, sl, simbolo_broker, presupuesto_restante)
         decision["lote"] = lote
 
@@ -1984,7 +1987,7 @@ async def run_escaner_loop():
                     "balance_inicio_dia": b_inicio,
                     "pnl_cerrado_hoy": pnl_cerr,
                     "pnl_total_hoy": pnl_tot,
-                    "drawdown_limite_usd": 115.0,
+                    "drawdown_limite_usd": 150.0,
                     "profit_meta_usd": 150.0,
                     "dia_utc": ESTADO_DIARIO_WATERMARK.get("dia_utc"),
                     "bloqueado_drawdown": ESTADO_DIARIO_WATERMARK.get("bloqueado_drawdown", False),

@@ -217,7 +217,7 @@ def despachar_ejecucion_rune_mt5(payload: dict, active_symbol: str, current_px: 
     1. Aisla Sandbox: NZDCAD esta confinado a Shadow Mode (0 ordenes reales a broker).
     2. Filtro de Sesion Institucional por Activo (Londres, NY, Asia).
     3. Filtro de Tolerancia de Precio de RUNE (<= 3.5 pips en FX, 50 cts en Oro).
-    4. Filtro de Daily Drawdown (-115 USD) y Daily Profit Lock (+150 USD).
+    4. Filtro de Daily Drawdown (-150 USD) y Daily Profit Lock (+150 USD).
     5. Limite de Trades Activos: Maximo 1 por simbolo, maximo 2 en total.
     6. Calculo de Lotaje Defensivo Dinamico por Balance (0.05 Oro, 0.50 EUR/GBP, 0.30 GBPJPY).
     7. Trailing Stop Escalonado de 3 Fases (BE 40%, Parcial 65%, Trail 85%, Front-Run TP 95%).
@@ -268,8 +268,8 @@ def despachar_ejecucion_rune_mt5(payload: dict, active_symbol: str, current_px: 
 
         # 5. Filtro de Daily Drawdown / Profit Lock
         pnl_hoy = float(mt5_json.get("pnl_total_hoy", mt5_json.get("pnl_cerrado_hoy", 0.0)) or 0.0)
-        if pnl_hoy <= -115.0 or mt5_json.get("bloqueado_drawdown", False):
-            emit_ws_event("RUNE (RISK)", "RISK", f"DRAWDOWN LOCK: Limite diario alcanzado (-$115 USD, hoy: ${pnl_hoy:.2f}). Ejecucion bloqueada.")
+        if pnl_hoy <= -150.0 or mt5_json.get("bloqueado_drawdown", False):
+            emit_ws_event("RUNE (RISK)", "RISK", f"DRAWDOWN LOCK: Limite diario alcanzado (-$150 USD, hoy: ${pnl_hoy:.2f}). Ejecucion bloqueada.")
             return None
         if pnl_hoy >= 150.0 or mt5_json.get("bloqueado_profit_lock", False):
             emit_ws_event("RUNE (RISK)", "RISK", f"PROFIT LOCK: Meta diaria asegurada (+$150 USD, hoy: ${pnl_hoy:.2f}). Bot protegido.")
