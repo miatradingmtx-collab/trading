@@ -4824,14 +4824,24 @@ async def entrenar_pesos_dinamicos():
     
     print("| MACHINE LEARNING | Iniciando entrenamiento de pesos basado en trades ganadores...")
     try:
-        # 1. Traer logs de auditoria desde RAM o Upstash (0 lecturas Firebase para Anti-429)
+        # 1. Traer logs de auditoria desde dataset consolidado o RAM
         logs = []
-        if GLOBAL_AUDIT_LOGS and len(GLOBAL_AUDIT_LOGS) > 0:
-            logs = GLOBAL_AUDIT_LOGS
-        else:
+        try:
+            import requests, json
+            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+            r_ds = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_dataset_tf", headers=up_headers, timeout=5)
+            if r_ds.status_code == 200 and r_ds.json().get("result"):
+                raw_ds = r_ds.json().get("result")
+                parsed_ds = json.loads(raw_ds) if isinstance(raw_ds, str) else (raw_ds or [])
+                if isinstance(parsed_ds, list) and len(parsed_ds) > 0:
+                    logs.extend(parsed_ds)
+        except Exception:
+            pass
+
+        if not logs and GLOBAL_AUDIT_LOGS and len(GLOBAL_AUDIT_LOGS) > 0:
+            logs = list(GLOBAL_AUDIT_LOGS)
+        elif not logs:
             try:
-                import requests, json
-                up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
                 r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=5)
                 if r.status_code == 200:
                     d = json.loads(r.json().get("result", "{}"))
@@ -4839,13 +4849,16 @@ async def entrenar_pesos_dinamicos():
             except Exception:
                 pass
         
+        # Filtro Anti-Contaminación: Ignorar trades de enjambre en cuarentena
         ganadores = []
         for doc in logs:
             data = doc if isinstance(doc, dict) else (doc.to_dict() if hasattr(doc, 'to_dict') else {})
+            if data.get("cuarentena_tf", False) or data.get("bifurcacion") == "challenger_herds_7":
+                continue
             if float(data.get("pnl", 0.0) or 0.0) > 0 or str(data.get("accion")) in ["CERRAR_TP", "CIERRE_TOTAL", "CIERRE_PARCIAL"]:
                 ganadores.append(data)
         
-        print(f"| MACHINE LEARNING | Analizando {len(ganadores)} trades exitosos...")
+        print(f"| MACHINE LEARNING | Analizando {len(ganadores)} trades exitosos (libres de cuarentena)...")
         
         # 2. Contar la frecuencia de cada confirmaciÃƒÆ’Ã‚Â³n tÃƒÆ’Ã‚Â©cnica en los ganadores
         frecuencias = {
@@ -4886,9 +4899,14 @@ async def entrenar_pesos_dinamicos():
                     frecuencias["lux_ob_puro"] += 1
                 else:
                     frecuencias["lux_ob_validado"] += 1
-            
-        # 3. Calcular nuevos pesos (Base Points + Bonus por win rate)
+        # 3. REGLA DE ORO INSTITUCIONAL ANTI-SUERTE (>= 50 TRADES GANADORES CONSOLIDADOS)
+        MIN_TRADES_ANTI_SUERTE = 50
         total = len(ganadores)
+        if total < MIN_TRADES_ANTI_SUERTE:
+            print(f"| MACHINE LEARNING | 🛡️ Filtro Anti-Suerte: Muestra de ganadores insuficiente ({total} < {MIN_TRADES_ANTI_SUERTE}). Se aborta actualización de dynamic_weights para evitar sobreajuste por 'la semana de la suerte'.")
+            return
+
+        # Calcular nuevos pesos (Base Points + Bonus por win rate)
         nuevos_pesos = {
             "ma_alineada": 10 + int((frecuencias["ma_alineada"] / total) * 15),
             "rsi_extremo": 10 + int((frecuencias["rsi_extremo"] / total) * 15),
