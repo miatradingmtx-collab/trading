@@ -223,27 +223,56 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
     
     return lotes
 
+# ------------------------------------------------------------------------------
+# 1.1 CICLO OPERATIVO INSTITUCIONAL SINCRONIZADO (LONDRES - NY - ASIA)
+# ------------------------------------------------------------------------------
+def obtener_ciclo_operativo_institucional() -> Tuple[str, str, str]:
+    """
+    Calcula el ciclo operativo institucional sincronizado con la Apertura de Londres (08:00 AM Londres local),
+    mapeado con absoluta precisión a la hora de México (01:00 AM en Verano BST / 02:00 AM en Invierno GMT).
+    Retorna: (id_ciclo, hora_mx_str, hora_londres_str)
+    """
+    from zoneinfo import ZoneInfo
+    now_london = datetime.datetime.now(ZoneInfo("Europe/London"))
+    now_mx = datetime.datetime.now(ZoneInfo("America/Mexico_City"))
+
+    # El ciclo institucional diario arranca a las 08:00 AM hora local de Londres.
+    # Si en Londres aún son antes de las 08:00 AM, pertenece al ciclo anterior.
+    if now_london.hour < 8:
+        fecha_ciclo = (now_london.date() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    else:
+        fecha_ciclo = now_london.date().strftime("%Y-%m-%d")
+
+    id_ciclo = f"LONDRES_{fecha_ciclo}"
+    return id_ciclo, now_mx.strftime("%Y-%m-%d %H:%M:%S MX"), now_london.strftime("%Y-%m-%d %H:%M:%S LON")
+
 # Estado global en memoria para Watermark Institucional de Drawdown y Meta Diaria
 ESTADO_DIARIO_WATERMARK = {
+    "id_ciclo": None,
     "dia_utc": None,
     "balance_inicio_dia": None,
     "pnl_cerrado_acumulado": 0.0,
     "bloqueado_drawdown": False,
-    "bloqueado_profit_lock": False
+    "bloqueado_profit_lock": False,
+    "hora_reinicio_mx": None
 }
 
 async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: float = 3.0) -> Tuple[bool, float]:
     """
-    Control de Riesgo Institucional basado en Watermark Diario UTC.
+    Control de Riesgo Institucional basado en Ciclo Operativo Anclado a la Apertura de Londres
+    (08:00 AM Londres / 01:00-02:00 AM México).
     Garantiza cumplimiento estricto de:
     - Drawdown Diario: -$150 USD máximo (pnl_total_dia <= -150.0)
     - Profit Lock Diario: +$150 USD meta (pnl_total_dia >= +150.0)
+    - Reinicio automático a la apertura de Londres sin esperar 24 horas ciegamente.
+    - Blindaje en la sesión de Asia si la meta o drawdown ya fue alcanzado en Londres/NY.
     """
     global ESTADO_DIARIO_WATERMARK
+    id_ciclo, hora_mx_str, hora_lon_str = obtener_ciclo_operativo_institucional()
     hoy_utc = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
     
-    # 1. Si cambió de día UTC o es el primer arranque, inicializar Watermark
-    if ESTADO_DIARIO_WATERMARK.get("dia_utc") != hoy_utc or ESTADO_DIARIO_WATERMARK.get("balance_inicio_dia") is None:
+    # 1. Si cambió el ciclo operativo de Londres o es el primer arranque, inicializar Watermark
+    if ESTADO_DIARIO_WATERMARK.get("id_ciclo") != id_ciclo or ESTADO_DIARIO_WATERMARK.get("balance_inicio_dia") is None:
         balance_inicio = balance
         # Intentar recuperar el balance_inicio_dia persistido en cache_mt5 (Upstash Redis) para resiliencia ante reinicios
         try:
@@ -254,20 +283,24 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
                 )
                 if r_cache.status_code == 200 and r_cache.json().get("result"):
                     d_c = json.loads(r_cache.json()["result"])
-                    if d_c.get("dia_utc") == hoy_utc and float(d_c.get("balance_inicio_dia", 0.0)) > 0:
+                    if d_c.get("id_ciclo") == id_ciclo and float(d_c.get("balance_inicio_dia", 0.0)) > 0:
                         balance_inicio = float(d_c.get("balance_inicio_dia"))
-                        print(f"| GESTOR RIESGO | Watermark recuperado de cache_mt5 para {hoy_utc}: ${balance_inicio:.2f}")
+                        print(f"| GESTOR RIESGO | Watermark recuperado de cache_mt5 para {id_ciclo}: ${balance_inicio:.2f}")
+                    elif d_c.get("dia_utc") == hoy_utc and not d_c.get("id_ciclo") and float(d_c.get("balance_inicio_dia", 0.0)) > 0:
+                        balance_inicio = float(d_c.get("balance_inicio_dia"))
         except Exception:
             pass
 
         ESTADO_DIARIO_WATERMARK = {
+            "id_ciclo": id_ciclo,
             "dia_utc": hoy_utc,
             "balance_inicio_dia": balance_inicio,
             "pnl_cerrado_acumulado": balance - balance_inicio,
             "bloqueado_drawdown": False,
-            "bloqueado_profit_lock": False
+            "bloqueado_profit_lock": False,
+            "hora_reinicio_mx": hora_mx_str
         }
-        print(f"| GESTOR RIESGO | Inicia ciclo diario UTC {hoy_utc}. Balance Inicial Watermark: ${balance_inicio:.2f}")
+        print(f"| GESTOR RIESGO | 🔔 NUEVO CICLO OPERATIVO INSTITUCIONAL LONDRES {id_ciclo}. Hora MX: {hora_mx_str} | Hora LON: {hora_lon_str}. Balance Watermark: ${balance_inicio:.2f}")
 
     balance_inicio_dia = ESTADO_DIARIO_WATERMARK["balance_inicio_dia"]
     limite_usd = 150.0
@@ -283,13 +316,13 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
     # META DIARIA (+150 USD)
     if pnl_total_dia >= META_DIARIA_USD:
         ESTADO_DIARIO_WATERMARK["bloqueado_profit_lock"] = True
-        print(f"| GESTOR GANANCIAS | 🎯 META DIARIA ALCANZADA: PNL Total ${pnl_total_dia:.2f} >= +${META_DIARIA_USD:.2f}. Entradas bloqueadas por el día para proteger capital.")
+        print(f"| GESTOR GANANCIAS | 🎯 META DIARIA ALCANZADA: PNL Total ${pnl_total_dia:.2f} >= +${META_DIARIA_USD:.2f}. Entradas bloqueadas por el resto del ciclo (incluyendo Asia) hasta la próxima apertura de Londres (01:00/02:00 AM MX).")
         return True, 0.0
 
     # LÍMITE ESTRICTO DE DRAWDOWN DIARIO (-150 USD)
     if pnl_total_dia <= -limite_usd:
         ESTADO_DIARIO_WATERMARK["bloqueado_drawdown"] = True
-        print(f"| GESTOR RIESGO ALERTA | ⛔ DRAWDOWN DIARIO ALCANZADO: PNL Total ${pnl_total_dia:.2f} <= Límite -${limite_usd:.2f}. Entradas bloqueadas.")
+        print(f"| GESTOR RIESGO ALERTA | ⛔ DRAWDOWN DIARIO ALCANZADO: PNL Total ${pnl_total_dia:.2f} <= Límite -${limite_usd:.2f}. Entradas bloqueadas hasta la próxima apertura de Londres (01:00/02:00 AM MX).")
         return True, 0.0
         
     ESTADO_DIARIO_WATERMARK["bloqueado_drawdown"] = False
@@ -1426,46 +1459,53 @@ async def procesar_cola_ejecucion_pending(account, connection, balance: float):
 
 
 # ------------------------------------------------------------------------------
-# 7. HORARIO DE KILLZONES
+# 7. HORARIO DE KILLZONES SINCRONIZADO DINÁMICAMENTE (LONDRES, NY, ASIA Y MÉXICO)
 # ------------------------------------------------------------------------------
 def obtener_nombre_killzone() -> Optional[str]:
-    """Verifica si la hora actual local de MÃ©xico (GMT-6) estÃ¡ dentro de una Killzone."""
-    LONDRES_INICIO = 2.0
-    LONDRES_FIN = 5.0
-    NY_INICIO = 7.0
-    NY_FIN = 10.0
-    ASIA_INICIO = 18.0
-    ASIA_FIN = 22.0
+    """
+    Verifica la sesión activa sincronizada dinámicamente con las bolsas de Londres,
+    Nueva York y Tokio, mapeada a la hora de México (GMT-6).
+    """
+    from zoneinfo import ZoneInfo
+    now_london = datetime.datetime.now(ZoneInfo("Europe/London"))
+    now_ny = datetime.datetime.now(ZoneInfo("America/New_York"))
+    now_tokyo = datetime.datetime.now(ZoneInfo("Asia/Tokyo"))
     
-    # Forzar hora de MÃ©xico (GMT-6) en cualquier servidor (Render corre en UTC)
-    gmt_minus_6 = datetime.timezone(datetime.timedelta(hours=-6))
-    ahora = datetime.datetime.now(gmt_minus_6)
-    hora_decimal = ahora.hour + ahora.minute / 60.0
+    dec_lon = now_london.hour + now_london.minute / 60.0
+    dec_ny = now_ny.hour + now_ny.minute / 60.0
+    dec_tokyo = now_tokyo.hour + now_tokyo.minute / 60.0
     
-    if LONDRES_INICIO <= hora_decimal < LONDRES_FIN:
+    # Killzone Londres: 08:00 a 12:00 hora local Londres (01:00-05:00 AM MX Verano / 02:00-06:00 AM MX Invierno)
+    if 8.0 <= dec_lon < 12.0:
         return "london"
-    elif NY_INICIO <= hora_decimal < NY_FIN:
+    # Killzone Nueva York: 08:00 a 12:00 hora local NY (06:00-10:00 AM MX Verano / 07:00-11:00 AM MX Invierno)
+    elif 8.0 <= dec_ny < 12.0:
         return "new_york"
-    elif ASIA_INICIO <= hora_decimal < ASIA_FIN:
+    # Killzone Asia (Tokio): 09:00 a 15:00 hora local Tokio (18:00 PM - 00:00 AM MX)
+    elif 9.0 <= dec_tokyo < 15.0:
         return "asia"
     return None
 
 def es_ventana_operativa() -> bool:
-    """Devuelve True si estamos en una Killzone O 2 horas antes de que empiece."""
-    LONDRES_INICIO_VENTANA = 0.0  # 2 horas antes de las 2.0
-    LONDRES_FIN = 5.0
-    NY_INICIO_VENTANA = 5.0      # 2 horas antes de las 7.0
-    NY_FIN = 10.0
-    ASIA_INICIO_VENTANA = 16.0   # 2 horas antes de las 18.0
-    ASIA_FIN = 22.0
+    """Devuelve True si estamos en una Killzone O 2 horas antes de que empiece (Pre-Mercado institucional)."""
+    from zoneinfo import ZoneInfo
+    now_london = datetime.datetime.now(ZoneInfo("Europe/London"))
+    now_ny = datetime.datetime.now(ZoneInfo("America/New_York"))
+    now_tokyo = datetime.datetime.now(ZoneInfo("Asia/Tokyo"))
     
-    gmt_minus_6 = datetime.timezone(datetime.timedelta(hours=-6))
-    ahora = datetime.datetime.now(gmt_minus_6)
-    hora_decimal = ahora.hour + ahora.minute / 60.0
+    dec_lon = now_london.hour + now_london.minute / 60.0
+    dec_ny = now_ny.hour + now_ny.minute / 60.0
+    dec_tokyo = now_tokyo.hour + now_tokyo.minute / 60.0
     
-    if LONDRES_INICIO_VENTANA <= hora_decimal < LONDRES_FIN: return True
-    if NY_INICIO_VENTANA <= hora_decimal < NY_FIN: return True
-    if ASIA_INICIO_VENTANA <= hora_decimal < ASIA_FIN: return True
+    # Ventana Londres (06:00 a 12:00 Londres local)
+    if 6.0 <= dec_lon < 12.0:
+        return True
+    # Ventana NY (06:00 a 12:00 NY local)
+    if 6.0 <= dec_ny < 12.0:
+        return True
+    # Ventana Asia (07:00 a 15:00 Tokio local)
+    if 7.0 <= dec_tokyo < 15.0:
+        return True
     return False
 
 # ------------------------------------------------------------------------------
@@ -1989,6 +2029,8 @@ async def run_escaner_loop():
                     "pnl_total_hoy": pnl_tot,
                     "drawdown_limite_usd": 150.0,
                     "profit_meta_usd": 150.0,
+                    "id_ciclo": ESTADO_DIARIO_WATERMARK.get("id_ciclo"),
+                    "hora_reinicio_mx": ESTADO_DIARIO_WATERMARK.get("hora_reinicio_mx"),
                     "dia_utc": ESTADO_DIARIO_WATERMARK.get("dia_utc"),
                     "bloqueado_drawdown": ESTADO_DIARIO_WATERMARK.get("bloqueado_drawdown", False),
                     "bloqueado_profit_lock": ESTADO_DIARIO_WATERMARK.get("bloqueado_profit_lock", False),

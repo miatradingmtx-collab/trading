@@ -253,26 +253,42 @@ def despachar_ejecucion_rune_mt5(payload: dict, active_symbol: str, current_px: 
             if "COMPRA" not in texto_global or texto_global.count("VENTA") > texto_global.count("COMPRA"):
                 accion = "VENTA"
 
-        # 4. Filtro Institucional de Sesion Optima
-        hora_utc = datetime.datetime.now(datetime.timezone.utc).hour
-        sesiones_dict = {
-            "EURUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-            "GBPUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-            "GBPJPY": [22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-            "AUDUSD": [22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-            "XAUUSD": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-        }
-        if activo_objetivo in sesiones_dict and hora_utc not in sesiones_dict[activo_objetivo]:
-            emit_ws_event("RUNE (RISK)", "RISK", f"VETO DE SESION: {activo_objetivo} fuera de sesion optima (Hora UTC: {hora_utc}). Omitiendo ejecucion.")
+        # 4. Filtro Institucional de Sesion Optima Sincronizado (Londres, NY, Asia y México)
+        from zoneinfo import ZoneInfo
+        now_lon = datetime.datetime.now(ZoneInfo("Europe/London"))
+        now_ny = datetime.datetime.now(ZoneInfo("America/New_York"))
+        now_tokyo = datetime.datetime.now(ZoneInfo("Asia/Tokyo"))
+        now_mx = datetime.datetime.now(ZoneInfo("America/Mexico_City"))
+
+        dec_lon = now_lon.hour + now_lon.minute / 60.0
+        dec_ny = now_ny.hour + now_ny.minute / 60.0
+        dec_tokyo = now_tokyo.hour + now_tokyo.minute / 60.0
+
+        # Mapeo Institucional de Especialización:
+        # - Londres (08:00 a 16:30 Londres / 01:00-09:30 AM MX): EURUSD, GBPUSD, GBPJPY, XAUUSD
+        # - Nueva York (08:00 a 17:00 NY / 06:00 AM-15:00 PM MX): EURUSD, GBPUSD, XAUUSD, AUDUSD
+        # - Asia (09:00 a 15:00 Tokio / 18:00 PM-00:00 AM MX): GBPJPY, AUDUSD
+        es_sesion_valida = False
+        if activo_objetivo in ["EURUSD", "GBPUSD", "GBPJPY", "XAUUSD"] and (8.0 <= dec_lon < 16.5):
+            es_sesion_valida = True
+        elif activo_objetivo in ["EURUSD", "GBPUSD", "XAUUSD", "AUDUSD"] and (8.0 <= dec_ny < 17.0):
+            es_sesion_valida = True
+        elif activo_objetivo in ["GBPJPY", "AUDUSD"] and (9.0 <= dec_tokyo < 15.0):
+            es_sesion_valida = True
+
+        if not es_sesion_valida:
+            hora_mx_str = now_mx.strftime("%H:%M:%S MX")
+            emit_ws_event("RUNE (RISK)", "RISK", f"VETO DE SESION: {activo_objetivo} fuera de sesion optima (Hora MX: {hora_mx_str} | LON: {dec_lon:.1f}h | NY: {dec_ny:.1f}h). Omitiendo ejecucion.")
             return None
 
-        # 5. Filtro de Daily Drawdown / Profit Lock
+        # 5. Filtro de Daily Drawdown / Profit Lock Institucional Anclado a Londres
         pnl_hoy = float(mt5_json.get("pnl_total_hoy", mt5_json.get("pnl_cerrado_hoy", 0.0)) or 0.0)
+        id_ciclo_actual = mt5_json.get("id_ciclo", "LONDRES")
         if pnl_hoy <= -150.0 or mt5_json.get("bloqueado_drawdown", False):
-            emit_ws_event("RUNE (RISK)", "RISK", f"DRAWDOWN LOCK: Limite diario alcanzado (-$150 USD, hoy: ${pnl_hoy:.2f}). Ejecucion bloqueada.")
+            emit_ws_event("RUNE (RISK)", "RISK", f"DRAWDOWN LOCK: Limite diario alcanzado (-$150 USD, hoy: ${pnl_hoy:.2f}). Ciclo: {id_ciclo_actual}. Ejecucion bloqueada hasta Apertura de Londres (01:00/02:00 AM MX).")
             return None
         if pnl_hoy >= 150.0 or mt5_json.get("bloqueado_profit_lock", False):
-            emit_ws_event("RUNE (RISK)", "RISK", f"PROFIT LOCK: Meta diaria asegurada (+$150 USD, hoy: ${pnl_hoy:.2f}). Bot protegido.")
+            emit_ws_event("RUNE (RISK)", "RISK", f"PROFIT LOCK: Meta diaria asegurada (+$150 USD, hoy: ${pnl_hoy:.2f}). Ciclo: {id_ciclo_actual}. Bot protegido hasta Apertura de Londres (01:00/02:00 AM MX).")
             return None
 
         # 6. Filtro de Posiciones Activas y Control de Canasta USD
@@ -721,8 +737,7 @@ def run_hft_cycle():
                     "decision_champion_sin_atlas": decision_sin_atlas,
                     "decision_challenger_con_enjambres": estado.replace(" ⛔", "").replace(" ✅", ""),
                     "modo_enjambres": "CANARY_TRIAL_LIVE",
-                    "cuarentena_anti_contaminacion": True,
-                    "sesion_activa": ("NUEVA_YORK" if (12 <= datetime.datetime.now(datetime.timezone.utc).hour < 19) else ("LONDRES" if (7 <= datetime.datetime.now(datetime.timezone.utc).hour < 12) else "ASIA")),
+                    "sesion_activa": ("NUEVA_YORK" if (8.0 <= (datetime.datetime.now(ZoneInfo("America/New_York")).hour + datetime.datetime.now(ZoneInfo("America/New_York")).minute / 60.0) < 17.0) else ("LONDRES" if (8.0 <= (datetime.datetime.now(ZoneInfo("Europe/London")).hour + datetime.datetime.now(ZoneInfo("Europe/London")).minute / 60.0) < 16.5) else "ASIA")),
                     "comparativo_dual_activo": True
                 }
             },
