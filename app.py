@@ -342,15 +342,17 @@ async def startup_event():
     asyncio.create_task(scheduler_ml_semanal())
     asyncio.create_task(scheduler_daily_ai_cron())
 
-    # Sincronización inicial en background de ATLAS y MGET (espera 15s para no bloquear arranque del server)
+    # Sincronización inicial en background de ATLAS, MGET y ML HISTORY (espera 15s para no bloquear arranque del server)
     async def initial_recon_task():
         await asyncio.sleep(15)
         try:
             from mia_researcher_agent import atlas_researcher
             from mia_mget_manager import reconcile_and_sync_mget_history
+            from mia_ml_history_manager import reconcile_and_sync_ml_history
             atlas_researcher.reconcile_and_sync_atlas_snapshots(db_client=db, days_lookback=14)
             reconcile_and_sync_mget_history(db_client=db, days_lookback=14)
-            print("| STARTUP RECON | Reconciliación inicial de ATLAS y MGET completada con éxito.")
+            reconcile_and_sync_ml_history(db_client=db, days_lookback=14)
+            print("| STARTUP RECON | Reconciliación inicial de ATLAS, MGET y ML HISTORY completada con éxito.")
         except Exception as e_recon:
             print(f"| STARTUP RECON WARN | Error en reconciliación inicial: {e_recon}")
     asyncio.create_task(initial_recon_task())
@@ -4725,20 +4727,19 @@ async def scheduler_daily_ai_cron():
             
             await asyncio.sleep(segundos_espera)
             
-            # Solo saltar sÃ¡bado en la noche (weekday 5) cuando Forex estÃ¡ 100% inactivo todo el dÃ­a.
-            # Viernes (weekday 4) a las 23:55 DEBE correr para consolidar la semana.
-            # Domingo (weekday 6) a las 23:55 el mercado ya lleva horas abierto.
-            if datetime.utcnow().weekday() == 5:
-                print("| DAILY AI CRON | SÃ¡bado (mercado Forex cerrado). CriosueÃ±o activo.")
-                await asyncio.sleep(3600)
-                continue
-                
-            print("| DAILY AI CRON | Disparando ML Snapshot...")
+            print("| DAILY AI CRON | Disparando ML Snapshot y Reconciliación Continua (mia_ml_history)...")
             try:
-                # Corregido: Llamar a tomar_snapshot_diario_ml() para guardar mia_ml_history
-                tomar_snapshot_diario_ml()
+                from mia_ml_history_manager import reconcile_and_sync_ml_history
+                res_ml = reconcile_and_sync_ml_history(db_client=db, days_lookback=14)
+                print(f"| DAILY AI CRON | ML_HISTORY reconciliado exitosamente: {res_ml.get('fechas_verificadas')} verificadas, {len(res_ml.get('fechas_autocuradas', []))} autocuradas")
             except Exception as e:
                 print(f"Error ML Snapshot Cron: {e}")
+
+            # Solo saltar sábado en la noche (weekday 5) para TensorFlow y Watchdog cuando Forex está cerrado
+            if datetime.utcnow().weekday() == 5:
+                print("| DAILY AI CRON | Sábado (mercado Forex cerrado). Criosueño activo para TensorFlow.")
+                await asyncio.sleep(3600)
+                continue
                 
             print("| DAILY AI CRON | Disparando Entrenamiento TensorFlow...")
             try:
@@ -4967,129 +4968,34 @@ async def entrenar_pesos_dinamicos():
 @app.get("/api/cron/ml_snapshot")
 def tomar_snapshot_diario_ml():
     """
-    Toma una fotografÃƒÆ’Ã‚Â­a exacta del cerebro de Mia (Indicadores y Sesiones)
-    y lo guarda en una tabla histÃƒÆ’Ã‚Â³rica, subiÃƒÆ’Ã‚Â©ndola a Upstash para los Enjambres.
+    Toma una fotografía exacta del cerebro de Mia (Indicadores y Sesiones),
+    reconcilia cualquier día faltante en mia_ml_history (Auto-Backfill 14 días),
+    y lo sincroniza con Upstash Redis para los 7 Enjambres y TensorFlow.
     """
     global firebase_inicializado, db
     if not firebase_inicializado or db is None:
         return {"status": "error", "message": "Firebase no inicializado"}
         
     try:
-        from datetime import datetime
-        hoy = datetime.now().strftime("%Y-%m-%d")
-        
-        # 1. Recopilar datos vivos desde memoria / Upstash (0 lecturas Firestore)
-        global GLOBAL_INDICADORES
-        indicadores = []
-        if GLOBAL_INDICADORES:
-            indicadores = GLOBAL_INDICADORES
-        else:
-            try:
-                import requests, json
-                r_ind = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_kb_indicadores", headers={"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}, timeout=2)
-                if r_ind.status_code == 200:
-                    indicadores = json.loads(r_ind.json().get("result", "[]"))
-            except Exception: pass
-            
-        if not indicadores and db is not None:
-            try:
-                inds_docs = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").get()
-                indicadores = [{"id": d.id, **d.to_dict()} for d in inds_docs]
-            except: pass
-        
-        sesiones = []
-        if db is not None:
-            try:
-                sess_docs = db.collection("mia_kb").document("sesiones_rendimiento").collection("detalle").get()
-                sesiones = [{"id": s.id, **s.to_dict()} for s in sess_docs]
-            except: pass
-        
-        # Homologación de Vectores Dinámicos de Ponderación (Machine Learning + AMD MTF)
-        dyn_weights = {
-            "smc_4_sweep": 2.3000,
-            "smc_2_fvg": 1.8500,
-            "lux_algo_ob_4h": 1.6500,
-            "smc_1_ob": 1.6000,
-            "volume_poc_price": 1.4500,
-            "ma_alineada": 1.2500,
-            "rsi_extremo": 1.1500,
-            "amd_trampa_macro_evitada": 2.1000,
-            "amd_macro_8h_sweep": 2.2000,
-            "amd_macro_4h_sweep": 2.0500,
-            "amd_confluencia_macro": 1.9500,
-            "amd_sweep_3h": 1.7500,
-            "amd_sweep_2h": 1.6000,
-            "amd_sweep_1h": 1.4500,
-            "amd_sweep_intradia": 1.4000
-        }
-        for ind in indicadores:
-            ind_id = ind.get("id", "").lower()
-            wr = float(ind.get("win_rate", 0))
-            calc_w = round(max(0.20, (wr / 100.0) * 2.0 + 0.30), 4)
-            if ind_id not in dyn_weights or calc_w > dyn_weights[ind_id]:
-                dyn_weights[ind_id] = calc_w
-
-        snapshot = {
-            "fecha": hoy,
-            "indicadores": indicadores,
-            "sesiones": sesiones,
-            "dynamic_weights": dyn_weights,
-            "kpis": {
-                "dynamic_weights": dyn_weights,
-                "total_indicadores": len(indicadores),
-                "total_sesiones": len(sesiones)
-            },
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        # 2. Guardar Historial en Firebase (mia_ml_history)
-        db.collection("mia_ml_history").document(hoy).set(snapshot)
-        print(f"| ML HISTORY | Snapshot guardado en Firebase ({hoy})")
-        
-        # 3. Empujar a Slot Dedicado en Upstash (Para consumo gratis de Enjambres)
-        import requests, json
-        upstash_url = "https://certain-gnat-160816.upstash.io/set/cache_ml_history"
-        upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-        
-        res = requests.post(upstash_url, headers=upstash_headers, json=snapshot, timeout=5)
-        if res.status_code == 200:
-            print("| UPSTASH | Snapshot ML sincronizado exitosamente con Redis")
-
-        # 3.1 Empujar Slot Dedicado cache_amd_mtf_history a Upstash Redis para los 7 Herds y TensorFlow
-        try:
-            recent_amd_trades = []
-            if db is not None:
-                r_docs = db.collection("mia_kb").document("amd_mtf_history").collection("trades").limit(10).stream()
-                recent_amd_trades = [d.to_dict() for d in r_docs]
-            
-            amd_cache_payload = {
-                "metadata": {
-                    "descripcion": "Memoria Histórica y Ponderación de Estrategia AMD MTF (1H, 2H, 3H, 4H, 8H)",
-                    "temporalidades": ["1h", "2h", "3h", "4h", "8h"],
-                    "vectores_ponderacion": {
-                        "amd_macro_8h_sweep": 2.2000,
-                        "amd_macro_4h_sweep": 2.0500,
-                        "amd_confluencia_macro": 1.9500,
-                        "amd_sweep_3h": 1.7500,
-                        "amd_sweep_2h": 1.6000,
-                        "amd_sweep_1h": 1.4500,
-                        "amd_sweep_intradia": 1.4000,
-                        "amd_trampa_macro_evitada": 2.1000
-                    },
-                    "total_trades": len(recent_amd_trades),
-                    "ultima_actualizacion": datetime.now().isoformat()
-                },
-                "ultimos_trades": recent_amd_trades
-            }
-            requests.post("https://certain-gnat-160816.upstash.io/set/cache_amd_mtf_history", headers=upstash_headers, json=amd_cache_payload, timeout=5)
-            print("| UPSTASH | cache_amd_mtf_history sincronizado exitosamente con Redis")
-        except Exception as e_amd_c:
-            print(f"| UPSTASH WARN | Error sincronizando cache_amd_mtf_history: {e_amd_c}")
-            print("| UPSTASH | Snapshot ML sincronizado exitosamente con Redis")
-            
-        return {"status": "success", "fecha": hoy, "message": "Snapshot y espejo creados"}
+        from mia_ml_history_manager import reconcile_and_sync_ml_history
+        resultado = reconcile_and_sync_ml_history(db_client=db, days_lookback=14)
+        return {"status": "success", "resultado": resultado}
     except Exception as e:
-        print(f"| ML HISTORY ERROR | Fallo al crear snapshot: {e}")
+        print(f"| ML HISTORY ERROR | Fallo al crear snapshot y reconciliar: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/cron/ml_reconcile")
+def api_cron_ml_reconcile(days: int = 14):
+    """
+    Endpoint para auditar, autocurar y reconciliar mia_ml_history para un período configurable.
+    """
+    global firebase_inicializado, db
+    try:
+        from mia_ml_history_manager import reconcile_and_sync_ml_history
+        res = reconcile_and_sync_ml_history(db_client=db, days_lookback=days)
+        return {"status": "success", "resultado": res}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 @app.get("/api/supervisor/audit")
 def supervisor_audit():
     """
