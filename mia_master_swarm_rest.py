@@ -733,6 +733,7 @@ def run_hft_cycle():
                 "herd_7_atlas": h7_match.group(1).strip() if h7_match else (researcher_brief or "N/A"),
                 "master_quorum": master_match.group(1).strip() if master_match else veredicto,
                 "estado": estado,
+                "dxy_divergencia_dictamen": smt_txt,
                 "bifurcacion_ab": {
                     "decision_champion_sin_atlas": decision_sin_atlas,
                     "decision_challenger_con_enjambres": estado.replace(" ⛔", "").replace(" ✅", ""),
@@ -741,6 +742,8 @@ def run_hft_cycle():
                     "comparativo_dual_activo": True
                 }
             },
+            "dxy_smt_context": smt_data,
+            "dictamen_dxy": smt_txt,
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
         
@@ -753,14 +756,17 @@ def run_hft_cycle():
 
         if db is not None:
             db.collection("mia_herds_history").document("latest").set(payload)
-            db.collection("mia_atlas").document("latest_debate_ab").set(payload)
+            # Guardar en mia_atlas/latest_debate_ab con merge=True para conservar métricas Challenger/Champion de ATLAS
+            db.collection("mia_atlas").document("latest_debate_ab").set({
+                "latest_hft_debate": payload,
+                "debate": payload["debate"],
+                "dxy_smt_context": smt_data,
+                "dictamen_dxy": smt_txt,
+                "ultimo_debate_timestamp": payload["timestamp"]
+            }, merge=True)
             if debe_archivar:
-                
                 fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
                 db.collection("mia_herds_history").document(fecha_hoy).collection("reportes").document(safe_title).set(payload)
-
-                
-                fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
                 db.collection("mia_swarm_rest_history").document(fecha_hoy).collection("reportes").document(safe_title).set(payload)
 
                 LAST_SAVED_STATE = estado
@@ -769,15 +775,18 @@ def run_hft_cycle():
             else:
                 emit_ws_event("Master", "INFO", "Debate homologado en latest (sin duplicar documento en histórico).")
 
-            
-        # Guardado en Upstash Redis (cache_herd_debate_latest y cache_mia_swarm_rest_latest)
+        # Guardado en Upstash Redis (cache_herd_debate_latest, cache_mia_swarm_rest_latest y cache_dxy_smt_latest)
         upstash_url = "https://certain-gnat-160816.upstash.io/set/cache_mia_swarm_rest_latest"
         upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
         requests.post(upstash_url, headers=upstash_headers, json=payload, timeout=5)
 
         upstash_herd_url = "https://certain-gnat-160816.upstash.io/set/cache_herd_debate_latest"
         requests.post(upstash_herd_url, headers=upstash_headers, json=payload, timeout=5)
-        emit_ws_event("Master", "INFO", "Debate sincronizado en Upstash Redis.")
+        
+        # Publicar slot dedicado de DXY SMT en Upstash para acceso instantáneo de los 7 Herds
+        if smt_data:
+            requests.post("https://certain-gnat-160816.upstash.io/set/cache_dxy_smt_latest", headers=upstash_headers, json=smt_data, timeout=5)
+        emit_ws_event("Master", "INFO", "Debate y sensor DXY SMT sincronizados en Upstash Redis.")
 
         # 4. ETAPA 4: Despacho y Ejecución Canónica por RUNE y Master a MT5
         if "APROBADO" in estado:

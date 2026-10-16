@@ -81,7 +81,7 @@ class MiaQuantSupervisor:
                         })
                     else:
                         debate_7_herds = str(deb_d)[:400]
-                # Slot 3: ATLAS DOM/CVD
+                # Slot 3: ATLAS DOM/CVD & DXY SMT
                 if slots[3]:
                     atl_d = json.loads(slots[3]) if isinstance(slots[3], str) else slots[3]
                     if isinstance(atl_d, dict):
@@ -89,7 +89,9 @@ class MiaQuantSupervisor:
                             "cvd_delta": atl_d.get("cvd_delta", "N/A"),
                             "flujo_comprador": atl_d.get("buyer_pct", atl_d.get("buyer_volume_pct", "N/A")),
                             "flujo_vendedor": atl_d.get("seller_pct", atl_d.get("seller_volume_pct", "N/A")),
-                            "trampas_detectadas": atl_d.get("heatmap_resting_liquidity", atl_d.get("trampas", "N/A"))
+                            "trampas_detectadas": atl_d.get("heatmap_resting_liquidity", atl_d.get("trampas", "N/A")),
+                            "dxy_smt_context": atl_d.get("dxy_smt_context", {}),
+                            "dictamen_dxy": atl_d.get("dictamen_dxy", "N/A")
                         })
                     else:
                         microestructura_atlas = str(atl_d)[:300]

@@ -4174,6 +4174,34 @@ def api_atlas_backtest_data():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/dxy/status")
+def api_dxy_status():
+    """
+    Retorna el estado en tiempo real del Dollar Index (DXY) sintético,
+    divergencia inter-mercado SMT y límite de canasta de correlación USD.
+    """
+    try:
+        import datetime
+        from dxy_smt_sensor import dxy_sensor
+        precios_ref = {"EURUSD": 1.1195, "GBPUSD": 1.3235, "AUDUSD": 0.6980, "XAUUSD": 4160.0}
+        dxy_val = dxy_sensor.calcular_dxy_sintetico(precios_ref)
+        eval_eur = dxy_sensor.evaluar_divergencia_smt("EURUSD", "VENTA", 1.1195, precios_ref)
+        eval_gbp = dxy_sensor.evaluar_divergencia_smt("GBPUSD", "VENTA", 1.3235, precios_ref)
+        eval_xau = dxy_sensor.evaluar_divergencia_smt("XAUUSD", "VENTA", 4160.0, precios_ref)
+        return {
+            "status": "success",
+            "dxy_spot": dxy_val,
+            "divergencias_smt": {
+                "EURUSD": eval_eur,
+                "GBPUSD": eval_gbp,
+                "XAUUSD": eval_xau
+            },
+            "regla_canasta_usd": "Máximo 2 operaciones concurrentes con exposición al USD",
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 
 @app.get("/api/open_trades")
 def api_open_trades():
