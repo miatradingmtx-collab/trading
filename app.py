@@ -1425,8 +1425,8 @@ def recalcular_memoria_colectiva():
             
             try:
                 import requests
-                up_url = "https://certain-gnat-160816.upstash.io"
-                up_h = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                up_url = "https://firm-koi-93555.upstash.io"
+                up_h = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
                 requests.post(f"{up_url}/set/cache_vector_indicadores", headers=up_h, json=cat_ind, timeout=2)
                 requests.post(f"{up_url}/set/cache_vector_patrones", headers=up_h, json=cat_pat, timeout=2)
             except Exception: pass
@@ -2048,10 +2048,10 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
 
         def reentrenar_tensorflow_en_cierre(trade_info_cierre):
             try:
-                up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
                 t_id = str(trade_info_cierre.get('ticket', ''))
                 if t_id and t_id.isdigit():
-                    r_ds = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_dataset_tf", headers=up_headers, timeout=5)
+                    r_ds = requests.get("https://firm-koi-93555.upstash.io/get/cache_mia_dataset_tf", headers=up_headers, timeout=5)
                     ds_list = []
                     if r_ds.status_code == 200 and r_ds.json().get('result'):
                         raw = r_ds.json().get('result')
@@ -2060,7 +2060,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                     tickets_exist = {str(x.get('ticket')) for x in ds_list if x.get('ticket')}
                     if t_id not in tickets_exist:
                         ds_list.append(trade_info_cierre)
-                        requests.post("https://certain-gnat-160816.upstash.io/set/cache_mia_dataset_tf", headers=up_headers, data=json.dumps(ds_list), timeout=5)
+                        requests.post("https://firm-koi-93555.upstash.io/set/cache_mia_dataset_tf", headers=up_headers, data=json.dumps(ds_list), timeout=5)
                         print(f"| TENSORFLOW AUTO-LEARN | Ingestado Ticket {t_id} en cache_mia_dataset_tf ({len(ds_list)} trades).")
                 
                 train_tensorflow()
@@ -2306,8 +2306,8 @@ def get_matrix_activos(authorization: Optional[str] = Header(None)):
         global GLOBAL_MATRICES_CACHE_FULL
         if not GLOBAL_MATRICES_CACHE_FULL:
             import requests, json
-            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-            r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_trading_matrix", headers=up_headers, timeout=2)
+            up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+            r = requests.get("https://firm-koi-93555.upstash.io/get/cache_trading_matrix", headers=up_headers, timeout=2)
             if r.status_code == 200:
                 res_m = r.json().get("result")
                 if res_m:
@@ -2333,8 +2333,8 @@ def get_asset_matrix(activo: str, authorization: Optional[str] = Header(None)):
         global GLOBAL_MATRICES_CACHE_FULL
         if not GLOBAL_MATRICES_CACHE_FULL or activo_normalizado not in GLOBAL_MATRICES_CACHE_FULL:
             import requests, json
-            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-            r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_trading_matrix", headers=up_headers, timeout=2)
+            up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+            r = requests.get("https://firm-koi-93555.upstash.io/get/cache_trading_matrix", headers=up_headers, timeout=2)
             if r.status_code == 200:
                 res_m = r.json().get("result")
                 if res_m:
@@ -2477,8 +2477,8 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         # SincronizaciÃ³n inmediata a Upstash Redis (cache_trading_matrix)
         try:
             import requests, json
-            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-            requests.post("https://certain-gnat-160816.upstash.io/set/cache_trading_matrix", headers=up_headers, data=json.dumps(GLOBAL_MATRICES_CACHE_FULL, default=str), timeout=2)
+            up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+            requests.post("https://firm-koi-93555.upstash.io/set/cache_trading_matrix", headers=up_headers, data=json.dumps(GLOBAL_MATRICES_CACHE_FULL, default=str), timeout=2)
         except Exception:
             pass
         
@@ -3738,11 +3738,11 @@ def asegurar_cache_firebase():
     # ðŸ›¡ï¸ PROTECCIÃ“N ANTI-429 ESTRICTA: MGET de todas las tablas desacopladas desde Upstash Redis (1 llamada HTTP, 0 Firebase)
     try:
         import requests, json
-        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
         session = requests.Session()
         session.trust_env = False
         
-        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_hist_mt5/cache_trading_matrix/cache_mia_kb_patrones/cache_mia_kb_indicadores/cache_system_memory"
+        mget_url = "https://firm-koi-93555.upstash.io/mget/cache_hist_mt5/cache_trading_matrix/cache_mia_kb_patrones/cache_mia_kb_indicadores/cache_system_memory"
         r_all = session.get(mget_url, headers=up_headers, timeout=5)
         if r_all.status_code == 200:
             slots = r_all.json().get("result", [])
@@ -3833,8 +3833,8 @@ def asegurar_cache_firebase():
             if GLOBAL_AUDIT_LOGS is None:
                 try:
                     import requests, json
-                    up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-                    r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=3)
+                    up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+                    r = requests.get("https://firm-koi-93555.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=3)
                     if r.status_code == 200:
                         up_res = r.json()
                         up_data = json.loads(up_res.get("result", "{}"))
@@ -3878,8 +3878,8 @@ def api_export_trades():
     if not logs_source:
         try:
             import requests, json
-            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-            r_hist = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=3)
+            up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+            r_hist = requests.get("https://firm-koi-93555.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=3)
             if r_hist.status_code == 200:
                 res_h = r_hist.json().get("result")
                 if res_h:
@@ -3897,11 +3897,11 @@ def api_dashboard_data():
     # --- 1. BYPASS ANTI-429 DIRECTO A UPSTASH REDIS VÃA MGET (1 RTT) ---
     try:
         import requests, json, time, datetime
-        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
         session = requests.Session()
         session.trust_env = False
         
-        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_hist_mt5/cache_mt5/cache_ml_history/cache_mia_tensorflow/cache_herd_debate_latest"
+        mget_url = "https://firm-koi-93555.upstash.io/mget/cache_hist_mt5/cache_mt5/cache_ml_history/cache_mia_tensorflow/cache_herd_debate_latest"
         r_all = session.get(mget_url, headers=up_headers, timeout=5)
         if r_all.status_code == 200:
             slots = r_all.json().get("result", [])
@@ -4042,7 +4042,7 @@ def api_dashboard_data():
 
                 # SincronizaciÃ³n continua del slot fÃ­sico 'cache_mget' en Upstash Redis
                 try:
-                    session.post("https://certain-gnat-160816.upstash.io/set/cache_mget", headers=up_headers, data=json.dumps(combined, default=str), timeout=2)
+                    session.post("https://firm-koi-93555.upstash.io/set/cache_mget", headers=up_headers, data=json.dumps(combined, default=str), timeout=2)
                 except Exception:
                     pass
 
@@ -4055,10 +4055,10 @@ def get_cache_mget():
     """Retorna el contenido del slot fÃ­sico cache_mget en Upstash Redis (Consolidado MGET)."""
     try:
         import requests, json
-        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
         session = requests.Session()
         session.trust_env = False
-        r = session.get("https://certain-gnat-160816.upstash.io/get/cache_mget", headers=up_headers, timeout=3)
+        r = session.get("https://firm-koi-93555.upstash.io/get/cache_mget", headers=up_headers, timeout=3)
         if r.status_code == 200:
             res = r.json().get("result")
             if res:
@@ -4082,8 +4082,8 @@ def api_herds_latest():
     """Devuelve el debate mÃ¡s reciente entre los enjambres desde Upstash Redis."""
     try:
         import requests, json
-        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-        r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_herd_debate_latest", headers=up_headers, timeout=3)
+        up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+        r = requests.get("https://firm-koi-93555.upstash.io/get/cache_herd_debate_latest", headers=up_headers, timeout=3)
         if r.status_code == 200:
             res = r.json().get("result")
             if res:
@@ -4098,8 +4098,8 @@ def api_herds_sync_firebase():
     global firebase_inicializado, db
     try:
         import requests, json, datetime
-        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-        r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_herd_debate_latest", headers=up_headers, timeout=3)
+        up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+        r = requests.get("https://firm-koi-93555.upstash.io/get/cache_herd_debate_latest", headers=up_headers, timeout=3)
         if r.status_code == 200:
             res = r.json().get("result")
             if res:
@@ -4149,8 +4149,8 @@ def api_researcher_latest():
     """Retorna el Ãºltimo reporte del investigador ATLAS desde Upstash Redis (Anti-429)."""
     try:
         import requests, json
-        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-        r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_researcher_insights", headers=up_headers, timeout=3)
+        up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+        r = requests.get("https://firm-koi-93555.upstash.io/get/cache_researcher_insights", headers=up_headers, timeout=3)
         if r.status_code == 200:
             res = r.json().get("result")
             if res:
@@ -4164,8 +4164,8 @@ def api_atlas_backtest_data():
     """Retorna la matriz de bifurcaciÃ³n A/B (Champion vs Challenger) desde Upstash Redis (Anti-429)."""
     try:
         import requests, json
-        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-        r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_atlas", headers=up_headers, timeout=3)
+        up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+        r = requests.get("https://firm-koi-93555.upstash.io/get/cache_mia_atlas", headers=up_headers, timeout=3)
         if r.status_code == 200:
             res = r.json().get("result")
             if res:
@@ -4250,8 +4250,8 @@ def get_trade_tp(ticket: str):
         if not encontrado or tp == 0.0 or estrategia == "MANUAL":
             try:
                 import requests
-                up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-                r_aud = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_audit_logs", headers=up_headers, timeout=2)
+                up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+                r_aud = requests.get("https://firm-koi-93555.upstash.io/get/cache_mia_audit_logs", headers=up_headers, timeout=2)
                 if r_aud.status_code == 200:
                     aud_raw = r_aud.json().get("result")
                     if aud_raw:
@@ -4325,8 +4325,8 @@ def export_audit_csv():
         logs_source = GLOBAL_AUDIT_LOGS
         if not logs_source:
             import requests, json
-            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-            r_hist = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=3)
+            up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+            r_hist = requests.get("https://firm-koi-93555.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=3)
             if r_hist.status_code == 200:
                 res_h = r_hist.json().get("result")
                 if res_h:
@@ -4493,8 +4493,8 @@ async def get_chart_data(symbol: str, timeframe: str = "1h"):
             audit_source = GLOBAL_AUDIT_LOGS
             if not audit_source:
                 import requests, json
-                up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-                r_hist = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=2)
+                up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+                r_hist = requests.get("https://firm-koi-93555.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=2)
                 if r_hist.status_code == 200:
                     res_h = r_hist.json().get("result")
                     if res_h:
@@ -4857,8 +4857,8 @@ async def entrenar_pesos_dinamicos():
         logs = []
         try:
             import requests, json
-            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-            r_ds = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_dataset_tf", headers=up_headers, timeout=5)
+            up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+            r_ds = requests.get("https://firm-koi-93555.upstash.io/get/cache_mia_dataset_tf", headers=up_headers, timeout=5)
             if r_ds.status_code == 200 and r_ds.json().get("result"):
                 raw_ds = r_ds.json().get("result")
                 parsed_ds = json.loads(raw_ds) if isinstance(raw_ds, str) else (raw_ds or [])
@@ -4871,7 +4871,7 @@ async def entrenar_pesos_dinamicos():
             logs = list(GLOBAL_AUDIT_LOGS)
         elif not logs:
             try:
-                r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=5)
+                r = requests.get("https://firm-koi-93555.upstash.io/get/cache_hist_mt5", headers=up_headers, timeout=5)
                 if r.status_code == 200:
                     d = json.loads(r.json().get("result", "{}"))
                     logs = d.get("recent_logs", [])
@@ -5177,8 +5177,8 @@ async def handle_slack_interaction(request: Request):
                     
                     # 1. Actualizar Upstash CBR Trading
                     try:
-                        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-                        r_cbr = requests.get("https://certain-gnat-160816.upstash.io/get/cache_trading_learning_kb", headers=up_headers, timeout=3).json()
+                        up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+                        r_cbr = requests.get("https://firm-koi-93555.upstash.io/get/cache_trading_learning_kb", headers=up_headers, timeout=3).json()
                         cbr_data = json.loads(r_cbr.get("result", "[]")) if r_cbr.get("result") else []
                         for caso in cbr_data:
                             if str(caso.get("ticket")) == str(ticket_id):
@@ -5186,7 +5186,7 @@ async def handle_slack_interaction(request: Request):
                                 caso["aprobado_por"] = user_name
                                 caso["score_confianza"] = 1.0 if action_type == "APROBADO" else 0.0
                                 caso["timestamp_aprobacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-                        requests.post("https://certain-gnat-160816.upstash.io/set/cache_trading_learning_kb", headers=up_headers, json=cbr_data[:50])
+                        requests.post("https://firm-koi-93555.upstash.io/set/cache_trading_learning_kb", headers=up_headers, json=cbr_data[:50])
                     except Exception as up_err:
                         print(f"| QUANT CBR UPSTASH ERROR | {up_err}")
                         
@@ -5889,12 +5889,12 @@ def train_tensorflow():
         from tensorflow.keras.layers import Dense, Dropout
         
         # 1. Extraer dataset institucional completo (cache_mia_dataset_tf = 678 trades) + recientes (cache_hist_mt5)
-        headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
         logs = []
 
         # 1.1 Cargar dataset profundo institucional (678 trades)
         try:
-            r_ds = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_dataset_tf", headers=headers, timeout=10)
+            r_ds = requests.get("https://firm-koi-93555.upstash.io/get/cache_mia_dataset_tf", headers=headers, timeout=10)
             if r_ds.status_code == 200 and r_ds.json().get("result"):
                 raw_ds = r_ds.json().get("result")
                 parsed_ds = json.loads(raw_ds) if isinstance(raw_ds, str) else (raw_ds or [])
@@ -5906,7 +5906,7 @@ def train_tensorflow():
 
         # 1.2 Incorporar trades recientes de MT5 deduplicando por ticket
         try:
-            upstash_read_url = "https://certain-gnat-160816.upstash.io/get/cache_hist_mt5"
+            upstash_read_url = "https://firm-koi-93555.upstash.io/get/cache_hist_mt5"
             res = requests.get(upstash_read_url, headers=headers, timeout=10)
             if res.status_code == 200 and res.json().get("result"):
                 raw_data = res.json().get("result", "{}")
@@ -5949,7 +5949,7 @@ def train_tensorflow():
 
         # 1.4 Persistir dataset consolidado en Upstash (crecimiento dinámico de trades aprendidos)
         try:
-            upstash_ds_url = "https://certain-gnat-160816.upstash.io/set/cache_mia_dataset_tf"
+            upstash_ds_url = "https://firm-koi-93555.upstash.io/set/cache_mia_dataset_tf"
             requests.post(upstash_ds_url, headers=headers, data=json.dumps(logs, default=str), timeout=10)
         except Exception as e_ds_save:
             print(f"| TENSORFLOW WARN | Error guardando cache_mia_dataset_tf: {e_ds_save}")
@@ -5961,7 +5961,7 @@ def train_tensorflow():
                 logs.extend(GLOBAL_AUDIT_LOGS)
             else:
                 try:
-                    r_aud = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_audit_logs", headers=headers, timeout=5)
+                    r_aud = requests.get("https://firm-koi-93555.upstash.io/get/cache_mia_audit_logs", headers=headers, timeout=5)
                     if r_aud.status_code == 200:
                         aud_raw = r_aud.json().get("result")
                         if aud_raw:
@@ -6050,7 +6050,7 @@ def train_tensorflow():
         }
         
         # 6. Desacoplamiento: Guardar en el nuevo Slot 5 de Upstash (cache_mia_tensorflow)
-        upstash_write_url = "https://certain-gnat-160816.upstash.io/set/cache_mia_tensorflow"
+        upstash_write_url = "https://firm-koi-93555.upstash.io/set/cache_mia_tensorflow"
         requests.post(upstash_write_url, headers=headers, data=json.dumps(tf_payload), timeout=10)
         
         # 7. Homologación: Guardar histórico en Firebase (mia_tensorflow)
@@ -6086,10 +6086,10 @@ def get_swarm_history():
     """
     try:
         import requests, json
-        headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
         
         # 1. Escanear todas las llaves de Swarm History
-        scan_url = "https://certain-gnat-160816.upstash.io/scan/0?match=mia_swarm_history_*&count=100"
+        scan_url = "https://firm-koi-93555.upstash.io/scan/0?match=mia_swarm_history_*&count=100"
         res = requests.get(scan_url, headers=headers, timeout=10)
         data = res.json()
         
@@ -6101,7 +6101,7 @@ def get_swarm_history():
         # 2. Obtener el valor de todas las llaves (MGET)
         # Upstash REST usa /mget/key1/key2...
         keys_path = "/".join(keys)
-        mget_url = f"https://certain-gnat-160816.upstash.io/mget/{keys_path}"
+        mget_url = f"https://firm-koi-93555.upstash.io/mget/{keys_path}"
         mget_res = requests.get(mget_url, headers=headers, timeout=10)
         mget_data = mget_res.json()
         

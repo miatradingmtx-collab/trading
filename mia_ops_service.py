@@ -62,8 +62,8 @@ def healthcheck():
 def get_ops_status():
     """Retorna el último pulso de salud de los 10 Herds desde Upstash en sub-25ms."""
     try:
-        upstash_url = os.getenv("UPSTASH_REDIS_REST_URL", "https://certain-gnat-160816.upstash.io")
-        upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
+        upstash_url = os.getenv("UPSTASH_REDIS_REST_URL", "https://firm-koi-93555.upstash.io")
+        upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg")
         headers = {"Authorization": f"Bearer {upstash_token}"}
         r = requests.get(f"{upstash_url}/get/cache_system_ops_status", headers=headers, timeout=3)
         if r.status_code == 200 and r.json().get("result"):
@@ -109,8 +109,8 @@ async def push_antigravity_mirror_delta(request: Request):
     """
     try:
         body = await request.json()
-        upstash_url = os.getenv("UPSTASH_REDIS_REST_URL", "https://certain-gnat-160816.upstash.io")
-        upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
+        upstash_url = os.getenv("UPSTASH_REDIS_REST_URL", "https://firm-koi-93555.upstash.io")
+        upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg")
         headers = {"Authorization": f"Bearer {upstash_token}", "Content-Type": "application/json"}
         
         # Persistir en slot Upstash
@@ -126,8 +126,8 @@ async def push_antigravity_mirror_delta(request: Request):
 @app.get("/api/antigravity/mirror")
 def get_antigravity_mirror():
     """Retorna el estado actual del espejo de Antigravity inyectado en Upstash."""
-    upstash_url = os.getenv("UPSTASH_REDIS_REST_URL", "https://certain-gnat-160816.upstash.io")
-    upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
+    upstash_url = os.getenv("UPSTASH_REDIS_REST_URL", "https://firm-koi-93555.upstash.io")
+    upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg")
     headers = {"Authorization": f"Bearer {upstash_token}"}
     r = requests.get(f"{upstash_url}/get/cache_mia_live_antigravity_delta", headers=headers, timeout=4)
     if r.status_code == 200 and r.json().get("result"):
@@ -171,8 +171,8 @@ def trigger_vectorization(payload: Optional[Dict[str, Any]] = None):
         "spread": 1.15
     }
     vector_result = HerdDBAExpert.vectorize_features(sample_doc)
-    upstash_url = os.getenv("UPSTASH_REDIS_REST_URL", "https://certain-gnat-160816.upstash.io")
-    upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
+    upstash_url = os.getenv("UPSTASH_REDIS_REST_URL", "https://firm-koi-93555.upstash.io")
+    upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg")
     headers = {"Authorization": f"Bearer {upstash_token}", "Content-Type": "application/json"}
     requests.post(f"{upstash_url}/set/cache_vector_indicadores", headers=headers, json=vector_result, timeout=4)
     return {"status": "VECTORIZED", "vector": vector_result}

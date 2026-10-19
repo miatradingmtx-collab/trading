@@ -213,8 +213,8 @@ try:
         """Obtiene el último brief de inteligencia de ATLAS directamente desde Upstash Redis"""
         try:
             import requests, json
-            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-            r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_researcher_insights", headers=up_headers, timeout=4)
+            up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+            r = requests.get("https://firm-koi-93555.upstash.io/get/cache_researcher_insights", headers=up_headers, timeout=4)
             if r.status_code == 200:
                 raw = r.json().get("result")
                 data = json.loads(raw) if raw and isinstance(raw, str) else (raw or {})
@@ -228,8 +228,8 @@ try:
         """Obtiene la matriz comparativa A/B (Champion vs Challenger) directamente desde Upstash Redis"""
         try:
             import requests, json
-            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-            r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_mia_atlas", headers=up_headers, timeout=4)
+            up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+            r = requests.get("https://firm-koi-93555.upstash.io/get/cache_mia_atlas", headers=up_headers, timeout=4)
             if r.status_code == 200:
                 raw = r.json().get("result")
                 data = json.loads(raw) if raw and isinstance(raw, str) else (raw or {})
@@ -243,8 +243,8 @@ try:
         """Obtiene el historial de trades reales correlacionados con tickets virtuales #SHADOW_XXXXXX desde Upstash"""
         try:
             import requests, json
-            up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
-            r = requests.get("https://certain-gnat-160816.upstash.io/get/cache_shadow_trades", headers=up_headers, timeout=4)
+            up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+            r = requests.get("https://firm-koi-93555.upstash.io/get/cache_shadow_trades", headers=up_headers, timeout=4)
             if r.status_code == 200:
                 raw = r.json().get("result")
                 data = json.loads(raw) if raw and isinstance(raw, str) else (raw or {})

@@ -33,8 +33,8 @@ except Exception as e:
 def railway_cache_tool() -> str:
     """Útil para extraer métricas, KPIs, rendimiento, TensorFlow y Trading Matrix desde Upstash Redis vía MGET (0 Firebase, velocidad de la luz)."""
     try:
-        url = "https://certain-gnat-160816.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix/cache_system_memory"
-        headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        url = "https://firm-koi-93555.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix/cache_system_memory"
+        headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
         
         session = requests.Session()
         session.trust_env = False
@@ -94,8 +94,8 @@ def railway_cache_tool() -> str:
 def upstash_trading_matrix_tool() -> str:
     """Útil para consultar las confirmaciones técnicas, RSI, score y liquidez de los 21 activos en Upstash Redis (cache_trading_matrix)."""
     try:
-        url = "https://certain-gnat-160816.upstash.io/get/cache_trading_matrix"
-        headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        url = "https://firm-koi-93555.upstash.io/get/cache_trading_matrix"
+        headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
         session = requests.Session()
         session.trust_env = False
         res = session.get(url, headers=headers, timeout=5)
@@ -149,8 +149,8 @@ def obsidian_writer_tool(titulo_archivo: str, contenido_markdown: str) -> str:
             f.write(contenido_markdown)
             
         # 2. Desacoplamiento a Upstash Redis (Historial de Enjambres)
-        upstash_url = f"https://certain-gnat-160816.upstash.io/set/mia_swarm_history_{safe_title}"
-        upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        upstash_url = f"https://firm-koi-93555.upstash.io/set/mia_swarm_history_{safe_title}"
+        upstash_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
         
         # Guardamos un JSON estructurado con la historia
         payload = {

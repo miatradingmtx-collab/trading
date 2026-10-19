@@ -278,8 +278,8 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
         try:
             async with httpx.AsyncClient(timeout=2.0) as client:
                 r_cache = await client.get(
-                    "https://certain-gnat-160816.upstash.io/get/cache_mt5",
-                    headers={"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                    "https://firm-koi-93555.upstash.io/get/cache_mt5",
+                    headers={"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
                 )
                 if r_cache.status_code == 200 and r_cache.json().get("result"):
                     d_c = json.loads(r_cache.json()["result"])
@@ -778,8 +778,8 @@ async def obtener_matriz_activo(activo: str) -> Optional[Dict]:
 
     # 2. Fallback de alta resiliencia directo a Upstash Redis (0 lecturas Firebase)
     try:
-        up_url = "https://certain-gnat-160816.upstash.io/get/cache_trading_matrix"
-        up_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        up_url = "https://firm-koi-93555.upstash.io/get/cache_trading_matrix"
+        up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
         async with httpx.AsyncClient() as client:
             res_up = await client.get(up_url, headers=up_headers, timeout=5)
             if res_up.status_code == 200:
@@ -1408,8 +1408,8 @@ async def procesar_cola_ejecucion_pending(account, connection, balance: float):
     3. Elimina la orden de la cola de Upstash Redis para no duplicar.
     4. Notifica la ejecucion a /webhook_marcar_ejecutado.
     """
-    UPSTASH_URL = os.getenv("UPSTASH_URL", "https://certain-gnat-160816.upstash.io")
-    UPSTASH_TOKEN = os.getenv("UPSTASH_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
+    UPSTASH_URL = os.getenv("UPSTASH_URL", "https://firm-koi-93555.upstash.io")
+    UPSTASH_TOKEN = os.getenv("UPSTASH_TOKEN", "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg")
     headers = {"Authorization": f"Bearer {UPSTASH_TOKEN}"}
     
     try:
@@ -2046,15 +2046,15 @@ async def run_escaner_loop():
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     # 1. Slot principal unificado cache_mt5
                     await client.post(
-                        "https://certain-gnat-160816.upstash.io/set/cache_mt5",
+                        "https://firm-koi-93555.upstash.io/set/cache_mt5",
                         json=payload_upstash,
-                        headers={"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                        headers={"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
                     )
                     # 2. Clave simple balance_actual sincronizada para retrocompatibilidad
                     await client.post(
-                        "https://certain-gnat-160816.upstash.io/set/balance_actual",
+                        "https://firm-koi-93555.upstash.io/set/balance_actual",
                         content=str(balance_val),
-                        headers={"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+                        headers={"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
                     )
             except Exception as e_up:
                 print(f"| RUNNER UPSTASH SYNC WARN | Error sincronizando Redis cache_mt5: {e_up}")

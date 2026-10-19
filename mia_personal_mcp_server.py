@@ -27,8 +27,8 @@ chat_mcp_router = APIRouter(prefix="/mcp/chat", tags=["MCP Personal / Mia Chat S
 api_chat_mcp_router = APIRouter(prefix="/api/mcp/chat", tags=["MCP Personal Tools API"])
 
 # Configuración Upstash Redis
-UPSTASH_URL = os.getenv("UPSTASH_REDIS_REST_URL", "https://certain-gnat-160816.upstash.io")
-UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
+UPSTASH_URL = os.getenv("UPSTASH_REDIS_REST_URL", "https://firm-koi-93555.upstash.io")
+UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg")
 UPSTASH_HEADERS = {
     "Authorization": f"Bearer {UPSTASH_TOKEN}",
     "Content-Type": "application/json"

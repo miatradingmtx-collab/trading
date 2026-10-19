@@ -384,8 +384,8 @@ def despachar_ejecucion_rune_mt5(payload: dict, active_symbol: str, current_px: 
         }
 
         # 10. Despachar a Upstash Redis (cache_mt5_pending_execution)
-        upstash_url = "https://certain-gnat-160816.upstash.io/set/cache_mt5_pending_execution"
-        upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        upstash_url = "https://firm-koi-93555.upstash.io/set/cache_mt5_pending_execution"
+        upstash_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
         requests.post(upstash_url, headers=upstash_headers, json=order_package, timeout=5)
 
         # 11. Sincronizar Semaforo de trading_matrix
@@ -453,11 +453,11 @@ def run_hft_cycle():
     # 1. Leer Sensores HFT y Upstash Redis vía MGET (TIDAL, TENSORFLOW & TRADING MATRIX en 1 RTT)
     emit_ws_event("TIDAL", "SCANNING", "Sincronizando Liquidez MT5, Cerebro TensorFlow y Matriz Institucional...")
     try:
-        upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        upstash_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
         session = requests.Session()
         session.trust_env = False
         
-        mget_url = "https://certain-gnat-160816.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix/cache_researcher_insights/cache_regla_de_3/cache_trading_learning_kb/cache_ml_history"
+        mget_url = "https://firm-koi-93555.upstash.io/mget/cache_mt5/cache_mia_tensorflow/cache_trading_matrix/cache_researcher_insights/cache_regla_de_3/cache_trading_learning_kb/cache_ml_history"
         res_mget = session.get(mget_url, headers=upstash_headers, timeout=5)
         slots = res_mget.json().get("result", []) if res_mget.status_code == 200 else []
         
@@ -776,16 +776,16 @@ def run_hft_cycle():
                 emit_ws_event("Master", "INFO", "Debate homologado en latest (sin duplicar documento en histórico).")
 
         # Guardado en Upstash Redis (cache_herd_debate_latest, cache_mia_swarm_rest_latest y cache_dxy_smt_latest)
-        upstash_url = "https://certain-gnat-160816.upstash.io/set/cache_mia_swarm_rest_latest"
-        upstash_headers = {"Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"}
+        upstash_url = "https://firm-koi-93555.upstash.io/set/cache_mia_swarm_rest_latest"
+        upstash_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
         requests.post(upstash_url, headers=upstash_headers, json=payload, timeout=5)
 
-        upstash_herd_url = "https://certain-gnat-160816.upstash.io/set/cache_herd_debate_latest"
+        upstash_herd_url = "https://firm-koi-93555.upstash.io/set/cache_herd_debate_latest"
         requests.post(upstash_herd_url, headers=upstash_headers, json=payload, timeout=5)
         
         # Publicar slot dedicado de DXY SMT en Upstash para acceso instantáneo de los 7 Herds
         if smt_data:
-            requests.post("https://certain-gnat-160816.upstash.io/set/cache_dxy_smt_latest", headers=upstash_headers, json=smt_data, timeout=5)
+            requests.post("https://firm-koi-93555.upstash.io/set/cache_dxy_smt_latest", headers=upstash_headers, json=smt_data, timeout=5)
         emit_ws_event("Master", "INFO", "Debate y sensor DXY SMT sincronizados en Upstash Redis.")
 
         # 4. ETAPA 4: Despacho y Ejecución Canónica por RUNE y Master a MT5
