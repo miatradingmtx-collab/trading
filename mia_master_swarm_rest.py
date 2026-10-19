@@ -5,6 +5,10 @@ import json
 import re
 import requests
 from dotenv import load_dotenv
+try:
+    from zoneinfo import ZoneInfo
+except Exception:
+    ZoneInfo = None
 
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -738,7 +742,7 @@ def run_hft_cycle():
                     "decision_champion_sin_atlas": decision_sin_atlas,
                     "decision_challenger_con_enjambres": estado.replace(" ⛔", "").replace(" ✅", ""),
                     "modo_enjambres": "CANARY_TRIAL_LIVE",
-                    "sesion_activa": ("NUEVA_YORK" if (8.0 <= (datetime.datetime.now(ZoneInfo("America/New_York")).hour + datetime.datetime.now(ZoneInfo("America/New_York")).minute / 60.0) < 17.0) else ("LONDRES" if (8.0 <= (datetime.datetime.now(ZoneInfo("Europe/London")).hour + datetime.datetime.now(ZoneInfo("Europe/London")).minute / 60.0) < 16.5) else "ASIA")),
+                    "sesion_activa": ("NUEVA_YORK" if (8.0 <= ((datetime.datetime.now(ZoneInfo("America/New_York")).hour + datetime.datetime.now(ZoneInfo("America/New_York")).minute / 60.0) if ZoneInfo else 10.0) < 17.0) else ("LONDRES" if (8.0 <= ((datetime.datetime.now(ZoneInfo("Europe/London")).hour + datetime.datetime.now(ZoneInfo("Europe/London")).minute / 60.0) if ZoneInfo else 9.0) < 16.5) else "ASIA")),
                     "comparativo_dual_activo": True
                 }
             },
