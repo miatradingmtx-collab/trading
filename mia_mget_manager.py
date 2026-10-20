@@ -161,6 +161,13 @@ def reconcile_and_sync_mget_history(db_client=None, days_lookback: int = 14) -> 
         today_parent_ref.collection("snapshots").document(doc_snapshot_id).set(snapshot_data, merge=True)
         print(f"| MGET RECONCILER | Sincronizado hoy {today_str} con snapshot {doc_snapshot_id}")
     except Exception as e_today:
+        if "429" in str(e_today) or "quota" in str(e_today).lower():
+            print(f"| MGET RECONCILER WARN | Firestore en límite 429. Reconciliación pospuesta; datos operando en Upstash Redis.")
+            return {
+                "status": "partial",
+                "message": "Actualizado en Redis, Firestore en 429",
+                "snapshot": snapshot_data
+            }
         print(f"| MGET RECONCILER ERROR | Error escribiendo snapshot de hoy: {e_today}")
 
     # 3. Auto-Curación y Backfill de los últimos `days_lookback` días
@@ -222,6 +229,9 @@ def reconcile_and_sync_mget_history(db_client=None, days_lookback: int = 14) -> 
             else:
                 verified.append(f_date)
         except Exception as e_check:
+            if "429" in str(e_check) or "quota" in str(e_check).lower():
+                print(f"| MGET RECONCILER WARN | Firestore en límite 429. Reconciliación pospuesta; datos operando en Upstash Redis.")
+                break
             print(f"| MGET RECONCILER WARN | Error verificando fecha {f_date}: {e_check}")
 
     print(f"| MGET RECONCILER | Fechas verificadas: {len(verified)}, Fechas autocuradas: {len(backfilled)}")

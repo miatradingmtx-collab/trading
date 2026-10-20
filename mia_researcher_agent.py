@@ -449,6 +449,9 @@ class AtlasResearcherAgent:
                 else:
                     verified.append(fecha)
             except Exception as e_f:
+                if "429" in str(e_f) or "quota" in str(e_f).lower():
+                    print(f"| ATLAS WARN | Firestore en límite 429. Reconciliación pospuesta; datos operando en Upstash Redis.")
+                    break
                 print(f"| ATLAS ERROR | Error verificando fecha {fecha}: {e_f}")
 
         # Refrescar siempre el snapshot fresco de hoy en Upstash Redis
