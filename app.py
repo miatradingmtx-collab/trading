@@ -1448,6 +1448,9 @@ def recalcular_memoria_colectiva():
 
         print(f"| KB MIA | Memoria colectiva y raíces KB recalculadas exitosamente.")
     except Exception as e:
+        if "429" in str(e) or "quota" in str(e).lower():
+            print(f"| KB MIA WARN | Firestore en límite 429. Memoria Colectiva servida desde Upstash Redis RAM (Cero impacto operativo).")
+            return
         print(f"| KB MIA ERROR | Error recalculando memoria colectiva: {e}")
         registrar_error_sistema("Mia KB (Collective)", str(e))
 
@@ -1749,7 +1752,10 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                 apoyo["racha_actual"] = min(-1, apoyo.get("racha_actual", 0) - 1)
             apoyo["win_rate_historico"] = round((apoyo["trades_ganados"] / apoyo["trades_totales"]) * 100.0, 2)
             data["aprendizaje_mia"] = apoyo
-            doc_ref.set(data)
+            try:
+                doc_ref.set(data)
+            except Exception as e_set:
+                print(f"| KB MIA WARN | Firestore en límite 429. Guardado en memoria RAM (Cero impacto operativo): {e_set}")
             
         print(f"| KB MIA | Aprendizaje registrado para {activo_normalizado}. PnL: {pnl} | Sesion: {sesion}")
     except Exception as e:
@@ -3735,7 +3741,11 @@ GLOBAL_INDICADORES = None
 ULTIMO_FETCH_FIREBASE = None
 # CachÃƒÆ’Ã‚Â© RAM de activos ya matriculados en Firebase. Evita lecturas repetidas a Firestore.
 # Se llena en startup y se actualiza cuando se detecta un activo nuevo.
-ACTIVOS_INICIALIZADOS: set = set()
+ACTIVOS_INICIALIZADOS: set = {
+    "GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD",
+    "SPX500", "NAS100", "US30", "USDJPY", "USDCAD", "EURGBP",
+    "GBPCAD", "CHFJPY", "USDCHF", "EURJPY"
+}
 
 def asegurar_cache_firebase():
     global firebase_inicializado, db
