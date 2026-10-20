@@ -1054,6 +1054,27 @@ Responde ÚNICAMENTE un JSON con la clave 'evaluaciones': [ ... ]. Cero texto ad
                 except Exception:
                     continue
 
+        # 2.2 ESTRATEGIA GOOGLE GEMINI (Multi-Modelo Anti-429: Flash Lite -> Flash -> 2.5 Flash)
+        google_key = os.getenv("GOOGLE_API_KEY")
+        if google_key:
+            for gem_model in ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-2.5-flash"]:
+                try:
+                    url_gem = f"https://generativelanguage.googleapis.com/v1beta/models/{gem_model}:generateContent?key={google_key}"
+                    payload_gem = {
+                        "contents": [{"parts": [{"text": prompt_evaluacion}]}],
+                        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 800}
+                    }
+                    resp_gem = requests.post(url_gem, json=payload_gem, timeout=8)
+                    if resp_gem.status_code == 200:
+                        data_gem = resp_gem.json()
+                        cand = data_gem.get("candidates", [])
+                        if cand:
+                            raw_content = cand[0].get("content", {}).get("parts", [])[0].get("text", "").strip()
+                            if raw_content:
+                                return self._parse_evaluation_json(raw_content, proposals, f"Gemini ({gem_model})")
+                except Exception:
+                    continue
+
         # 3. FAILOVER A OLLAMA (Si OpenRouter falló o no tiene clave)
         if LLM_PROVIDER != "ollama":
             res_ollama = self._query_ollama(prompt_evaluacion, proposals)

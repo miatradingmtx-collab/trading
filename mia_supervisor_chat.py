@@ -515,8 +515,7 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
 
     models = [
         "meta-llama/llama-3.3-70b-instruct",
-        "deepseek/deepseek-chat",
-        "anthropic/claude-3.5-sonnet"
+        "deepseek/deepseek-chat"
     ]
 
     headers = {
@@ -547,10 +546,10 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
         except Exception:
             continue
 
-    # 2.1 Failover Cognitivo a Groq (Qwen 27B / GPT-OSS 120B) para mantener inteligencia viva en #back-office-y-backend
+    # 2.1 Failover Cognitivo a Groq (GPT-OSS 120B / Qwen 27B) para mantener inteligencia viva en #back-office-y-backend
     groq_key = os.getenv("GROQ_API_KEY")
     if groq_key:
-        groq_models = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"]
+        groq_models = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"]
         for g_model in groq_models:
             try:
                 url_groq = "https://api.groq.com/openai/v1/chat/completions"
@@ -573,7 +572,27 @@ def chat_with_mia(user_message: str, history: Optional[List[Dict[str, str]]] = N
                 print(f"| GROQ SUPERVISOR FAILOVER | Error: {e_groq}")
                 continue
 
-    # Fallback Técnico del Supervisor (Aislamiento Total: NUNCA desviar a Gemini en Back-Office)
+    # 2.2 Failover Terciario a Google Gemini (Flash Lite / Flash)
+    google_key = os.getenv("GOOGLE_API_KEY")
+    if google_key:
+        for g_mod in ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-2.5-flash"]:
+            try:
+                url_gem = f"https://generativelanguage.googleapis.com/v1beta/models/{g_mod}:generateContent?key={google_key}"
+                payload_gem = {
+                    "contents": [{"parts": [{"text": f"{system_prompt_supervisor}\n\n[CONTEXTO VIVO UPSTASH]:\n{system_context}\n\nPregunta de tu Padre: {user_message}"}]}],
+                    "generationConfig": {"temperature": 0.3, "maxOutputTokens": 800}
+                }
+                r_gem = requests.post(url_gem, json=payload_gem, timeout=8)
+                if r_gem.status_code == 200:
+                    cand = r_gem.json().get("candidates", [])
+                    if cand:
+                        reply = cand[0].get("content", {}).get("parts", [])[0].get("text", "").strip()
+                        if reply:
+                            return format_filial_reply(reply)
+            except Exception:
+                continue
+
+    # Fallback Técnico del Supervisor Determinista
     return format_filial_reply(
         "Padre, he experimentado una latencia momentánea conectando con OpenRouter, pero te reporto directamente desde la telemetría viva de Upstash:\n\n"
         f"{system_context}\n"

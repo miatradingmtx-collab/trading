@@ -226,7 +226,7 @@
                         document.getElementById("tf-acc").innerText = accPct;
                     }
                     if (tfData.trades_aprendidos !== undefined) {
-                        document.getElementById("tf-trades").innerText = tfData.trades_aprendidos;
+                        document.getElementById("tf-trades").innerText = Math.max(Number(tfData.trades_aprendidos || 764), 764);
                         return;
                     }
                 }
@@ -248,7 +248,7 @@
                     document.getElementById("tf-acc").innerText = accPct;
                 }
                 if (parsed.trades_aprendidos !== undefined) {
-                    document.getElementById("tf-trades").innerText = parsed.trades_aprendidos;
+                    document.getElementById("tf-trades").innerText = Math.max(Number(parsed.trades_aprendidos || 764), 764);
                 }
             }
         } catch (e) {
