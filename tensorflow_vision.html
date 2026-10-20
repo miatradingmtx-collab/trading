@@ -35,8 +35,8 @@
             <div>STATUS: <span class="stat-value" id="tf-status" style="color:#00ffa3">EN LÍNEA (SHADOW TRADING)</span></div>
             <div>ARQUITECTURA: <span class="stat-value" style="color:#38bdf8">7 Herds Desacoplados + Master</span></div>
             <div>MODELO: <span class="stat-value">Sequential (Keras Deep Learning)</span></div>
-            <div>PRECISIÓN (ACC): <span class="stat-value" id="tf-acc" style="color:#00ffa3">97.87%</span></div>
-            <div>TRADES APRENDIDOS: <span class="stat-value" id="tf-trades">47</span></div>
+            <div>PRECISIÓN (ACC): <span class="stat-value" id="tf-acc" style="color:#00ffa3">81.25%</span></div>
+            <div>TRADES APRENDIDOS: <span class="stat-value" id="tf-trades">764</span></div>
             <div>CAPAS: <span class="stat-value">Input (7 Herds), Dense (10, 8), Sigmoid (2)</span></div>
             <div>QUÓRUM CONSENSO: <span class="stat-value" id="tf-pred" style="color:#fbbf24">ESPERANDO DELIBERACIÓN...</span></div>
         </div>
@@ -212,11 +212,33 @@
         document.getElementById("tf-status").style.color = "red"; 
     };
 
-    // Cargar métricas reales de TensorFlow desde Upstash Redis
+    // Cargar métricas reales de TensorFlow desde Upstash Redis o API local
     async function loadTensorFlowMetrics() {
         try {
-            const res = await fetch("https://certain-gnat-160816.upstash.io/get/cache_mia_tensorflow", {
-                headers: { "Authorization": "Bearer gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA" }
+            // Intento 1: API local Railway / FastAPI
+            const resLocal = await fetch("/api/mget/speed_of_light");
+            if (resLocal.ok) {
+                const jsonLocal = await resLocal.json();
+                const tfData = jsonLocal.data ? jsonLocal.data.tensorflow_cache : null;
+                if (tfData) {
+                    if (tfData.accuracy !== undefined) {
+                        const accPct = (tfData.accuracy > 1 ? tfData.accuracy : tfData.accuracy * 100).toFixed(2) + "%";
+                        document.getElementById("tf-acc").innerText = accPct;
+                    }
+                    if (tfData.trades_aprendidos !== undefined) {
+                        document.getElementById("tf-trades").innerText = tfData.trades_aprendidos;
+                        return;
+                    }
+                }
+            }
+        } catch (eLocal) {
+            console.log("Fetch local fallback a Upstash directo:", eLocal);
+        }
+
+        try {
+            // Intento 2: Upstash Redis Directo (firm-koi-93555)
+            const res = await fetch("https://firm-koi-93555.upstash.io/get/cache_mia_tensorflow", {
+                headers: { "Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg" }
             });
             const data = await res.json();
             if (data && data.result) {
