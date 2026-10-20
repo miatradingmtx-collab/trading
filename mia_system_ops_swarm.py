@@ -1033,7 +1033,7 @@ Responde ÚNICAMENTE un JSON con la clave 'evaluaciones': [ ... ]. Cero texto ad
         # 2.1 ESTRATEGIA GROQ (Failover rápido si OpenRouter está agotado)
         groq_key = os.getenv("GROQ_API_KEY")
         if groq_key:
-            groq_models = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"]
+            groq_models = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"]
             for g_model in groq_models:
                 try:
                     url_groq = "https://api.groq.com/openai/v1/chat/completions"
