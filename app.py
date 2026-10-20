@@ -5942,10 +5942,12 @@ def train_tensorflow():
     """
     try:
         import requests, json, os, base64, time
+        os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
         import pandas as pd
         import tensorflow as tf
         from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Dropout
+        from tensorflow.keras.layers import Input, Dense, Dropout
         
         # 1. Extraer dataset institucional completo (cache_mia_dataset_tf = 678 trades) + recientes (cache_hist_mt5)
         headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
@@ -6017,7 +6019,10 @@ def train_tensorflow():
                 if nuevos_audit > 0:
                     print(f"| TENSORFLOW | Se incorporaron {nuevos_audit} trades cerrados reales desde Firestore.")
         except Exception as e_fs:
-            print(f"| TENSORFLOW WARN | Error leyendo mia_audit_logs en Firestore: {e_fs}")
+            if "429" in str(e_fs) or "quota" in str(e_fs).lower():
+                print(f"| TENSORFLOW INFO | Firestore en límite de cuota (429). Protegido al 100% con {len(logs)} trades desde Upstash Redis RAM.")
+            else:
+                print(f"| TENSORFLOW WARN | Error leyendo mia_audit_logs en Firestore: {e_fs}")
 
         # 1.4 Persistir dataset consolidado en Upstash (crecimiento dinámico de trades aprendidos)
         try:
@@ -6092,7 +6097,8 @@ def train_tensorflow():
         
         # 3. Entrenar TensorFlow Keras Model en Memoria RAM
         model = Sequential([
-            Dense(32, activation='relu', input_shape=(X.shape[1],)),
+            Input(shape=(X.shape[1],)),
+            Dense(32, activation='relu'),
             Dropout(0.2),
             Dense(16, activation='relu'),
             Dropout(0.1),

@@ -3,6 +3,8 @@ FROM python:3.11-slim
 # Evitar que Python escriba archivos .pyc y forzar salida stdout sin buffer
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV TF_ENABLE_ONEDNN_OPTS=0
+ENV TF_CPP_MIN_LOG_LEVEL=2
 
 WORKDIR /app
 
