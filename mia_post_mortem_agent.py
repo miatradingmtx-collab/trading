@@ -188,16 +188,18 @@ class MiaQuantSupervisor:
                 target_model_name = 'gemini-1.5-pro'
                 try:
                     available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                    if 'models/gemini-1.5-pro' in available_models:
+                    if 'models/gemini-flash-lite-latest' in available_models:
+                        target_model_name = 'gemini-flash-lite-latest'
+                    elif 'models/gemini-flash-latest' in available_models:
+                        target_model_name = 'gemini-flash-latest'
+                    elif 'models/gemini-1.5-pro' in available_models:
                         target_model_name = 'gemini-1.5-pro'
                     elif 'models/gemini-2.5-flash' in available_models:
                         target_model_name = 'gemini-2.5-flash'
-                    elif 'models/gemini-flash-latest' in available_models:
-                        target_model_name = 'gemini-flash-latest'
                     elif len(available_models) > 0:
                         target_model_name = available_models[0].replace('models/', '')
                 except Exception as dyn_e:
-                    target_model_name = 'gemini-2.5-flash'
+                    target_model_name = 'gemini-flash-lite-latest'
 
                 generation_config = {"temperature": 0.2, "max_output_tokens": 2500}
                 model = genai.GenerativeModel(target_model_name, generation_config=generation_config)
@@ -226,7 +228,37 @@ class MiaQuantSupervisor:
                 except Exception:
                     continue
 
-        # Intento 3: Failover de Gemini vía Gateway OpenRouter (google/gemini-2.5-flash) si Google directo da 429
+        # Intento 3: Failover de Alta Disponibilidad vía Groq (Cero costo y latencia sub-segundo si Gemini da 429)
+        if not texto and os.getenv("GROQ_API_KEY"):
+            groq_key = os.getenv("GROQ_API_KEY")
+            for g_model in ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"]:
+                try:
+                    url_groq = "https://api.groq.com/openai/v1/chat/completions"
+                    headers_groq = {
+                        "Authorization": f"Bearer {groq_key}",
+                        "Content-Type": "application/json"
+                    }
+                    payload_groq = {
+                        "model": g_model,
+                        "messages": [
+                            {"role": "system", "content": "Eres MIA Quant Supervisor (Failover Groq). Analiza el trade y devuelve estrictamente un objeto JSON con diagnostico, sugerencia_7_herds_trading, y nota_infraestructura_t1_t10."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        "temperature": 0.2,
+                        "max_tokens": 2000
+                    }
+                    resp_g = requests.post(url_groq, headers=headers_groq, json=payload_groq, timeout=12)
+                    if resp_g.status_code == 200:
+                        content_g = resp_g.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                        if content_g:
+                            texto = content_g
+                            print(f"| QUANT AGENT | Inferencia Post-Mortem completada exitosamente vía Failover Groq ({g_model}).")
+                            break
+                except Exception as e_groq:
+                    print(f"| QUANT AGENT | Failover Groq ({g_model}) falló: {e_groq}")
+                    continue
+
+        # Intento 4: Failover de Gemini vía Gateway OpenRouter (google/gemini-2.5-flash) si Google directo da 429
         if not texto and os.getenv("OPENROUTER_API_KEY"):
             try:
                 or_key = os.getenv("OPENROUTER_API_KEY")
