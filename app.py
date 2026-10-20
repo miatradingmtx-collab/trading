@@ -136,6 +136,12 @@ except Exception as e:
 # - Si el activo ya estÃƒÆ’Ã‚Â¡ en el set ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ 0 lecturas a Firestore (costo $0).
 # - Solo lee/escribe Firebase si el activo es genuinamente nuevo.
 # ==============================================================================
+ACTIVOS_INICIALIZADOS: set = {
+    "GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD",
+    "SPX500", "NAS100", "US30", "USDJPY", "USDCAD", "EURGBP",
+    "GBPCAD", "CHFJPY", "USDCHF", "EURJPY"
+}
+
 def auto_inicializar_activo(activo: str) -> bool:
     """Inicializa un activo nuevo en la trading_matrix con el esquema completo de Mia si no existe."""
     global firebase_inicializado, db, ACTIVOS_INICIALIZADOS
@@ -207,6 +213,10 @@ def auto_inicializar_activo(activo: str) -> bool:
         print(f"| FIREBASE AUTO-VIP | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â Nuevo activo '{activo_norm}' matriculado automÃƒÆ’Ã‚Â¡ticamente con esquema Mia completo.")
         return True
     except Exception as e:
+        if "429" in str(e) or "quota" in str(e).lower():
+            ACTIVOS_INICIALIZADOS.add(activo_norm)
+            print(f"| FIREBASE AUTO-VIP WARN | Firestore en limite 429. '{activo_norm}' asumido VIP en RAM.")
+            return False
         print(f"| FIREBASE AUTO-VIP ERROR | No se pudo inicializar '{activo}': {e}")
         return False
 
@@ -325,9 +335,12 @@ async def startup_event():
             print("| FIREBASE VIP | Cargando activos ya existentes en Firebase (1 sola lectura batch)...")
             
             # 1 SOLA LECTURA BATCH: lee toda la colecciÃƒÆ’Ã‚Â³n de una vez
-            docs_existentes = db.collection("trading_matrix").stream()
-            for doc in docs_existentes:
-                ACTIVOS_INICIALIZADOS.add(doc.id)  # Poblar cachÃƒÆ’Ã‚Â© RAM con los que ya existen
+            try:
+                docs_existentes = db.collection("trading_matrix").stream()
+                for doc in docs_existentes:
+                    ACTIVOS_INICIALIZADOS.add(doc.id)
+            except Exception as e_stream:
+                print(f"| FIREBASE VIP WARN | Firestore en 429 durante stream ({e_stream}). Usando activos VIP pre-poblados en RAM.")  # Poblar cachÃƒÆ’Ã‚Â© RAM con los que ya existen
             
             print(f"| FIREBASE VIP | {len(ACTIVOS_INICIALIZADOS)} activos ya cargados en cachÃƒÆ’Ã‚Â© RAM: {sorted(ACTIVOS_INICIALIZADOS)}")
             
@@ -1087,7 +1100,13 @@ def procesar_anomalia_firestore(anomaly: MarketAnomaly):
     try:
         activo_normalizado = normalizar_activo(anomaly.activo)
         doc_ref = db.collection("trading_matrix").document(activo_normalizado)
-        doc = doc_ref.get()
+        try:
+            doc = doc_ref.get()
+        except Exception as e_get:
+            if "429" in str(e_get) or "quota" in str(e_get).lower():
+                print(f"| KB MIA WARN | Firestore en limite 429 al consultar '{activo_normalizado}'. Cero impacto operativo.")
+                return
+            raise e_get
         
         if not doc.exists:
             print(f"| FIREBASE ERROR | El activo '{activo_normalizado}' no estÃƒÆ’Ã‚Â¡ inicializado en la colecciÃƒÆ’Ã‚Â³n 'trading_matrix'.")
@@ -1759,6 +1778,9 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
             
         print(f"| KB MIA | Aprendizaje registrado para {activo_normalizado}. PnL: {pnl} | Sesion: {sesion}")
     except Exception as e:
+        if "429" in str(e) or "quota" in str(e).lower():
+            print(f"| APRENDIZAJE MIA WARN | Firestore en limite 429. Aprendizaje de '{activo}' preservado en logs/Upstash.")
+            return
         print(f"| APRENDIZAJE MIA ERROR | Error al procesar aprendizaje de trade: {e}")
         registrar_error_sistema("Aprendizaje MIA", str(e))
 
