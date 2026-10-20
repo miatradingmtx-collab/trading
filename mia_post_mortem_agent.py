@@ -208,7 +208,7 @@ class MiaQuantSupervisor:
 
         # Intento 2: REST directo con failover de modelos
         if not texto:
-            candidate_models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-pro-latest", "gemini-3.1-pro-preview"]
+            candidate_models = ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-2.5-flash", "gemini-pro-latest"]
             for m in candidate_models:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={gemini_api_key}"
                 payload = {
@@ -476,26 +476,56 @@ class MiaQuantSupervisor:
             return {"status": "error", "message": "Firestore no disponible"}
             
         try:
-            # 1. Obtener trades cerrados recientes de Firestore
-            docs = self.db.collection('mia_audit_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(100).stream()
+            # 1. Obtener trades cerrados recientes desde Upstash Redis (Zero Firestore reads)
             closed_trades = []
-            for doc in docs:
-                data = doc.to_dict()
-                ticket = str(data.get('ticket', doc.id))
-                if ticket.isdigit() and len(ticket) >= 8:
-                    accion = data.get('accion', '')
-                    pnl = float(data.get('pnl', 0.0) or 0.0)
-                    if accion in ['CIERRE_TOTAL', 'CERRAR_TP', 'CIERRE_PARCIAL', 'TRAILING_STOP', 'PROTECCION_BE'] or pnl != 0.0:
-                        closed_trades.append({
-                            'ticket': ticket,
-                            'symbol': data.get('activo', 'EURUSD'),
-                            'profit': pnl,
-                            'type': accion,
-                            'motivo': data.get('motivo', 'Cierre MT5'),
-                            'timestamp': data.get('timestamp', ''),
-                            'detalle_setup': data.get('detalle_setup', ''),
-                            'score': data.get('score', 75.0)
-                        })
+            try:
+                r_hist = requests.get(f"{self.UPSTASH_URL}/get/cache_hist_mt5", headers=self.UPSTASH_HEADERS, timeout=5)
+                if r_hist.status_code == 200 and r_hist.json().get('result'):
+                    raw_h = r_hist.json().get('result')
+                    d_h = json.loads(raw_h) if isinstance(raw_h, str) else (raw_h or {})
+                    recent = d_h.get('recent_logs', [])
+                    for data in recent:
+                        ticket = str(data.get('ticket', ''))
+                        if ticket.isdigit() and len(ticket) >= 8:
+                            accion = data.get('accion', '')
+                            pnl = float(data.get('pnl', 0.0) or 0.0)
+                            if accion in ['CIERRE_TOTAL', 'CERRAR_TP', 'CIERRE_PARCIAL', 'TRAILING_STOP', 'PROTECCION_BE'] or pnl != 0.0:
+                                closed_trades.append({
+                                    'ticket': ticket,
+                                    'symbol': data.get('activo', 'EURUSD'),
+                                    'profit': pnl,
+                                    'type': accion,
+                                    'motivo': data.get('motivo', 'Cierre MT5'),
+                                    'timestamp': data.get('timestamp', ''),
+                                    'detalle_setup': data.get('detalle_setup', ''),
+                                    'score': data.get('score', 75.0)
+                                })
+            except Exception as e_uph:
+                print(f"| QUANT RECONCILER WARN | Error leyendo Upstash cache_hist_mt5: {e_uph}")
+
+            # Fallback opcional a Firestore solo si Upstash estaba vacio
+            if not closed_trades and self.db:
+                try:
+                    docs = self.db.collection('mia_audit_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(20).stream()
+                    for doc in docs:
+                        data = doc.to_dict()
+                        ticket = str(data.get('ticket', doc.id))
+                        if ticket.isdigit() and len(ticket) >= 8:
+                            accion = data.get('accion', '')
+                            pnl = float(data.get('pnl', 0.0) or 0.0)
+                            if accion in ['CIERRE_TOTAL', 'CERRAR_TP', 'CIERRE_PARCIAL', 'TRAILING_STOP', 'PROTECCION_BE'] or pnl != 0.0:
+                                closed_trades.append({
+                                    'ticket': ticket,
+                                    'symbol': data.get('activo', 'EURUSD'),
+                                    'profit': pnl,
+                                    'type': accion,
+                                    'motivo': data.get('motivo', 'Cierre MT5'),
+                                    'timestamp': data.get('timestamp', ''),
+                                    'detalle_setup': data.get('detalle_setup', ''),
+                                    'score': data.get('score', 75.0)
+                                })
+                except Exception as e_fb:
+                    print(f"| QUANT RECONCILER WARN | Fallback Firestore omitido (Anti-429): {e_fb}")
             
             print(f"| QUANT RECONCILER | {len(closed_trades)} trades cerrados detectados en auditoría.")
             
@@ -636,15 +666,18 @@ class MiaQuantSupervisor:
             
             texto_sintesis = ""
             if gemini_api_key:
-                try:
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_api_key}"
-                    r_gem = requests.post(url, json={"contents": [{"parts": [{"text": prompt_reporte}]}], "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2500}}, timeout=15)
-                    if r_gem.status_code == 200:
-                        cand = r_gem.json().get("candidates", [])
-                        if cand:
-                            texto_sintesis = cand[0].get("content", {}).get("parts", [])[0].get("text", "")
-                except Exception as e_gem:
-                    print(f"| QUANT REPORT ERROR | Gemini directo: {e_gem}")
+                for rep_model in ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-2.5-flash"]:
+                    try:
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models/{rep_model}:generateContent?key={gemini_api_key}"
+                        r_gem = requests.post(url, json={"contents": [{"parts": [{"text": prompt_reporte}]}], "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2500}}, timeout=15)
+                        if r_gem.status_code == 200:
+                            cand = r_gem.json().get("candidates", [])
+                            if cand:
+                                texto_sintesis = cand[0].get("content", {}).get("parts", [])[0].get("text", "")
+                                if texto_sintesis:
+                                    break
+                    except Exception as e_gem:
+                        print(f"| QUANT REPORT ERROR | Gemini ({rep_model}): {e_gem}")
                     
             if not texto_sintesis and os.getenv("OPENROUTER_API_KEY"):
                 try:

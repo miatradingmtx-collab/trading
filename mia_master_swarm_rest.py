@@ -145,26 +145,32 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
                 print(f"| LLM FAILOVER | Groq ({g_model}) falló: {e_groq}")
                 continue
 
-    # 3. Intento Terciario: Google Gemini
+    # 3. Intento Terciario: Google Gemini (Multi-Modelo Anti-429: Flash Lite -> Flash -> 2.5 Flash)
     google_key = os.getenv("GOOGLE_API_KEY")
     if google_key:
-        try:
-            url_gemini = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={google_key}"
-            payload_gem = {
-                "contents": [{"parts": [{"text": f"{system_text}\n\n{prompt}"}]}],
-                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 600}
-            }
-            resp_gem = requests.post(url_gemini, json=payload_gem, timeout=8)
-            if resp_gem.status_code == 200:
-                data_gem = resp_gem.json()
-                cand = data_gem.get("candidates", [])
-                if cand:
-                    text_gem = cand[0].get("content", {}).get("parts", [])[0].get("text", "").strip()
-                    if text_gem:
-                        print("| LLM FAILOVER | Quórum generado exitosamente con Google Gemini.")
-                        return text_gem
-        except Exception as e_gem:
-            print(f"| LLM FAILOVER | Gemini falló: {e_gem}")
+        gemini_models = ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-2.5-flash"]
+        for g_mod in gemini_models:
+            try:
+                url_gemini = f"https://generativelanguage.googleapis.com/v1beta/models/{g_mod}:generateContent?key={google_key}"
+                payload_gem = {
+                    "contents": [{"parts": [{"text": f"{system_text}\n\n{prompt}"}]}],
+                    "generationConfig": {"temperature": 0.2, "maxOutputTokens": 600}
+                }
+                resp_gem = requests.post(url_gemini, json=payload_gem, timeout=8)
+                if resp_gem.status_code == 200:
+                    data_gem = resp_gem.json()
+                    cand = data_gem.get("candidates", [])
+                    if cand:
+                        text_gem = cand[0].get("content", {}).get("parts", [])[0].get("text", "").strip()
+                        if text_gem:
+                            print(f"| LLM FAILOVER | Quórum generado exitosamente con Google Gemini ({g_mod}).")
+                            return text_gem
+                elif resp_gem.status_code == 429:
+                    print(f"| LLM FAILOVER | Gemini ({g_mod}) límite 429 alcanzado. Saltando a siguiente modelo...")
+                    continue
+            except Exception as e_gem:
+                print(f"| LLM FAILOVER | Gemini ({g_mod}) falló: {e_gem}")
+                continue
 
     # 4. Quórum Sintético Determinista (Cero Downtime):
     # Genera el debate y consenso formal basado en las métricas cuantitativas reales para no detener el ciclo de trading

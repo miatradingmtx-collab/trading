@@ -3758,22 +3758,36 @@ def asegurar_cache_firebase():
                     GLOBAL_MATRICES_CACHE_FULL = d_m
                     GLOBAL_MATRICES = {k: v.get("score_porcentaje", 0) for k, v in d_m.items()}
                 
-                # 3. Patrones ICT / SMC (32 patrones)
+                # 3. Patrones ICT / SMC
                 if slots[2]:
-                    GLOBAL_PATRONES = json.loads(slots[2])
+                    try:
+                        d_p = json.loads(slots[2])
+                        GLOBAL_PATRONES = list(d_p.values()) if isinstance(d_p, dict) else d_p
+                    except Exception: pass
                 
-                # 4. Indicadores de Impacto (45 indicadores)
+                # 4. Indicadores de Impacto
                 if slots[3]:
-                    GLOBAL_INDICADORES = json.loads(slots[3])
+                    try:
+                        d_i = json.loads(slots[3])
+                        GLOBAL_INDICADORES = list(d_i.values()) if isinstance(d_i, dict) else d_i
+                    except Exception: pass
                 
                 # 5. Memoria Colectiva
                 if slots[4]:
-                    GLOBAL_MIA_COLLECTIVE = json.loads(slots[4])
+                    try:
+                        GLOBAL_MIA_COLLECTIVE = json.loads(slots[4])
+                    except Exception: pass
                 
                 ULTIMO_FETCH_FIREBASE = ahora
                 return
     except Exception as e_mget:
         print(f"| CACHE MGET WARN | Fallo en MGET Upstash: {e_mget}")
+    
+    # [BLINDAJE ANTI-429 ESTRICTO]
+    # Si la memoria RAM ya tiene logs y matrices cargadas desde Upstash, NUNCA consultar Firestore.
+    if GLOBAL_AUDIT_LOGS and GLOBAL_MATRICES:
+        ULTIMO_FETCH_FIREBASE = ahora
+        return
     
     # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â PROTECCIÃƒÆ’Ã¢â‚¬Å“N CRÃƒÆ’Ã‚ÂTICA DE CUOTA: 
     # Incrementamos el refresco a 30 minutos (1800 segundos) para evitar agotar las 50k peticiones Spark de Firestore
