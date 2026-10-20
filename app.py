@@ -2504,8 +2504,14 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
             data_changed = True
             
         if data_changed:
-            doc_ref.set(data)
-            print(f"| FIREBASE SUCCESS | Confirmaciones tÃƒÆ’Ã‚Â©cnicas de {activo_normalizado} actualizadas. Score: {data['score_porcentaje']}%")
+            try:
+                doc_ref.set(data)
+                print(f"| FIREBASE SUCCESS | Confirmaciones tecnicas de {activo_normalizado} actualizadas. Score: {data['score_porcentaje']}%")
+            except Exception as e_set:
+                if "429" in str(e_set) or "quota" in str(e_set).lower():
+                    print(f"| FIREBASE WARN | Firestore en limite 429. Matriz de {activo_normalizado} persistida en RAM y Upstash Redis.")
+                else:
+                    raise e_set
         else:
             print(f"| FIREBASE CACHE | Sin cambios tÃƒÆ’Ã‚Â©cnicos para {activo_normalizado}. Omitiendo escritura (Score: {data['score_porcentaje']}%).")
             

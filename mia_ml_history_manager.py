@@ -106,7 +106,9 @@ def compute_dynamic_weights(indicadores: List[Dict[str, Any]]) -> Dict[str, floa
     """Calcula el vector de pesos dinámicos de Machine Learning."""
     dyn_weights = dict(CANONICAL_AMD_WEIGHTS)
     for ind in indicadores:
-        ind_id = ind.get("id", "").lower()
+        ind_id = str(ind.get("id", "") or "").lower().strip()
+        if not ind_id:
+            continue
         wr = float(ind.get("win_rate", 0))
         calc_w = round(max(0.20, (wr / 100.0) * 2.0 + 0.30), 4)
         if ind_id not in dyn_weights or calc_w > dyn_weights[ind_id]:
@@ -253,6 +255,9 @@ def reconcile_and_sync_ml_history(db_client=None, days_lookback: int = 14) -> Di
             coll_ref.document(t_str).set(snap_payload)
             print(f"| ML RECONCILER | Sincronizada jornada actual: {t_str}")
         except Exception as e_tod:
+            if "429" in str(e_tod) or "quota" in str(e_tod).lower():
+                print(f"| ML RECONCILER WARN | Firestore en límite 429. Reconciliación pospuesta; datos operando en Upstash Redis.")
+                return {"status": "partial", "message": "Firestore 429"}
             print(f"| ML RECONCILER ERROR | Error escribiendo snapshot de {t_str}: {e_tod}")
 
     # 3. Auto-Curación y Backfill de los últimos `days_lookback` días
@@ -285,6 +290,9 @@ def reconcile_and_sync_ml_history(db_client=None, days_lookback: int = 14) -> Di
             else:
                 verified.append(f_date)
         except Exception as e_chk:
+            if "429" in str(e_chk) or "quota" in str(e_chk).lower():
+                print(f"| ML RECONCILER WARN | Firestore en límite 429. Reconciliación pospuesta; datos operando en Upstash Redis.")
+                break
             print(f"| ML RECONCILER WARN | Error verificando fecha {f_date}: {e_chk}")
 
     print(f"| ML RECONCILER | Fechas verificadas: {len(verified)}, Fechas autocuradas: {len(backfilled)}")

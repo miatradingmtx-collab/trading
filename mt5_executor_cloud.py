@@ -81,7 +81,11 @@ MAPEO_BROKER = {
 async def conectar_metaapi():
     """Inicializa la API, busca la cuenta demo y retorna el objeto de cuenta y conexiÃ³n RPC."""
     try:
+        import logging
         from metaapi_cloud_sdk import MetaApi
+        from metaapi_cloud_sdk.logger import LoggerManager
+        LoggerManager.use_logging()
+        logging.getLogger("SubscriptionManager").setLevel(logging.CRITICAL)
     except ImportError:
         print("âŒ Error: Se requiere la librerÃ­a 'metaapi-cloud-sdk'.")
         return None, None
