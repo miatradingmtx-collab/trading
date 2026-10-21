@@ -2790,6 +2790,16 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             except Exception as e_smt:
                 pass
 
+        # 1.6 [FILTRO MACRO INSTITUCIONAL XAUUSD ANTI-CONTRATENDENCIA EN MÁXIMOS HISTÓRICOS]
+        if "XAU" in activo_normalizado or "GOLD" in activo_normalizado:
+            es_xau_ath = float(req.precio or 0.0) >= 2700.0
+            if es_xau_ath and req.accion.upper() in ["VENTA", "SELL"]:
+                return {
+                    "authorized": False,
+                    "reason": f"VETO XAUUSD MACRO: Oro en régimen de Máximos Históricos (${req.precio:.2f} USD). Se prohíben estrictamente las VENTAS contratendencia. Solo se permiten COMPRAS en retrocesos hacia zonas de demanda.",
+                    "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
+                }
+
         estado_actual = data.get("estado_ejecucion", "INACTIVO")
         operaciones_activas = data.get("operaciones_activas", [])
         

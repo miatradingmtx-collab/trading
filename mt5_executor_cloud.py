@@ -216,9 +216,12 @@ def calcular_lotaje_dinamico(balance: float, riesgo_pct: float, entry_price: flo
     lotes = riesgo_dinero / (distancia_pips * valor_pip_lote_estandar)
     lotes = round(lotes, 2)
     
-    # FORZAR LOTE MINIMO PARA PARCIALES (0.04)
-    # Permite al broker cerrar el 25% (0.01) de manera exacta
-    if lotes < 0.04 and balance > 4500:
+    # FORZAR LOTE MINIMO PARA PARCIALES (0.02 para balance >= 3000, 0.04 para balance > 4500)
+    # Permite al broker cerrar de manera exacta al menos 0.01 en TP1 (+40%) y TP2 (+65%)
+    if lotes < 0.02 and balance >= 3000:
+        lotes = 0.02
+        print(f"| GESTOR RIESGO | Lotaje ajustado al MINIMO PARA PARCIALES (0.02 para balance ${balance:.2f}).")
+    elif lotes < 0.04 and balance > 4500:
         lotes = 0.04
         print(f"| GESTOR RIESGO | Lotaje ajustado al MINIMO PARA PARCIALES (0.04).")
 
@@ -1328,6 +1331,13 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
     except Exception as e_smt:
         print(f"| DXY SMT SENSOR WARN | {e_smt}")
 
+    # REGLA 3 XAUUSD MACRO: FILTRO ANTI-CONTRATENDENCIA EN MÁXIMOS HISTÓRICOS
+    if ("XAU" in activo.upper() or "GOLD" in activo.upper()):
+        es_ath_xau = precio >= 2700.0
+        if es_ath_xau and accion.upper() in ["VENTA", "SELL"]:
+            print(f"| XAUUSD MACRO GATEWAY | 🛑 VETO ANTI-CONTRATENDENCIA: {activo} cotizando en zona de Máximos Históricos (${precio:.2f} USD). Prohibida ejecución de VENTA en broker MT5.")
+            return False
+
     simbolo_broker = MAPEO_BROKER.get(activo, activo)
     
     try:
@@ -1899,6 +1909,37 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
                     continue
 
             
+            # -------------------------------------------------------------------------
+            # FILTRO ANTI-CONTRATENDENCIA OBLIGATORIO PARA XAUUSD (MÁXIMOS HISTÓRICOS)
+            # -------------------------------------------------------------------------
+            if "XAU" in activo.upper() or "GOLD" in activo.upper():
+                # Detección dinámica de régimen de Máximos Históricos (ATH / Price Discovery)
+                # En 2026, XAUUSD cotiza sobre los $2,700 - $4,160+ USD por onza sin resistencia histórica por encima.
+                # Se activa si el precio está sobre el umbral histórico ($2,700) y por encima de la EMA 200 de D1/H4.
+                es_ath_xau = (precio_actual >= 2700.0) and (precio_actual > ema_200)
+
+                if es_ath_xau:
+                    if accion == "VENTA":
+                        print(f"| FILTRO XAUUSD MACRO | 🛑 VETO ANTI-CONTRATENDENCIA: {activo} en Máximos Históricos (${precio_actual:.2f} USD). "
+                              f"Estructura macro alcista. Quedan ESTRICTAMENTE PROHIBIDAS las órdenes de VENTA. "
+                              f"Solo se autorizan COMPRAS en retroceso a zonas de demanda.")
+                        continue
+                    elif accion == "COMPRA":
+                        # Validar que sea COMPRA ESTRATÉGICA EN RETROCESO (Pullback a zonas de demanda / OB 1H-4H / FVG / SSL sweep)
+                        tiene_zona_demanda = bool(
+                            sweep_alcista_global or 
+                            memoria_inst.get("lux_algo_ob_1h_alcista") or 
+                            memoria_inst.get("lux_algo_ob_2h_alcista") or 
+                            memoria_inst.get("lux_algo_ob_3h_alcista") or 
+                            memoria_inst.get("lux_algo_ob_4h_alcista") or 
+                            confirmaciones.get("order_block", False) or 
+                            confirmaciones.get("fvg", False) or
+                            (dist_macro_low_pct is not None and dist_macro_low_pct < 1.0)
+                        )
+                        if not tiene_zona_demanda:
+                            print(f"| FILTRO XAUUSD MACRO | ⚠️ COMPRA en {activo} pospuesta: Aunque está en ATH, el precio está extendido y no se encuentra en zona de demanda (OB 1H-4H o Sweep). Esperando retroceso.")
+                            continue
+
             # Construcción del contexto AMD enriquecido
             amd_context = {
                 "macro_sweep_alcista": macro_sweep_alcista,
