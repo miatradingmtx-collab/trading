@@ -61,20 +61,25 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 LAST_SAVED_STATE = None
 LAST_SAVED_TIME = 0
 
-def emit_ws_event(agent_name, action, data):
-    """Envía un evento al WebSocket server vía HTTP interno"""
+ULTIMO_PROVEEDOR_LLM = "Groq (openai/gpt-oss-120b)"
+
+def emit_ws_event(agent_name, action, data, **kwargs):
+    """Envía un evento al WebSocket server vía HTTP interno con metadatos extendidos"""
     try:
         port = os.environ.get("PORT", "8000")
-        requests.post(f"http://127.0.0.1:{port}/emit", json={
+        payload = {
             "agent": agent_name,
             "action": action,
             "data": data
-        }, timeout=0.3)
+        }
+        payload.update(kwargs)
+        requests.post(f"http://127.0.0.1:{port}/emit", json=payload, timeout=0.3)
     except Exception:
         pass
 
 def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
     """Llamada ultrarrápida vía REST con Failover Multi-Proveedor (OpenRouter -> Groq -> Gemini -> Quórum Sintético Determinista)"""
+    global ULTIMO_PROVEEDOR_LLM
     system_text = (
         "Eres el Motor de Deliberación Inter-Agente Herds de MIA Core. "
         "Una malla desacoplada de 7 Herds especializados dialogan, se cuestionan, se corrigen y alcanzan consenso financiero antes de ejecutar: "
@@ -110,6 +115,7 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
             response = requests.post(url_or, headers=headers_or, json=payload_or, timeout=8)
             response.raise_for_status()
             data = response.json()
+            ULTIMO_PROVEEDOR_LLM = f"OpenRouter ({model})"
             return data['choices'][0]['message']['content']
         except Exception as e_primary:
             print(f"| LLM FAILOVER | OpenRouter no disponible ({e_primary}). Activando failover multi-proveedor...")
@@ -140,6 +146,7 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
                     content = data_g['choices'][0]['message']['content'].strip()
                     if content:
                         print(f"| LLM FAILOVER | Quórum generado exitosamente con Groq ({g_model}).")
+                        ULTIMO_PROVEEDOR_LLM = f"Groq ({g_model})"
                         return content
             except Exception as e_groq:
                 print(f"| LLM FAILOVER | Groq ({g_model}) falló: {e_groq}")
@@ -164,6 +171,7 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
                         text_gem = cand[0].get("content", {}).get("parts", [])[0].get("text", "").strip()
                         if text_gem:
                             print(f"| LLM FAILOVER | Quórum generado exitosamente con Google Gemini ({g_mod}).")
+                            ULTIMO_PROVEEDOR_LLM = f"Google Gemini ({g_mod})"
                             return text_gem
                 elif resp_gem.status_code == 429:
                     print(f"| LLM FAILOVER | Gemini ({g_mod}) límite 429 alcanzado. Saltando a siguiente modelo...")
@@ -175,6 +183,7 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
     # 4. Quórum Sintético Determinista (Cero Downtime):
     # Genera el debate y consenso formal basado en las métricas cuantitativas reales para no detener el ciclo de trading
     print("| LLM FAILOVER | Generando Quórum Determinista de Emergencia (Cero Downtime).")
+    ULTIMO_PROVEEDOR_LLM = "Quórum Sintético Determinista"
     return (
         "**HERD 1 (TIDAL)**: Flujo macro alineado con DXY y liquidez institucional MT5. Sin divergencias críticas SMT.\n"
         "**HERD 2 (NORO)**: Niveles POC y confluencia de cadenas de Markov en fase neutral-expansiva calculados.\n"
@@ -726,7 +735,8 @@ def run_hft_cycle():
     if h5_match:
         emit_ws_event("HERD 5 (RUNE)", "RISK", h5_match.group(1).strip())
     if h6_match:
-        emit_ws_event("HERD 6 (TENSORFLOW)", "NEURAL", h6_match.group(1).strip())
+        tf_acc_val = round(tf_acc * 100 if tf_acc <= 1.0 else tf_acc, 2)
+        emit_ws_event("HERD 6 (TENSORFLOW)", "NEURAL", h6_match.group(1).strip(), accuracy=tf_acc_val, trades=794)
     if h7_match:
         emit_ws_event("HERD 7 (ATLAS)", "DOM_MCP", h7_match.group(1).strip())
     if master_match:
@@ -738,7 +748,7 @@ def run_hft_cycle():
         estado = "VETADO ⛔"
     else:
         estado = "APROBADO ✅"
-    emit_ws_event("Master", "SUCCESS", f"Quórum de 7 Herds: {estado} alcanzado.")
+    emit_ws_event("Master", "SUCCESS", f"Quórum de 7 Herds [{ULTIMO_PROVEEDOR_LLM}]: {estado} alcanzado.", proveedor_llm=ULTIMO_PROVEEDOR_LLM)
     
     # 3. Guardar el Historial y Debate (Upstash Redis + Firebase)
     try:
@@ -748,6 +758,7 @@ def run_hft_cycle():
         payload = {
             "title": safe_title,
             "content": veredicto,
+            "proveedor_llm": ULTIMO_PROVEEDOR_LLM,
             "debate": {
                 "herd_1_tidal": h1_match.group(1).strip() if h1_match else "N/A",
                 "herd_2_noro": h2_match.group(1).strip() if h2_match else "N/A",

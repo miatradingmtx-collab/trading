@@ -1382,7 +1382,7 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
 
     # REGLA 3 XAUUSD MACRO: FILTRO ANTI-CONTRATENDENCIA EN MÁXIMOS HISTÓRICOS
     if ("XAU" in activo.upper() or "GOLD" in activo.upper()):
-        es_ath_xau = precio >= 2700.0
+        es_ath_xau = precio >= 3800.0  # Oro cotizando en zona de $4,100 - $4,160+ USD
         if es_ath_xau and accion.upper() in ["VENTA", "SELL"]:
             print(f"| XAUUSD MACRO GATEWAY | 🛑 VETO ANTI-CONTRATENDENCIA: {activo} cotizando en zona de Máximos Históricos (${precio:.2f} USD). Prohibida ejecución de VENTA en broker MT5.")
             return False
@@ -1963,9 +1963,9 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             # -------------------------------------------------------------------------
             if "XAU" in activo.upper() or "GOLD" in activo.upper():
                 # Detección dinámica de régimen de Máximos Históricos (ATH / Price Discovery)
-                # En 2026, XAUUSD cotiza sobre los $2,700 - $4,160+ USD por onza sin resistencia histórica por encima.
-                # Se activa si el precio está sobre el umbral histórico ($2,700) y por encima de la EMA 200 de D1/H4.
-                es_ath_xau = (precio_actual >= 2700.0) and (precio_actual > ema_200)
+                # En 2026, XAUUSD cotiza en su rally histórico de $4,100 - $4,160+ USD por onza.
+                # Se activa si el precio está sobre el umbral institucional ($3,800 USD) y por encima de la EMA 200.
+                es_ath_xau = (precio_actual >= 3800.0) and (precio_actual > ema_200)
 
                 if es_ath_xau:
                     if accion == "VENTA":

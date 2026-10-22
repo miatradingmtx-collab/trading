@@ -2819,7 +2819,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
 
         # 1.6 [FILTRO MACRO INSTITUCIONAL XAUUSD ANTI-CONTRATENDENCIA EN MÁXIMOS HISTÓRICOS]
         if "XAU" in activo_normalizado or "GOLD" in activo_normalizado:
-            es_xau_ath = float(req.precio or 0.0) >= 2700.0
+            es_xau_ath = float(req.precio or 0.0) >= 3800.0  # Oro cotizando sobre ,100 - ,160+ USD
             if es_xau_ath and req.accion.upper() in ["VENTA", "SELL"]:
                 return {
                     "authorized": False,

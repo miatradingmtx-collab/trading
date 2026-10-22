@@ -38,9 +38,27 @@ const AntopusDashboard = () => {
   const [logs, setLogs] = useState([]);
   const [wsStatus, setWsStatus] = useState('CONNECTING...');
   const [activeAgent, setActiveAgent] = useState(null);
+  const [tfAccuracy, setTfAccuracy] = useState('60.3%');
   const logsEndRef = useRef(null);
 
   useEffect(() => {
+    // Carga inicial dinámica de Accuracy desde cache_mia_tensorflow (Anti-stale)
+    fetch('https://firm-koi-93555.upstash.io/get/cache_mia_tensorflow', {
+      headers: { 'Authorization': 'Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg' }
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.result) {
+          const parsed = typeof d.result === 'string' ? JSON.parse(d.result) : d.result;
+          if (parsed && parsed.accuracy !== undefined) {
+            const accNum = Number(parsed.accuracy);
+            const accStr = (accNum > 1 ? accNum : accNum * 100).toFixed(1) + '%';
+            setTfAccuracy(accStr);
+          }
+        }
+      })
+      .catch(e => console.log('TF accuracy init fallback', e));
+
     let ws, retryTimeout;
 
     const connect = () => {
@@ -58,6 +76,12 @@ const AntopusDashboard = () => {
 
           const agentName = data.agent || 'SYSTEM';
           setActiveAgent(agentName);
+          
+          if (data.accuracy !== undefined) {
+            const accNum = Number(data.accuracy);
+            const accStr = (accNum > 1 ? accNum : accNum * 100).toFixed(1) + '%';
+            setTfAccuracy(accStr);
+          }
           
           const logEntry = {
             ts: new Date().toLocaleTimeString('en-US', { hour12: false }),
@@ -104,7 +128,7 @@ const AntopusDashboard = () => {
     { id: 'ZEPHR', name: 'HERD 3 (ZEPHR)', desc: 'BAYES & STATS', color: 'text-sky-400', border: 'border-sky-400', icon: <Map size={18}/>, pos: { top: '38%', left: '88%' } },
     { id: 'LUMEN', name: 'HERD 4 (LUMEN)', desc: 'SMC & ORDER BLOCKS', color: 'text-yellow-400', border: 'border-yellow-400', icon: <Eye size={18}/>, pos: { top: '68%', left: '82%' } },
     { id: 'RUNE', name: 'HERD 5 (RUNE)', desc: 'DEFENSIVE RISK', color: 'text-red-500', border: 'border-red-500', icon: <Shield size={18}/>, pos: { top: '90%', left: '50%' } },
-    { id: 'TENSORFLOW', name: 'HERD 6 (TF)', desc: 'NEURAL CORE (57.5%)', color: 'text-purple-400', border: 'border-purple-400', icon: <Zap size={18}/>, pos: { top: '68%', left: '18%' } },
+    { id: 'TENSORFLOW', name: 'HERD 6 (TF)', desc: `NEURAL CORE (${tfAccuracy})`, color: 'text-purple-400', border: 'border-purple-400', icon: <Zap size={18}/>, pos: { top: '68%', left: '18%' } },
     { id: 'ATLAS', name: 'HERD 7 (ATLAS)', desc: 'DOM, CVD & MCP', color: 'text-[#38bdf8]', border: 'border-[#38bdf8]', icon: <Briefcase size={18}/>, pos: { top: '38%', left: '12%' } },
     { id: 'MASTER', name: 'MASTER GATEKEEPER', desc: 'QUORUM CONSENSUS (>=70%)', color: 'text-emerald-400', border: 'border-emerald-400', icon: <ShieldCheck size={18}/>, pos: { top: '15%', left: '18%' } }
   ];

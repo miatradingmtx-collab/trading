@@ -11,6 +11,39 @@ import datetime
 
 RAILWAY_URL = "https://trading-production-927a.up.railway.app/api/dashboard_data"
 
+UPSTASH_URL = os.getenv("UPSTASH_REDIS_REST_URL", "https://firm-koi-93555.upstash.io")
+UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg")
+
+def obtener_metricas_enjambre_dinamicas():
+    """Consulta Upstash Redis para obtener proveedor de IA activo y metricas de TensorFlow en tiempo real."""
+    tf_acc = 60.33
+    tf_trades = 794
+    proveedor = "Groq Failover (openai/gpt-oss-120b / qwen3.8-27b)"
+    headers = {"Authorization": f"Bearer {UPSTASH_TOKEN}"}
+    try:
+        with httpx.Client(timeout=2.0) as client:
+            r_tf = client.get(f"{UPSTASH_URL}/get/cache_mia_tensorflow", headers=headers)
+            if r_tf.status_code == 200:
+                raw = r_tf.json().get("result")
+                if raw:
+                    d = json.loads(raw) if isinstance(raw, str) else raw
+                    acc = float(d.get("accuracy", 0.6033))
+                    tf_acc = round(acc * 100 if acc <= 1.0 else acc, 2)
+                    tf_trades = int(d.get("trades_aprendidos", 794))
+                    
+            r_hd = client.get(f"{UPSTASH_URL}/get/cache_herd_debate_latest", headers=headers)
+            if r_hd.status_code == 200:
+                raw_hd = r_hd.json().get("result")
+                if raw_hd:
+                    d_hd = json.loads(raw_hd) if isinstance(raw_hd, str) else raw_hd
+                    prov = d_hd.get("proveedor_llm")
+                    if prov:
+                        proveedor = prov
+    except Exception as e:
+        print(f"| WS SERVER | Fallback lectura dinamica: {e}")
+    return tf_acc, tf_trades, proveedor
+
+
 app = FastAPI(title="Mia Swarm WebSocket Server")
 
 app.add_middleware(
@@ -118,15 +151,27 @@ async def websocket_endpoint(websocket: WebSocket):
             init_msg = f"MERCADO CERRADO (Fin de semana). Criosueño activo ({horas}h restantes para apertura dom 21:00 UTC). Consumo de tokens: 0."
             action_status = "STANDBY"
         else:
-            # Precisión homologada real calibrada en 678 trades
-            init_msg = "MERCADO EN VIVO. Enjambre HFT activo en OpenRouter (Llama 3.3 70B REST & TensorFlow 57.52%)."
+            tf_acc, tf_trades, proveedor = obtener_metricas_enjambre_dinamicas()
+            init_msg = f"MERCADO EN VIVO. Enjambre HFT activo en {proveedor} (TensorFlow Core {tf_acc}% con {tf_trades} trades)."
             action_status = "LIVE"
 
         await websocket.send_json({
             "agent": "Master",
             "action": action_status,
-            "data": init_msg
+            "data": init_msg,
+            "accuracy": tf_acc if not is_weekend else 60.33,
+            "trades": tf_trades if not is_weekend else 794,
+            "proveedor": proveedor if not is_weekend else "Standby"
         })
+
+        if not is_weekend:
+            await websocket.send_json({
+                "agent": "TENSORFLOW",
+                "action": "NEURAL",
+                "accuracy": tf_acc,
+                "trades": tf_trades,
+                "data": f"Inferencia neuronal calibrada: Accuracy en {tf_acc}% ({tf_trades} trades aprendidos)."
+            })
         while True:
             data = await websocket.receive_text()
     except WebSocketDisconnect:
