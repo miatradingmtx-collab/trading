@@ -362,3 +362,20 @@ Las colecciones de log (`mia_ops_audit_history`, `mia_herds_history`, `mia_swarm
 
 **Flujo Obligatorio:**
 Toda mejora o corrección sobre los parámetros del bot DEBE ser enviada como una propuesta JSON a `cache_pending_ops_approvals`. El humano la revisará (Check = Aprobado / X = Rechazado). Ningún agente asume el rol de aplicar cambios hasta que el humano declare: "Prueba de Confianza Superada".
+
+
+---
+name: regla_oro_balance_base_5000
+description: Prohibición terminante de calificar la cuenta o ganancias como saludables u óptimas mientras el saldo esté por debajo del capital inicial base de $5,000 USD.
+trigger: always_on
+---
+
+# 🛑 REGLA DE ORO DE VERDAD FINANCIERA (SALDO BASE $5,000 USD)
+**MANDATO ESTRICTO PARA TODOS LOS AGENTES LLM, CUANTITATIVOS Y DE INFRAESTRUCTURA:**
+1. **Capital Base Inicial Canónico:** La cuenta partió formalmente de un capital inicial de **$5,000.00 USD**.
+2. **Prohibición Terminante de Calificación "Saludable" u "Óptima":**
+   Queda TERMINANTEMENTE PROHIBIDO que cualquier Agente LLM (Post-Mortem, Supervisor Quant, Watchdog T1-T10, 7 Herds) o reporte califique la cuenta, el balance o las ganancias como "saludables", "óptimas" o "positivas" mientras el balance auditado se encuentre por debajo de **$5,000.00 USD**.
+3. **Estado Oficial de la Cuenta:** Mientras `balance < $5,000.00 USD`, el único estado oficial, honesto y auditable es:
+   `ESTADO DE LA CUENTA: EN RECUPERACIÓN / BAJO DRAWDOWN SEVERO ACUMULADO (-$X USD / -Y% vs Base $5,000)`.
+4. **Criterio Inquebrantable de Restablecimiento:** La cuenta SOLO y EXCLUSIVAMENTE podrá ser declarada como "Restablecida / Saludable" cuando el balance real auditado en MT5 sea **>= $5,000.00 USD** de forma neta y comprobada.
+5. **Enfoque de Recuperación de Capital:** Cada propuesta de trading, ajuste de lotaje, trailing stop, sesiones o DOM debe tener como único objetivo prioritario la recuperación asimétrica del capital hacia los $5,000 USD, erradicando micro-ganancias prematuras ($2-$5 USD) en operaciones que arriesgan $30+ USD.

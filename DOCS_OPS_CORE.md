@@ -1253,3 +1253,20 @@ egla_de_3 deben ser consultados 100% mediante Upstash Redis (cache_regla_de_3). 
   2. `order_block_zona_2h` (158 trades | 80.38% WR | -$39.22 PnL | Peso 30).
   3. `lux_algo_ob_2h` (106 trades | 61.32% WR | +$113.76 PnL | Peso 25).
 - **Código en Producción:** Actualizados `app.py` y `mia_supervisor_agent.py` para consultar tanto `indicadores_impacto` como `patrones_ict_smc` bajo el umbral mínimo de 50 trades reales.
+
+
+---
+name: regla_oro_balance_base_5000
+description: Prohibición terminante de calificar la cuenta o ganancias como saludables u óptimas mientras el saldo esté por debajo del capital inicial base de $5,000 USD.
+trigger: always_on
+---
+
+# 🛑 REGLA DE ORO DE VERDAD FINANCIERA (SALDO BASE $5,000 USD)
+**MANDATO ESTRICTO PARA TODOS LOS AGENTES LLM, CUANTITATIVOS Y DE INFRAESTRUCTURA:**
+1. **Capital Base Inicial Canónico:** La cuenta partió formalmente de un capital inicial de **$5,000.00 USD**.
+2. **Prohibición Terminante de Calificación "Saludable" u "Óptima":**
+   Queda TERMINANTEMENTE PROHIBIDO que cualquier Agente LLM (Post-Mortem, Supervisor Quant, Watchdog T1-T10, 7 Herds) o reporte califique la cuenta, el balance o las ganancias como "saludables", "óptimas" o "positivas" mientras el balance auditado se encuentre por debajo de **$5,000.00 USD**.
+3. **Estado Oficial de la Cuenta:** Mientras `balance < $5,000.00 USD`, el único estado oficial, honesto y auditable es:
+   `ESTADO DE LA CUENTA: EN RECUPERACIÓN / BAJO DRAWDOWN SEVERO ACUMULADO (-$X USD / -Y% vs Base $5,000)`.
+4. **Criterio Inquebrantable de Restablecimiento:** La cuenta SOLO y EXCLUSIVAMENTE podrá ser declarada como "Restablecida / Saludable" cuando el balance real auditado en MT5 sea **>= $5,000.00 USD** de forma neta y comprobada.
+5. **Enfoque de Recuperación de Capital:** Cada propuesta de trading, ajuste de lotaje, trailing stop, sesiones o DOM debe tener como único objetivo prioritario la recuperación asimétrica del capital hacia los $5,000 USD, erradicando micro-ganancias prematuras ($2-$5 USD) en operaciones que arriesgan $30+ USD.

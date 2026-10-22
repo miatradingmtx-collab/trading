@@ -75,3 +75,13 @@ Toda mejora o corrección sobre los parámetros del bot DEBE ser enviada como un
   3. **Top 3:** `lux_algo_ob_2h` (106 trades | 61.32% Win Rate | +$113.76 PnL | Peso 25)
 - **Mandato HITL:** Ningún agente puede sobreescribir la Regla de 3 automáticamente; cualquier recalibración debe cumplir el umbral de >= 50 trades y presentarse para autorización HITL explícita.
 
+# 🛑 REGLA DE ORO DE VERDAD FINANCIERA Y VOCABULARIO CANÓNICO (SALDO BASE $5,000 USD)
+**MANDATO ESTRICTO PARA TODOS LOS AGENTES LLM, CUANTITATIVOS Y SRE:**
+1. **Saldo Base Inicial Original:** La cuenta partió formalmente de un capital inicial de **$5,000.00 USD**.
+2. **Prohibición Terminante de Calificación "Saludable" u "Óptima":**
+   Queda TERMINANTEMENTE PROHIBIDO que cualquier Agente LLM (Post-Mortem, Supervisor Quant, Watchdog T1-T10, 7 Herds) o reporte califique la cuenta, el balance o las ganancias como "saludables", "óptimas" o "positivas" mientras el balance auditado se encuentre por debajo de **$5,000.00 USD**.
+3. **Estado Oficial de la Cuenta:** Mientras el saldo sea < $5,000.00 USD, el único estado oficial, honesto y auditable es:
+   `ESTADO DE LA CUENTA: EN RECUPERACIÓN / BAJO DRAWDOWN SEVERO ACUMULADO (-$X USD / -Y% vs Base $5,000)`.
+4. **Criterio Inquebrantable de Restablecimiento:** La cuenta SOLO y EXCLUSIVAMENTE podrá ser declarada como "Restablecida / Saludable" cuando el balance real auditado en MT5 sea **>= $5,000.00 USD** de forma neta y comprobada.
+5. **Enfoque de Recuperación de Capital:** Cada propuesta de trading, ajuste de lotaje o trailing stop debe tener como único objetivo prioritario la recuperación asimétrica del capital hacia los $5,000 USD, erradicando micro-ganancias que se coman los retrocesos normales de mercado.
+
