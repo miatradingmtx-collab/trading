@@ -1,13 +1,14 @@
-## Regla de Arquitectura (Ejecucion MT5)
-El servidor central en la nube de Mia (app.py en Railway) **NO** es el que ejecuta los trades en MetaTrader 5 de forma directa. Su Ãºnica funciÃ³n es recibir las seÃ±ales, calcular el Score, y escribir el resultado en Firebase. La ejecuciÃ³n real ocurre en un sistema externo/local que monitorea Firebase y dispara las Ã³rdenes en MT5 **ÃšNICAMENTE** cuando detecta un nuevo trade con score >= 80.
+## Regla de Arquitectura (Ejecución MT5)
+El servidor central en la nube de Mia (app.py en Railway) **NO** es el que ejecuta los trades en MetaTrader 5 de forma directa. Su única función es recibir las señales, calcular el Score, y escribir el resultado en Firebase. La ejecución real ocurre en un sistema externo/local que monitorea Firebase y dispara las órdenes en MT5 **ÚNICAMENTE** cuando detecta un nuevo trade con score >= 80.
 
-## Regla de DocumentaciÃ³n en Obsidian (Mandato Absoluto)
-A partir de este momento, **todo cambio, actualizaciÃ³n, modificaciÃ³n de cÃ³digo, o ajuste de arquitectura** que se realice en CUALQUIERA de los 4 proyectos (Trading, Renta Lanchas, Venta Lanchas, Remolques) y su Infraestructura TecnolÃ³gica (N8N, Firebase, Botpress) DEBE ser registrado y documentado **obligatoriamente y automÃ¡ticamente** en la bÃ³veda de Obsidian (`D:\obsidiana\Proyectos`). 
+## Regla de Documentación en Obsidian (Mandato Absoluto)
+A partir de este momento, **todo cambio, actualización, modificación de código, o ajuste de arquitectura** que se realice en CUALQUIERA de los 4 proyectos (Trading, Renta Lanchas, Venta Lanchas, Remolques) y su Infraestructura Tecnológica (N8N, Firebase, Botpress) DEBE ser registrado y documentado **obligatoriamente y automáticamente** en la bóveda de Obsidian (`D:\obsidiana\Proyectos`). 
 
 **Nunca** des por finalizada una tarea ni le reportes al usuario que has terminado sin antes haber:
 1. Actualizado el `Historial_Cambios_*.md` del proyecto correspondiente.
-2. Actualizado el `Estructura_Codigo_*.md` si hubo cambios arquitectÃ³nicos.
+2. Actualizado el `Estructura_Codigo_*.md` si hubo cambios arquitectónicos.
 Esto es vital para garantizar el crecimiento ininterrumpido de la Red Neuronal y la Base de Conocimiento (KB) de Mia.
+
 ## Regla de Hitos y Tareas Pendientes (Bitácora Evolutiva)
 Todo agente que trabaje en el proyecto de Trading DEBE mantener la bitácora (Historial_Cambios_Trading.md) actualizada con: 
 1. **Checklist de completados [x]**: Hitos con la fecha exacta de lo que se va haciendo.
@@ -31,7 +32,7 @@ Por tanto, Mia NO toma decisiones finales de trading ni ejecuta órdenes de form
 Todo el ecosistema de Mia (API de Python, base de datos Postgres y flujos de automatización en N8N) se encuentra alojado y orquestado en **Railway**. Esto garantiza una operación CI/CD 100% en la nube que NO depende de que el equipo local del usuario esté encendido. El nodo de N8N 'Mia_Machine_Learning_Loop' se ejecuta en los servidores de Railway todos los viernes a las 16:00, contactando al endpoint `/api/entrenar_pesos` mediante el `BRIDGE_ACCESS_TOKEN`. Agentes futuros no deben intentar ejecutar estas rutinas localmente.
 
 ## Regla de Protección Quota 429 y Caché en RAM (Firebase Bypass)
-Si la conexión a Firebase Cloud Firestore agota su límite gratuito de 50,000 lecturas/escrituras diarias, la aplicación (app.py) continuará funcionando mediante el uso de excepciones (	ry...except) que capturarán el error y permitirán el flujo en RAM. Cualquier agente que programe operaciones de webhooks deberá evitar llamadas bloqueantes o crashings del servidor ante fallos de conexión (bypass silencioso para no sobrecargar los logs en Railway).
+Si la conexión a Firebase Cloud Firestore agota su límite gratuito de 50,000 lecturas/escrituras diarias, la aplicación (app.py) continuará funcionando mediante el uso de excepciones (try...except) que capturarán el error y permitirán el flujo en RAM. Cualquier agente que programe operaciones de webhooks deberá evitar llamadas bloqueantes o crashings del servidor ante fallos de conexión (bypass silencioso para no sobrecargar los logs en Railway).
 
 ## Regla Anti-Spam de Telegram y TPs Explícitos
 Telegram solo debe alertar (ya sea de apertura o cierre) sobre trades **ejecutados**, esto es cuando traen un Ticket válido. Nunca enviar señales crudas que no hayan pasado por el filtro de Mia. Adicionalmente, toda Apertura debe especificar la estructura escalonada de Take Profit:
@@ -40,4 +41,4 @@ Telegram solo debe alertar (ya sea de apertura o cierre) sobre trades **ejecutad
 - Full TP
 
 ## Regla de Logs (Bypass Notion & Excel)
-Dado que Notion y Excel actualmente no est�n configurados o habilitados, el sistema de Mia genera un log de error 401 para Notion y una advertencia de archivo no encontrado para Excel en Railway. **Estos no son errores cr�ticos que deban ser corregidos**. Forman parte de un bypass intencional, y los agentes no deben enviar alertas de error ni intentar modificar el c�digo para 'arreglarlos', simplemente ignorarlos en los logs de auditor�a.
+Dado que Notion y Excel actualmente no están configurados o habilitados, el sistema de Mia genera un log de error 401 para Notion y una advertencia de archivo no encontrado para Excel en Railway. **Estos no son errores críticos que deban ser corregidos**. Forman parte de un bypass intencional, y los agentes no deben enviar alertas de error ni intentar modificar el código para 'arreglarlos', simplemente ignorarlos en los logs de auditoría.
