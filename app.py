@@ -4095,11 +4095,11 @@ def api_dashboard_data():
 
                 # TensorFlow en caché (desempaquetado directo de MGET)
                 if tf_data:
-                    tf_acc_val = round(float(tf_data.get("accuracy", 0.5752)) * 100 if float(tf_data.get("accuracy", 0.5752)) <= 1.0 else float(tf_data.get("accuracy", 57.52)), 2)
+                    tf_acc_val = round(float(tf_data.get("accuracy", 0.6033)) * 100 if float(tf_data.get("accuracy", 0.6033)) <= 1.0 else float(tf_data.get("accuracy", 60.33)), 2)
                     d_hist["tensorflow_cache"] = {
                         "version": tf_data.get("version", "v1.0"),
                         "accuracy": tf_acc_val,
-                        "trades_aprendidos": max(int(tf_data.get("trades_aprendidos", 764)), 764)
+                        "trades_aprendidos": max(int(tf_data.get("trades_aprendidos", 794)), 764)
                     }
 
                 # Herd Debate en caché y homologación pasiva a Firebase (desempaquetado directo de MGET)
@@ -4122,8 +4122,8 @@ def api_dashboard_data():
                                 print(f"| FIREBASE WARN | No se pudo guardar debate histórico: {fb_err}")
 
                 # Estrategias reales desplegadas (con TensorFlow homologado a su precisión real calibrada)
-                actual_tf_acc = d_hist.get("tensorflow_cache", {}).get("accuracy", 57.52)
-                actual_tf_trades = max(int(d_hist.get("tensorflow_cache", {}).get("trades_aprendidos", 764)), 764)
+                actual_tf_acc = d_hist.get("tensorflow_cache", {}).get("accuracy", 60.33)
+                actual_tf_trades = max(int(d_hist.get("tensorflow_cache", {}).get("trades_aprendidos", 794)), 764)
                 d_hist["estrategias"] = [
                     {"nombre": "Order Block Lux 2H / 4H", "win_rate": 94.0, "profit_factor": 3.40, "max_dd": -2.4, "total_roi": 215.0, "ocurrencias": 18, "pnl_generado": 380.20, "tipo": "Smart Money Concepts"},
                     {"nombre": "TensorFlow Neural Consensus", "win_rate": actual_tf_acc, "profit_factor": 2.15, "max_dd": -2.8, "total_roi": 145.0, "ocurrencias": actual_tf_trades, "pnl_generado": 240.50, "tipo": "Deep Learning HFT"},
