@@ -634,7 +634,7 @@ def run_hft_cycle():
             f"1. Top 1: {t1.get('indicador')} (WinRate: {t1.get('win_rate_asociado', 90)}%, Peso: {t1.get('peso', 35)}) | "
             f"2. Top 2: {t2.get('indicador')} (WinRate: {t2.get('win_rate_asociado', 88)}%, Peso: {t2.get('peso', 30)}) | "
             f"3. Top 3: {t3.get('indicador')} (WinRate: {t3.get('win_rate_asociado', 83)}%, Peso: {t3.get('peso', 25)}). "
-            f"Filtro Noticias: 15m pre y 8m post bloqueo. Cierre parcial al 40% del recorrido (+15% asegurado) y SL en BE. "
+            f"Filtro Noticias: 15m pre y 8m post bloqueo. Cascada v2: TP1 cobro 50% vol al 50% dist (+1.0R), BE activo con 2.5 pips buffer post-TP1, Trail Lock 1 al 75% (+40% lock), Trail Lock 2 al 85% (+65% lock), Front-Run al 95% cierre 100% remanente. "
             f"Umbral Master: Score >= 0.70 APROBADO, menor VETADO."
         )
     else:
@@ -644,7 +644,7 @@ def run_hft_cycle():
             mia_rules = (
                 "REGLAS DE ORO MIA CORE (REGLA DE 3 ANTI-SUERTE >= 50 TRADES): "
                 "Top 1 RSI Sobrecompra/Sobreventa (83.58% WR, Peso 35), Top 2 Order Block 2H (80.38% WR, Peso 30), Top 3 Lux Algo OB 2H (61.32% WR, Peso 25). "
-                "Cierre parcial al 40% (+15% seguro) y SL en BE. Filtro noticias 15m pre / 8m post. Score >= 0.70 APROBADO."
+                "Cascada v2: TP1 cobro 50% vol al 50% dist (+1.0R), BE post-TP1, Trail Lock al 75% (+40%) y 85% (+65%), Front-Run al 95%. Filtro noticias 15m pre / 8m post. Score >= 0.70 APROBADO."
             )
 
     # 2. Generar el Debate y Veredicto de los Sub-Enjambres (Herds Deliberation)
@@ -674,7 +674,7 @@ def run_hft_cycle():
     **HERD 2 - NORO**: Niveles cuantitativos clave (POC dinámico, POC semanal y confluencia de Markov).
     **HERD 3 - ZEPHR**: Probabilidad estadística bayesiana y cálculo de Expected Value (EV en R) ponderado por vectores de ML.
     **HERD 4 - LUMEN**: Smart Money Concepts (Order Blocks LuxAlgo, Fair Value Gaps y barridos AMD Multi-Timeframe 1H, 2H, 3H, 4H, 8H. Bloquear entradas contra liquidez macro pendiente sin barrer).
-    **HERD 5 - RUNE**: Gestión de riesgo estricto (SL técnico defensivo, trailing escalonado 3 fases: BE al 40%, +25% al 65%, +65% al 85%, límite de canasta de máximo 2 operaciones simultáneas en pares USD para evitar sobre-correlación, y restricción estricta de que NZDCAD no se ejecute en broker).
+    **HERD 5 - RUNE**: Gestión de riesgo institucional v2 (SL técnico defensivo, cascada 4 fases: TP1 cobro 50% volumen al 50% dist (+1.0R), Break-Even post-TP1 con 2.5 pips buffer, Trailing Lock 1 al 75% (+40% asegurado), Trailing Lock 2 al 85% (+65% asegurado), Front-Run TP al 95% cierre 100% remanente; límite de canasta máx 2 operaciones USD, y restricción estricta de NZDCAD en Sandbox).
     **HERD 6 - TENSORFLOW**: Inferencia de red neuronal profunda (probabilidad continua de acierto del modelo sobre los activos en vivo).
     **HERD 7 - ATLAS**: Microestructura de libro de órdenes DOM (CVD Delta, bandas dinámicas por ATR, MCP y verificación del CBR).
     **MASTER**: Veredicto final del Quórum Calificado [APROBADO ✅ o VETADO ⛔] indicando el Score Ponderado (0.00 a 1.00, umbral >= 0.70). Si hay múltiples señales simultáneas en pares de USD, aplicar selector de convexidad (EV Picker) priorizando solo el par óptimo. Si la señal es para NZDCAD, el veredicto debe ser estrictamente SIMULACIÓN SANDBOX (sin orden a broker).

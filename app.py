@@ -413,13 +413,19 @@ class TradeAlert(BaseModel):
     stop_loss: Optional[float] = None
     take_profit: Optional[float] = None
     estrategia: str            # Ej: "RSI_Divergence", "MACD_Cross"
-    pnl: Optional[float] = 0.0 # Beneficio/pÃƒÆ’Ã‚Â©rdida (para registrar cierres)
-    ticket: Optional[str] = "" # NÃƒÆ’Ã‚Âºmero de ticket/operaciÃƒÆ’Ã‚Â³n de MT5 (ahora como string por si MetaApi usa IDs)
-    comentario: Optional[str] = "" # Comentario adicional (ej: 25% del TP)
+    pnl: Optional[float] = 0.0 # Beneficio/perdida (para registrar cierres)
+    ticket: Optional[str] = "" # Numero de ticket/operacion de MT5
+    comentario: Optional[str] = "" # Comentario adicional (ej: TP1 50%)
     open_time: Optional[str] = "" # Fecha de apertura ISO del trade en MT5
-    lotaje: Optional[float] = 0.01        # Volumen/Lotes de la operaciÃƒÆ’Ã‚Â³n
+    lotaje: Optional[float] = 0.01        # Volumen/Lotes de la operacion
     temporalidad: Optional[str] = "1H"    # Temporalidad Swing (1H, 2H, 4H, 8H)
     es_crypto: Optional[bool] = False     # Indicador 24/7
+    evento_gestion: Optional[str] = ""  # CIERRE_PARCIAL_TP1, TRAILING_LOCK_TP2, etc.
+    porcentaje_tp_alcanzado: Optional[float] = 0.0
+    volumen_cerrado: Optional[float] = 0.0
+    volumen_remanente: Optional[float] = 0.0
+    pnl_parcial_cobrado: Optional[float] = 0.0
+    ratio_rr_alcanzado: Optional[float] = 0.0
 
 class MarketAnomaly(BaseModel):
     activo: str                # Ej: "NASDAQ100", "SP500", "US30", "BTC"
@@ -852,7 +858,13 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 "motivo": motivo_final,
                 "detalle_setup": detalle_str,
                 "cuarentena_tf": exist_data.get("cuarentena_tf", True) if exist_data else True,
-                "bifurcacion": exist_data.get("bifurcacion", "challenger_herds_7") if exist_data else "challenger_herds_7"
+                "bifurcacion": exist_data.get("bifurcacion", "challenger_herds_7") if exist_data else "challenger_herds_7",
+                "evento_gestion": getattr(alert, "evento_gestion", "") or (exist_data.get("evento_gestion", "") if exist_data else ""),
+                "porcentaje_tp_alcanzado": float(getattr(alert, "porcentaje_tp_alcanzado", 0.0) or (exist_data.get("porcentaje_tp_alcanzado", 0.0) if exist_data else 0.0)),
+                "volumen_cerrado": float(getattr(alert, "volumen_cerrado", 0.0) or (exist_data.get("volumen_cerrado", 0.0) if exist_data else 0.0)),
+                "volumen_remanente": float(getattr(alert, "volumen_remanente", 0.0) or (exist_data.get("volumen_remanente", 0.0) if exist_data else 0.0)),
+                "pnl_parcial_cobrado": float(getattr(alert, "pnl_parcial_cobrado", 0.0) or (exist_data.get("pnl_parcial_cobrado", 0.0) if exist_data else 0.0)),
+                "ratio_rr_alcanzado": float(getattr(alert, "ratio_rr_alcanzado", 0.0) or (exist_data.get("ratio_rr_alcanzado", 0.0) if exist_data else 0.0))
             }
             
             # Recargar max_nivel_parcial de la memoria para que sobreviva al CIERRE_TOTAL
@@ -863,12 +875,17 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                             audit_data["max_nivel_parcial"] = l.get("max_nivel_parcial")
                         break
                         
-            # Inyectar el parcial si la alerta actual lo trae
-            if alert.accion in ["CIERRE_PARCIAL", "TRAILING_STOP"]:
+            # Inyectar el parcial si la alerta actual lo trae (Cascada v2)
+            if alert.accion in ["CIERRE_PARCIAL", "TRAILING_STOP", "CIERRE_TOTAL"]:
                 motivo_upper = ((alert.comentario if hasattr(alert, 'comentario') else '') or (alert.motivo if hasattr(alert, 'motivo') else '') or "").upper()
-                if any(x in motivo_upper for x in ["65%", "TP2", "50%", "TP65", "TP50"]):
-                    audit_data["max_nivel_parcial"] = 2
-                elif any(x in motivo_upper for x in ["40%", "TP1", "25%", "TP40", "TP25"]):
+                ev_upper = (getattr(alert, 'evento_gestion', '') or '').upper()
+                if "FRONT_RUN" in ev_upper or "95%" in motivo_upper:
+                    audit_data["max_nivel_parcial"] = 4
+                elif "TP3" in ev_upper or "LOCK_TP3" in ev_upper or "85%" in motivo_upper:
+                    audit_data["max_nivel_parcial"] = max(audit_data.get("max_nivel_parcial", 0), 3)
+                elif "TP2" in ev_upper or "LOCK_TP2" in ev_upper or "75%" in motivo_upper or "65%" in motivo_upper:
+                    audit_data["max_nivel_parcial"] = max(audit_data.get("max_nivel_parcial", 0), 2)
+                elif "TP1" in ev_upper or "50%" in motivo_upper or "40%" in motivo_upper or "25%" in motivo_upper:
                     audit_data["max_nivel_parcial"] = max(audit_data.get("max_nivel_parcial", 0), 1)
             
             # Solo actualizar la acciÃƒÆ’Ã‚Â³n principal si es apertura o cierre
@@ -1498,11 +1515,16 @@ def determinar_tipo_salida_ticket(ticket: str):
     fecha_log = str(l.get("fecha", ""))
     is_new = fecha_log >= "2026-09-22"
     
-    if nivel_parcial > 0:
-        if abs(pnl) <= 1.5: return "PARCIAL_BE"
-        if nivel_parcial == 2: return "TP_PARCIAL_65" if is_new else "TP_PARCIAL_50"
-        if nivel_parcial == 1: return "TP_PARCIAL_40" if is_new else "TP_PARCIAL_25"
-        return "TP_COMPLETO" if pnl > 0 else "SL_ORIGINAL"
+    evento_gestion = str(l.get("evento_gestion", "")).upper()
+    if "FRONT_RUN" in evento_gestion or nivel_parcial == 4:
+        return "FRONT_RUN_TP_95"
+    elif "LOCK_TP3" in evento_gestion or nivel_parcial == 3:
+        return "TRAILING_LOCK_65"
+    elif "LOCK_TP2" in evento_gestion or nivel_parcial == 2:
+        return "TRAILING_LOCK_40"
+    elif nivel_parcial == 1:
+        if abs(pnl) <= 2.5: return "PARCIAL_BE"
+        return "TP_PARCIAL_50"
     else:
         if pnl < 0: return "SL_ORIGINAL"
         elif pnl > 0: return "TP_COMPLETO"
@@ -2117,7 +2139,12 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
             'motivo': alert.comentario if alert.comentario else 'Cierre MT5',
             'timestamp': datetime.datetime.now().isoformat(),
             'score': getattr(alert, 'score', 75.0) or 75.0,
-            'detalle_setup': getattr(alert, 'detalle_setup_string', '') or getattr(alert, 'estrategia', '')
+            'detalle_setup': getattr(alert, 'detalle_setup_string', '') or getattr(alert, 'estrategia', ''),
+            'evento_gestion': getattr(alert, 'evento_gestion', '') or '',
+            'porcentaje_tp_alcanzado': float(getattr(alert, 'porcentaje_tp_alcanzado', 0.0) or 0.0),
+            'volumen_cerrado': float(getattr(alert, 'volumen_cerrado', 0.0) or 0.0),
+            'pnl_parcial_cobrado': float(getattr(alert, 'pnl_parcial_cobrado', 0.0) or 0.0),
+            'ratio_rr_alcanzado': float(getattr(alert, 'ratio_rr_alcanzado', 0.0) or 0.0)
         }
         background_tasks.add_task(reentrenar_tensorflow_en_cierre, trade_cierre_dict)
     

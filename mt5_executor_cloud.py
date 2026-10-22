@@ -704,7 +704,7 @@ async def solicitar_autorizacion_trade(activo: str, accion: str, precio: float, 
         print(f"| CLOUD EXCEPTION | Error al solicitar autorizaciÃ³n de trade: {e}")
     return None
 
-async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, evento: str, precio: float, sl: float, tp: float, pnl: float = 0.0, comentario: str = "", estrategia_original: str = "MANUAL", open_time: str = "", lotaje: float = 0.0):
+async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, evento: str, precio: float, sl: float, tp: float, pnl: float = 0.0, comentario: str = "", estrategia_original: str = "MANUAL", open_time: str = "", lotaje: float = 0.0, evento_gestion: str = "", porcentaje_tp_alcanzado: float = 0.0, volumen_cerrado: float = 0.0, volumen_remanente: float = 0.0, pnl_parcial_cobrado: float = 0.0, ratio_rr_alcanzado: float = 0.0):
     url = f"{FASTAPI_URL}/webhook"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
@@ -744,7 +744,13 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
         "ticket": str(ticket),
         "comentario": comentario,
         "open_time": open_time,
-        "lotaje": float(lotaje)
+        "lotaje": float(lotaje),
+        "evento_gestion": evento_gestion,
+        "porcentaje_tp_alcanzado": float(porcentaje_tp_alcanzado),
+        "volumen_cerrado": float(volumen_cerrado),
+        "volumen_remanente": float(volumen_remanente),
+        "pnl_parcial_cobrado": float(pnl_parcial_cobrado),
+        "ratio_rr_alcanzado": float(ratio_rr_alcanzado)
     }
     
     try:
@@ -925,15 +931,18 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             
             toca_parcial = 0
             if en_ganancia:
-                # Damos respiro (oxÃ­geno) al trade: 
-                # Antes: Parcial en 25%, ahora: Parcial 1 en 40%, Parcial 2 en 65%, Trail en 85%, Cierre Total (Front-Run TP) en 95%
+                # Damos respiro (oxígeno) institucional al trade - Cascada de 4 Fases v2:
+                # 1. Front-Run TP (95% dist): Cierre 100% remanente para evitar rebotes de último pip
+                # 2. Trailing Lock 2 (85% dist): SL al +65% de distancia (20% holgura)
+                # 3. Trailing Lock 1 (75% dist): SL al +40% de distancia (35% holgura)
+                # 4. TP1 Parcial (50% dist / +1.0R): Cierra 50% de volumen (+1.0R en caja) y mueve SL a BE (+2.5 pips buffer)
                 if distancia_total > 0 and porcentaje_recorrido >= 0.95:
-                    toca_parcial = 4 # Cierre total para evitar rebotes en el último pip
+                    toca_parcial = 4
                 elif distancia_total > 0 and porcentaje_recorrido >= 0.85 and nivel_parcial < 3:
                     toca_parcial = 3
-                elif distancia_total > 0 and porcentaje_recorrido >= 0.65 and nivel_parcial < 2:
+                elif distancia_total > 0 and porcentaje_recorrido >= 0.75 and nivel_parcial < 2:
                     toca_parcial = 2
-                elif distancia_total > 0 and porcentaje_recorrido >= 0.40 and nivel_parcial < 1:
+                elif distancia_total > 0 and porcentaje_recorrido >= 0.50 and nivel_parcial < 1:
                     toca_parcial = 1
                     
             if toca_parcial > 0:
@@ -956,42 +965,54 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 except Exception as e:
                     print(f"| GESTOR PARCIALES WARN | No se pudo obtener spec para {symbol}, usando 0.01 por defecto: {e}")
 
-                # TP1 (toca_parcial=1) -> 25% del volumen
-                # TP2 (toca_parcial=2) -> 50% del volumen
-                # TP3 (toca_parcial=3) -> 0% del volumen (solo Trail)
-                # TP4 (toca_parcial=4) -> 100% del volumen (Front-Run TP)
+                # Cascada Institucional v2:
+                # toca_parcial == 4 (Front-Run TP): 100% del volumen remanente (Cierre Total)
+                # toca_parcial == 3 (Trailing Lock 2): 0% volumen cerrado (Solo asegurar SL al +65%)
+                # toca_parcial == 2 (Trailing Lock 1): 0% volumen cerrado (Solo asegurar SL al +40%)
+                # toca_parcial == 1 (TP1): 50% del volumen cerrado (Cobra 50% a mercado, asegura +1.0R en caja)
                 if toca_parcial == 4:
                     porcentaje_a_cerrar = 1.0
+                    desc_tp = "Front-Run TP (Cierre 100% remanente al 95% dist)"
+                    evento_gestion = "FRONT_RUN_TP_FINAL"
+                    rr_calc = 2.0
                 elif toca_parcial == 3:
                     porcentaje_a_cerrar = 0.0
+                    desc_tp = "Trailing Lock 2 (+65% profit asegurado al 85% dist)"
+                    evento_gestion = "TRAILING_LOCK_TP3"
+                    rr_calc = 1.7
+                elif toca_parcial == 2:
+                    porcentaje_a_cerrar = 0.0
+                    desc_tp = "Trailing Lock 1 (+40% profit asegurado al 75% dist)"
+                    evento_gestion = "TRAILING_LOCK_TP2"
+                    rr_calc = 1.5
                 else:
-                    porcentaje_a_cerrar = 0.25 if toca_parcial == 1 else 0.50
+                    porcentaje_a_cerrar = 0.50
+                    desc_tp = "TP1 Parcial (50% volumen al 50% dist / +1.0R)"
+                    evento_gestion = "CIERRE_PARCIAL_TP1"
+                    rr_calc = 1.0
                 
                 volumen_raw = volume * porcentaje_a_cerrar
                 lote_a_cerrar = round(math.floor(volumen_raw / volume_step) * volume_step, 4)
                 
                 # --- AJUSTE INTELIGENTE DE VOLUMEN ---
-                if lote_a_cerrar < min_volume:
-                    # Si el cálculo da menos del mínimo, intentamos forzar al menos el mínimo
-                    if volume - min_volume >= min_volume:
-                        lote_a_cerrar = min_volume
-                    else:
-                        lote_a_cerrar = 0.0 # Imposible partir
+                if porcentaje_a_cerrar > 0.0:
+                    if lote_a_cerrar < min_volume:
+                        if volume - min_volume >= min_volume:
+                            lote_a_cerrar = min_volume
+                        else:
+                            lote_a_cerrar = 0.0 # Imposible partir
+                            
+                    # Asegurar que al broker no le quede un residuo menor a min_volume
+                    if lote_a_cerrar > 0 and (volume - lote_a_cerrar < min_volume) and toca_parcial != 4:
+                        lote_a_cerrar = round(math.floor((volume - min_volume) / volume_step) * volume_step, 4)
                         
-                # Asegurar que al broker no le quede un residuo menor a min_volume
-                if lote_a_cerrar > 0 and (volume - lote_a_cerrar < min_volume):
-                    lote_a_cerrar = round(math.floor((volume - min_volume) / volume_step) * volume_step, 4)
-                    
-                if lote_a_cerrar < min_volume:
+                    if lote_a_cerrar < min_volume and toca_parcial != 4:
+                        lote_a_cerrar = 0.0
+                else:
                     lote_a_cerrar = 0.0
                     
-                if toca_parcial == 4:
-                    desc_tp = "Front-Run TP (Cierre Total al 95%)"
-                elif toca_parcial == 1:
-                    desc_tp = "TP1 (25% vol at 40% dist)"
-                else:
-                    desc_tp = "TP2 (50% vol at 65% dist)"
                 pnl_parcial = 0.0
+                vol_cerrado_real = 0.0
                 
                 # --- 1. INTENTAR COBRAR PARCIAL ---
                 cobro_exitoso = False
@@ -1001,6 +1022,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                         close_result = await connection.close_position_partially(ticket, lote_a_cerrar)
                         POSICIONES_ACTIVAS[ticket]["volume"] = volume - lote_a_cerrar
                         cobro_exitoso = True
+                        vol_cerrado_real = lote_a_cerrar
                         
                         # PnL estimado
                         distancia_parcial = (current_price - entry_price) if es_buy else (entry_price - current_price)
@@ -1015,32 +1037,35 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                         await asyncio.sleep(1) # Breve pausa antes de modificar SL
                     except Exception as e:
                         print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial para {ticket}: {e}")
-                        # No actualizamos nivel_parcial para que intente de nuevo en el siguiente ciclo
                         continue
                 else:
-                    print(f"| GESTOR PARCIALES INFO | Volumen muy pequeño para partir ({volume}). Se asegurará con SL.")
-                    cobro_exitoso = True # Lo damos por exitoso para que avance a mover el SL
+                    if porcentaje_a_cerrar > 0.0:
+                        print(f"| GESTOR PARCIALES INFO | Volumen muy pequeño para partir ({volume}). Se asegurará con SL.")
+                    cobro_exitoso = True # Avanza a mover el SL
                     
-                # --- 2. MOVER STOP LOSS SIEMPRE (Excepto Cierre Total) ---
+                # --- 2. MOVER STOP LOSS SIEMPRE (Excepto Cierre Total Front-Run) ---
+                desc_sl = "N/A"
+                nuevo_sl = sl
                 if cobro_exitoso and toca_parcial != 4:
-                    buffer_be = 0.0001 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.01
+                    buffer_be = 0.00025 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.025
+                    if "XAU" in pos.get('symbol', ''):
+                        buffer_be = 0.25 # 25 centavos en oro
                     
                     if toca_parcial == 1:
-                        # Al llegar al 40%, asegurar Break-Even holgado (+5% o buffer para comisiones)
-                        # Dejando 35-40% de respiro para que el precio absorba retrocesos normales en H1
-                        distancia_segura = distancia_total * 0.05
-                        nuevo_sl = (entry_price + distancia_segura) if es_buy else (entry_price - distancia_segura)
-                        desc_sl = "Nivel Seguro BE (+5% Comisiones)"
+                        # Al llegar al 50% (+1.0R cobrado), mover SL a Break-Even con buffer de comisiones (+2.5 pips)
+                        # Dejando 50% de respiro libre al trade para absorber oscilaciones
+                        nuevo_sl = (entry_price + buffer_be) if es_buy else (entry_price - buffer_be)
+                        desc_sl = "Break-Even Protegido (+2.5 pips comisiones tras TP1)"
                     elif toca_parcial == 2:
-                        # Al llegar al 65%, asegurar el 25% del recorrido (Holgura del 40% hacia el precio actual)
-                        distancia_tp1 = distancia_total * 0.25
+                        # Al llegar al 75%, asegurar el 40% del recorrido (35% de holgura hacia el precio actual)
+                        distancia_tp1 = distancia_total * 0.40
                         nuevo_sl = (entry_price + distancia_tp1) if es_buy else (entry_price - distancia_tp1)
-                        desc_sl = "Nivel Seguro TP1 (+25% Profit)"
+                        desc_sl = "Trailing Lock 1 (+40% Ganancia Asegurada)"
                     else:
-                        # Al llegar al 85%, asegurar el 65% del recorrido
+                        # Al llegar al 85%, asegurar el 65% del recorrido (20% de holgura hacia el precio actual)
                         distancia_tp2 = distancia_total * 0.65
                         nuevo_sl = (entry_price + distancia_tp2) if es_buy else (entry_price - distancia_tp2)
-                        desc_sl = "Nivel Seguro TP2 (+65% Profit)"
+                        desc_sl = "Trailing Lock 2 (+65% Ganancia Asegurada)"
                         
                     # Verificar si el SL ya está en la posición deseada
                     sl_actual = POSICIONES_ACTIVAS[ticket].get("sl", 0.0)
@@ -1059,19 +1084,39 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                             if "NO_CHANGES" in str(sl_e) or "No changes" in str(sl_e):
                                 POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
                             elif lote_a_cerrar > 0:
-                                # Si se cobrÃ³ dinero pero fallÃ³ el SL, igual marcamos el nivel para no volver a cobrar
                                 POSICIONES_ACTIVAS[ticket]["nivel_parcial"] = toca_parcial
                             else:
-                                # Si no se cobrÃ³ nada y fallÃ³ el SL por otra razÃ³n, que vuelva a intentar todo luego
                                 continue
                             
-                    # --- 3. NOTIFICAR EN TELEGRAM ---
-                    try:
-                        desc_segura = desc_sl if toca_parcial != 4 else "N/A"
-                        comentario_tg = f"Cerrado {lote_a_cerrar} lotes al {desc_tp} del TP" if lote_a_cerrar > 0 else f"Protegido en {desc_segura} (lote intocable)"
-                        await reportar_evento_trade(pos.get('symbol', ''), ticket, pos.get('type', ''), "CIERRE_PARCIAL", current_price, sl, tp, pnl=pnl_parcial, comentario=comentario_tg, estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""), lotaje=pos.get('volume', 0.0))
-                    except Exception as t_e:
-                        print(f"| TELEGRAM WARN | No se enviÃ³ notificaciÃ³n parcial: {t_e}")                    
+                # --- 3. NOTIFICAR EN NOTION, TELEGRAM, FIREBASE Y BITACORA ---
+                try:
+                    desc_segura = desc_sl if toca_parcial != 4 else "Cierre Final Front-Run"
+                    comentario_tg = f"{desc_tp}: Cerrado {vol_cerrado_real} lotes (PnL: +${pnl_parcial:.2f} USD). SL en {desc_segura}." if vol_cerrado_real > 0 else f"{desc_tp}: SL asegurado en {desc_segura}."
+                    vol_rem = round(volume - vol_cerrado_real, 4) if toca_parcial != 4 else 0.0
+                    tipo_evento_reporte = "CIERRE_TOTAL" if toca_parcial == 4 else ("CIERRE_PARCIAL" if vol_cerrado_real > 0 else "TRAILING_STOP")
+                    
+                    await reportar_evento_trade(
+                        pos.get('symbol', ''), 
+                        ticket, 
+                        pos.get('type', ''), 
+                        tipo_evento_reporte, 
+                        current_price, 
+                        sl if toca_parcial == 4 else nuevo_sl, 
+                        tp, 
+                        pnl=pnl_parcial, 
+                        comentario=comentario_tg, 
+                        estrategia_original=POSICIONES_ACTIVAS[ticket].get("estrategia", "MANUAL"), 
+                        open_time=POSICIONES_ACTIVAS[ticket].get("open_time", ""), 
+                        lotaje=pos.get('volume', 0.0),
+                        evento_gestion=evento_gestion,
+                        porcentaje_tp_alcanzado=round(porcentaje_recorrido * 100, 1),
+                        volumen_cerrado=vol_cerrado_real,
+                        volumen_remanente=vol_rem,
+                        pnl_parcial_cobrado=round(pnl_parcial, 2),
+                        ratio_rr_alcanzado=rr_calc
+                    )
+                except Exception as t_e:
+                    print(f"| TELEGRAM WARN | No se envió notificación parcial: {t_e}")                    
                     
         # B. (Eliminado: Trailing Stop DinÃ¡mico continuo sustituido por Escalonado de 3 Fases en bloque A)
 
@@ -1099,7 +1144,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 recorrido_maximo_favor = entry_price - price_max_historico
                 
             # Solo permitir BE si el trade ha tocado al menos el 40% de la distancia al TP (tras asegurar TP1)
-            ha_estado_en_buena_ganancia = (recorrido_maximo_favor >= (distancia_total_tp * 0.40))
+            ha_estado_en_buena_ganancia = (recorrido_maximo_favor >= (distancia_total_tp * 0.48))
             
             distancia_tp1 = distancia_total_tp * 0.4
             rango_tolerancia = distancia_tp1 * 0.15
