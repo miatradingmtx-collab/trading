@@ -109,7 +109,8 @@ TIMEFRAME_PROFILES = {
         "wall_age": "42 min",
         "aging_status": "FLUIDO HFT",
         "smc_focus": "lux_algo_ob_1h · Barrido Liquidez Local (Sweeps)",
-        "cvd_pressure": "+$1.85M (Presión Dinámica Corto Plazo)"
+        "cvd_pressure": "+$1.85M (Presión Dinámica Corto Plazo)",
+        "cme_vol_regime": "CME FXVL: COMPRESIÓN / SWEEPS LOCALES (Z < -0.5)"
     },
     "2H": {
         "label": "2H (Swing Intradía · POC Dinámico - Regla de 3 Top 2)",
@@ -119,7 +120,8 @@ TIMEFRAME_PROFILES = {
         "wall_age": "1h 45m",
         "aging_status": "ESTABILIZADO",
         "smc_focus": "order_block_zona_2h (Win Rate 80.38% · Top 2 R3)",
-        "cvd_pressure": "+$3.40M (Presión Acumulativa Intradía)"
+        "cvd_pressure": "+$3.40M (Presión Acumulativa Intradía)",
+        "cme_vol_regime": "CME FXVL: EQUILIBRIO / REGLA DE 3 NÚCLEO (-0.5 <= Z <= 0.8)"
     },
     "3H": {
         "label": "3H (Apertura Londres & Overlap · Flujo AMD Institucional)",
@@ -129,7 +131,8 @@ TIMEFRAME_PROFILES = {
         "wall_age": "2h 35m",
         "aging_status": "INSTITUCIONAL",
         "smc_focus": "alineamiento_liquidez_3h · Manipulación / AMD CME",
-        "cvd_pressure": "+$6.15M (Flujo Direccional Londres-NY)"
+        "cvd_pressure": "+$6.15M (Flujo Direccional Londres-NY)",
+        "cme_vol_regime": "CME FXVL: APERTURA LONDRES AMD DINÁMICO (ΔFXVL > +15%)"
     },
     "4H": {
         "label": "4H (Macro Intradía · Absorción Interbancaria Mayor)",
@@ -139,7 +142,8 @@ TIMEFRAME_PROFILES = {
         "wall_age": "3h 50m",
         "aging_status": "MURO ESTRUCTURAL",
         "smc_focus": "smc_order_block_4h · Muro de Absorción Mayor CME",
-        "cvd_pressure": "+$11.80M (Absorción de Ballenas CME)"
+        "cvd_pressure": "+$11.80M (Absorción de Ballenas CME)",
+        "cme_vol_regime": "CME FXVL: ABSORCIÓN MACRO / EXPANSIÓN TENDENCIAL (Z > 0.8)"
     },
     "8H": {
         "label": "8H (Sesión Completa · Campana Institucional Londres-NY)",
@@ -149,7 +153,8 @@ TIMEFRAME_PROFILES = {
         "wall_age": "7h 15m",
         "aging_status": "MURO BANCARIO MACRO",
         "smc_focus": "alineamiento_liquidez_8h · Sesión Completa Interbancaria",
-        "cvd_pressure": "+$24.50M (Consenso de Fondos Soberanos)"
+        "cvd_pressure": "+$24.50M (Consenso de Fondos Soberanos)",
+        "cme_vol_regime": "CME FXVL: CAMPANA INTERBANCARIA COMPLETA (Consenso Fondos)"
     }
 }
 
@@ -386,7 +391,10 @@ def render_dom_terminal_l3(symbol="XAUUSD", timeframe="4H", override_price=None)
     sys.stdout.write(f"{BOLD}   LIBRO DE ÓRDENES (DOM LEVEL 3 · MBO) · ATLAS CVD SINTÉTICO INSTITUCIONAL   {RESET}\n")
     sys.stdout.write(f"  Activo: {YELLOW}{dom['symbol']}{RESET} | Spread: {YELLOW}{dom['spread_label']}{RESET} | {CYAN}{contract_info}{RESET} | {GREEN}CME MDP 3.0 / MT5 Proxy{RESET}\n")
     sys.stdout.write(f"  TEMPORALIDAD: [ {tf_bar_str} ] {DIM}(Pulsa 1, 2, 3, 4 u 8 para cambiar){RESET}\n")
-    sys.stdout.write(f"  Marco HFT: {YELLOW}{BOLD}{tf_prof['label']}{RESET}\n")
+    vol_tag = tf_prof.get('cme_vol_regime', 'FXVL NORMAL')
+    if "XAU" in dom['symbol'] or "GOLD" in dom['symbol']:
+        vol_tag = vol_tag.replace("CME FXVL", "COMEX GVZ / Gold CVOL")
+    sys.stdout.write(f"  Marco HFT: {YELLOW}{BOLD}{tf_prof['label']}{RESET} | {MAGENTA}{vol_tag}{RESET}\n")
     sys.stdout.write(f"  Tiempo: {DIM}{now_str}{RESET} | Paso ({tf}): {CYAN}{dom['step']:.{digits}f} {dom['unit']}{RESET} | Liquidez Visible: {YELLOW}{total_liq_str}{RESET}\n")
     sys.stdout.write(f"{CYAN}{BOLD}========================================================================================{RESET}\n")
     sys.stdout.write(f"{BOLD}{'PRECIO':>10s} | {'LOTES':>8s} | {'VALOR ($)':>9s} | {'# ORD':>5s} | {'ACUMULADO':>10s} | {'PROFUNDIDAD / ESTADO':<22s}{RESET}\n")

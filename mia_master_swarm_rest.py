@@ -582,7 +582,9 @@ def run_hft_cycle():
         smt_txt = f"DXY: {smt_data.get('dxy_spot', 102.3)} | SMT: {smt_data.get('tipo_divergencia', 'NEUTRAL')}"
         if smt_data.get("divergencia_detectada"):
             smt_txt += f" | ⚠️ SMT VETO: {smt_data.get('motivo')}"
-        dom_heatmap_summary = f"CME: {dom_analisis['cme_contract']} | Flujo: {dom_analisis['dom_imbalance']} (Compradores {dom_analisis['buyer_volume_pct']}% vs Vendedores {dom_analisis['seller_volume_pct']}%) | Trampas: BuyStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_alcista (Buy Stops)']} SellStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_bajista (Sell Stops)']} | {smt_txt}"
+        vol_info = dom_analisis.get("cme_volatility_regime", {})
+        vol_txt = f"Régimen CME: {vol_info.get('estado_volatilidad', 'BALANCEADO')} ({vol_info.get('benchmark_volatilidad', 'FXVL')})"
+        dom_heatmap_summary = f"CME: {dom_analisis['cme_contract']} | {vol_txt} | Flujo: {dom_analisis['dom_imbalance']} (Compradores {dom_analisis['buyer_volume_pct']}% vs Vendedores {dom_analisis['seller_volume_pct']}%) | Trampas: BuyStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_alcista (Buy Stops)']} SellStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_bajista (Sell Stops)']} | {smt_txt}"
     except Exception as e_dom:
         dom_heatmap_summary = f"Error escaneando DOM: {e_dom}"
 

@@ -188,12 +188,14 @@ def tool_scan_orderbook_depth(symbol: str = "EURUSD", current_price: float = 1.0
     base_px = current_price if current_price > 0 else (poc_price if poc_price > 0 else 1.0850)
     
     cme_tickers = {
-        "EURUSD": "6E (Euro FX Futures)",
-        "GBPUSD": "6B (British Pound Futures)",
-        "AUDUSD": "6A (Australian Dollar Futures)",
-        "GBPJPY": "GBP/JPY (Sintético Cruzado 6B/6J)",
-        "NZDCAD": "NZD/CAD (Sintético Cruzado 6N/6C)",
-        "XAUUSD": "GC (COMEX Gold Futures)"
+        # Bloque Canasta G5 FX (Benchmark: CME FXVL)
+        "EURUSD": "6E (CME G5 FX Futures | FXVL)",
+        "GBPUSD": "6B (CME G5 FX Futures | FXVL)",
+        "AUDUSD": "6A (CME G5 FX Futures | FXVL)",
+        "GBPJPY": "6B/6J (CME G5 Sintético Cruzado | FXVL Proxy)",
+        "NZDCAD": "6N/6C (CME FX Sintético Cruzado)",
+        # Bloque Metales COMEX (Benchmark: Gold CVOL / GVZ)
+        "XAUUSD": "GC (COMEX Gold Futures | GVZ/Gold CVOL)"
     }
     cme_contract = cme_tickers.get(sym, f"{sym}_FUTURES")
     

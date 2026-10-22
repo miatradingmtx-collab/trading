@@ -13,12 +13,112 @@ import math
 from typing import Dict, Any, Optional
 from dxy_smt_sensor import dxy_sensor
 
+# ====================================================================
+# CLÚSTERS OFICIALES CME GROUP / COMEX
+# ====================================================================
+CME_ASSET_CLUSTERS = {
+    "G5_FX_BASKET": {
+        "cluster_name": "CME G5 Foreign Exchange Futures",
+        "volatility_benchmark": "FXVL (CME G5 FX Volatility Index / CVOL)",
+        "cvol_ticker": "FXVL",
+        "pares_directos": {
+            "EURUSD": {"ticker": "6E", "contrato": "Euro FX Futures", "cvol_individual": "EUCO"},
+            "GBPUSD": {"ticker": "6B", "contrato": "British Pound Futures", "cvol_individual": "BPCO"},
+            "AUDUSD": {"ticker": "6A", "contrato": "Australian Dollar Futures", "cvol_individual": "ADCO"},
+            "USDJPY": {"ticker": "6J", "contrato": "Japanese Yen Futures", "cvol_individual": "JYCO"},
+            "NZDUSD": {"ticker": "6N", "contrato": "New Zealand Dollar Futures", "cvol_individual": "NZCO"},
+        },
+        "cruces_sinteticos_g5": {
+            "GBPJPY": {"ticker": "6B/6J", "contrato": "GBP/JPY Sintético Cruzado Futuros G5", "cvol_proxy": "FXVL_PROXY"},
+            "NZDCAD": {"ticker": "6N/6C", "contrato": "NZD/CAD Sintético Cruzado Futuros FX", "cvol_proxy": "FXVL_PROXY"}
+        }
+    },
+    "COMEX_METALS": {
+        "cluster_name": "COMEX Precious Metals Division",
+        "volatility_benchmark": "GVZ / GLCO (Gold Volatility Index / Gold CVOL)",
+        "cvol_ticker": "GVZ",
+        "activos": {
+            "XAUUSD": {"ticker": "GC", "contrato": "COMEX Gold Futures (100 oz)", "cvol_individual": "GLCO"}
+        }
+    }
+}
+
+# Diccionario plano enriquecido y 100% retrocompatible
+CME_TICKERS = {
+    "EURUSD": "6E (CME G5 FX Futures | FXVL)",
+    "GBPUSD": "6B (CME G5 FX Futures | FXVL)",
+    "AUDUSD": "6A (CME G5 FX Futures | FXVL)",
+    "USDJPY": "6J (CME G5 FX Futures | FXVL)",
+    "NZDUSD": "6N (CME FX Futures | FXVL)",
+    "GBPJPY": "6B/6J (CME G5 Sintético Cruzado | FXVL Proxy)",
+    "NZDCAD": "6N/6C (CME FX Sintético Cruzado)",
+    "XAUUSD": "GC (COMEX Gold Futures | GVZ/Gold CVOL)"
+}
+
+def evaluar_regimen_volatilidad_cme(
+    symbol: str,
+    timeframe: str = "2H",
+    atr_pips: Optional[float] = None,
+    current_price: float = 0.0
+) -> Dict[str, Any]:
+    """
+    Evalúa el régimen de volatilidad CME (FXVL para G5 FX, GVZ para Oro)
+    adaptado a las 5 temporalidades oficiales de Mia: 1H, 2H, 3H, 4H, 8H.
+    Determina si el mercado se encuentra en CONSOLIDACIÓN/COMPRESIÓN o EXPANSIÓN/TENDENCIA.
+    """
+    sym = symbol.upper().replace('/', '').replace('_', '')
+    is_gold = 'XAU' in sym or 'GOLD' in sym
+    
+    benchmark = "GVZ / GLCO (Gold CVOL)" if is_gold else "FXVL (CME G5 FX CVOL)"
+    cluster = "COMEX_METALS" if is_gold else "G5_FX_BASKET"
+    
+    # Parámetros base de volatilidad típica en pips (o USD en Oro) por temporalidad
+    base_atr_ref = {
+        "1H": 18.0 if not is_gold else 12.0,
+        "2H": 28.0 if not is_gold else 18.0,
+        "3H": 38.0 if not is_gold else 25.0,
+        "4H": 48.0 if not is_gold else 35.0,
+        "8H": 75.0 if not is_gold else 55.0
+    }.get(timeframe, 28.0)
+    
+    val_atr = atr_pips if atr_pips and atr_pips > 0 else base_atr_ref
+    ratio_vol = val_atr / (base_atr_ref if base_atr_ref > 0 else 1.0)
+    
+    # Clasificación Cuantitativa de Régimen
+    if ratio_vol < 0.85:
+        estado = "CONSOLIDACION_COMPRESION"
+        diagnostico = "Volatilidad Comprimida / Baja Actividad Implícita CME. Muros pasivos absorben el flujo."
+        estrategia = "Operar rango estricto y zonas de Order Blocks 1H/2H. TPs conservadores, prohibido breakouts."
+    elif ratio_vol <= 1.25:
+        estado = "MERCADO_NORMAL_BALANCEADO"
+        diagnostico = "Volatilidad Implícita en Rango Medio CME Globex. Flujo ordenado interbancario."
+        estrategia = "Regla de 3 canónica óptima (OB 2H + RSI + LuxAlgo). Respeto al POC institucional."
+    elif ratio_vol <= 1.80:
+        estado = "EXPANSION_TENDENCIAL"
+        diagnostico = "Expansión Institucional CME activa (Sweep de Liquidez / Desbalance CVD). Muros se apartan."
+        estrategia = "Operar EXCLUSIVAMENTE a favor de tendencia 4H/8H. Activar Cascada de Riesgo v2 con trailing stop."
+    else:
+        estado = "SHOCK_VOLATILIDAD_EXTREMA"
+        diagnostico = "Shock de Volatilidad / Noticia de Alto Impacto. Adelgazamiento severo de liquidez en DOM."
+        estrategia = "Activar Filtro Trampa Noticias (15 min pre / 8 min post). Bloqueo de nuevas órdenes o cierre defensivo."
+        
+    return {
+        "cluster_cme": cluster,
+        "benchmark_volatilidad": benchmark,
+        "timeframe": timeframe,
+        "estado_volatilidad": estado,
+        "ratio_volatilidad_vs_norma": round(ratio_vol, 2),
+        "diagnostico_dom": diagnostico,
+        "recomendacion_estrategica": estrategia
+    }
+
 def scan_institutional_dom(
     symbol: str,
     current_price: float = 0.0,
     poc_price: float = 0.0,
     precios_spot: Optional[Dict[str, float]] = None,
-    atr_pips: Optional[float] = None
+    atr_pips: Optional[float] = None,
+    timeframe: str = "2H"
 ) -> Dict[str, Any]:
     """
     Escanea la microestructura del Libro de Órdenes con bandas dinámicas adaptativas
@@ -26,18 +126,10 @@ def scan_institutional_dom(
     """
     symbol_norm = symbol.upper().replace('/', '').replace('_', '')
     
-    # 1. Mapeo Oficial de Contratos CME FX Futures / COMEX
-    cme_tickers = {
-        'EURUSD': '6E (Euro FX Futures)',
-        'GBPUSD': '6B (British Pound Futures)',
-        'USDJPY': '6J (Japanese Yen Futures)',
-        'AUDUSD': '6A (Australian Dollar Futures)',
-        'NZDUSD': '6N (New Zealand Dollar Futures)',
-        'NZDCAD': '6N/6C (Sintético Cruzado)',
-        'GBPJPY': '6B/6J (Sintético Cruzado)',
-        'XAUUSD': 'GC (COMEX Gold Futures)'
-    }
+    # 1. Mapeo Oficial de Contratos CME FX Futures / COMEX (G5 FXVL & COMEX GVZ)
+    cme_tickers = CME_TICKERS
     cme_symbol = cme_tickers.get(symbol_norm, f"{symbol_norm}_FUTURES")
+    cme_regimen = evaluar_regimen_volatilidad_cme(symbol_norm, timeframe, atr_pips, current_price)
     
     base_price = current_price if current_price > 0 else (poc_price if poc_price > 0 else 1.0)
     
@@ -96,6 +188,7 @@ def scan_institutional_dom(
     return {
         'activo': symbol_norm,
         'cme_contract': cme_symbol,
+        'cme_volatility_regime': cme_regimen,
         'dom_imbalance': dom_imbalance,
         'buyer_volume_pct': buyer_delta,
         'seller_volume_pct': seller_delta,
