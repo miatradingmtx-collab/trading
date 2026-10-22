@@ -3608,6 +3608,7 @@ def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[
         raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 class UpdateBalancePayload(BaseModel):
+    model_config = ConfigDict(extra='allow')
     balance: float
     equity: float = 0.0
     floating_pnl: float = 0.0
@@ -3616,6 +3617,18 @@ class UpdateBalancePayload(BaseModel):
     pnl_total_hoy: Optional[float] = None
     bloqueado_drawdown: Optional[bool] = False
     bloqueado_profit_lock: Optional[bool] = False
+    saldo_base_inicial: Optional[float] = 5000.0
+    high_water_mark_historico: Optional[float] = 5000.0
+    drawdown_base_usd: Optional[float] = 0.0
+    drawdown_base_pct: Optional[float] = 0.0
+    recuperacion_requerida_base_pct: Optional[float] = 0.0
+    drawdown_hwm_usd: Optional[float] = 0.0
+    drawdown_hwm_pct: Optional[float] = 0.0
+    recuperacion_requerida_hwm_pct: Optional[float] = 0.0
+    factor_asimetria: Optional[float] = 1.0
+    estado_sanacion: Optional[str] = "EN_RECUPERACION_DRAWDOWN_BASE_5000"
+    meta_sanacion_usd: Optional[float] = 5000.0
+    recuperacion_objetivo_pct: Optional[float] = 0.0
 
 @app.post("/webhook_update_balance")
 def webhook_update_balance(payload: UpdateBalancePayload, authorization: Optional[str] = Header(None)):
@@ -3642,6 +3655,18 @@ def webhook_update_balance(payload: UpdateBalancePayload, authorization: Optiona
             "pnl_total_hoy": payload.pnl_total_hoy,
             "bloqueado_drawdown": payload.bloqueado_drawdown,
             "bloqueado_profit_lock": payload.bloqueado_profit_lock,
+            "saldo_base_inicial": getattr(payload, "saldo_base_inicial", 5000.0),
+            "high_water_mark_historico": getattr(payload, "high_water_mark_historico", 5000.0),
+            "drawdown_base_usd": getattr(payload, "drawdown_base_usd", 0.0),
+            "drawdown_base_pct": getattr(payload, "drawdown_base_pct", 0.0),
+            "recuperacion_requerida_base_pct": getattr(payload, "recuperacion_requerida_base_pct", 0.0),
+            "drawdown_hwm_usd": getattr(payload, "drawdown_hwm_usd", 0.0),
+            "drawdown_hwm_pct": getattr(payload, "drawdown_hwm_pct", 0.0),
+            "recuperacion_requerida_hwm_pct": getattr(payload, "recuperacion_requerida_hwm_pct", 0.0),
+            "factor_asimetria": getattr(payload, "factor_asimetria", 1.0),
+            "estado_sanacion": getattr(payload, "estado_sanacion", "EN_RECUPERACION_DRAWDOWN_BASE_5000"),
+            "meta_sanacion_usd": getattr(payload, "meta_sanacion_usd", 5000.0),
+            "recuperacion_objetivo_pct": getattr(payload, "recuperacion_objetivo_pct", 0.0),
             "timestamp": datetime.now().isoformat()
         }
         

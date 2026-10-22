@@ -121,3 +121,22 @@ trigger: always_on
    `ESTADO DE LA CUENTA: EN RECUPERACIÓN / BAJO DRAWDOWN SEVERO ACUMULADO (-$X USD / -Y% vs Base $5,000)`.
 4. **Criterio Inquebrantable de Restablecimiento:** La cuenta SOLO y EXCLUSIVAMENTE podrá ser declarada como "Restablecida / Saludable" cuando el balance real auditado en MT5 sea **>= $5,000.00 USD** de forma neta y comprobada.
 5. **Enfoque de Recuperación de Capital:** Cada propuesta de trading, ajuste de lotaje, trailing stop, sesiones o DOM debe tener como único objetivo prioritario la recuperación asimétrica del capital hacia los $5,000 USD, erradicando micro-ganancias prematuras ($2-$5 USD) en operaciones que arriesgan $30+ USD.
+
+# 🛑 REGLA DE ORO DE ASIMETRÍA MATEMÁTICA DE RECUPERACIÓN Y HIGH-WATER MARK (LEY D / (1 - D))
+**MANDATO CUANTITATIVO PARA TODOS LOS AGENTES LLM (POST-MORTEM, QUANT, WATCHDOG T1-T10, 7 HERDS) Y ALGORITMOS:**
+1. **Prohibición Terminante de Proyección Simétrica:**
+   Queda TERMINANTEMENTE PROHIBIDO que cualquier Agente LLM o algoritmo asuma o reporte que una pérdida porcentual se recupera con el mismo porcentaje de ganancia (e.g. creer que perder 20% se sana ganando 20%).
+2. **Fórmula Canónica de Recuperación Asimétrica:**
+   Para cualquier drawdown fraccional $d = \frac{\text{Pérdida en USD}}{\text{Cota de Referencia}}$ (donde $0 \le d < 1$), el porcentaje de recuperación real requerido $R$ sobre el balance reducido actual es:
+   $$R = \frac{d}{1 - d} \times 100 = \frac{\text{Capital a Recuperar (USD)}}{\text{Balance Actual (USD)}} \times 100$$
+   - Pérdida de -10% $\implies$ Requiere ganar **+11.11%**.
+   - Pérdida de -20% $\implies$ Requiere ganar **+25.00%** (Déficit residual si solo se gana 20%: $B_{peak} \times d^2 = \$200$ USD).
+   - Pérdida de -24.16% (Drawdown actual $3,791.83 vs $5,000) $\implies$ Requiere ganar **+31.86%** ($+$1,208.17 USD).
+   - Pérdida de -30% $\implies$ Requiere ganar **+42.86%**.
+   - Pérdida de -50% $\implies$ Requiere ganar **+100.00%**.
+3. **Doble Cota de Sanación (Base $5,000 USD vs High-Water Mark Dinámico):**
+   - **Caso 1: Balance < $5,000.00 USD (Drawdown Estructural vs Base):**
+     La meta obligatoria de sanación es $C_{base} = \$5,000.00$. El porcentaje de recuperación es $R_{base} = \frac{5,000 - \text{Balance}}{\text{Balance}} \times 100$. Estado: `ESTADO DE LA CUENTA: EN RECUPERACIÓN / BAJO DRAWDOWN SEVERO ACUMULADO`.
+   - **Caso 2: Balance >= $5,000.00 USD pero < High-Water Mark (Retroceso de Pico):**
+     Si la cuenta sube a $5,400 y luego retrocede a $5,200 (caída de -3.70%), la recuperación requerida para sanar el retroceso al pico es $R_{HWM} = \frac{5,400 - 5,200}{5,200} \times 100 = +3.85\%$. Estado: `ESTADO DE LA CUENTA: EN RECUPERACIÓN / RETROCESO DE PICO HWM (-$200 USD / -3.70% vs HWM $5,400)`.
+   - **Criterio Inquebrantable de Cuenta Sanada:** La cuenta SOLO se considera plenamente "Sanada y en Máximos" cuando el balance real auditado sea $\ge \$5,000.00$ USD Y $\ge B_{HWM}$.

@@ -512,10 +512,17 @@ def run_hft_cycle():
         w_amd_trampa = ml_dyn_weights.get("amd_trampa_macro_evitada", 2.10)
         amd_ml_vector_str = f"AMD Macro Sweep Weight={w_amd_macro} | AMD 3H Weight={w_amd_3h} | AMD Intradía Weight={w_amd_intra} | Anti-Trampa Weight={w_amd_trampa}"
             
-        # Extracción de liquidez y balance
+        # Extracción de liquidez, balance y asimetría de recuperación (High-Water Mark)
         balance = mt5_json.get("balance_actual", 0.0)
         equity = mt5_json.get("equity", 0.0)
         pnl = mt5_json.get("floating_pnl", 0.0)
+        hwm = mt5_json.get("high_water_mark_historico", 5000.0)
+        dd_base_usd = mt5_json.get("drawdown_base_usd", round(balance - 5000.0, 2))
+        dd_base_pct = mt5_json.get("drawdown_base_pct", round((dd_base_usd / 5000.0)*100, 2) if 5000.0 > 0 else 0.0)
+        recup_req_pct = mt5_json.get("recuperacion_objetivo_pct", round((abs(dd_base_usd)/balance)*100, 2) if balance > 0 and dd_base_usd < 0 else 0.0)
+        factor_asimetria = mt5_json.get("factor_asimetria", round(recup_req_pct / abs(dd_base_pct), 2) if abs(dd_base_pct) > 0 else 1.0)
+        estado_sanacion = mt5_json.get("estado_sanacion", "EN_RECUPERACION_DRAWDOWN_BASE_5000" if balance < 5000 else "CUENTA_SANADA")
+        meta_sanacion = mt5_json.get("meta_sanacion_usd", 5000.0)
         
         ops_resumen = []
         for op in mt5_json.get("operaciones_activas", []):
@@ -526,7 +533,13 @@ def run_hft_cycle():
         str_ops = ", ".join(ops_resumen) if ops_resumen else "Ninguno"
         
         tf_acc = tf_json.get('accuracy', 0.5)
-        cache_data = f"Balance: ${balance:.2f} | Equity: ${equity:.2f} | PnL Flotante: ${pnl:.2f} | Posiciones: {str_ops} | IA Accuracy: {tf_acc*100:.1f}%"
+        cache_data = (
+            f"Balance: ${balance:.2f} (Base: $5,000.00 | HWM: ${hwm:.2f}) | "
+            f"Drawdown: {dd_base_pct:+.2f}% (${dd_base_usd:+.2f}) | "
+            f"RECUPERACIÓN ASIMÉTRICA REQUERIDA: +{recup_req_pct:.2f}% para sanar cuenta a ${meta_sanacion:.2f} USD (Factor Asimetría: {factor_asimetria}x) | "
+            f"Estado Sanación: {estado_sanacion} | Equity: ${equity:.2f} | PnL Flotante: ${pnl:.2f} | "
+            f"Posiciones: {str_ops} | IA Accuracy: {tf_acc*100:.1f}%"
+        )
     except Exception as e:
         cache_data = f"FALLO_EN_SENSORES: {e}"
         mt5_json = {}
@@ -672,9 +685,9 @@ def run_hft_cycle():
     Genera el diálogo de debate, contrapuntos y consenso final entre los 7 Herds independientes:
     **HERD 1 - TIDAL**: Tendencia macro de sesiones (Londres/NY/Asia), monitoreo de Dollar Index (DXY) y validación de divergencias institucionales SMT (vetar si DXY diverge o muestra absorción en contra).
     **HERD 2 - NORO**: Niveles cuantitativos clave (POC dinámico, POC semanal y confluencia de Markov).
-    **HERD 3 - ZEPHR**: Probabilidad estadística bayesiana y cálculo de Expected Value (EV en R) ponderado por vectores de ML.
+    **HERD 3 - ZEPHR**: Probabilidad estadística bayesiana y cálculo de Expected Value (EV en R) ponderado por la Ley de Asimetría Matemática (para superar drawdown de -X%, la ganancia requerida no es simétrica sino +Y% = X/(1-X) sobre el capital reducido).
     **HERD 4 - LUMEN**: Smart Money Concepts (Order Blocks LuxAlgo, Fair Value Gaps y barridos AMD Multi-Timeframe 1H, 2H, 3H, 4H, 8H. Bloquear entradas contra liquidez macro pendiente sin barrer).
-    **HERD 5 - RUNE**: Gestión de riesgo institucional v2 (SL técnico defensivo, cascada 4 fases: TP1 cobro 50% volumen al 50% dist (+1.0R), Break-Even post-TP1 con 2.5 pips buffer, Trailing Lock 1 al 75% (+40% asegurado), Trailing Lock 2 al 85% (+65% asegurado), Front-Run TP al 95% cierre 100% remanente; límite de canasta máx 2 operaciones USD, y restricción estricta de NZDCAD en Sandbox).
+    **HERD 5 - RUNE**: Gestión de riesgo institucional v2 y Gobernanza Asimétrica de Capital: aplica la Ley de Asimetría Matemática (para sanar la cuenta se requiere ganancia asimétrica R = D/(1-D), prohibido asumir proyecciones simétricas). SL técnico defensivo, cascada 4 fases: TP1 cobro 50% volumen al 50% dist (+1.0R), Break-Even post-TP1 con 2.5 pips buffer, Trailing Lock 1 al 75% (+40% asegurado), Trailing Lock 2 al 85% (+65% asegurado), Front-Run TP al 95% cierre 100% remanente; límite de canasta máx 2 operaciones USD, y restricción estricta de NZDCAD en Sandbox.
     **HERD 6 - TENSORFLOW**: Inferencia de red neuronal profunda (probabilidad continua de acierto del modelo sobre los activos en vivo).
     **HERD 7 - ATLAS**: Microestructura de libro de órdenes DOM (CVD Delta, bandas dinámicas por ATR, MCP y verificación del CBR).
     **MASTER**: Veredicto final del Quórum Calificado [APROBADO ✅ o VETADO ⛔] indicando el Score Ponderado (0.00 a 1.00, umbral >= 0.70). Si hay múltiples señales simultáneas en pares de USD, aplicar selector de convexidad (EV Picker) priorizando solo el par óptimo. Si la señal es para NZDCAD, el veredicto debe ser estrictamente SIMULACIÓN SANDBOX (sin orden a broker).

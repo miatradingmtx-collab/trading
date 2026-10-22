@@ -281,6 +281,7 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
     # 1. Si cambió el ciclo operativo de Londres o es el primer arranque, inicializar Watermark
     if ESTADO_DIARIO_WATERMARK.get("id_ciclo") != id_ciclo or ESTADO_DIARIO_WATERMARK.get("balance_inicio_dia") is None:
         balance_inicio = balance
+        hwm_previo = 5000.0
         # Intentar recuperar el balance_inicio_dia persistido en cache_mt5 (Upstash Redis) para resiliencia ante reinicios
         try:
             async with httpx.AsyncClient(timeout=2.0) as client:
@@ -295,6 +296,8 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
                         print(f"| GESTOR RIESGO | Watermark recuperado de cache_mt5 para {id_ciclo}: ${balance_inicio:.2f}")
                     elif d_c.get("dia_utc") == hoy_utc and not d_c.get("id_ciclo") and float(d_c.get("balance_inicio_dia", 0.0)) > 0:
                         balance_inicio = float(d_c.get("balance_inicio_dia"))
+                    if float(d_c.get("high_water_mark_historico", 0.0)) > 0:
+                        hwm_previo = float(d_c.get("high_water_mark_historico"))
         except Exception:
             pass
 
@@ -305,7 +308,8 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
             "pnl_cerrado_acumulado": balance - balance_inicio,
             "bloqueado_drawdown": False,
             "bloqueado_profit_lock": False,
-            "hora_reinicio_mx": hora_mx_str
+            "hora_reinicio_mx": hora_mx_str,
+            "hwm_historico": max(5000.0, hwm_previo, balance)
         }
         print(f"| GESTOR RIESGO | 🔔 NUEVO CICLO OPERATIVO INSTITUCIONAL LONDRES {id_ciclo}. Hora MX: {hora_mx_str} | Hora LON: {hora_lon_str}. Balance Watermark: ${balance_inicio:.2f}")
 
@@ -2109,6 +2113,38 @@ async def run_escaner_loop():
                         "estado_display": "EN VIVO MT5"
                     })
                 
+                # --- LEY DE ASIMETRIA MATEMATICA DE PERDIDAS Y RECUPERACION (HIGH-WATER MARK) ---
+                BASE_INICIAL = 5000.0
+                hwm_actual = max(BASE_INICIAL, float(ESTADO_DIARIO_WATERMARK.get("hwm_historico", BASE_INICIAL)), balance_val)
+                ESTADO_DIARIO_WATERMARK["hwm_historico"] = hwm_actual
+
+                # 1. Metricas vs Base Inicial $5,000 USD
+                diff_base = round(balance_val - BASE_INICIAL, 2)
+                dd_base_pct = round((diff_base / BASE_INICIAL) * 100.0, 2)
+                recup_req_base_pct = round((abs(diff_base) / balance_val) * 100.0, 2) if balance_val > 0 and diff_base < 0 else 0.0
+
+                # 2. Metricas vs High-Water Mark (Pico Maximo Historico)
+                diff_hwm = round(balance_val - hwm_actual, 2)
+                dd_hwm_pct = round((diff_hwm / hwm_actual) * 100.0, 2) if hwm_actual > 0 else 0.0
+                recup_req_hwm_pct = round((abs(diff_hwm) / balance_val) * 100.0, 2) if balance_val > 0 and diff_hwm < 0 else 0.0
+
+                # 3. Factor de Asimetria: R / D = 1 / (1 - d)
+                factor_asimetria = round(recup_req_hwm_pct / abs(dd_hwm_pct), 4) if abs(dd_hwm_pct) > 0 else 1.0
+
+                # 4. Determinacion del Estado de Sanacion de la Cuenta
+                if balance_val < BASE_INICIAL:
+                    estado_sanacion = "EN_RECUPERACION_DRAWDOWN_BASE_5000"
+                    meta_sanacion_usd = BASE_INICIAL
+                    recup_objetivo_pct = recup_req_base_pct
+                elif balance_val < hwm_actual:
+                    estado_sanacion = "EN_RECUPERACION_RETROCESO_HWM"
+                    meta_sanacion_usd = hwm_actual
+                    recup_objetivo_pct = recup_req_hwm_pct
+                else:
+                    estado_sanacion = "CUENTA_SANADA_MAXIMOS_HISTORICOS"
+                    meta_sanacion_usd = balance_val
+                    recup_objetivo_pct = 0.0
+
                 payload_upstash = {
                     "balance": balance_val,
                     "balance_actual": balance_val,
@@ -2124,6 +2160,18 @@ async def run_escaner_loop():
                     "dia_utc": ESTADO_DIARIO_WATERMARK.get("dia_utc"),
                     "bloqueado_drawdown": ESTADO_DIARIO_WATERMARK.get("bloqueado_drawdown", False),
                     "bloqueado_profit_lock": ESTADO_DIARIO_WATERMARK.get("bloqueado_profit_lock", False),
+                    "saldo_base_inicial": BASE_INICIAL,
+                    "high_water_mark_historico": hwm_actual,
+                    "drawdown_base_usd": diff_base,
+                    "drawdown_base_pct": dd_base_pct,
+                    "recuperacion_requerida_base_pct": recup_req_base_pct,
+                    "drawdown_hwm_usd": diff_hwm,
+                    "drawdown_hwm_pct": dd_hwm_pct,
+                    "recuperacion_requerida_hwm_pct": recup_req_hwm_pct,
+                    "factor_asimetria": factor_asimetria,
+                    "estado_sanacion": estado_sanacion,
+                    "meta_sanacion_usd": meta_sanacion_usd,
+                    "recuperacion_objetivo_pct": recup_objetivo_pct,
                     "margen": float(info.get('margin', 0.0)),
                     "margen_libre": float(info.get('freeMargin', 0.0)),
                     "nivel_margen": float(info.get('marginLevel', 0.0)),
