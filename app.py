@@ -2,16 +2,16 @@
 #                      MODERN TRADING WEB SERVICE (REST API)
 # ==============================================================================
 # NOTA IMPORTANTE SOBRE ARQUITECTURA:
-# Este servicio web ha sido diseÃƒÆ’Ã‚Â±ado utilizando arquitectura REST moderna y formato JSON,
-# reemplazando el formato XML/SOAP clÃƒÆ’Ã‚Â¡sico.
+# Este servicio web ha sido diseñado utilizando arquitectura REST moderna y formato JSON,
+# reemplazando el formato XML/SOAP clásico.
 #
-# Ãƒâ€šÃ‚Â¿Por quÃƒÆ’Ã‚Â© los Web Services XML tradicionales (SOAP/WSDL) estÃƒÆ’Ã‚Â¡n obsoletos aquÃƒÆ’Ã‚Â­?
+# Ãƒâ€šÃ‚Â¿Por qué los Web Services XML tradicionales (SOAP/WSDL) están obsoletos aquí?
 # 1. TradingView y Notion no soportan XML nativamente para este tipo de flujos.
-#    TradingView envÃƒÆ’Ã‚Â­a alertas en JSON, y la API de Notion consume estrictamente JSON.
+#    TradingView envía alertas en JSON, y la API de Notion consume estrictamente JSON.
 # 2. XML es extremadamente pesado ("verboso") debido a las etiquetas de apertura y cierre.
-#    JSON es ligero, rÃƒÆ’Ã‚Â¡pido de transmitir y nativo en Python y JavaScript.
+#    JSON es ligero, rápido de transmitir y nativo en Python y JavaScript.
 # 3. SOAP/XML requiere esquemas complejos (WSDL). REST/JSON utiliza FastAPI, que es el
-#    estÃƒÆ’Ã‚Â¡ndar de la industria para microservicios de alto rendimiento y baja latencia.
+#    estándar de la industria para microservicios de alto rendimiento y baja latencia.
 # ==============================================================================
 
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Header, Response
@@ -40,7 +40,7 @@ from google.cloud.firestore_v1.base_query import FieldFilter
 firebase_inicializado = False
 db = None
 
-# Variables globales para cachÃƒÆ’Ã‚Â© del Dashboard
+# Variables globales para caché del Dashboard
 DASHBOARD_CACHE_DATA = None
 DASHBOARD_CACHE_TIME = 0.0
 ULTIMO_BROKER_STATE = None
@@ -59,7 +59,7 @@ try:
         firebase_admin.initialize_app(cred)
         firebase_inicializado = True
         db = firestore.client()
-        print("| FIREBASE | Inicializado con ÃƒÆ’Ã‚Â©xito usando serviceAccountKey.json local.")
+        print("| FIREBASE | Inicializado con éxito usando serviceAccountKey.json local.")
     
     # 2. Si no hay archivo, intentar cargar desde la variable de entorno JSON (para Render/Nube)
     elif os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON"):
@@ -68,7 +68,7 @@ try:
         try:
             service_account_info = json.loads(raw_json)
         except Exception as je:
-            print(f"| FIREBASE | json.loads fallÃƒÆ’Ã‚Â³ ({je}). Intentando mÃƒÆ’Ã‚Â©todo alternativo de extracciÃƒÆ’Ã‚Â³n por Regex...")
+            print(f"| FIREBASE | json.loads falló ({je}). Intentando método alternativo de extracción por Regex...")
             try:
                 import re
                 keys = [
@@ -86,7 +86,7 @@ try:
                     match = pattern.search(raw_json)
                     if match:
                         val = match.group(1)
-                        # Intentar descodificar con json.loads para resolver escapes estÃƒÆ’Ã‚Â¡ndar de JSON
+                        # Intentar descodificar con json.loads para resolver escapes estándar de JSON
                         try:
                             val = json.loads(f'"{val}"')
                         except Exception:
@@ -94,7 +94,7 @@ try:
                         
                         # Limpieza profunda de la clave privada
                         if key == "private_key":
-                            # Convertir representaciones literales de saltos de lÃƒÆ’Ã‚Â­nea en newlines reales
+                            # Convertir representaciones literales de saltos de línea en newlines reales
                             val = val.replace('\\\\n', '\n').replace('\\n', '\n')
                             # Resolver slashes escapados comunes en base64 (\/ -> /)
                             val = val.replace('\\/', '/')
@@ -107,11 +107,11 @@ try:
                 
                 if "private_key" in extracted and "client_email" in extracted:
                     service_account_info = extracted
-                    print("| FIREBASE | Datos de cuenta de servicio extraÃƒÆ’Ã‚Â­dos con ÃƒÆ’Ã‚Â©xito vÃƒÆ’Ã‚Â­a Regex.")
+                    print("| FIREBASE | Datos de cuenta de servicio extraídos con éxito vía Regex.")
                 else:
-                    raise ValueError("Faltan campos esenciales (private_key o client_email) tras extracciÃƒÆ’Ã‚Â³n por Regex.")
+                    raise ValueError("Faltan campos esenciales (private_key o client_email) tras extracción por Regex.")
             except Exception as e2:
-                print(f"| FIREBASE ERROR | FallÃƒÆ’Ã‚Â³ tambiÃƒÆ’Ã‚Â©n la extracciÃƒÆ’Ã‚Â³n por Regex: {e2}")
+                print(f"| FIREBASE ERROR | Falló también la extracción por Regex: {e2}")
                 raise e2
         
         if service_account_info:
@@ -119,21 +119,21 @@ try:
             firebase_admin.initialize_app(cred)
             firebase_inicializado = True
             db = firestore.client()
-            print("| FIREBASE | Inicializado con ÃƒÆ’Ã‚Â©xito usando variable de entorno.")
+            print("| FIREBASE | Inicializado con éxito usando variable de entorno.")
     else:
-        print("| FIREBASE WARNING | No se encontrÃƒÆ’Ã‚Â³ archivo serviceAccountKey.json ni variable de entorno. Firebase no guardarÃƒÆ’Ã‚Â¡ datos.")
+        print("| FIREBASE WARNING | No se encontró archivo serviceAccountKey.json ni variable de entorno. Firebase no guardará datos.")
 except Exception as e:
-    print(f"| FIREBASE ERROR | FallÃƒÆ’Ã‚Â³ la inicializaciÃƒÆ’Ã‚Â³n de Firebase: {e}")
+    print(f"| FIREBASE ERROR | Falló la inicialización de Firebase: {e}")
 
 # ==============================================================================
 # AUTO-INICIALIZADOR VIP DE ACTIVOS
 # Si un activo nuevo llega via webhook o se detecta en el broker y NO existe
-# en la matriz de Firebase, esta funciÃƒÆ’Ã‚Â³n lo crea automÃƒÆ’Ã‚Â¡ticamente con el esquema
+# en la matriz de Firebase, esta función lo crea automáticamente con el esquema
 # completo del modelo de inteligencia financiera de Mia.
 #
-# OPTIMIZACIÃƒÆ’Ã¢â‚¬Å“N DE TOKENS FIREBASE:
+# OPTIMIZACIÓN DE TOKENS FIREBASE:
 # - Usa el set ACTIVOS_INICIALIZADOS en RAM como primera barrera.
-# - Si el activo ya estÃƒÆ’Ã‚Â¡ en el set ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ 0 lecturas a Firestore (costo $0).
+# - Si el activo ya está en el set ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ 0 lecturas a Firestore (costo $0).
 # - Solo lee/escribe Firebase si el activo es genuinamente nuevo.
 # ==============================================================================
 ACTIVOS_INICIALIZADOS: set = {
@@ -149,15 +149,15 @@ def auto_inicializar_activo(activo: str) -> bool:
         return False
     activo_norm = normalizar_activo(activo)
     
-    # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬Ëœ BARRERA DE RAM: Si ya estÃƒÆ’Ã‚Â¡ en cachÃƒÆ’Ã‚Â©, no gastamos ni un token de Firebase
+    # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬Ëœ BARRERA DE RAM: Si ya está en caché, no gastamos ni un token de Firebase
     if activo_norm in ACTIVOS_INICIALIZADOS:
         return False
     
     try:
         doc_ref = db.collection("trading_matrix").document(activo_norm)
-        doc = doc_ref.get()  # Solo se ejecuta si NO estÃƒÆ’Ã‚Â¡ en el cachÃƒÆ’Ã‚Â© RAM
+        doc = doc_ref.get()  # Solo se ejecuta si NO está en el caché RAM
         if doc.exists:
-            # Ya existÃƒÆ’Ã‚Â­a en Firebase pero no estaba en RAM ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ agregar al cachÃƒÆ’Ã‚Â©
+            # Ya existía en Firebase pero no estaba en RAM ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ agregar al caché
             ACTIVOS_INICIALIZADOS.add(activo_norm)
             return False
         
@@ -209,8 +209,8 @@ def auto_inicializar_activo(activo: str) -> bool:
             }
         }
         doc_ref.set(esquema_activo)
-        ACTIVOS_INICIALIZADOS.add(activo_norm)  # Agregar al cachÃƒÆ’Ã‚Â© RAM inmediatamente
-        print(f"| FIREBASE AUTO-VIP | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â Nuevo activo '{activo_norm}' matriculado automÃƒÆ’Ã‚Â¡ticamente con esquema Mia completo.")
+        ACTIVOS_INICIALIZADOS.add(activo_norm)  # Agregar al caché RAM inmediatamente
+        print(f"| FIREBASE AUTO-VIP | ✅ Nuevo activo '{activo_norm}' matriculado automáticamente con esquema Mia completo.")
         return True
     except Exception as e:
         if "429" in str(e) or "quota" in str(e).lower():
@@ -220,7 +220,7 @@ def auto_inicializar_activo(activo: str) -> bool:
         print(f"| FIREBASE AUTO-VIP ERROR | No se pudo inicializar '{activo}': {e}")
         return False
 
-# InicializaciÃƒÆ’Ã‚Â³n de la aplicaciÃƒÆ’Ã‚Â³n FastAPI (El estÃƒÆ’Ã‚Â¡ndar moderno de Web Services)
+# Inicialización de la aplicación FastAPI (El estándar moderno de Web Services)
 app = FastAPI(
     title="Trading Automation Bridge",
     description="Servidor puente moderno para conectar TradingView con Notion, Grok y Excel",
@@ -334,29 +334,29 @@ async def startup_event():
             
             print("| FIREBASE VIP | Cargando activos ya existentes en Firebase (1 sola lectura batch)...")
             
-            # 1 SOLA LECTURA BATCH: lee toda la colecciÃƒÆ’Ã‚Â³n de una vez
+            # 1 SOLA LECTURA BATCH: lee toda la colección de una vez
             try:
                 docs_existentes = db.collection("trading_matrix").stream()
                 for doc in docs_existentes:
                     ACTIVOS_INICIALIZADOS.add(doc.id)
             except Exception as e_stream:
-                print(f"| FIREBASE VIP WARN | Firestore en 429 durante stream ({e_stream}). Usando activos VIP pre-poblados en RAM.")  # Poblar cachÃƒÆ’Ã‚Â© RAM con los que ya existen
+                print(f"| FIREBASE VIP WARN | Firestore en 429 durante stream ({e_stream}). Usando activos VIP pre-poblados en RAM.")  # Poblar caché RAM con los que ya existen
             
-            print(f"| FIREBASE VIP | {len(ACTIVOS_INICIALIZADOS)} activos ya cargados en cachÃƒÆ’Ã‚Â© RAM: {sorted(ACTIVOS_INICIALIZADOS)}")
+            print(f"| FIREBASE VIP | {len(ACTIVOS_INICIALIZADOS)} activos ya cargados en caché RAM: {sorted(ACTIVOS_INICIALIZADOS)}")
             
-            # Solo inicializar los que NO estÃƒÆ’Ã‚Â©n ya en Firebase
+            # Solo inicializar los que NO estén ya en Firebase
             nuevos = [a for a in activos_vip if a not in ACTIVOS_INICIALIZADOS]
             if nuevos:
                 print(f"| FIREBASE VIP | Inicializando {len(nuevos)} activos VIP nuevos: {nuevos}")
                 for activo in nuevos:
                     auto_inicializar_activo(activo)
             else:
-                print("| FIREBASE VIP | Todos los activos VIP ya estÃƒÆ’Ã‚Â¡n matriculados. Sin lecturas adicionales.")
-            print("| FIREBASE VIP | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â VerificaciÃƒÆ’Ã‚Â³n de matriz VIP completada.")
+                print("| FIREBASE VIP | Todos los activos VIP ya están matriculados. Sin lecturas adicionales.")
+            print("| FIREBASE VIP | ✅ Verificación de matriz VIP completada.")
         except Exception as e:
-            print(f"| FIREBASE ERROR | FallÃƒÆ’Ã‚Â³ la auto-inicializaciÃƒÆ’Ã‚Â³n en startup: {e}")
+            print(f"| FIREBASE ERROR | Falló la auto-inicialización en startup: {e}")
             
-    # Lanzar el escÃƒÆ’Ã‚Â¡ner asÃƒÆ’Ã‚Â­ncrono de MetaAPI en segundo plano si estÃƒÆ’Ã‚Â¡ activado en el entorno
+    # Lanzar el escáner asíncrono de MetaAPI en segundo plano si está activado en el entorno
     if os.getenv("RUN_SCANNER_CLOUD", "false").lower() == "true":
         asyncio.create_task(run_escaner_loop())
         
@@ -385,7 +385,7 @@ async def startup_event():
 
 
 
-# ConfiguraciÃƒÆ’Ã‚Â³n de variables de entorno (Coloca aquÃƒÆ’Ã‚Â­ tus llaves seguras)
+# Configuración de variables de entorno (Coloca aquí tus llaves seguras)
 NOTION_TOKEN = os.getenv("NOTION_TOKEN", "secret_TU_TOKEN_DE_NOTION")
 NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID", "TU_DATABASE_ID_DE_NOTION")
 GROK_API_KEY = os.getenv("GROK_API_KEY", "TU_LLAVE_DE_GROK")
@@ -396,12 +396,12 @@ BRIDGE_ACCESS_TOKEN = os.getenv("BRIDGE_ACCESS_TOKEN", "tu-token-seguro-de-acces
 def verificar_token(authorization: Optional[str] = Header(None)):
     expected = f"Bearer {BRIDGE_ACCESS_TOKEN}"
     if not authorization or authorization != expected:
-        raise HTTPException(status_code=401, detail="Token de acceso invÃƒÆ’Ã‚Â¡lido o ausente")
+        raise HTTPException(status_code=401, detail="Token de acceso inválido o ausente")
 
 
 
 # ------------------------------------------------------------------------------
-# 1. MODELOS DE DATOS (ValidaciÃƒÆ’Ã‚Â³n automÃƒÆ’Ã‚Â¡tica de la alerta de TradingView)
+# 1. MODELOS DE DATOS (Validación automática de la alerta de TradingView)
 # ------------------------------------------------------------------------------
 from pydantic import ConfigDict
 
@@ -440,11 +440,11 @@ class CollectiveMemoryRequest(BaseModel):
 
 
 # ------------------------------------------------------------------------------
-# 2. FUNCIONES DE INTEGRACIÃƒÆ’Ã¢â‚¬Å“N (Notion & Grok)
+# 2. FUNCIONES DE INTEGRACIÓN (Notion & Grok)
 # ------------------------------------------------------------------------------
 def enviar_a_notion(alert: TradeAlert):
     """Llamada a la API REST de Notion (JSON) para insertar el registro"""
-    # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â BYPASS NOTION: Si el token es el placeholder por defecto o estÃƒÆ’Ã‚Â¡ vacÃƒÆ’Ã‚Â­o, omitimos silenciosamente
+    # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â BYPASS NOTION: Si el token es el placeholder por defecto o está vacío, omitimos silenciosamente
     # para no llenar los logs de Railway con errores 401.
     if not NOTION_TOKEN or NOTION_TOKEN in ["secret_TU_TOKEN_DE_NOTION", "TU_TOKEN_DE_NOTION", "coloca_aqui"]:
         return True
@@ -465,7 +465,7 @@ def enviar_a_notion(alert: TradeAlert):
                     { "text": { "content": alert.activo } }
                 ]
             },
-            "AcciÃƒÆ’Ã‚Â³n": {
+            "Acción": {
                 "select": { "name": alert.accion }
             },
             "Precio": {
@@ -497,13 +497,13 @@ def enviar_a_notion(alert: TradeAlert):
     try:
         response = requests.post(url, headers=headers, json=payload)
         if response.status_code == 200:
-            print(f"| NOTION | Entrada para {alert.activo} registrada con ÃƒÆ’Ã‚Â©xito.")
+            print(f"| NOTION | Entrada para {alert.activo} registrada con éxito.")
             return True
         else:
-            print(f"| NOTION ERROR | CÃƒÆ’Ã‚Â³digo {response.status_code}: {response.text}")
+            print(f"| NOTION ERROR | Código {response.status_code}: {response.text}")
             return False
     except Exception as e:
-        print(f"| NOTION EXCEPTION | OcurriÃƒÆ’Ã‚Â³ un error al conectar: {e}")
+        print(f"| NOTION EXCEPTION | Ocurrió un error al conectar: {e}")
         return False
 
 def actualizar_excel_local(alert: TradeAlert):
@@ -513,7 +513,7 @@ def actualizar_excel_local(alert: TradeAlert):
         import datetime
         import os
         
-        # Trabajar ÃƒÆ’Ã‚Âºnicamente con la Bitacora de entradas 2025
+        # Trabajar únicamente con la Bitacora de entradas 2025
         archivo = None
         rutas_posibles = [
             "Bitacora de entradas 2025.xlsx",
@@ -527,7 +527,7 @@ def actualizar_excel_local(alert: TradeAlert):
                 break
                 
         if not archivo:
-            print("| EXCEL WARNING | No se encontrÃƒÆ’Ã‚Â³ la Bitacora de entradas 2025.xlsx. Omitiendo registro local.")
+            print("| EXCEL WARNING | No se encontró la Bitacora de entradas 2025.xlsx. Omitiendo registro local.")
             return False
             
         wb = load_workbook(archivo)
@@ -556,13 +556,13 @@ def actualizar_excel_local(alert: TradeAlert):
         ws_main = wb["Hoja1"]
         ws_ticket = wb[ticket_sheet_name]
         
-        # 2. Inicializar cabeceras de la hoja Ticket si estÃƒÆ’Ã‚Â¡ vacÃƒÆ’Ã‚Â­a
+        # 2. Inicializar cabeceras de la hoja Ticket si está vacía
         ticket_headers = [cell.value for cell in ws_ticket[1]]
         if all(h is None for h in ticket_headers) or len(ticket_headers) == 0:
-            headers_opt2 = ['COD', 'AÃƒÆ’Ã‚Â±o', 'Mes', 'Dia', 'Buy/Sell', 'Perdida', 'Ganada', '%', 'Activo', 'Temporalidad', 'Ganancia', 'RW', 'F', 'Hora']
+            headers_opt2 = ['COD', 'Año', 'Mes', 'Dia', 'Buy/Sell', 'Perdida', 'Ganada', '%', 'Activo', 'Temporalidad', 'Ganancia', 'RW', 'F', 'Hora']
             for col_idx, h in enumerate(headers_opt2, 1):
                 ws_ticket.cell(row=1, column=col_idx, value=h)
-            print("| EXCEL | Inicializada la hoja 'Ticket' con cabeceras estÃƒÆ’Ã‚Â¡ndar.")
+            print("| EXCEL | Inicializada la hoja 'Ticket' con cabeceras estándar.")
             ticket_headers = headers_opt2
             
         # 3. Datos comunes de tiempo
@@ -585,7 +585,7 @@ def actualizar_excel_local(alert: TradeAlert):
         else:
             resultado_str = "No se activo" if "CIERRE" not in accion_upper else "Be"
             
-        # FunciÃƒÆ’Ã‚Â³n auxiliar de mapeo dinÃƒÆ’Ã‚Â¡mico segÃƒÆ’Ã‚Âºn encabezados
+        # Función auxiliar de mapeo dinámico según encabezados
         def mapear_valores(headers_list):
             nueva_fila = [None] * len(headers_list)
             for idx, h_raw in enumerate(headers_list):
@@ -593,11 +593,11 @@ def actualizar_excel_local(alert: TradeAlert):
                     continue
                 h = str(h_raw).strip().lower()
                 
-                if h in ["dia", "dÃƒÆ’Ã‚Â­a"]:
+                if h in ["dia", "día"]:
                     nueva_fila[idx] = dia_str
                 elif h == "cuenta":
                     nueva_fila[idx] = "Grafico"
-                elif h in ["buy/sell", "action", "side", "compra/venta", "acciÃƒÆ’Ã‚Â³n", "accion", "direcciÃƒÆ’Ã‚Â³n", "direccion", "tipo"]:
+                elif h in ["buy/sell", "action", "side", "compra/venta", "acción", "accion", "dirección", "direccion", "tipo"]:
                     nueva_fila[idx] = accion_normalizada
                 elif h in ["entrada", "precio", "precio de entrada", "precio entrada", "entry", "precio_entrada"]:
                     nueva_fila[idx] = alert.precio
@@ -609,21 +609,21 @@ def actualizar_excel_local(alert: TradeAlert):
                     nueva_fila[idx] = alert.lotaje
                 elif h in ["resultado", "status", "estado"]:
                     nueva_fila[idx] = resultado_str
-                elif h in ["estado animico", "estado anÃƒÆ’Ã‚Â­mico"]:
+                elif h in ["estado animico", "estado anímico"]:
                     nueva_fila[idx] = "Neutral"
-                elif h in ["nombre", "activo", "ticker", "instrumento", "par", "symbol", "sÃƒÆ’Ã‚Â­mbolo", "simbolo"]:
+                elif h in ["nombre", "activo", "ticker", "instrumento", "par", "symbol", "símbolo", "simbolo"]:
                     nueva_fila[idx] = alert.activo
                 elif h in ["fecha", "date", "fecha de entrada", "fecha hora", "datetime", "fecha y hora"]:
                     nueva_fila[idx] = fecha_str
-                elif h in ["monto", "ganancia", "ganancia usd", "pnl", "profit", "loss", "pÃƒÆ’Ã‚Â©rdida", "p&l"]:
+                elif h in ["monto", "ganancia", "ganancia usd", "pnl", "profit", "loss", "pérdida", "p&l"]:
                     nueva_fila[idx] = pnl_val
                 elif h in ["temporalidad", "timeframe", "tf"]:
                     nueva_fila[idx] = alert.temporalidad
                 elif h in ["comentarios", "estrategia", "strategy", "setup", "sistema", "nota", "notas"]:
                     nueva_fila[idx] = alert.estrategia
-                elif h in ["ticket", "id", "orden", "operaciÃƒÆ’Ã‚Â³n", "operacion", "id_ticket", "ticket_id", "cod", "cÃƒÆ’Ã‚Â³digo", "codigo"]:
+                elif h in ["ticket", "id", "orden", "operación", "operacion", "id_ticket", "ticket_id", "cod", "código", "codigo"]:
                     nueva_fila[idx] = alert.ticket
-                elif h in ["aÃƒÆ’Ã‚Â±o", "aÃƒÆ’Ã‚Â±o short", "anio", "year"]:
+                elif h in ["año", "año short", "anio", "year"]:
                     nueva_fila[idx] = anio_short
                 elif h == "mes":
                     nueva_fila[idx] = mes_num
@@ -642,7 +642,7 @@ def actualizar_excel_local(alert: TradeAlert):
         ws_ticket.append(row_ticket)
         
         wb.save(archivo)
-        print(f"| EXCEL SUCCESS | OperaciÃƒÆ’Ã‚Â³n guardada con ÃƒÆ’Ã‚Â©xito en Hoja1 y Ticket de {archivo}")
+        print(f"| EXCEL SUCCESS | Operación guardada con éxito en Hoja1 y Ticket de {archivo}")
         return True
     except Exception as e:
         print(f"| EXCEL ERROR | No se pudo actualizar el archivo Excel: {e}")
@@ -654,10 +654,10 @@ THROTTLED_ERRORS = {}
 def registrar_error_sistema(componente: str, mensaje: str):
     invalidar_cache_dashboard()
     """
-    Registra errores crÃƒÆ’Ã‚Â­ticos del sistema (Railway, Firebase, MetaAPI) en la colecciÃƒÆ’Ã‚Â³n mia_system_logs
+    Registra errores críticos del sistema (Railway, Firebase, MetaAPI) en la colección mia_system_logs
     """
     
-    # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â REPORTE CRÃƒÆ’Ã‚ÂTICO A TELEGRAM DESDE LA RAM (CON ANTI-SPAM)
+    # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â REPORTE CRTICO A TELEGRAM DESDE LA RAM (CON ANTI-SPAM)
     # Notificar a Telegram INMEDIATAMENTE sin usar Firebase, pero evitando loops
     global THROTTLED_ERRORS
     import time
@@ -667,7 +667,7 @@ def registrar_error_sistema(componente: str, mensaje: str):
     
     if es_error_critico and componente != "Telegram":
         ahora = time.time()
-        # Clave ÃƒÆ’Ã‚Âºnica para el tipo de error
+        # Clave única para el tipo de error
         error_key = "429_QUOTA" if ("429" in msg_lower or "quota" in msg_lower) else "500_CRITICAL"
         
         # Throttling: Solo notificar una vez cada 2 horas (7200 segundos) por tipo de error
@@ -697,7 +697,7 @@ def registrar_error_sistema(componente: str, mensaje: str):
 
 def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None, precio_google: Optional[float] = None):
     """
-    Registra la alerta de trading en la colecciÃƒÆ’Ã‚Â³n 'trading_alerts' de Firebase Firestore.
+    Registra la alerta de trading en la colección 'trading_alerts' de Firebase Firestore.
     """
     global firebase_inicializado, db
     if not firebase_inicializado or db is None:
@@ -719,8 +719,8 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             "timestamp": datetime.datetime.now()
         }
         
-        # Guardar en la colecciÃƒÆ’Ã‚Â³n 'trading_alerts' (Deshabilitado por redundancia)
-        # El mÃƒÆ’Ã‚Â©todo add genera un ID de documento aleatorio automÃƒÆ’Ã‚Â¡ticamente
+        # Guardar en la colección 'trading_alerts' (Deshabilitado por redundancia)
+        # El método add genera un ID de documento aleatorio automáticamente
         # doc_ref = db.collection("trading_alerts").add(data)
         # print(f"| FIREBASE SUCCESS | Alerta guardada en Firestore. ID del documento: {doc_ref[1].id}")
         
@@ -730,7 +730,7 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             # recuperamos el PNL acumulado y lo sumamos para mostrar la ganancia real acumulada total.
             pnl_acumulado_previo = 0.0
             try:
-                # OPTIMIZACIÃƒÆ’Ã¢â‚¬Å“N: Leer de RAM Cache en lugar de Firebase (.get()) para ahorrar cuota
+                # OPTIMIZACIÓN: Leer de RAM Cache en lugar de Firebase (.get()) para ahorrar cuota
                 global GLOBAL_AUDIT_LOGS
                 exist_data = None
                 if GLOBAL_AUDIT_LOGS:
@@ -740,14 +740,14 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                             break
                             
                 if exist_data:
-                    # Recuperar datos en caso de reporte tardÃƒÆ’Ã‚Â­o o incompleto o broker que borra comentarios
+                    # Recuperar datos en caso de reporte tardío o incompleto o broker que borra comentarios
                     if alert.activo == "UNKNOWN":
                         alert.activo = exist_data.get("activo", "UNKNOWN")
                     if alert.precio == 0.0:
                         alert.precio = exist_data.get("precio_ejecucion", exist_data.get("precio", 0.0))
                     
                     # CRITICO: Los brokers suelen borrar el comentario 'Mia'.
-                    # Si ya tenÃƒÆ’Ã‚Â­amos la estrategia completa guardada, la restauramos para no perder la vectorizaciÃƒÆ’Ã‚Â³n.
+                    # Si ya teníamos la estrategia completa guardada, la restauramos para no perder la vectorización.
                     if exist_data.get("estrategia") and "Setup" in exist_data.get("estrategia", ""):
                         alert.estrategia = exist_data.get("estrategia")
                     elif exist_data.get("estrategia") and alert.estrategia in ["MANUAL", "UNKNOWN", "SMC", "LUX", "FVG"]:
@@ -774,7 +774,7 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             if alert.accion == "CIERRE_PARCIAL":
                 alert.pnl = (alert.pnl if alert.pnl else 0.0) + pnl_acumulado_previo
             elif alert.accion == "CIERRE_TOTAL":
-                # Si es cierre total, el pnl que envÃƒÆ’Ã‚Â­a mt5_executor_cloud ya es la suma total de todos los deals.
+                # Si es cierre total, el pnl que envía mt5_executor_cloud ya es la suma total de todos los deals.
                 alert.pnl = alert.pnl if alert.pnl else 0.0
             elif alert.pnl == 0.0 and pnl_acumulado_previo != 0.0:
                 alert.pnl = pnl_acumulado_previo
@@ -793,7 +793,7 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             score = 0
             poc_price = 0.0
             try:
-                # OPTIMIZACIÃƒÆ’Ã¢â‚¬Å“N: Leer de RAM Cache en lugar de Firebase (.get())
+                # OPTIMIZACIÓN: Leer de RAM Cache en lugar de Firebase (.get())
                 global GLOBAL_MATRICES_CACHE_FULL
                 if activo_norm in GLOBAL_MATRICES_CACHE_FULL:
                     m_data = GLOBAL_MATRICES_CACHE_FULL[activo_norm]
@@ -801,12 +801,12 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                     poc_price = m_data.get("confirmaciones_tecnicas", {}).get("poc_price", 0.0)
             except: pass
             
-            motivo = "Rechazada por Matriz TÃƒÆ’Ã‚Â©cnica (Score bajo o Killzone)"
+            motivo = "Rechazada por Matriz Técnica (Score bajo o Killzone)"
             if score >= 80:
-                motivo = "En validaciÃƒÆ’Ã‚Â³n de riesgo por el Broker..."
+                motivo = "En validación de riesgo por el Broker..."
                 
             detalle_str = f"{alert.activo} | {fecha_str} | {sesion} | {alert.estrategia} | EVALUANDO SETUP | SCORE: {score}% | POC: {poc_price:.5f} | EJECUTADA EN MT5: NO | MOTIVO: {motivo}"
-            # Si ya existÃƒÆ’Ã‚Â­a un detalle guardado de la apertura, lo preservamos
+            # Si ya existía un detalle guardado de la apertura, lo preservamos
             if exist_data and exist_data.get("detalle_setup"):
                 detalle_str = exist_data.get("detalle_setup")
             
@@ -818,22 +818,22 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 motivo_final = f"Cerrado en MT5 | PNL: ${pnl_val:.2f}" if alert.ticket else motivo
                 ejecutada_flag = True  # El cierre confirma que el trade SI existio en MT5
                 
-                # RESETEAR SEMÃƒÆ’Ã‚ÂFORO A INACTIVO AL CERRAR LA POSICIÃƒÆ’Ã¢â‚¬Å“N TOTALMENTE
+                # RESETEAR SEMFORO A INACTIVO AL CERRAR LA POSICIÓN TOTALMENTE
                 if alert.accion == "CIERRE_TOTAL":
                     try:
                         m_doc_ref = db.collection("trading_matrix").document(activo_norm)
                         m_doc_data = m_doc_ref.get().to_dict() or {}
                         m_doc_data["estado_ejecucion"] = "INACTIVO"
                         m_doc_ref.set(m_doc_data, merge=True)
-                        print(f"| SEMÃƒÆ’Ã‚ÂFORO RESET | {activo_norm} reseteado a INACTIVO por CIERRE_TOTAL de ticket {alert.ticket}.")
+                        print(f"| SEMFORO RESET | {activo_norm} reseteado a INACTIVO por CIERRE_TOTAL de ticket {alert.ticket}.")
                     except Exception as reset_e:
-                        print(f"| SEMÃƒÆ’Ã‚ÂFORO RESET ERROR | No se pudo resetear estado para {activo_norm}: {reset_e}")
+                        print(f"| SEMFORO RESET ERROR | No se pudo resetear estado para {activo_norm}: {reset_e}")
             else:
                 # Es apertura COMPRA/VENTA o updates
                 motivo_final = "Ejecutada y Activa en Broker" if alert.ticket else motivo
                 ejecutada_flag = True if alert.ticket else False
             
-            # Revisar en memoria RAM si este ticket ya tenÃƒÆ’Ã‚Â­a Trailing Stop activado previamente
+            # Revisar en memoria RAM si este ticket ya tenía Trailing Stop activado previamente
             es_cierre_por_ts = False
             if alert.accion == "CIERRE_TOTAL" and alert.ticket:
                 if GLOBAL_AUDIT_LOGS:
@@ -888,23 +888,23 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 elif "TP1" in ev_upper or "50%" in motivo_upper or "40%" in motivo_upper or "25%" in motivo_upper:
                     audit_data["max_nivel_parcial"] = max(audit_data.get("max_nivel_parcial", 0), 1)
             
-            # Solo actualizar la acciÃƒÆ’Ã‚Â³n principal si es apertura o cierre
+            # Solo actualizar la acción principal si es apertura o cierre
             if alert.accion in ["COMPRA", "VENTA", "CIERRE_TOTAL", "CIERRE_PARCIAL"]:
                 audit_data["accion"] = alert.accion
                 audit_data["precio_ejecucion"] = alert.precio if alert.precio else 0.0
                 
-            # Si el cierre total fue a causa de un Trailing Stop, documentamos el PNL explÃƒÆ’Ã‚Â­citamente
+            # Si el cierre total fue a causa de un Trailing Stop, documentamos el PNL explícitamente
             if es_cierre_por_ts:
                 audit_data["cierre_por_trailing_stop"] = True
                 audit_data["precio_cierre_ts"] = alert.precio
                 audit_data["pnl_cierre_ts"] = alert.pnl if alert.pnl else 0.0
             
-            # Si es una actualizaciÃƒÆ’Ã‚Â³n de protecciÃƒÆ’Ã‚Â³n, agregamos las banderas sin destruir la acciÃƒÆ’Ã‚Â³n original
+            # Si es una actualización de protección, agregamos las banderas sin destruir la acción original
             if alert.accion == "PROTECCION_BE":
                 audit_data["protegido_be"] = True
             elif alert.accion == "TRAILING_STOP":
                 audit_data["trailing_stop"] = True
-                audit_data["protegido_be"] = True # MatemÃƒÆ’Ã‚Â¡ticamente si es TS, ya cruzÃƒÆ’Ã‚Â³ BE
+                audit_data["protegido_be"] = True # Matemáticamente si es TS, ya cruzó BE
                 
             # Siempre actualizar los niveles de TP/SL actuales
             if alert.stop_loss:
@@ -917,7 +917,7 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
             audit_ref.set(audit_data, merge=True)
             print(f"| AUDIT LOG SUCCESS | Ticket {alert.ticket} guardado/actualizado en mia_audit_logs.")
             
-            # Actualizar CachÃƒÆ’Ã‚Â© Global en RAM
+            # Actualizar Caché Global en RAM
             if GLOBAL_AUDIT_LOGS is not None:
                 encontrado = False
                 for i, log in enumerate(GLOBAL_AUDIT_LOGS):
@@ -954,7 +954,7 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8914319073:AAHmF9BTxqgGG2X
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 def notificar_telegram(mensaje: str):
-    # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â BYPASS TELEGRAM: Si no estÃƒÆ’Ã‚Â¡ configurado de forma explÃƒÆ’Ã‚Â­cita, omitimos de manera silenciosa
+    # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â BYPASS TELEGRAM: Si no está configurado de forma explícita, omitimos de manera silenciosa
     # para mantener los logs de Railway limpios.
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID or TELEGRAM_CHAT_ID == "" or "TU_CHAT_ID" in TELEGRAM_CHAT_ID:
         return
@@ -967,7 +967,7 @@ def notificar_telegram(mensaje: str):
     try:
         response = requests.post(url, json=payload, timeout=5)
         if response.status_code == 200:
-            print("| TELEGRAM | NotificaciÃƒÆ’Ã‚Â³n enviada con ÃƒÆ’Ã‚Â©xito.")
+            print("| TELEGRAM | Notificación enviada con éxito.")
         else:
             print(f"| TELEGRAM | Error al enviar: {response.text}")
     except Exception as e:
@@ -975,10 +975,10 @@ def notificar_telegram(mensaje: str):
         registrar_error_sistema("Telegram", str(e))
 
 def notificar_botpress_mia(activo: str, data: dict):
-    # Se eliminÃƒÆ’Ã‚Â³ el spam de telegram "Ejecutando lÃƒÆ’Ã‚Â³gica en la nube" aquÃƒÆ’Ã‚Â­.
-    # Ahora solo se notifica a Telegram cuando hay una ejecuciÃƒÆ’Ã‚Â³n real de Trade.
+    # Se eliminó el spam de telegram "Ejecutando lógica en la nube" aquí.
+    # Ahora solo se notifica a Telegram cuando hay una ejecución real de Trade.
     if not BOTPRESS_WEBHOOK_URL:
-        print("| BOTPRESS | Webhook no configurado, omitiendo notificaciÃƒÆ’Ã‚Â³n a Mia.")
+        print("| BOTPRESS | Webhook no configurado, omitiendo notificación a Mia.")
         return
     
     payload = {
@@ -999,7 +999,7 @@ def recalcular_score_ponderado(data: dict) -> float:
     score = 0.0
     tech = data.get("confirmaciones_tecnicas", {})
     
-    # Cargar pesos dinÃƒÆ’Ã‚Â¡micos de Machine Learning (o usar default si no hay entrenamiento)
+    # Cargar pesos dinámicos de Machine Learning (o usar default si no hay entrenamiento)
     pesos = {}
     if GLOBAL_MIA_COLLECTIVE and "dynamic_weights" in GLOBAL_MIA_COLLECTIVE:
         pesos = GLOBAL_MIA_COLLECTIVE["dynamic_weights"]
@@ -1009,17 +1009,17 @@ def recalcular_score_ponderado(data: dict) -> float:
     w_ob = pesos.get("smc_1", 20)
     w_fvg = pesos.get("smc_2", 30)
     w_breaker = pesos.get("smc_3", 20)
-    w_sweep = pesos.get("smc_4", 45) # VectorizaciÃƒÆ’Ã‚Â³n Masiva para forzar Stop Hunts
+    w_sweep = pesos.get("smc_4", 45) # Vectorización Masiva para forzar Stop Hunts
     w_soporte = pesos.get("soporte", 15)
     w_poc = pesos.get("poc", 15)
     
-    # DETECCIÃƒÆ’Ã¢â‚¬Å“N DE ESCENARIOS
+    # DETECCIÓN DE ESCENARIOS
     tiene_lux = any(tech.get(f"lux_algo_ob_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
     tiene_tendencia = tech.get("medias_moviles_alineadas", False)
     tiene_fvg = tech.get("fvg_detectado", False)
     tiene_retail = tech.get("soporte_resistencia_activo", False) or tech.get("smc_order_block", False)
     
-    # Escenario 6 (BifurcaciÃƒÆ’Ã‚Â³n): PURO Lux OB sin confirmaciones extra para testeo de efectividad pura
+    # Escenario 6 (Bifurcación): PURO Lux OB sin confirmaciones extra para testeo de efectividad pura
     es_escenario_6 = tiene_lux and not tiene_fvg and not tiene_retail
     
     if es_escenario_6:
@@ -1031,7 +1031,7 @@ def recalcular_score_ponderado(data: dict) -> float:
     rsi_extremo = tech.get("rsi_sobrecompra_sobreventa", False) or tech.get("rsi_extremo", False)
     
     if not (ma_alineada or rsi_extremo):
-        return 0.0  # Sin direcciÃƒÆ’Ã‚Â³n clara ni zona de reversiÃƒÆ’Ã‚Â³n, se rechaza (Excepto Escenario 6 que ya saliÃƒÆ’Ã‚Â³ arriba)
+        return 0.0  # Sin dirección clara ni zona de reversión, se rechaza (Excepto Escenario 6 que ya salió arriba)
         
     if ma_alineada: score += w_ma
     if rsi_extremo: score += w_rsi
@@ -1043,7 +1043,7 @@ def recalcular_score_ponderado(data: dict) -> float:
     if tech.get("poc_price", 0.0) > 0:
         score += w_poc
     
-    # 3. Nuevos Indicadores AlgorÃƒÆ’Ã‚Â­tmicos Clave (Zonas OB y Flujos de Liquidez por TF)
+    # 3. Nuevos Indicadores Algorítmicos Clave (Zonas OB y Flujos de Liquidez por TF)
     for tf in ["1h", "2h", "3h", "4h", "8h"]:
         if tech.get(f"lux_algo_ob_{tf}", False):
             score += pesos.get(f"lux_algo_ob_{tf}", 25)
@@ -1059,7 +1059,7 @@ def recalcular_score_ponderado(data: dict) -> float:
     if inst.get("dark_pools_compra_masiva", False):
         score += pesos.get("dark_pools_compra_masiva", 30.0)
 
-    # 4. MÃƒÆ’Ã‚Â³dulos SMC e ICT (Institucional)
+    # 4. Módulos SMC e ICT (Institucional)
     smc_codes = tech.get("smc_codes", [])
     
     # Pesos estructurales (Se suman a los indicadores para buscar >= 80%)
@@ -1080,12 +1080,12 @@ def recalcular_score_ponderado(data: dict) -> float:
     if 22 in smc_codes or tech.get("amd_sweep_intradia", False):
         score += w_amd_intra
         
-    # Firebase es el ÃƒÆ’Ã‚Âºnico juez de la validaciÃƒÆ’Ã‚Â³n. Permitimos scores > 100% para mostrar fuerza extrema.
+    # Firebase es el único juez de la validación. Permitimos scores > 100% para mostrar fuerza extrema.
     return score
 
 
 def normalizar_activo(activo: str) -> str:
-    """Mapea sÃƒÆ’Ã‚Â­mbolos de trading comunes a los 8 activos clave de Firebase"""
+    """Mapea símbolos de trading comunes a los 8 activos clave de Firebase"""
     act = activo.upper().strip()
     if act in ["NASDAQ100", "NASDAQ", "NQ", "QQQ", "US100"]:
         return "NASDAQ100"
@@ -1107,11 +1107,11 @@ def normalizar_activo(activo: str) -> str:
 
 def procesar_anomalia_firestore(anomaly: MarketAnomaly):
     """
-    Actualiza la matriz de trading en Firestore basÃƒÆ’Ã‚Â¡ndose en anomalÃƒÆ’Ã‚Â­as de Dark Pools u ÃƒÆ’Ã‚Â³rdenes de bloque.
+    Actualiza la matriz de trading en Firestore basándose en anomalías de Dark Pools u órdenes de bloque.
     """
     global firebase_inicializado, db
     if not firebase_inicializado or db is None:
-        print("| FIREBASE | Omitiendo procesamiento de anomalÃƒÆ’Ã‚Â­a (Firebase no inicializado).")
+        print("| FIREBASE | Omitiendo procesamiento de anomalía (Firebase no inicializado).")
         return False
         
     try:
@@ -1126,7 +1126,7 @@ def procesar_anomalia_firestore(anomaly: MarketAnomaly):
             raise e_get
         
         if not doc.exists:
-            print(f"| FIREBASE ERROR | El activo '{activo_normalizado}' no estÃƒÆ’Ã‚Â¡ inicializado en la colecciÃƒÆ’Ã‚Â³n 'trading_matrix'.")
+            print(f"| FIREBASE ERROR | El activo '{activo_normalizado}' no está inicializado en la colección 'trading_matrix'.")
             return False
             
         data = doc.to_dict()
@@ -1135,7 +1135,7 @@ def procesar_anomalia_firestore(anomaly: MarketAnomaly):
         if "confirmaciones_institucionales" not in data:
             data["confirmaciones_institucionales"] = {"dark_pools_compra_masiva": False, "heatmap_ordenes_limite": False}
             
-        # Actualizar indicador segÃƒÆ’Ã‚Âºn el tipo de anomalÃƒÆ’Ã‚Â­a
+        # Actualizar indicador según el tipo de anomalía
         if anomaly.tipo.upper() in ["DARK_POOL_PRINT", "BLOCK_TRADE"]:
             data["confirmaciones_institucionales"]["dark_pools_compra_masiva"] = is_bullish
             print(f"| FIREBASE | Actualizando Dark Pools de {activo_normalizado} a: {is_bullish}")
@@ -1160,8 +1160,8 @@ def procesar_anomalia_firestore(anomaly: MarketAnomaly):
         print(f"| FIREBASE SUCCESS | Matriz de {activo_normalizado} actualizada. Score: {data['score']}% | Gatillo: {data['gatillo_entrada']}")
         return True
     except Exception as e:
-        print(f"| FIREBASE ERROR | Error al procesar anomalÃƒÆ’Ã‚Â­a en Firestore: {e}")
-        registrar_error_sistema("Firebase (AnomalÃƒÆ’Ã‚Â­a)", str(e))
+        print(f"| FIREBASE ERROR | Error al procesar anomalía en Firestore: {e}")
+        registrar_error_sistema("Firebase (Anomalía)", str(e))
         return False
 
 def obtener_precio_yahoo(activo: str) -> Optional[float]:
@@ -1198,10 +1198,10 @@ def obtener_precio_yahoo(activo: str) -> Optional[float]:
             print(f"| YAHOO FINANCE | Precio (diario) para {ticker_nombre}: {precio_actual}")
             return float(precio_actual)
             
-        print(f"| YAHOO FINANCE | No hay datos histÃƒÆ’Ã‚Â³ricos para {ticker_nombre}")
+        print(f"| YAHOO FINANCE | No hay datos históricos para {ticker_nombre}")
         return None
     except Exception as e:
-        print(f"| YAHOO FINANCE ERROR | OcurriÃƒÆ’Ã‚Â³ un error al obtener precio: {e}")
+        print(f"| YAHOO FINANCE ERROR | Ocurrió un error al obtener precio: {e}")
         registrar_error_sistema("Yahoo Finance", str(e))
         return None
 
@@ -1231,16 +1231,16 @@ def obtener_precio_google(activo: str) -> Optional[float]:
             # Google Finance almacena el precio principal en un div con clase "YMl7ec"
             price_div = soup.find("div", class_="YMl7ec")
             if price_div:
-                # Limpiar sÃƒÆ’Ã‚Â­mbolos monetarios
+                # Limpiar símbolos monetarios
                 price_str = price_div.text.replace("$", "").replace("ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬", "").replace("Ãƒâ€šÃ‚Â£", "").replace(",", "").strip()
                 precio_actual = float(price_str)
                 print(f"| GOOGLE FINANCE | Precio obtenido para {ticker_nombre}: {precio_actual}")
                 return precio_actual
                 
-        print(f"| GOOGLE FINANCE | No se pudo extraer precio de la pÃƒÆ’Ã‚Â¡gina para {ticker_nombre}")
+        print(f"| GOOGLE FINANCE | No se pudo extraer precio de la página para {ticker_nombre}")
         return None
     except Exception as e:
-        print(f"| GOOGLE FINANCE ERROR | OcurriÃƒÆ’Ã‚Â³ un error al raspar precio: {e}")
+        print(f"| GOOGLE FINANCE ERROR | Ocurrió un error al raspar precio: {e}")
         registrar_error_sistema("Google Finance", str(e))
         return None
 
@@ -1301,7 +1301,7 @@ async def webhook_market_alert(
     authorization: Optional[str] = Header(None)
 ):
     """
-    Recibe alertas de n8n cuando detecta palabras clave crÃƒÆ’Ã‚Â­ticas en pÃƒÆ’Ã‚Â¡ginas de mercado.
+    Recibe alertas de n8n cuando detecta palabras clave críticas en páginas de mercado.
     Despierta a Mia y registra el evento en Firebase.
     """
     # Validar token de acceso
@@ -1309,13 +1309,13 @@ async def webhook_market_alert(
     if authorization and authorization.startswith("Bearer "):
         provided = authorization.split(" ")[1]
         if provided != token and token not in ["tu-token-seguro-de-acceso", "", None]:
-            raise HTTPException(status_code=401, detail="Token de acceso invÃƒÆ’Ã‚Â¡lido")
+            raise HTTPException(status_code=401, detail="Token de acceso inválido")
 
     print(f"| N8N ALERT | Alerta de mercado recibida: {payload.alert_type}")
     print(f"| N8N ALERT | Keywords: {payload.keywords}")
     print(f"| N8N ALERT | Resumen: {payload.summary}")
 
-    # Guardar en Firebase si estÃƒÆ’Ã‚Â¡ disponible
+    # Guardar en Firebase si está disponible
     if firebase_inicializado and db is not None:
         try:
             db.collection("market_alerts").add({
@@ -1331,14 +1331,14 @@ async def webhook_market_alert(
             print(f"| FIREBASE ERROR | No se pudo guardar alerta de mercado: {e}")
             registrar_error_sistema("Firebase (Market Alert)", str(e))
 
-    # Consultar Mia (Gemini/Grok) con el contexto del mercado si hay keywords crÃƒÆ’Ã‚Â­ticos
+    # Consultar Mia (Gemini/Grok) con el contexto del mercado si hay keywords críticos
     mia_response = None
     if payload.keywords and len(payload.keywords) > 10:
         try:
-            # Crear un TradeAlert simulado para usar las funciones existentes de anÃƒÆ’Ã‚Â¡lisis
+            # Crear un TradeAlert simulado para usar las funciones existentes de análisis
             fake_alert = TradeAlert(
                 activo="XAUUSD",
-                accion="ANÃƒÆ’Ã‚ÂLISIS",
+                accion="ANLISIS",
                 precio=0.0,
                 stop_loss=0.0,
                 take_profit=0.0,
@@ -1349,7 +1349,7 @@ async def webhook_market_alert(
             elif GROK_API_KEY and GROK_API_KEY not in ["TU_LLAVE_DE_GROK", ""]:
                 mia_response = consultar_analisis_grok(fake_alert)
         except Exception as e:
-            print(f"| MIA ERROR | No se pudo obtener anÃƒÆ’Ã‚Â¡lisis de Mia: {e}")
+            print(f"| MIA ERROR | No se pudo obtener análisis de Mia: {e}")
             registrar_error_sistema("Mia AI (Analysis)", str(e))
 
     return {
@@ -1496,8 +1496,8 @@ def recalcular_memoria_colectiva():
 
 def determinar_tipo_salida_ticket(ticket: str):
     """
-    Stored Procedure de anÃƒÆ’Ã‚Â¡lisis: Determina el tipo exacto de salida de un ticket
-    agrupando todos los logs histÃƒÆ’Ã‚Â³ricos asociados en Firebase.
+    Stored Procedure de análisis: Determina el tipo exacto de salida de un ticket
+    agrupando todos los logs históricos asociados en Firebase.
     """
     if not ticket or str(ticket) == "0" or str(ticket) == "None":
         return "DESCONOCIDO"
@@ -1660,7 +1660,7 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                 ses_data["trades_ganados"] = ses_data.get("trades_ganados", 0) + 1
             ses_data["pnl_acumulado"] = round(ses_data.get("pnl_acumulado", 0.0) + pnl, 2)
             
-            # Borramos pnl_total si existÃƒÆ’Ã‚Â­a por error previo
+            # Borramos pnl_total si existía por error previo
             if "pnl_total" in ses_data:
                 del ses_data["pnl_total"]
                 
@@ -1669,7 +1669,7 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                     (ses_data["trades_ganados"] / ses_data["trades_totales"]) * 100, 2
                 )
             
-            # Obtener tipo de salida exacto para las estadÃƒÆ’Ã‚Â­sticas del Enjambre
+            # Obtener tipo de salida exacto para las estadísticas del Enjambre
             if ticket:
                 tipo_salida = determinar_tipo_salida_ticket(ticket)
                 if tipo_salida == "TP_COMPLETO":
@@ -1697,7 +1697,7 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
             ses_ref.set(ses_data)
         except Exception as e:
             print(f"| KB MIA WARN | Error actualizando sesion {sesion}: {e}")
-            registrar_error_sistema("Mia KB (SesiÃƒÆ’Ã‚Â³n)", str(e))
+            registrar_error_sistema("Mia KB (Sesión)", str(e))
             
         # 5. Detectar y Actualizar Combos de Patrones ICT/SMC (Puros SMC/ICT, sin LuxAlgo ni indicadores)
         ict_fields = {
@@ -1740,7 +1740,7 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                     
                 pat_data["ocurrencias"] = pat_data.get("ocurrencias", 0) + 1
                 
-                # Clasificar tipo de cierre para el patrÃƒÆ’Ã‚Â³n
+                # Clasificar tipo de cierre para el patrón
                 tipo_salida = determinar_tipo_salida_ticket(ticket)
                 pat_data["cierres_tp_completo"] = pat_data.get("cierres_tp_completo", 0)
                 pat_data["cierres_sl_original"] = pat_data.get("cierres_sl_original", 0)
@@ -1781,12 +1781,12 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                 pat_ref.set(pat_data)
             except Exception as e:
                 print(f"| KB MIA WARN | Error actualizando patron ICT/SMC {patron_key}: {e}")
-                registrar_error_sistema("Mia KB (PatrÃƒÆ’Ã‚Â³n)", str(e))
+                registrar_error_sistema("Mia KB (Patrón)", str(e))
                 
         # 6. Recalcular Memoria Colectiva
         recalcular_memoria_colectiva()
         
-        # Opcional: Actualizar la estadÃƒÆ’Ã‚Â­stica legacy si existe
+        # Opcional: Actualizar la estadística legacy si existe
         if "aprendizaje_mia" in data:
             apoyo = data["aprendizaje_mia"]
             apoyo["trades_totales"] = apoyo.get("trades_totales", 0) + 1
@@ -1815,13 +1815,13 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     """
     Ruta que recibe el Webhook de TradingView en formato JSON.
     Usa BackgroundTasks para procesar la API de Notion y Grok en segundo plano,
-    permitiendo que TradingView reciba una respuesta instantÃƒÆ’Ã‚Â¡nea (baja latencia).
+    permitiendo que TradingView reciba una respuesta instantánea (baja latencia).
     """
-    # RECUPERACIÃƒÆ’Ã¢â‚¬Å“N DE DATOS ANTES DE PROCESAR:
-    # Si viene con informaciÃƒÆ’Ã‚Â³n faltante (Cierres huÃƒÆ’Ã‚Â©rfanos por desconexiÃƒÆ’Ã‚Â³n o lÃƒÆ’Ã‚Â­mite de cuota)
+    # RECUPERACIÓN DE DATOS ANTES DE PROCESAR:
+    # Si viene con información faltante (Cierres huérfanos por desconexión o límite de cuota)
     if (alert.activo == "UNKNOWN" or alert.estrategia == "MANUAL" or alert.estrategia == "UNKNOWN"):
         try:
-            # 1. Intentar recuperaciÃƒÆ’Ã‚Â³n rÃƒÆ’Ã‚Â¡pida desde RAM Cache (Cero consumo API)
+            # 1. Intentar recuperación rápida desde RAM Cache (Cero consumo API)
             global GLOBAL_AUDIT_LOGS
             exist_data = None
             if GLOBAL_AUDIT_LOGS:
@@ -1831,13 +1831,13 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                             exist_data = l
                             break
                 else:
-                    # Si TradingView no envÃƒÆ’Ã‚Â­a ticket, buscar el ÃƒÆ’Ã‚Âºltimo trade de este activo
+                    # Si TradingView no envía ticket, buscar el último trade de este activo
                     for l in sorted(GLOBAL_AUDIT_LOGS, key=lambda x: str(x.get("fecha", "")), reverse=True):
                         if l.get("activo") == alert.activo:
                             exist_data = l
                             break
             
-            # 2. Si no estÃƒÆ’Ã‚Â¡ en RAM (posible reinicio de servidor), hacer UN SÃƒÆ’Ã¢â‚¬Å“LO query directo a la Base
+            # 2. Si no está en RAM (posible reinicio de servidor), hacer UN SÃƒÆ’Ã¢â‚¬Å“LO query directo a la Base
             if not exist_data and firebase_inicializado and alert.ticket:
                 try:
                     doc_fb = db.collection("mia_audit_logs").document(str(alert.ticket)).get()
@@ -1854,7 +1854,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                 if alert.activo == "UNKNOWN":
                     alert.activo = exist_data.get("activo", "UNKNOWN")
                 if alert.estrategia == "MANUAL" or alert.estrategia == "UNKNOWN":
-                    # Recuperar estrategia original con la que se aperturÃƒÆ’Ã‚Â³ el ticket
+                    # Recuperar estrategia original con la que se aperturó el ticket
                     est = exist_data.get("estrategia", "")
                     det = exist_data.get("detalle_setup", "")
                     
@@ -1863,7 +1863,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                         alert.__setattr__('detalle_setup_string', det)
                         
                     if not est:
-                        # Si no hay estrategia explÃƒÆ’Ã‚Â­cita, tratar de armarla desde detalle_setup o tÃƒÆ’Ã‚Â©cnica
+                        # Si no hay estrategia explícita, tratar de armarla desde detalle_setup o técnica
                         if "SMC" in det or "Lux" in det:
                             partes = det.split("|")
                             est = partes[3].strip() if len(partes) > 3 else "SMC Setup | Liquidez + OB"
@@ -1882,7 +1882,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
         except Exception as e:
             pass
 
-    # INFERIR ESTRATEGIA SI SIGUE SIENDO MANUAL Y ES APERTURA (Fallo en CachÃƒÆ’Ã‚Â© y DB)
+    # INFERIR ESTRATEGIA SI SIGUE SIENDO MANUAL Y ES APERTURA (Fallo en Caché y DB)
     if alert.estrategia == "MANUAL" or alert.estrategia == "UNKNOWN":
         if alert.activo != "UNKNOWN" and alert.activo in GLOBAL_MATRICES_CACHE_FULL:
             matriz = GLOBAL_MATRICES_CACHE_FULL[alert.activo]
@@ -1910,7 +1910,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     print(f"Precio Alerta: {alert.precio} | Estrategia: {alert.estrategia}")
     print(f"========================================================")
     
-    # AUTO-VIP: Si el activo no estÃƒÆ’Ã‚Â¡ en la matriz, lo registramos automÃƒÆ’Ã‚Â¡ticamente con el esquema completo
+    # AUTO-VIP: Si el activo no está en la matriz, lo registramos automáticamente con el esquema completo
     if alert.activo and alert.activo != "UNKNOWN":
         try:
             auto_inicializar_activo(alert.activo)
@@ -1918,11 +1918,11 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
             print(f"| FIREBASE QUOTA WARN | No se pudo verificar activo en matriz (probablemente 429): {e}")
             # Continuamos en RAM
     
-    # 0. LÃƒÆ’Ã‚Â³gica de Horarios (Forex cerrado en fin de semana, Crypto 24/7)
+    # 0. Lógica de Horarios (Forex cerrado en fin de semana, Crypto 24/7)
     es_cripto_activo = alert.es_crypto or alert.activo.startswith("BTC") or alert.activo.startswith("ETH") or "USD" not in alert.activo and alert.activo != "XAUUSD"
     ahora = datetime.datetime.now(datetime.timezone.utc)
     if not es_cripto_activo:
-        # Viernes despuÃƒÆ’Ã‚Â©s de 21:00 UTC hasta Domingo a las 21:00 UTC es fin de semana en Forex (aprox)
+        # Viernes después de 21:00 UTC hasta Domingo a las 21:00 UTC es fin de semana en Forex (aprox)
         if ahora.weekday() == 5 or (ahora.weekday() == 4 and ahora.hour >= 21) or (ahora.weekday() == 6 and ahora.hour < 21):
             print(f"| REGLA DE HORARIO | Mercado Forex cerrado. Rechazando orden de {alert.activo}.")
             return {"resultado": "rechazado", "mensaje": "Mercado Forex cerrado en fin de semana."}
@@ -1931,7 +1931,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     # Convertimos UTC a EST (restando 5 horas o 4 en Daylight Saving, usaremos aprox UTC-4 para verano, UTC-5 invierno. Simplificando a UTC-4)
     hora_ny = (ahora.hour - 4) % 24
     
-    # DefiniciÃƒÆ’Ã‚Â³n de Killzones
+    # Definición de Killzones
     en_asia = (20 <= hora_ny <= 23) or (0 <= hora_ny < 2) # 20:00 a 02:00
     en_londres = (2 <= hora_ny < 6) # 02:00 a 06:00
     en_ny = (7 <= hora_ny < 11) # 07:00 a 11:00
@@ -1949,14 +1949,14 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
         print(f"| KILLZONE | Trade rechazado para {alert.activo}. Fuera de sus ventanas de alta liquidez (Hora NY actual: {hora_ny}:00).")
         return {"resultado": "rechazado", "mensaje": "Fuera de Killzone de liquidez."}
 
-    # 1. Obtener precios de validaciÃƒÆ’Ã‚Â³n de ambas fuentes (Yahoo y Google)
+    # 1. Obtener precios de validación de ambas fuentes (Yahoo y Google)
     precio_yahoo = obtener_precio_yahoo(alert.activo)
     precio_google = obtener_precio_google(alert.activo)
     
     # Imprimir validaciones cruzadas en el servidor
-    print(f"| VALIDACIÃƒÆ’Ã¢â‚¬Å“N | TradingView: {alert.precio} | Yahoo: {precio_yahoo} | Google: {precio_google}")
+    print(f"| VALIDACIÓN | TradingView: {alert.precio} | Yahoo: {precio_yahoo} | Google: {precio_google}")
     
-    # 2. LÃƒÆ’Ã‚Â³gica de enriquecimiento con redundancia inteligente
+    # 2. Lógica de enriquecimiento con redundancia inteligente
     if alert.precio == 0.0:
         if precio_yahoo:
             alert.precio = precio_yahoo
@@ -1965,7 +1965,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
             alert.precio = precio_google
             print(f"| ENRIQUECIMIENTO | Fallback exitoso: Precio establecido mediante Google Finance: {alert.precio}")
         else:
-            print("| ENRIQUECIMIENTO ADVERTENCIA | No se pudo obtener cotizaciÃƒÆ’Ã‚Â³n de ninguna fuente externa.")
+            print("| ENRIQUECIMIENTO ADVERTENCIA | No se pudo obtener cotización de ninguna fuente externa.")
 
     # 3. Ejecutar el guardado en Notion en segundo plano
     background_tasks.add_task(enviar_a_notion, alert)
@@ -1979,8 +1979,8 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     # 5. Notificar a Mia (Botpress) y Telegram de que hubo un movimiento (Apertura o Cierre)
     
     # --- NUEVA LÃƒÆ’Ã¢â‚¬Å“GICA DE TELEGRAM DETALLADA ---
-    # Solo notificar a Telegram si proviene de MT5, no es REANUDACIÃƒÆ’Ã¢â‚¬Å“N, y no es un activo UNKNOWN
-    if alert.ticket and str(alert.ticket).isdigit() and int(alert.ticket) > 0 and alert.accion not in ["REANUDACIÃƒÆ’Ã¢â‚¬Å“N"] and alert.activo != "UNKNOWN":
+    # Solo notificar a Telegram si proviene de MT5, no es REANUDACIÓN, y no es un activo UNKNOWN
+    if alert.ticket and str(alert.ticket).isdigit() and int(alert.ticket) > 0 and alert.accion not in ["REANUDACIÓN"] and alert.activo != "UNKNOWN":
         icono = "ÃƒÂ°Ã…Â¸Ã…Â¸Ã‚Â¢" if "COMPRA" in alert.accion else "ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´" if "VENTA" in alert.accion else "ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Âµ"
         if "CIERRE" in alert.accion:
             icono = "ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â°" if alert.pnl > 0 else "ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ¢â‚¬Ëœ"
@@ -2008,7 +2008,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                 pass
 
         msg_tg = f"ÃƒÂ°Ã…Â¸Ã‚Â¤Ã¢â‚¬â€œ *MIA TRADING AI* {icono}\n\n"
-        msg_tg += f"*{alert.accion}* | *{alert.activo}* | ÃƒÂ°Ã…Â¸Ã…â€™Ã‚Â SesiÃƒÆ’Ã‚Â³n {sesion_str}{open_time_str}\n"
+        msg_tg += f"*{alert.accion}* | *{alert.activo}* | ÃƒÂ°Ã…Â¸Ã…â€™Ã‚Â Sesión {sesion_str}{open_time_str}\n"
         msg_tg += f"ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â° Precio: {alert.precio}\n"
         if alert.lotaje and float(alert.lotaje) > 0.0:
             msg_tg += f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¦ Lote: {alert.lotaje}\n"
@@ -2028,21 +2028,21 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
             # Checkmarks logic
             if "CIERRE_PARCIAL" in alert.accion:
                 if alert.comentario and any(x in alert.comentario.upper() for x in ["25%", "40%", "TP1", "TP40", "TP25"]):
-                    check_tp1 = " ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦"
+                    check_tp1 = " ✅¦"
                 elif alert.comentario and any(x in alert.comentario.upper() for x in ["50%", "65%", "TP2", "TP50", "TP65"]):
-                    check_tp1 = " ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦"
-                    check_tp2 = " ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦"
+                    check_tp1 = " ✅¦"
+                    check_tp2 = " ✅¦"
             elif "CIERRE_TOTAL" in alert.accion and alert.pnl > 0:
                 # If we closed with profit, assume at least TP1/2 were hit depending on distance, or Full TP
                 if abs(alert.precio - alert.take_profit) < (distancia * 0.1):
-                    check_tp1 = " ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦"
-                    check_tp2 = " ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦"
-                    check_full = " ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦"
+                    check_tp1 = " ✅¦"
+                    check_tp2 = " ✅¦"
+                    check_full = " ✅¦"
                 elif abs(alert.precio - tp2) < (distancia * 0.2) or (alert.precio > tp2 if es_buy else alert.precio < tp2):
-                    check_tp1 = " ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦"
-                    check_tp2 = " ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦"
+                    check_tp1 = " ✅¦"
+                    check_tp2 = " ✅¦"
                 elif abs(alert.precio - tp1) < (distancia * 0.2) or (alert.precio > tp1 if es_buy else alert.precio < tp1):
-                    check_tp1 = " ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦"
+                    check_tp1 = " ✅¦"
                     
             msg_tg += f"ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¯ TP1 (25%/40%): {tp1}{check_tp1}\n"
             msg_tg += f"ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¯ TP2 (50%/65%): {tp2}{check_tp2}\n"
@@ -2061,14 +2061,14 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                 msg_tg += f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‹â€  *Trailing Stop Activado*: El SL ha avanzado para asegurar ganancias al 50%. El trade sigue activo.\n"
             elif alert.accion == "CIERRE_TOTAL":
                 if alert.pnl > 0.0:
-                    msg_tg += f"ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ *Cierre con Ganancias*\n"
-                    msg_tg += f"ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ¢â‚¬Ëœ *AtenciÃƒÆ’Ã‚Â³n*: El trade se cerrÃƒÆ’Ã‚Â³ completamente en MT5 asegurando una ganancia final de +${round(alert.pnl, 2)} (Precio de Cierre / Full TP / Trailing Stop: {alert.precio}).\n"
+                    msg_tg += f"✅¦ *Cierre con Ganancias*\n"
+                    msg_tg += f"ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ¢â‚¬Ëœ *Atención*: El trade se cerró completamente en MT5 asegurando una ganancia final de +${round(alert.pnl, 2)} (Precio de Cierre / Full TP / Trailing Stop: {alert.precio}).\n"
                 elif alert.pnl < 0.0:
-                    msg_tg += f"ÃƒÂ¢Ã‚ÂÃ…â€™ *Cierre con PÃƒÆ’Ã‚Â©rdida*\n"
-                    msg_tg += f"ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ¢â‚¬Ëœ *AtenciÃƒÆ’Ã‚Â³n*: El trade se cerrÃƒÆ’Ã‚Â³ completamente en MT5 con una pÃƒÆ’Ã‚Â©rdida de -${abs(round(alert.pnl, 2))} (Hit SL al precio: {alert.precio}).\n"
+                    msg_tg += f"ÃƒÂ¢Ã‚ÂÃ…â€™ *Cierre con Pérdida*\n"
+                    msg_tg += f"ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ¢â‚¬Ëœ *Atención*: El trade se cerró completamente en MT5 con una pérdida de -${abs(round(alert.pnl, 2))} (Hit SL al precio: {alert.precio}).\n"
                 else:
                     msg_tg += f"ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â *Cierre en Break Even* (BE)\n"
-                    msg_tg += f"ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ¢â‚¬Ëœ *AtenciÃƒÆ’Ã‚Â³n*: El trade se cerrÃƒÆ’Ã‚Â³ completamente en MT5 sin pÃƒÆ’Ã‚Â©rdidas ni ganancias (Precio de BE: {alert.precio}).\n"
+                    msg_tg += f"ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ¢â‚¬Ëœ *Atención*: El trade se cerró completamente en MT5 sin pérdidas ni ganancias (Precio de BE: {alert.precio}).\n"
             
         det_str = getattr(alert, 'detalle_setup_string', None)
         if det_str:
@@ -2154,7 +2154,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
     
     return {
         "resultado": "recibido",
-        "mensaje": f"Procesando operaciÃƒÆ’Ã‚Â³n de {alert.accion} para {alert.activo}",
+        "mensaje": f"Procesando operación de {alert.accion} para {alert.activo}",
         "precio_utilizado": alert.precio,
         "precio_yahoo": precio_yahoo,
         "precio_google": precio_google,
@@ -2171,12 +2171,12 @@ def recibir_alerta_get(
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """
-    Ruta alternativa GET para pruebas rÃƒÆ’Ã‚Â¡pidas de texto directamente desde el navegador web.
+    Ruta alternativa GET para pruebas rápidas de texto directamente desde el navegador web.
     Ejemplo de uso: http://localhost:8000/webhook_get?activo=BTCUSD&accion=COMPRA&precio=68000
     
-    LIMITACIÃƒÆ’Ã¢â‚¬Å“N CRÃƒÆ’Ã‚ÂTICA DE GET: Las imÃƒÆ’Ã‚Â¡genes NO se pueden enviar por aquÃƒÆ’Ã‚Â­ debido a las restricciones 
-    de longitud de caracteres en la URL (~2048 caracteres). Para imÃƒÆ’Ã‚Â¡genes o archivos binarios pesados, 
-    el mÃƒÆ’Ã‚Â©todo POST es obligatorio.
+    LIMITACIÓN CRTICA DE GET: Las imágenes NO se pueden enviar por aquí debido a las restricciones 
+    de longitud de caracteres en la URL (~2048 caracteres). Para imágenes o archivos binarios pesados, 
+    el método POST es obligatorio.
     """
     alert = TradeAlert(
         activo=activo,
@@ -2220,13 +2220,13 @@ def recibir_alerta_get(
                 registrar_error_sistema("Botpress (GET)", str(e))
         background_tasks.add_task(avisar_mia_get)
         
-    # <-- AÃƒÆ’Ã¢â‚¬ËœADIDO: Notificar tambiÃƒÆ’Ã‚Â©n a Telegram -->
+    # <-- AÃƒÆ’Ã¢â‚¬ËœADIDO: Notificar también a Telegram -->
     # mensaje_tg = f"ÃƒÂ°Ã…Â¸Ã‚Â¤Ã¢â‚¬â€œ *MIA TRADING AI*\n\nÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¥ *{alert.accion}* en *{alert.activo}*\nPrecio: {alert.precio}"
     # notificar_telegram(mensaje_tg)
     
     return {
         "resultado": "recibido_via_get",
-        "mensaje": f"Procesando operaciÃƒÆ’Ã‚Â³n de {alert.accion} para {alert.activo}",
+        "mensaje": f"Procesando operación de {alert.accion} para {alert.activo}",
         "precio_utilizado": alert.precio,
         "precio_yahoo": precio_yahoo,
         "precio_google": precio_google,
@@ -2237,7 +2237,7 @@ def recibir_alerta_get(
 @app.get("/test_buy")
 async def test_buy(simbolo: str = "XAUUSD", lote: float = 0.01):
     """
-    Ruta de prueba para abrir una posiciÃƒÆ’Ã‚Â³n de compra en el broker de forma inmediata.
+    Ruta de prueba para abrir una posición de compra en el broker de forma inmediata.
     Ejemplo de uso: http://localhost:8080/test_buy?simbolo=XAUUSD&lote=0.01
     """
     from mt5_executor_cloud import abrir_posicion_test
@@ -2249,9 +2249,9 @@ async def test_buy(simbolo: str = "XAUUSD", lote: float = 0.01):
 # @app.get("/test_boolean")
 async def test_boolean(activo: str = "XAUUSD", lote: float = 0.01):
     """
-    Ruta de prueba para validar la lÃƒÆ’Ã‚Â³gica booleana en Firebase:
+    Ruta de prueba para validar la lógica booleana en Firebase:
     1. Fuerza las 11 confirmaciones a True en Firestore para el activo.
-    2. Lee el documento de Firestore y cuenta cuÃƒÆ’Ã‚Â¡ntas confirmaciones estÃƒÆ’Ã‚Â¡n en True.
+    2. Lee el documento de Firestore y cuenta cuántas confirmaciones están en True.
     3. Si la cantidad de confirmaciones True es >= 8, ejecuta una compra de prueba en MetaAPI.
     4. Restaura las confirmaciones originales del activo.
     """
@@ -2318,7 +2318,7 @@ async def test_boolean(activo: str = "XAUUSD", lote: float = 0.01):
         else:
             result_msg = f"Rechazado (Conteo: {true_count} < 8)."
             
-        # 4. Restaurar original si existÃƒÆ’Ã‚Â­a
+        # 4. Restaurar original si existía
         if original_data:
             doc_ref.set(original_data)
             print(f"| TEST BOOLEAN | Estado original restaurado para {activo_normalizado}")
@@ -2331,7 +2331,7 @@ async def test_boolean(activo: str = "XAUUSD", lote: float = 0.01):
         }
         
     except Exception as e:
-        print(f"| TEST BOOLEAN ERROR | OcurriÃƒÆ’Ã‚Â³ un error al conectar: {e}")
+        print(f"| TEST BOOLEAN ERROR | Ocurrió un error al conectar: {e}")
         registrar_error_sistema("Test Boolean", str(e))
         return {"status": "error", "message": str(e)}
 
@@ -2340,32 +2340,32 @@ async def test_boolean(activo: str = "XAUUSD", lote: float = 0.01):
 @app.post("/webhook_anomaly")
 def recibir_anomalia(anomaly: MarketAnomaly, background_tasks: BackgroundTasks):
     """
-    Ruta para recibir anomalÃƒÆ’Ã‚Â­as de flujo institucional (Dark Pools / Opciones / Heatmap)
-    de proveedores de datos (Unusual Whales / Tradytics) vÃƒÆ’Ã‚Â­a n8n.
+    Ruta para recibir anomalías de flujo institucional (Dark Pools / Opciones / Heatmap)
+    de proveedores de datos (Unusual Whales / Tradytics) vía n8n.
     """
     print(f"\n========================================================")
-    print(f"ANOMALÃƒÆ’Ã‚ÂA DETECTADA: {anomaly.tipo} en {anomaly.activo}")
+    print(f"ANOMALA DETECTADA: {anomaly.tipo} en {anomaly.activo}")
     print(f"Volumen: ${anomaly.volumen_usd:,.2f} | Sentimiento: {anomaly.sentimiento}")
     print(f"========================================================")
     
-    # Validar el umbral (solo procesamos anomalÃƒÆ’Ã‚Â­as institucionales mayores a $5,000,000)
-    # Puedes ajustar este umbral segÃƒÆ’Ã‚Âºn tus preferencias de volumen
+    # Validar el umbral (solo procesamos anomalías institucionales mayores a $5,000,000)
+    # Puedes ajustar este umbral según tus preferencias de volumen
     UMBRAL_MINIMO_USD = 5000000.0
     if anomaly.volumen_usd < UBRAL_MINIMO_USD:
-        print(f"| FILTRO | AnomalÃƒÆ’Ã‚Â­a ignorada. Volumen (${anomaly.volumen_usd:,.2f}) menor al umbral mÃƒÆ’Ã‚Â­nimo (${UMBRAL_MINIMO_USD:,.2f})")
+        print(f"| FILTRO | Anomalía ignorada. Volumen (${anomaly.volumen_usd:,.2f}) menor al umbral mínimo (${UMBRAL_MINIMO_USD:,.2f})")
         return {"resultado": "ignorado", "motivo": "volumen por debajo del umbral"}
         
     background_tasks.add_task(procesar_anomalia_firestore, anomaly)
     
     return {
         "resultado": "recibido",
-        "mensaje": f"Procesando anomalÃƒÆ’Ã‚Â­a {anomaly.tipo} para {anomaly.activo} en segundo plano",
+        "mensaje": f"Procesando anomalía {anomaly.tipo} para {anomaly.activo} en segundo plano",
         "timestamp": datetime.datetime.now().isoformat()
     }
 
 
 # ------------------------------------------------------------------------------
-# NUEVOS WEBHOOKS PARA METATRADER 5 (INTEGRACIÃƒÆ’Ã¢â‚¬Å“N CON EL EXECUTOR LOCAL)
+# NUEVOS WEBHOOKS PARA METATRADER 5 (INTEGRACIÓN CON EL EXECUTOR LOCAL)
 # ------------------------------------------------------------------------------
 
 @app.get("/get_matrix_activos")
@@ -2453,12 +2453,12 @@ def api_webhook_log_error(err: SystemErrorLog, authorization: Optional[str] = He
 @app.post("/webhook_technical_update")
 def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[str] = Header(None)):
     """
-    Ruta que recibe las confirmaciones tÃƒÆ’Ã‚Â©cnicas en tiempo real calculadas por el script
+    Ruta que recibe las confirmaciones técnicas en tiempo real calculadas por el script
     de MetaTrader 5 y actualiza la matriz en Firebase.
     """
     verificar_token(authorization)
-    # IMPORTANTE: Eliminamos invalidar_cache_dashboard() de aquÃƒÆ’Ã‚Â­ para que el polling 
-    # de MT5 (16 activos x cada 15 min) no sature las 50k peticiones Firestore de lÃƒÆ’Ã‚Â­mite gratis
+    # IMPORTANTE: Eliminamos invalidar_cache_dashboard() de aquí para que el polling 
+    # de MT5 (16 activos x cada 15 min) no sature las 50k peticiones Firestore de límite gratis
     
     global firebase_inicializado, db, GLOBAL_MATRICES, GLOBAL_MATRICES_CACHE_FULL
     if not firebase_inicializado or db is None:
@@ -2478,14 +2478,14 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
                 raise HTTPException(status_code=404, detail=f"El activo {activo_normalizado} no existe en la matriz")
             data = doc.to_dict()
             
-        # Clonar para comparaciÃƒÆ’Ã‚Â³n posterior
+        # Clonar para comparación posterior
         import copy
         old_data = copy.deepcopy(data)
         
         if "confirmaciones_tecnicas" not in data:
             data["confirmaciones_tecnicas"] = {}
             
-        # Actualizar confirmaciones tÃƒÆ’Ã‚Â©cnicas
+        # Actualizar confirmaciones técnicas
         cambios_detectados = False
         for k, v in update.confirmaciones_tecnicas.items():
             valor_actual = data["confirmaciones_tecnicas"].get(k)
@@ -2494,9 +2494,9 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
                 data["confirmaciones_tecnicas"][k] = valor_nuevo
                 cambios_detectados = True
                 
-        # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â ESPEJO DINÃƒÆ’Ã‚ÂMICO: Si NO hay cambios, cancelamos la escritura a Firebase!
+        # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â ESPEJO DINMICO: Si NO hay cambios, cancelamos la escritura a Firebase!
         if not cambios_detectados and "confirmaciones_tecnicas" in old_data:
-            return {"status": "success", "mensaje": "Datos idÃƒÆ’Ã‚Â©nticos. Escritura omitida por optimizaciÃƒÆ’Ã‚Â³n.", "score": data.get("score_porcentaje")}
+            return {"status": "success", "mensaje": "Datos idénticos. Escritura omitida por optimización.", "score": data.get("score_porcentaje")}
                 
         # Limpiar booleanos legacy si existen en la base de datos
         legacy_keys = ["smc_order_block", "fvg_detectado", "breaker_block_detectado", "sweep_liquidez_detectado"]
@@ -2511,21 +2511,21 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         
         if data["gatillo_entrada"] and data.get("estado_ejecucion", "INACTIVO") == "INACTIVO":
             if len(data.get("operaciones_activas", [])) < 2:
-                data["estado_ejecucion"] = "PENDIENTE_EJECUCIÃƒÆ’Ã¢â‚¬Å“N"
-                print(f"| SEMÃƒÆ’Ã‚ÂFORO | {activo_normalizado} ha cambiado a PENDIENTE_EJECUCIÃƒÆ’Ã¢â‚¬Å“N")
+                data["estado_ejecucion"] = "PENDIENTE_EJECUCIÓN"
+                print(f"| SEMFORO | {activo_normalizado} ha cambiado a PENDIENTE_EJECUCIÓN")
             else:
-                print(f"| SEMÃƒÆ’Ã‚ÂFORO | Bloqueado para {activo_normalizado}: Ya tiene 2 operaciones activas.")
+                print(f"| SEMFORO | Bloqueado para {activo_normalizado}: Ya tiene 2 operaciones activas.")
         elif not data["gatillo_entrada"] and data.get("estado_ejecucion") != "INACTIVO":
-            # Resetear semÃƒÆ’Ã‚Â¡foro si se perdiÃƒÆ’Ã‚Â³ el setup
+            # Resetear semáforo si se perdió el setup
             data["estado_ejecucion"] = "INACTIVO"
-            print(f"| SEMÃƒÆ’Ã‚ÂFORO | {activo_normalizado} ha cambiado a INACTIVO (Score insuficiente)")
+            print(f"| SEMFORO | {activo_normalizado} ha cambiado a INACTIVO (Score insuficiente)")
             
         data["ultimo_update"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
         
-        # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â BYPASS DE ESCRITURA: Solo actualizar si algo realmente cambiÃƒÆ’Ã‚Â³
+        # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â BYPASS DE ESCRITURA: Solo actualizar si algo realmente cambió
         data_changed = False
         
-        # Comparar las confirmaciones tÃƒÆ’Ã‚Â©cnicas relevantes y el score
+        # Comparar las confirmaciones técnicas relevantes y el score
         for k in update.confirmaciones_tecnicas.keys():
             if data["confirmaciones_tecnicas"].get(k) != old_data.get("confirmaciones_tecnicas", {}).get(k):
                 data_changed = True
@@ -2544,9 +2544,9 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
                 else:
                     raise e_set
         else:
-            print(f"| FIREBASE CACHE | Sin cambios tÃƒÆ’Ã‚Â©cnicos para {activo_normalizado}. Omitiendo escritura (Score: {data['score_porcentaje']}%).")
+            print(f"| FIREBASE CACHE | Sin cambios técnicos para {activo_normalizado}. Omitiendo escritura (Score: {data['score_porcentaje']}%).")
             
-        # Actualizar la cachÃƒÆ’Ã‚Â© RAM directamente para no invalidar el Dashboard entero
+        # Actualizar la caché RAM directamente para no invalidar el Dashboard entero
         if isinstance(GLOBAL_MATRICES, dict):
             GLOBAL_MATRICES[activo_normalizado] = data["score_porcentaje"]
             
@@ -2561,7 +2561,7 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
             pass
         
 
-        # --- GENERAR LOG DE EVALUACIÃƒÆ’Ã¢â‚¬Å“N PARA EL LIVE FEED ---
+        # --- GENERAR LOG DE EVALUACIÓN PARA EL LIVE FEED ---
         now_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-6)))
         fecha_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
         iso_time = now_dt.isoformat()
@@ -2572,7 +2572,7 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         elif 7 <= utc_hour < 12: sesion = "london"
         
         if score < 80:
-            motivo = "EvaluaciÃƒÆ’Ã‚Â³n Continua (Score insuficiente"
+            motivo = "Evaluación Continua (Score insuficiente"
             if update.killzone_activa is False:
                 motivo += " y Fuera de Killzone)"
             else:
@@ -2581,10 +2581,10 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
             if update.killzone_activa is False:
                 motivo = "Rechazada por Killzone (Fuera de horario)"
             else:
-                motivo = "Setup Detectado (Esperando ejecuciÃƒÆ’Ã‚Â³n)"
+                motivo = "Setup Detectado (Esperando ejecución)"
                 
         confs = []
-        # Mapping para los vectores matemÃƒÆ’Ã‚Â¡ticos de la matriz
+        # Mapping para los vectores matemáticos de la matriz
         SMC_MAP = {
             1: "ORDER BLOCK", 2: "FVG", 3: "BREAKER BLOCK", 4: "AMD (SWEEP LIQUIDEZ)", 5: "iFVG",
             6: "MEDIAS MOVILES", 7: "RSI", 8: "SOPORTE/RESISTENCIA", 9: "POC PRICE",
@@ -2605,15 +2605,15 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
                 confs.append(k.replace("_", " ").upper())
                 
         confirmaciones_str = " + ".join(confs) if confs else "Setup Base"
-        detalle_str = f"{activo_normalizado} | {fecha_str} | {sesion} | EscÃƒÆ’Ã‚Â¡ner Cloud | {confirmaciones_str} | SCORE: {score}% | EJECUTADA EN MT5: NO | MOTIVO: {motivo}"
+        detalle_str = f"{activo_normalizado} | {fecha_str} | {sesion} | Escáner Cloud | {confirmaciones_str} | SCORE: {score}% | EJECUTADA EN MT5: NO | MOTIVO: {motivo}"
         
         import time
         eval_id = f"EVAL_{activo_normalizado}_{int(time.time())}"
         
-        # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â PROTECCIÃƒÆ’Ã¢â‚¬Å“N DE CUOTA DE FIREBASE:
+        # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â PROTECCIÓN DE CUOTA DE FIREBASE:
         # Solo escribimos en Firestore si el score es relevante (>= 80%) o si hay una alerta de entrada inminente.
         # Los updates de score < 80 se procesan y se guardan en la memoria RAM de Railway para alimentar el feed en tiempo real
-        # pero SIN escribir en Firestore para evitar agotar las 50k escrituras diarias por evaluaciÃƒÆ’Ã‚Â³n continua.
+        # pero SIN escribir en Firestore para evitar agotar las 50k escrituras diarias por evaluación continua.
         debe_guardar_en_firestore = (score >= 80.0)
         
         if debe_guardar_en_firestore:
@@ -2622,7 +2622,7 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
                 audit_ref.set({
                     "ticket": eval_id,
                     "activo": activo_normalizado,
-                    "estrategia": "EscÃƒÆ’Ã‚Â¡ner Cloud",
+                    "estrategia": "Escáner Cloud",
                     "score": score,
                     "ejecutada_mt5": False,
                     "motivo": motivo,
@@ -2639,13 +2639,13 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
         else:
             print(f"| FIREBASE CACHE ONLY | Omitida escritura en Firestore por Score < 80% ({score}%). Guardado solo en RAM.")
 
-        # Actualizar la cachÃƒÆ’Ã‚Â© de RAM en tiempo real para reflejar de inmediato en el Dashboard
+        # Actualizar la caché de RAM en tiempo real para reflejar de inmediato en el Dashboard
         global GLOBAL_AUDIT_LOGS
         if GLOBAL_AUDIT_LOGS is not None:
             audit_data = {
                 "ticket": eval_id,
                 "activo": activo_normalizado,
-                "estrategia": "EscÃƒÆ’Ã‚Â¡ner Cloud",
+                "estrategia": "Escáner Cloud",
                 "score": score,
                 "ejecutada_mt5": False,
                 "motivo": motivo,
@@ -2656,15 +2656,15 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
                 "confirmaciones_fundamentales": data.get("confirmaciones_fundamentales", {}),
                 "confirmaciones_institucionales": data.get("confirmaciones_institucionales", {})
             }
-            GLOBAL_AUDIT_LOGS.insert(0, audit_data) # Insertar al inicio por ser el mÃƒÆ’Ã‚Â¡s reciente
+            GLOBAL_AUDIT_LOGS.insert(0, audit_data) # Insertar al inicio por ser el más reciente
             
-            # Limitar la cachÃƒÆ’Ã‚Â© en RAM a los ÃƒÆ’Ã‚Âºltimos 1500 logs para evitar fugas de memoria
+            # Limitar la caché en RAM a los últimos 1500 logs para evitar fugas de memoria
             if len(GLOBAL_AUDIT_LOGS) > 1500:
                 GLOBAL_AUDIT_LOGS = GLOBAL_AUDIT_LOGS[:1500]
                 
             invalidar_cache_dashboard()
             
-        print(f"| FIREBASE SUCCESS | Registro EVAL guardado en Firestore y CachÃƒÆ’Ã‚Â© RAM: {eval_id}")
+        print(f"| FIREBASE SUCCESS | Registro EVAL guardado en Firestore y Caché RAM: {eval_id}")
         
         return {
             "status": "success",
@@ -2682,8 +2682,8 @@ def webhook_technical_update(update: TechnicalUpdate, authorization: Optional[st
 @app.post("/webhook_mt5_setup")
 def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, authorization: Optional[str] = Header(None)):
     """
-    Ruta que evalÃƒÆ’Ã‚Âºa si el score del activo es >= 80% en Firebase, consulta a las IAs
-    para el contexto fundamental/sentimiento geopolÃƒÆ’Ã‚Â­tico, y retorna la autorizaciÃƒÆ’Ã‚Â³n final del trade.
+    Ruta que evalúa si el score del activo es >= 80% en Firebase, consulta a las IAs
+    para el contexto fundamental/sentimiento geopolítico, y retorna la autorización final del trade.
     """
     verificar_token(authorization)
     invalidar_cache_dashboard()
@@ -2705,7 +2705,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             
         data = doc.to_dict()
         
-        # 1. VALIDACIÃƒÆ’Ã¢â‚¬Å“N DE 'LIVE KEYS' (API Tokens de Notion, Firebase, y al menos una IA en .env)
+        # 1. VALIDACIÓN DE 'LIVE KEYS' (API Tokens de Notion, Firebase, y al menos una IA en .env)
         live_keys_notion = NOTION_TOKEN and NOTION_TOKEN != "secret_TU_TOKEN_DE_NOTION" and "coloca_aqui" not in NOTION_TOKEN
         live_keys_firebase = firebase_inicializado and db is not None
         live_keys_ai = (
@@ -2713,7 +2713,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             (OPENAI_API_KEY and OPENAI_API_KEY != "TU_LLAVE_DE_OPENAI" and "coloca_aqui" not in OPENAI_API_KEY) or
             (GROK_API_KEY and GROK_API_KEY != "TU_LLAVE_DE_GROK" and "coloca_aqui" not in GROK_API_KEY)
         )
-        # Descomentar la siguiente lÃƒÆ’Ã‚Â­nea para habilitar Notion e IA como requisitos obligatorios (quitando el bypass)
+        # Descomentar la siguiente línea para habilitar Notion e IA como requisitos obligatorios (quitando el bypass)
         # live_keys_valid = live_keys_notion and live_keys_firebase and live_keys_ai
         
         # BYPASS ACTIVO: Solo Firebase es requerido para ejecutar en MT5
@@ -2721,17 +2721,17 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         
         if not live_keys_valid:
             detalles_faltantes = []
-            if not live_keys_notion: detalles_faltantes.append("Notion API Token (Advertencia: No se registrarÃƒÆ’Ã‚Â¡ en Notion, pero la ejecuciÃƒÆ’Ã‚Â³n continuarÃƒÆ’Ã‚Â¡ si las demÃƒÆ’Ã‚Â¡s APIs estÃƒÆ’Ã‚Â¡n bien)")
-            if not live_keys_firebase: detalles_faltantes.append("ConexiÃƒÆ’Ã‚Â³n Firestore de Firebase")
+            if not live_keys_notion: detalles_faltantes.append("Notion API Token (Advertencia: No se registrará en Notion, pero la ejecución continuará si las demás APIs están bien)")
+            if not live_keys_firebase: detalles_faltantes.append("Conexión Firestore de Firebase")
             if not live_keys_ai: detalles_faltantes.append("Al menos una API Key de IA (Gemini, ChatGPT o Grok)")
             
             return {
                 "authorized": False,
-                "reason": f"Fallo de validaciÃƒÆ’Ã‚Â³n de 'live keys' (APIs). Faltan/InvÃƒÆ’Ã‚Â¡lidas: {', '.join(detalles_faltantes)}",
+                "reason": f"Fallo de validación de 'live keys' (APIs). Faltan/Inválidas: {', '.join(detalles_faltantes)}",
                 "live_keys_valid": False
             }
 
-        # 1.5 VALIDACIÃƒÆ’Ã¢â‚¬Å“N DE SEMÃƒÆ’Ã‚ÂFORO Y LÃƒÆ’Ã‚ÂMITE DE TRADES (MÃƒÆ’Ã‚Â¡ximo 2 simultÃƒÆ’Ã‚Â¡neos por activo)
+        # 1.5 VALIDACIÓN DE SEMFORO Y LMITE DE TRADES (Máximo 2 simultáneos por activo)
         # 1.1 [SANDBOX ISOLATION]: Confinamiento de NZDCAD para entrenamiento y simulacion experimental
         if activo_normalizado in ["NZDCAD"]:
             print(f"| RUNE RISK | Rechazada ejecucion en vivo de {activo_normalizado}: confinado a Sandbox/Entrenamiento.")
@@ -2837,25 +2837,25 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         if len(operaciones_activas) >= 2:
             return {
                 "authorized": False,
-                "reason": f"LÃƒÆ’Ã‚Â­mite mÃƒÆ’Ã‚Â¡ximo de 2 trades activos alcanzado para {activo_normalizado}. Se bloquea apertura de nuevos trades.",
+                "reason": f"Límite máximo de 2 trades activos alcanzado para {activo_normalizado}. Se bloquea apertura de nuevos trades.",
                 "estado_ejecucion": estado_actual
             }
             
-        if estado_actual != "PENDIENTE_EJECUCIÃƒÆ’Ã¢â‚¬Å“N":
+        if estado_actual != "PENDIENTE_EJECUCIÓN":
             return {
                 "authorized": False,
-                "reason": f"SemÃƒÆ’Ã‚Â¡foro no autorizado. El estado actual es '{estado_actual}', se requiere 'PENDIENTE_EJECUCIÃƒÆ’Ã¢â‚¬Å“N' (Score >= 80%).",
+                "reason": f"Semáforo no autorizado. El estado actual es '{estado_actual}', se requiere 'PENDIENTE_EJECUCIÓN' (Score >= 80%).",
                 "estado_ejecucion": estado_actual
             }
 
-        # 2. (REMOVIDO) VALIDACIÃƒÆ’Ã¢â‚¬Å“N DE 'LEVEL KEYS'
-        # Anteriormente se exigÃƒÆ’Ã‚Â­a Soporte/Resistencia, OB o BB de forma estricta.
-        # Esto fue removido porque la metodologÃƒÆ’Ã‚Â­a SMC ya valida estas estructuras
+        # 2. (REMOVIDO) VALIDACIÓN DE 'LEVEL KEYS'
+        # Anteriormente se exigía Soporte/Resistencia, OB o BB de forma estricta.
+        # Esto fue removido porque la metodología SMC ya valida estas estructuras
         # (incluyendo FVG y Sweep) y las pondera en el score. Si el score llega al 80%,
-        # la estructura es matemÃƒÆ’Ã‚Â¡ticamente vÃƒÆ’Ã‚Â¡lida segÃƒÆ’Ã‚Âºn la configuraciÃƒÆ’Ã‚Â³n de Mia.
-        # 3. VALIDACIÃƒÆ’Ã¢â‚¬Å“N FINAL DE PROBABILIDAD ESTADÃƒÆ’Ã‚ÂSTICA (Score >= 80%)
+        # la estructura es matemáticamente válida según la configuración de Mia.
+        # 3. VALIDACIÓN FINAL DE PROBABILIDAD ESTADSTICA (Score >= 80%)
         # El score debe ser mayor o igual al 80% como primera
-        # OPTIMIZACIÃƒÆ’Ã¢â‚¬Å“N: Obtener memoria colectiva de la RAM Cache en lugar de Firestore
+        # OPTIMIZACIÓN: Obtener memoria colectiva de la RAM Cache en lugar de Firestore
         global GLOBAL_MIA_COLLECTIVE
         memoria_colectiva = None
         if GLOBAL_MIA_COLLECTIVE:
@@ -2868,14 +2868,14 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         if not score_valido:
             return {
                 "authorized": False,
-                "reason": f"El score de validaciÃƒÆ’Ã‚Â³n ({score}%) es menor al 80% requerido.",
+                "reason": f"El score de validación ({score}%) es menor al 80% requerido.",
                 "score_porcentaje": score
             }
             
-        # La memoria colectiva ya se cargÃƒÆ’Ã‚Â³ de la RAM en la lÃƒÆ’Ã‚Â­nea 2170
+        # La memoria colectiva ya se cargó de la RAM en la línea 2170
         if memoria_colectiva:
-            print(f"| APRENDIZAJE MIA | Memoria colectiva cruzada cargada exitosamente desde CachÃƒÆ’Ã‚Â© RAM.")
-        # Consultar IAs para el contexto geopolÃƒÆ’Ã‚Â­tico y fundamental
+            print(f"| APRENDIZAJE MIA | Memoria colectiva cruzada cargada exitosamente desde Caché RAM.")
+        # Consultar IAs para el contexto geopolítico y fundamental
         alert = TradeAlert(
             activo=req.activo,
             accion=req.accion,
@@ -2961,8 +2961,8 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         precio_ej = req.precio
         tipo_orden = req.accion.upper()
         
-        # ConfiguraciÃƒÆ’Ã‚Â³n por defecto dinÃƒÆ’Ã‚Â¡mica (para Forex u otros si no estÃƒÆ’Ã‚Â¡n en la lista)
-        if precio_ej < 5.0: # Pares Forex estÃƒÆ’Ã‚Â¡ndar (AUDUSD, NZDCAD, EURUSD...)
+        # Configuración por defecto dinámica (para Forex u otros si no están en la lista)
+        if precio_ej < 5.0: # Pares Forex estándar (AUDUSD, NZDCAD, EURUSD...)
             pips_def = 0.0020
             sl = precio_ej - pips_def if tipo_orden == "COMPRA" else precio_ej + pips_def
             tp = precio_ej + (pips_def * 2.0) if tipo_orden == "COMPRA" else precio_ej - (pips_def * 2.0)
@@ -2972,7 +2972,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             sl = precio_ej - pips_def if tipo_orden == "COMPRA" else precio_ej + pips_def
             tp = precio_ej + (pips_def * 2.0) if tipo_orden == "COMPRA" else precio_ej - (pips_def * 2.0)
             lote = 0.1
-        else: # Cripto, ÃƒÆ’Ã‚Ândices o Oro
+        else: # Cripto, ndices o Oro
             sl = precio_ej - 200.0 if tipo_orden == "COMPRA" else precio_ej + 200.0
             tp = precio_ej + 400.0 if tipo_orden == "COMPRA" else precio_ej - 400.0
             lote = 0.1
@@ -2984,19 +2984,19 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             tp = precio_ej + (pips * 2.0) if tipo_orden == "COMPRA" else precio_ej - (pips * 2.0)
             lote = 0.5
         elif activo_normalizado in ["AUDUSD", "NZDCAD"]:
-            # AUDUSD y NZDCAD requieren SL mÃƒÆ’Ã‚Â¡s holgado por spreads cruzados
+            # AUDUSD y NZDCAD requieren SL más holgado por spreads cruzados
             pips = 0.0035
             sl = precio_ej - pips if tipo_orden == "COMPRA" else precio_ej + pips
             tp = precio_ej + (pips * 2.0) if tipo_orden == "COMPRA" else precio_ej - (pips * 2.0)
             lote = 0.4
         elif activo_normalizado == "GBPJPY":
-            pips = 0.35 # Subimos a 35 pips para darle holgura y evitar barridas rÃƒÆ’Ã‚Â¡pidas
+            pips = 0.35 # Subimos a 35 pips para darle holgura y evitar barridas rápidas
             sl = precio_ej - pips if tipo_orden == "COMPRA" else precio_ej + pips
             tp = precio_ej + (pips * 2.0) if tipo_orden == "COMPRA" else precio_ej - (pips * 2.0)
             lote = 0.3
         elif activo_normalizado == "XAUUSD":
-            # El Oro (XAUUSD) es muy volÃƒÆ’Ã‚Â¡til. Ampliamos el SL a $20 (200 pips) y TP a $40 (400 pips)
-            # Esto harÃƒÆ’Ã‚Â¡ que el gestor de riesgo reduzca automÃƒÆ’Ã‚Â¡ticamente el lotaje a 1/4 del anterior.
+            # El Oro (XAUUSD) es muy volátil. Ampliamos el SL a $20 (200 pips) y TP a $40 (400 pips)
+            # Esto hará que el gestor de riesgo reduzca automáticamente el lotaje a 1/4 del anterior.
             sl = precio_ej - 20.0 if tipo_orden == "COMPRA" else precio_ej + 20.0
             tp = precio_ej + 40.0 if tipo_orden == "COMPRA" else precio_ej - 40.0
             lote = 0.05
@@ -3014,7 +3014,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         tp = round(tp, 5)
         probabilidad = score # Asignamos la probabilidad para evitar UnboundLocalError
         
-        # 4. DETERMINAR ESTRATEGIA DINÃƒÆ’Ã‚ÂMICA BASADA EN LA MATRIZ (MIA KB + ML)
+        # 4. DETERMINAR ESTRATEGIA DINMICA BASADA EN LA MATRIZ (MIA KB + ML)
         conf = data.get("confirmaciones_tecnicas", {})
         tiene_lux = any(conf.get(f"lux_algo_ob_{tf}", False) for tf in ["1h", "2h", "3h", "4h", "8h"])
         tiene_fvg = conf.get("fvg_detectado", False)
@@ -3025,7 +3025,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         if tiene_lux: estrategia_dinamica += "OB (Lux Algo)"
         elif tiene_fvg: estrategia_dinamica += "FVG"
         elif tiene_retail: estrategia_dinamica += "Soportes/OB Retail"
-        else: estrategia_dinamica += "AcciÃƒÆ’Ã‚Â³n de Precio"
+        else: estrategia_dinamica += "Acción de Precio"
         
         if tiene_liq: estrategia_dinamica += " + Toma Liquidez (AMD)"
         
@@ -3035,7 +3035,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         background_tasks.add_task(actualizar_excel_local, alert)
         background_tasks.add_task(guardar_en_firestore, alert, None, None)
         
-        # Cambiar el semÃƒÆ’Ã‚Â¡foro a EJECUTADO
+        # Cambiar el semáforo a EJECUTADO
         data["estado_ejecucion"] = "EJECUTADO"
         doc_ref.set(data)
 
@@ -3056,7 +3056,7 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
         except Exception as e_ab_setup:
             print(f"| AB TRACKER WARN | {e_ab_setup}")
 
-        print(f"| DECISIÃƒÆ’Ã¢â‚¬Å“N CLOUD | Trade AUTORIZADO para {activo_normalizado}. Score: {score}%. Probabilidad: {probabilidad}%. SL: {sl} | TP: {tp} | Estrategia: {estrategia_dinamica}")
+        print(f"| DECISIÓN CLOUD | Trade AUTORIZADO para {activo_normalizado}. Score: {score}%. Probabilidad: {probabilidad}%. SL: {sl} | TP: {tp} | Estrategia: {estrategia_dinamica}")
         
         return {
             "authorized": True,
@@ -3100,7 +3100,7 @@ def get_mia_trading_feed(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=503, detail="Firebase no inicializado")
         
     try:
-        # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â PROTECCIÃƒÆ’Ã¢â‚¬Å“N ANTI-SATURACIÃƒÆ’Ã¢â‚¬Å“N: Lectura total desde memoria
+        # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â PROTECCIÓN ANTI-SATURACIÓN: Lectura total desde memoria
         global GLOBAL_MATRICES_CACHE_FULL
         
         xml_items = []
@@ -3163,8 +3163,8 @@ def update_collective_memory(req: CollectiveMemoryRequest, authorization: Option
             "memoria_compartida": req.memoria_compartida,
             "ultimo_update": datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
         })
-        print(f"| FIREBASE SUCCESS | Memoria colectiva de MIA actualizada con ÃƒÆ’Ã‚Â©xito.")
-        return {"status": "success", "message": "Memoria colectiva actualizada con ÃƒÆ’Ã‚Â©xito"}
+        print(f"| FIREBASE SUCCESS | Memoria colectiva de MIA actualizada con éxito.")
+        return {"status": "success", "message": "Memoria colectiva actualizada con éxito"}
     except Exception as e:
         print(f"| FIREBASE ERROR | Error al actualizar memoria colectiva: {e}")
         raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
@@ -3173,7 +3173,7 @@ def update_collective_memory(req: CollectiveMemoryRequest, authorization: Option
 @app.post("/webhook_fundamental_update")
 def webhook_fundamental_update(update: FundamentalUpdate, authorization: Optional[str] = Header(None)):
     """
-    Ruta que recibe la Miel (booleanos extraÃƒÆ’Ã‚Â­dos por n8n) y actualiza la matriz.
+    Ruta que recibe la Miel (booleanos extraídos por n8n) y actualiza la matriz.
     """
     verificar_token(authorization)
     
@@ -3210,11 +3210,11 @@ def webhook_fundamental_update(update: FundamentalUpdate, authorization: Optiona
         
         if data["gatillo_entrada"] and data.get("estado_ejecucion", "INACTIVO") == "INACTIVO":
             if len(data.get("operaciones_activas", [])) < 2:
-                data["estado_ejecucion"] = "PENDIENTE_EJECUCIÃƒÆ’Ã¢â‚¬Å“N"
-                print(f"| SEMÃƒÆ’Ã‚ÂFORO | {activo_normalizado} ha cambiado a PENDIENTE_EJECUCIÃƒÆ’Ã¢â‚¬Å“N (VÃƒÆ’Ã‚Â­a Fundamental)")
+                data["estado_ejecucion"] = "PENDIENTE_EJECUCIÓN"
+                print(f"| SEMFORO | {activo_normalizado} ha cambiado a PENDIENTE_EJECUCIÓN (Vía Fundamental)")
                 notificar_botpress_mia(activo_normalizado, data)
             else:
-                print(f"| SEMÃƒÆ’Ã‚ÂFORO | Bloqueado para {activo_normalizado}: Ya tiene 2 operaciones activas.")
+                print(f"| SEMFORO | Bloqueado para {activo_normalizado}: Ya tiene 2 operaciones activas.")
             
         data["ultimo_update"] = datetime.datetime.now(datetime.timezone.utc).isoformat() if hasattr(datetime, "timezone") else datetime.datetime.now().isoformat()
         
@@ -3332,8 +3332,8 @@ class MetaApiExecution(BaseModel):
 @app.post("/webhook_marcar_ejecutado")
 def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optional[str] = Header(None)):
     """
-    Recibe la confirmaciÃƒÆ’Ã‚Â³n desde Botpress (MetaApi) de que el trade se ha ejecutado.
-    Cambia el estado a EJECUTADO, llama a la KB, y genera el log de auditorÃƒÆ’Ã‚Â­a inmutable.
+    Recibe la confirmación desde Botpress (MetaApi) de que el trade se ha ejecutado.
+    Cambia el estado a EJECUTADO, llama a la KB, y genera el log de auditoría inmutable.
     """
     verificar_token(authorization)
     invalidar_cache_dashboard()
@@ -3366,7 +3366,7 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         # Enriquecer log con detalles de confirmaciones de la matriz
         tech_data = data.get("confirmaciones_tecnicas", {})
         
-        # Mapping para los vectores matemÃƒÆ’Ã‚Â¡ticos
+        # Mapping para los vectores matemáticos
         SMC_MAP = {
             1: "ORDER BLOCK", 2: "FVG", 3: "BREAKER BLOCK", 4: "AMD (SWEEP LIQUIDEZ)", 5: "iFVG",
             6: "MEDIAS MOVILES", 7: "RSI", 8: "SOPORTE/RESISTENCIA", 9: "POC PRICE",
@@ -3489,25 +3489,25 @@ def webhook_marcar_ejecutado(ejecucion: MetaApiExecution, authorization: Optiona
         except Exception as e_amd_kb:
             print(f"| MIA KB WARNING | No se pudo respaldar AMD MTF en mia_kb: {e_amd_kb}")
             
-        # Actualizar CachÃƒÆ’Ã‚Â© en RAM directamente para no depender de Firebase (previene error si el webhook llega despuÃƒÆ’Ã‚Â©s y hay lÃƒÆ’Ã‚Â­mite 429)
+        # Actualizar Caché en RAM directamente para no depender de Firebase (previene error si el webhook llega después y hay límite 429)
         global GLOBAL_AUDIT_LOGS
         if GLOBAL_AUDIT_LOGS is not None:
             GLOBAL_AUDIT_LOGS.insert(0, audit_data_dict)
             if len(GLOBAL_AUDIT_LOGS) > 1500:
                 GLOBAL_AUDIT_LOGS = GLOBAL_AUDIT_LOGS[:1500]
                 
-        print(f"| AUDITORÃƒÆ’Ã‚ÂA | Trade registrado en TXT, Firebase y CachÃƒÆ’Ã‚Â© RAM para {ejecucion.activo}")
+        print(f"| AUDITORA | Trade registrado en TXT, Firebase y Caché RAM para {ejecucion.activo}")
         
         return {"status": "success", "mensaje": "Trade ejecutado y auditado"}
     except Exception as e:
-        print(f"| AUDITORÃƒÆ’Ã‚ÂA ERROR | {e}")
+        print(f"| AUDITORA ERROR | {e}")
         raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 @app.post("/webhook_marcar_rechazado")
 def webhook_marcar_rechazado(payload: dict, authorization: Optional[str] = Header(None)):
     """
     Actualiza el Live Feed (mia_audit_logs) indicando el motivo exacto por el cual 
-    el cerebro o el MetaAPI rechazÃƒÆ’Ã‚Â³ la orden.
+    el cerebro o el MetaAPI rechazó la orden.
     """
     verificar_token(authorization)
     invalidar_cache_dashboard()
@@ -3521,15 +3521,15 @@ def webhook_marcar_rechazado(payload: dict, authorization: Optional[str] = Heade
     activo_norm = normalizar_activo(activo)
     
     try:
-        # 1. Resetear el semÃƒÆ’Ã‚Â¡foro en trading_matrix para que pueda volver a intentarlo en el futuro
+        # 1. Resetear el semáforo en trading_matrix para que pueda volver a intentarlo en el futuro
         doc_matrix_ref = db.collection("trading_matrix").document(activo_norm)
         matrix_data = doc_matrix_ref.get().to_dict() or {}
         if matrix_data.get("estado_ejecucion") == "EJECUTADO":
             matrix_data["estado_ejecucion"] = "INACTIVO"
             doc_matrix_ref.set(matrix_data, merge=True)
-            print(f"| SEMÃƒÆ’Ã‚ÂFORO | Reset a INACTIVO para {activo_norm} debido a rechazo de MetaAPI/Killzone.")
+            print(f"| SEMFORO | Reset a INACTIVO para {activo_norm} debido a rechazo de MetaAPI/Killzone.")
             
-        # 2. Buscar el registro EVAL mÃƒÆ’Ã‚Â¡s reciente de este activo y actualizar su motivo
+        # 2. Buscar el registro EVAL más reciente de este activo y actualizar su motivo
         docs = db.collection("mia_audit_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(20).stream()
         for doc in docs:
             data = doc.to_dict()
@@ -3541,9 +3541,9 @@ def webhook_marcar_rechazado(payload: dict, authorization: Optional[str] = Heade
                     data["detalle_setup"] = detalle
                     
                 db.collection("mia_audit_logs").document(doc.id).set(data, merge=True)
-                print(f"| AUDITORÃƒÆ’Ã‚ÂA | Motivo de rechazo actualizado para {activo_norm}: {motivo}")
+                print(f"| AUDITORA | Motivo de rechazo actualizado para {activo_norm}: {motivo}")
                 
-                # Actualizar CachÃƒÆ’Ã‚Â© Global en RAM
+                # Actualizar Caché Global en RAM
                 global GLOBAL_AUDIT_LOGS
                 if GLOBAL_AUDIT_LOGS is not None:
                     for i, log in enumerate(GLOBAL_AUDIT_LOGS):
@@ -3555,14 +3555,14 @@ def webhook_marcar_rechazado(payload: dict, authorization: Optional[str] = Heade
                 
         return {"status": "success", "mensaje": "Motivo de rechazo actualizado"}
     except Exception as e:
-        print(f"| AUDITORÃƒÆ’Ã‚ÂA ERROR | Error al actualizar rechazo: {e}")
+        print(f"| AUDITORA ERROR | Error al actualizar rechazo: {e}")
         raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 @app.post("/webhook_marcar_parcial")
 def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[str] = Header(None)):
     """
-    Recibe la confirmaciÃƒÆ’Ã‚Â³n desde Botpress (MetaApi) de que el CIERRE PARCIAL se ha ejecutado.
-    Actualiza la lÃƒÆ’Ã‚Â³gica booleana en Firebase.
+    Recibe la confirmación desde Botpress (MetaApi) de que el CIERRE PARCIAL se ha ejecutado.
+    Actualiza la lógica booleana en Firebase.
     """
     verificar_token(authorization)
     
@@ -3598,9 +3598,9 @@ def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[
         audit_ref = db.collection("mia_audit_logs").document(f"PARCIAL_{ejecucion.ticket}_{ejecucion.activo}")
         audit_ref.set(audit_data)
             
-        print(f"| AUDITORÃƒÆ’Ã‚ÂA PARCIAL | Cierre Parcial registrado en Firebase para {ejecucion.activo}")
+        print(f"| AUDITORA PARCIAL | Cierre Parcial registrado en Firebase para {ejecucion.activo}")
         
-        # Actualizar CachÃƒÆ’Ã‚Â© Global en RAM
+        # Actualizar Caché Global en RAM
         global GLOBAL_AUDIT_LOGS
         if GLOBAL_AUDIT_LOGS is not None:
             GLOBAL_AUDIT_LOGS.append(audit_data)
@@ -3608,7 +3608,7 @@ def webhook_marcar_parcial(ejecucion: MetaApiExecution, authorization: Optional[
         
         return {"status": "success", "mensaje": "Cierre Parcial auditado en Firebase"}
     except Exception as e:
-        print(f"| AUDITORÃƒÆ’Ã‚ÂA ERROR | {e}")
+        print(f"| AUDITORA ERROR | {e}")
         raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
 
 class UpdateBalancePayload(BaseModel):
@@ -3745,8 +3745,8 @@ def api_pnl_hoy(authorization: Optional[str] = Header(None)):
 @app.get("/resumen_trades_hoy")
 def resumen_trades_hoy(authorization: Optional[str] = Header(None)):
     """
-    Consulta la base de datos de auditorÃƒÆ’Ã‚Â­a de Firebase (mia_audit_logs)
-    y devuelve un resumen formateado de los trades ejecutados el dÃƒÆ’Ã‚Â­a de hoy
+    Consulta la base de datos de auditoría de Firebase (mia_audit_logs)
+    y devuelve un resumen formateado de los trades ejecutados el día de hoy
     para que Botpress pueda mostrarlo en el chat.
     """
     verificar_token(authorization)
@@ -3775,11 +3775,11 @@ def resumen_trades_hoy(authorization: Optional[str] = Header(None)):
                     trades_hoy.append(data)
                 
         if len(trades_hoy) == 0:
-            return {"status": "success", "mensaje_chat": f"Padre, hoy ({hoy_str}) no hemos ejecutado ningÃƒÆ’Ã‚Âºn trade todavÃƒÆ’Ã‚Â­a. Sigo escaneando el mercado pacientemente."}
+            return {"status": "success", "mensaje_chat": f"Padre, hoy ({hoy_str}) no hemos ejecutado ningún trade todavía. Sigo escaneando el mercado pacientemente."}
             
         resumen = f"Padre, este es el resumen de hoy ({hoy_str}):\n\n"
         for t in trades_hoy:
-            tipo = t.get("tipo", "EJECUCIÃƒÆ’Ã¢â‚¬Å“N")
+            tipo = t.get("tipo", "EJECUCIÓN")
             activo = t.get("activo", "DESCONOCIDO")
             score = t.get("score_confluencias", t.get("score", 0))
             resumen += f"ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ [{tipo}] {activo} | Score: {score}%\n"
@@ -3833,7 +3833,7 @@ GLOBAL_MATRICES = None
 GLOBAL_MIA_COLLECTIVE = None
 GLOBAL_INDICADORES = None
 ULTIMO_FETCH_FIREBASE = None
-# CachÃƒÆ’Ã‚Â© RAM de activos ya matriculados en Firebase. Evita lecturas repetidas a Firestore.
+# Caché RAM de activos ya matriculados en Firebase. Evita lecturas repetidas a Firestore.
 # Se llena en startup y se actualiza cuando se detecta un activo nuevo.
 ACTIVOS_INICIALIZADOS: set = {
     "GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD",
@@ -3906,9 +3906,9 @@ def asegurar_cache_firebase():
         ULTIMO_FETCH_FIREBASE = ahora
         return
     
-    # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â PROTECCIÃƒÆ’Ã¢â‚¬Å“N CRÃƒÆ’Ã‚ÂTICA DE CUOTA: 
+    # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â PROTECCIÓN CRTICA DE CUOTA: 
     # Incrementamos el refresco a 30 minutos (1800 segundos) para evitar agotar las 50k peticiones Spark de Firestore
-    # cuando el usuario accede desde el mÃƒÆ’Ã‚Â³vil o la PC.
+    # cuando el usuario accede desde el móvil o la PC.
     necesita_refresh = False
     if ULTIMO_FETCH_FIREBASE is None or GLOBAL_AUDIT_LOGS is None:
         necesita_refresh = True
@@ -3920,7 +3920,7 @@ def asegurar_cache_firebase():
         ULTIMO_FETCH_FIREBASE = ahora
         
         try:
-            print("| FIREBASE CACHE | Recargando cachÃƒÆ’Ã‚Â© fÃƒÆ’Ã‚Â­sica desde Firestore...")
+            print("| FIREBASE CACHE | Recargando caché física desde Firestore...")
             # 1. system_logs
             sys_logs = db.collection("mia_system_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream()
             GLOBAL_SYSTEM_LOGS = [sl.to_dict() for sl in sys_logs]
@@ -3955,11 +3955,11 @@ def asegurar_cache_firebase():
             indicadores = db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream()
             GLOBAL_INDICADORES = [{"nombre": ind.id, **ind.to_dict()} for ind in indicadores]
             
-            print("| FIREBASE CACHE | CachÃƒÆ’Ã‚Â© de base de datos recargada con ÃƒÆ’Ã‚Â©xito.")
+            print("| FIREBASE CACHE | Caché de base de datos recargada con éxito.")
         except Exception as fe:
-            print(f"| FIREBASE CACHE WARNING | Error recargando cachÃƒÆ’Ã‚Â© (Posible 429). Intentando restaurar desde Upstash Redis: {fe}")
+            print(f"| FIREBASE CACHE WARNING | Error recargando caché (Posible 429). Intentando restaurar desde Upstash Redis: {fe}")
             
-            # Resiliencia: Si da 429 Quota Exceeded, intentamos cargar desde Upstash Redis que sobreviviÃƒÆ’Ã‚Â³ al reinicio
+            # Resiliencia: Si da 429 Quota Exceeded, intentamos cargar desde Upstash Redis que sobrevivió al reinicio
             restaurado_upstash = False
             if GLOBAL_AUDIT_LOGS is None:
                 try:
@@ -4088,11 +4088,12 @@ def api_dashboard_data():
                 }
                 if ml_data:
                     for ind in ml_data.get("indicadores", []):
-                        ind_id = ind.get("id", "").lower()
-                        wr = float(ind.get("win_rate", 0))
-                        calc_w = round(max(0.20, (wr / 100.0) * 2.0 + 0.30), 4)
-                        if ind_id not in dyn_weights or calc_w > dyn_weights[ind_id]:
-                            dyn_weights[ind_id] = calc_w
+                        ind_id = ind.get("id", "").strip().lower()
+                        if ind_id:
+                            wr = float(ind.get("win_rate", 0))
+                            calc_w = round(max(0.20, (wr / 100.0) * 2.0 + 0.30), 4)
+                            if ind_id not in dyn_weights or calc_w > dyn_weights[ind_id]:
+                                dyn_weights[ind_id] = calc_w
                     d_hist["ml_cache"] = ml_data
 
                 d_hist["kpis"]["dynamic_weights"] = dyn_weights
@@ -4337,8 +4338,8 @@ def api_dxy_status():
 @app.get("/api/open_trades")
 def api_open_trades():
     """
-    Retorna la lista de tickets que estÃƒÆ’Ã‚Â¡n activos en Firebase (COMPRA/VENTA)
-    y que aÃƒÆ’Ã‚Âºn no han sido cerrados. Lee directo de la memoria RAM.
+    Retorna la lista de tickets que están activos en Firebase (COMPRA/VENTA)
+    y que aún no han sido cerrados. Lee directo de la memoria RAM.
     """
     if GLOBAL_AUDIT_LOGS is None:
         asegurar_cache_firebase()
@@ -4485,7 +4486,7 @@ def export_audit_csv():
                     l.get("score", l.get("score_confluencias", 0)),
                     l.get("precio_ejecucion", 0.0),
                     l.get("pnl", 0.0),
-                    "SÃƒÆ’Ã‚Â" if l.get("ejecutada_mt5", True) else "NO",
+                    "S" if l.get("ejecutada_mt5", True) else "NO",
                     l.get("motivo", "Ejecutado" if l.get("ejecutada_mt5", True) else "Desconocido"),
                     tecnicas,
                     fundamentales,
@@ -4686,7 +4687,7 @@ def registrar_log_local_periodo(ticket: str, activo: str, accion: str, score: fl
     from datetime import datetime
     
     try:
-        # Configurar locale a espaÃƒÆ’Ã‚Â±ol para obtener el nombre del mes correcto (ej. Julio)
+        # Configurar locale a español para obtener el nombre del mes correcto (ej. Julio)
         try:
             locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
         except:
@@ -4740,12 +4741,12 @@ def registrar_log_local_periodo(ticket: str, activo: str, accion: str, score: fl
 # ==============================================================================
 async def scheduler_volcado_logs_semanal():
     """
-    Bucle asÃƒÆ’Ã‚Â­ncrono que corre en segundo plano y se ejecuta cada viernes a las 11:00 PM (hora local),
+    Bucle asíncrono que corre en segundo plano y se ejecuta cada viernes a las 11:00 PM (hora local),
     cuando el mercado de divisas cierra.
-    Escribe un ÃƒÆ’Ã‚Âºnico archivo consolidado de texto con todos los trades y setups de la semana
+    Escribe un único archivo consolidado de texto con todos los trades y setups de la semana
     (desde el lunes a las 00:00 hasta el viernes a las 23:00).
     Se guarda en la carpeta del mes correspondiente. Como se ubica en OneDrive,
-    al encender tu PC se sincronizarÃƒÆ’Ã‚Â¡ automÃƒÆ’Ã‚Â¡ticamente de fondo.
+    al encender tu PC se sincronizará automáticamente de fondo.
     """
     import asyncio
     from datetime import datetime, timedelta
@@ -4762,7 +4763,7 @@ async def scheduler_volcado_logs_semanal():
             if dias_hasta_viernes > 0:
                 proximo_volcado += timedelta(days=dias_hasta_viernes)
             elif ahora >= proximo_volcado:
-                # Si ya es viernes despuÃƒÆ’Ã‚Â©s de las 11 PM, programar para el siguiente viernes
+                # Si ya es viernes después de las 11 PM, programar para el siguiente viernes
                 proximo_volcado += timedelta(days=7)
                 
             segundos_espera = (proximo_volcado - ahora).total_seconds()
@@ -4771,19 +4772,19 @@ async def scheduler_volcado_logs_semanal():
             # Dormir hasta que sea viernes a las 11:00 PM
             await asyncio.sleep(segundos_espera)
             
-            print("| SCHEDULER LOGS | Viernes 11:00 PM detectado. Iniciando recopilaciÃƒÆ’Ã‚Â³n semanal de logs...")
+            print("| SCHEDULER LOGS | Viernes 11:00 PM detectado. Iniciando recopilación semanal de logs...")
             global GLOBAL_AUDIT_LOGS
             
-            # Forzar actualizaciÃƒÆ’Ã‚Â³n de la cachÃƒÆ’Ã‚Â© RAM con Firebase para asegurar que no falte nada de la semana
+            # Forzar actualización de la caché RAM con Firebase para asegurar que no falte nada de la semana
             try:
                 asegurar_cache_firebase()
             except Exception as e:
-                print(f"| SCHEDULER LOGS ERROR | No se pudo actualizar cachÃƒÆ’Ã‚Â© al cierre de mercado: {e}")
+                print(f"| SCHEDULER LOGS ERROR | No se pudo actualizar caché al cierre de mercado: {e}")
             
             if GLOBAL_AUDIT_LOGS:
                 import os
                 import locale
-                # Configurar locale a espaÃƒÆ’Ã‚Â±ol para el nombre del mes
+                # Configurar locale a español para el nombre del mes
                 try:
                     locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
                 except:
@@ -4830,7 +4831,7 @@ async def scheduler_volcado_logs_semanal():
                         except:
                             continue
                             
-                    # Si el log estÃƒÆ’Ã‚Â¡ dentro del rango de lunes a viernes de esta semana
+                    # Si el log está dentro del rango de lunes a viernes de esta semana
                     if lunes_semana <= dt_log <= fecha_hoy:
                         es_ej = log.get("ejecutada_mt5", False)
                         tipo_log = "EJECUCION_VIVO" if es_ej else "EVALUACION_TECNICA"
@@ -4862,7 +4863,7 @@ async def scheduler_volcado_logs_semanal():
             await asyncio.sleep(300)
 
 # ------------------------------------------------------------------------------
-# MACHINE LEARNING FEEDBACK LOOP (Pesos DinÃƒÆ’Ã‚Â¡micos)
+# MACHINE LEARNING FEEDBACK LOOP (Pesos Dinámicos)
 # ------------------------------------------------------------------------------
 async def scheduler_daily_ai_cron():
     """
@@ -4882,7 +4883,7 @@ async def scheduler_daily_ai_cron():
                 proxima_ejecucion += timedelta(days=1)
                 
             segundos_espera = (proxima_ejecucion - ahora).total_seconds()
-            print(f"| DAILY AI CRON | PrÃ³xima ejecuciÃ³n: {proxima_ejecucion.strftime('%Y-%m-%d %H:%M UTC')} (en {int(segundos_espera/3600)}h {int((segundos_espera%3600)/60)}m)")
+            print(f"| DAILY AI CRON | Próxima ejecución: {proxima_ejecucion.strftime('%Y-%m-%d %H:%M UTC')} (en {int(segundos_espera/3600)}h {int((segundos_espera%3600)/60)}m)")
             
             await asyncio.sleep(segundos_espera)
             
@@ -4930,7 +4931,7 @@ async def scheduler_daily_ai_cron():
 async def scheduler_ml_semanal():
     """
     Scheduler interno que reemplaza al flujo Mia_Machine_Learning_Loop de N8N.
-    Se ejecuta automÃƒÆ’Ã‚Â¡ticamente cada viernes a las 16:00 (hora local MX, UTC-6).
+    Se ejecuta automáticamente cada viernes a las 16:00 (hora local MX, UTC-6).
     Elimina la dependencia externa de N8N para el entrenamiento de pesos.
     """
     import asyncio
@@ -4948,20 +4949,20 @@ async def scheduler_ml_semanal():
             if dias_hasta_viernes > 0:
                 proximo_entrenamiento += timedelta(days=dias_hasta_viernes)
             elif ahora >= proximo_entrenamiento:
-                # Si ya es viernes despuÃƒÆ’Ã‚Â©s de las 16:00, programar para el siguiente viernes
+                # Si ya es viernes después de las 16:00, programar para el siguiente viernes
                 proximo_entrenamiento += timedelta(days=7)
                 
             segundos_espera = (proximo_entrenamiento - ahora).total_seconds()
-            print(f"| ML SCHEDULER | PrÃƒÆ’Ã‚Â³ximo entrenamiento programado para: {proximo_entrenamiento.strftime('%Y-%m-%d %H:%M')} (en {int(segundos_espera/3600)}h {int((segundos_espera%3600)/60)}m)")
+            print(f"| ML SCHEDULER | Próximo entrenamiento programado para: {proximo_entrenamiento.strftime('%Y-%m-%d %H:%M')} (en {int(segundos_espera/3600)}h {int((segundos_espera%3600)/60)}m)")
             
             await asyncio.sleep(segundos_espera)
             
             # Ãƒâ€šÃ‚Â¡Es hora de entrenar!
-            print("| ML SCHEDULER | ÃƒÂ¢Ã‚ÂÃ‚Â° Disparando entrenamiento semanal de pesos dinÃƒÆ’Ã‚Â¡micos...")
+            print("| ML SCHEDULER | ÃƒÂ¢Ã‚ÂÃ‚Â° Disparando entrenamiento semanal de pesos dinámicos...")
             await entrenar_pesos_dinamicos()
-            print("| ML SCHEDULER | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â Entrenamiento semanal completado exitosamente.")
+            print("| ML SCHEDULER | ✅ Entrenamiento semanal completado exitosamente.")
             
-            # Esperar 1 hora antes de recalcular para evitar doble ejecuciÃƒÆ’Ã‚Â³n
+            # Esperar 1 hora antes de recalcular para evitar doble ejecución
             await asyncio.sleep(3600)
             
         except Exception as err:
@@ -4970,11 +4971,11 @@ async def scheduler_ml_semanal():
 
 @app.post("/api/entrenar_pesos")
 async def entrenar_pesos_endpoint(authorization: Optional[str] = Header(None)):
-    """Endpoint manual/on-demand para disparar el entrenamiento. El scheduler interno ya lo ejecuta automÃƒÆ’Ã‚Â¡ticamente los viernes."""
+    """Endpoint manual/on-demand para disparar el entrenamiento. El scheduler interno ya lo ejecuta automáticamente los viernes."""
     verificar_token(authorization)
     try:
         await entrenar_pesos_dinamicos()
-        return {"status": "success", "message": "Pesos dinÃƒÆ’Ã‚Â¡micos entrenados y actualizados en Firebase y Obsidian."}
+        return {"status": "success", "message": "Pesos dinámicos entrenados y actualizados en Firebase y Obsidian."}
     except Exception as e:
         # Bypass 429 para evitar crashes masivos
         raise HTTPException(status_code=429 if '429' in str(e) or 'quota' in str(e).lower() else 500, detail=str(e))
@@ -5020,7 +5021,7 @@ async def entrenar_pesos_dinamicos():
         
         print(f"| MACHINE LEARNING | Analizando {len(ganadores)} trades exitosos (libres de cuarentena)...")
         
-        # 2. Contar la frecuencia de cada confirmaciÃƒÆ’Ã‚Â³n tÃƒÆ’Ã‚Â©cnica en los ganadores
+        # 2. Contar la frecuencia de cada confirmación técnica en los ganadores
         frecuencias = {
             "ma_alineada": 0, "rsi_extremo": 0, "soporte_resistencia_activo": 0, "poc_price": 0,
             "smc_1_ob": 0, "smc_2_fvg": 0, "smc_3_liq": 0, "smc_4_sweep": 0,
@@ -6231,7 +6232,7 @@ def train_tensorflow():
 @app.get("/api/swarm_history")
 def get_swarm_history():
     """
-    Desacoplamiento: Lee el historial de los Enjambres (DictÃƒÆ’Ã‚Â¡menes) 
+    Desacoplamiento: Lee el historial de los Enjambres (Dictámenes) 
     directamente desde Upstash Redis, evitando el consumo de Firebase (429).
     """
     try:

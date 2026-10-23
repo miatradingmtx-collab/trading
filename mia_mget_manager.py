@@ -36,6 +36,18 @@ KNOWN_HISTORICAL_BALANCES = {
     "2026-10-10": 3905.35
 }
 
+def _sanitize_firestore_dict(data: Any) -> Any:
+    """Limpia recursivamente cualquier clave vacía o nula para evitar ValueError de FieldPath en Firestore."""
+    if isinstance(data, dict):
+        cleaned = {}
+        for k, v in data.items():
+            if isinstance(k, str) and k.strip():
+                cleaned[k.strip()] = _sanitize_firestore_dict(v)
+        return cleaned
+    elif isinstance(data, list):
+        return [_sanitize_firestore_dict(item) for item in data]
+    return data
+
 def _get_db(db_client=None):
     if db_client is not None:
         return db_client
@@ -157,8 +169,8 @@ def reconcile_and_sync_mget_history(db_client=None, days_lookback: int = 14) -> 
             "estado": "ACTIVO",
             "total_snapshots": prev_snaps + 1
         }
-        today_parent_ref.set(parent_payload, merge=True)
-        today_parent_ref.collection("snapshots").document(doc_snapshot_id).set(snapshot_data, merge=True)
+        today_parent_ref.set(_sanitize_firestore_dict(parent_payload), merge=True)
+        today_parent_ref.collection("snapshots").document(doc_snapshot_id).set(_sanitize_firestore_dict(snapshot_data), merge=True)
         print(f"| MGET RECONCILER | Sincronizado hoy {today_str} con snapshot {doc_snapshot_id}")
     except Exception as e_today:
         if "429" in str(e_today) or "quota" in str(e_today).lower():
@@ -209,7 +221,7 @@ def reconcile_and_sync_mget_history(db_client=None, days_lookback: int = 14) -> 
                     "total_snapshots": 1,
                     "origen": "mget_self_healing_backfill"
                 }
-                p_ref.set(p_data, merge=True)
+                p_ref.set(_sanitize_firestore_dict(p_data), merge=True)
 
                 if not has_hijos:
                     snap_id = f"MGET_SNAPSHOT_{f_date}_23-55-00"
@@ -223,7 +235,7 @@ def reconcile_and_sync_mget_history(db_client=None, days_lookback: int = 14) -> 
                         "snapshot_id": snap_id,
                         "origen": "mget_self_healing_backfill"
                     }
-                    p_ref.collection("snapshots").document(snap_id).set(snap_payload, merge=True)
+                    p_ref.collection("snapshots").document(snap_id).set(_sanitize_firestore_dict(snap_payload), merge=True)
                 print(f"| MGET SELF-HEALING | Autocurada jornada faltante: {f_date}")
                 backfilled.append(f_date)
             else:

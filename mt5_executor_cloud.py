@@ -94,7 +94,7 @@ async def conectar_metaapi():
         print("âŒ Error: Falta METAAPI_TOKEN en el entorno.")
         return None, None
 
-    print("ðŸ”Œ Conectando a MetaAPI Cloud...")
+    print("🔌 Conectando a MetaAPI Cloud...")
     api = MetaApi(METAAPI_TOKEN)
 
     try:
@@ -114,9 +114,9 @@ async def conectar_metaapi():
                 'platform': 'mt5',
                 'magic': 20260616
             })
-            print(f"âœ… Cuenta creada en MetaAPI. ID: {account.id}")
+            print(f"✅ Cuenta creada en MetaAPI. ID: {account.id}")
         else:
-            print(f"âœ… Cuenta encontrada en MetaAPI. ID: {account.id}")
+            print(f"✅ Cuenta encontrada en MetaAPI. ID: {account.id}")
 
         # Recargar la cuenta para asegurar que tenemos el estado mÃ¡s reciente
         await account.reload()
@@ -124,17 +124,17 @@ async def conectar_metaapi():
 
         # Desplegar la cuenta si estÃ¡ desconectada
         if account.state != 'DEPLOYED':
-            print("ðŸš€ Desplegando cuenta de trading demo en MetaAPI...")
+            print("🚀 Desplegando cuenta de trading demo en MetaAPI...")
             await account.deploy()
         
         await account.wait_connected()
-        print("âœ… Cuenta conectada al Broker.")
+        print("✅ Cuenta conectada al Broker.")
 
         # Obtener conexiÃ³n RPC
         connection = account.get_rpc_connection()
         await connection.connect()
         await connection.wait_synchronized()
-        print("âœ… ConexiÃ³n RPC sincronizada.")
+        print("✅ Conexión RPC sincronizada.")
 
         return account, connection
 
@@ -341,7 +341,7 @@ async def verificar_drawdown_diario(balance: float, equity: float, limite_pct: f
     return False, presupuesto_restante
 
 async def obtener_velas_cloud(account, simbolo: str, temporalidad: str, cantidad: int = 100) -> Optional[pd.DataFrame]:
-    """Descarga las Ãºltimas velas para un sÃ­mbolo usando la API de MetaAPI"""
+    """Descarga las últimas velas para un sÃ­mbolo usando la API de MetaAPI"""
     try:
         # temporalidad en MetaAPI: '1h', '4h', etc.
         candles = await account.get_historical_candles(simbolo, temporalidad, datetime.datetime.now(datetime.timezone.utc), cantidad)
@@ -349,7 +349,7 @@ async def obtener_velas_cloud(account, simbolo: str, temporalidad: str, cantidad
             return None
             
         df = pd.DataFrame(candles)
-        # Asegurar columnas correctas y formato esperado por el escÃ¡ner
+        # Asegurar columnas correctas y formato esperado por el escáner
         df['time'] = pd.to_datetime(df['time'])
         df['open'] = df['open'].astype(float)
         df['high'] = df['high'].astype(float)
@@ -658,7 +658,7 @@ async def sincronizar_matriz_tecnica(activo: str, confirmaciones: Dict[str, bool
         async with httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json=payload, timeout=5)
             if response.status_code == 200:
-                print(f"| CLOUD | Confirmaciones para {activo} actualizadas con Ã©xito.")
+                print(f"| CLOUD | Confirmaciones para {activo} actualizadas con éxito.")
                 return response.json()
             else:
                 error_msg = f"HTTP {response.status_code}: {response.text}"
@@ -724,8 +724,8 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
         accion = "PROTECCION_BE"
     elif evento == "TRAILING_STOP":
         accion = "TRAILING_STOP"
-    elif evento == "REANUDACIÃ“N":
-        accion = "REANUDACIÃ“N"
+    elif evento == "REANUDACIÓN":
+        accion = "REANUDACIÓN"
     else:
         accion = "CIERRE_TOTAL"
         
@@ -761,7 +761,7 @@ async def reportar_evento_trade(simbolo: str, ticket: str, tipo_posicion: str, e
         async with httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json=payload, timeout=5)
             if response.status_code == 200:
-                print(f"| CLOUD SUCCESS | Evento {evento} registrado con Ã©xito en Notion y Bitacora Excel.")
+                print(f"| CLOUD SUCCESS | Evento {evento} registrado con éxito en Notion y Bitacora Excel.")
             else:
                 print(f"| CLOUD ERROR | No se pudo registrar el evento: {response.text}")
     except Exception as e:
@@ -900,13 +900,13 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 "estrategia": estrategia_original,
                 "open_time": str(pos.get('time', ''))
             }
-            print(f"| SEGUIMIENTO | Nueva posiciÃ³n detectada. Ticket: {ticket} | Lote: {pos.get('volume')} | Estrategia: {estrategia_original}")
+            print(f"| SEGUIMIENTO | Nueva posición detectada. Ticket: {ticket} | Lote: {pos.get('volume')} | Estrategia: {estrategia_original}")
             if not ES_PRIMERA_EJECUCION:
                 tp_original = tp_original if tp_original > 0 else (pos.get('openPrice', 0.0) + 0.00100)
                 await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "APERTURA", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=str(pos.get('time', '')), lotaje=pos.get('volume', 0.0))
             else:
-                print(f"| REANUDACIÃ“N | Adoptando posiciÃ³n existente (Ticket: {ticket}). Enviando notificaciÃ³n de ReanudaciÃ³n.")
-                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "REANUDACIÃ“N", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=str(pos.get('time', '')), lotaje=pos.get('volume', 0.0))
+                print(f"| REANUDACIÓN | Adoptando posición existente (Ticket: {ticket}). Enviando notificaciÃ³n de ReanudaciÃ³n.")
+                await reportar_evento_trade(pos.get('symbol'), ticket, pos.get('type'), "REANUDACIÓN", pos.get('openPrice', 0.0), pos.get('stopLoss', 0.0), tp_original, estrategia_original=estrategia_original, open_time=str(pos.get('time', '')), lotaje=pos.get('volume', 0.0))
             
         activo = next((act for act in ACTIVOS if MAPEO_BROKER.get(act) == pos.get('symbol')), None)
         if not activo:
@@ -1262,7 +1262,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
         pnl_final = 0.0
         precio_cierre = info["price_open"]
         try:
-            # Traer deals de las Ãºltimas 24 horas para encontrar el deal de cierre de este ticket
+            # Traer deals de las últimas 24 horas para encontrar el deal de cierre de este ticket
             desde = datetime.datetime.now() - datetime.timedelta(days=1)
             deals_resp = await connection.get_deals_by_ticket(str(ticket))
             deals = []
@@ -1274,7 +1274,7 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             if deals:
                 # Filtrar el deal de salida o acumular PnL de los deals asociados al ticket
                 pnl_final = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in deals)
-                # Tomar el precio de ejecuciÃ³n del Ãºltimo deal
+                # Tomar el precio de ejecución del Ãºltimo deal
                 precio_cierre = float(deals[-1].get('price', info["price_open"]))
                 print(f"| GESTOR COBROS | PnL real obtenido del Broker para Ticket {ticket}: ${pnl_final:.2f} (Precio salida: {precio_cierre})")
             else:
@@ -1427,9 +1427,9 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
             result = await connection.create_market_sell_order(simbolo_broker, lote, sl, tp, options)
 
         order_id = result.get("orderId", "N/A")
-        print(f"| METAAPI SUCCESS | Orden colocada con Ã©xito en {simbolo_broker}. Ticket ID: {order_id}")
+        print(f"| METAAPI SUCCESS | Orden colocada con éxito en {simbolo_broker}. Ticket ID: {order_id}")
         
-        # Avisar al backend que ya se ejecutÃ³ para que apague el semÃ¡foro y evite doble ejecuciÃ³n
+        # Avisar al backend que ya se ejecutÃ³ para que apague el semÃ¡foro y evite doble ejecución
         try:
             url = f"{FASTAPI_URL}/webhook_marcar_ejecutado"
             headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
@@ -1591,7 +1591,7 @@ def es_mercado_abierto(activo: str) -> bool:
     if dia == 6 and hora < 15: return False
     
     # NOTA: Por instrucciÃ³n directa, se remueve el receso diario de 15:00 a 16:00.
-    # El escÃ¡ner continuarÃ¡ operando de lunes a jueves sin interrupciÃ³n en esa hora.
+    # El escáner continuarÃ¡ operando de lunes a jueves sin interrupciÃ³n en esa hora.
     
     return True
 
@@ -1886,10 +1886,10 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
             continue
 
         if num_abiertos >= 1:
-            print(f"| REGLA DE RIESGO | Ya existe {num_abiertos} posiciÃ³n activa para {activo}. Omitiendo para evitar doble trade.")
+            print(f"| REGLA DE RIESGO | Ya existe {num_abiertos} posición activa para {activo}. Omitiendo para evitar doble trade.")
             continue
         
-        # Validar direcciÃ³n de la posiciÃ³n actual para evitar Hedging (Ya no ocurrirÃ¡ porque cortamos arriba)
+        # Validar direcciÃ³n de la posición actual para evitar Hedging (Ya no ocurrirÃ¡ porque cortamos arriba)
         direccion_abierta = None
 
         if gatillo_autorizado:
@@ -2007,19 +2007,19 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
                 print(f"| LEONA DE LA LIQUIDEZ CLOUD | Â¡Gatillo Cruzado Exitoso! Entrando al mercado...")
                 exito = await ejecutar_orden_cloud(connection, activo, accion, precio_actual, decision, balance, presupuesto_restante, amd_context)
                 if not exito:
-                    print(f"| GATILLO RECHAZADO | FallÃ³ la ejecuciÃ³n en el broker.")
+                    print(f"| GATILLO RECHAZADO | FallÃ³ la ejecución en el broker.")
             else:
                 reason = decision.get("reason", "RazÃ³n desconocida") if decision else "No hubo respuesta del cerebro"
-                print(f"| GATILLO RECHAZADO | El cerebro (Mia) denegÃ³ la ejecuciÃ³n: {reason}")
+                print(f"| GATILLO RECHAZADO | El cerebro (Mia) denegÃ³ la ejecución: {reason}")
                 await reportar_rechazo(activo, f"Mia DenegÃ³: {reason}")
                 
         await asyncio.sleep(2)
 
 async def run_escaner_loop():
-    """Bucle infinito del escÃ¡ner en segundo plano diseÃ±ado para integrarse con FastAPI."""
-    print("ðŸ¤– Iniciando escÃ¡ner e ejecutor asÃ­ncrono de MetaAPI en la nube...")
+    """Bucle infinito del escáner en segundo plano diseÃ±ado para integrarse con FastAPI."""
+    print("🤖 Iniciando escáner e ejecutor asíncrono de MetaAPI en la nube...")
     
-    # Bucle de conexiÃ³n hasta tener Ã©xito
+    # Bucle de conexiÃ³n hasta tener éxito
     account, connection = None, None
     while not account or not connection:
         account, connection = await conectar_metaapi()
@@ -2027,9 +2027,9 @@ async def run_escaner_loop():
             print("â³ Reintentando conexiÃ³n a MetaAPI en 15 segundos...")
             await asyncio.sleep(15)
             
-    print("ðŸš€ EscÃ¡ner de trading asÃ­ncrono iniciado correctamente.")
+    print("🚀 EscÃ¡ner de trading asíncrono iniciado correctamente.")
     
-    # Temporizador para el escÃ¡ner pesado (cada 15 min)
+    # Temporizador para el escáner pesado (cada 15 min)
     ultima_ejecucion_escaner = 0
     
     while True:
@@ -2198,13 +2198,13 @@ async def run_escaner_loop():
                 print(f"| RUNNER UPSTASH SYNC WARN | Error sincronizando Redis cache_mt5: {e_up}")
                 
         except Exception as e:
-            print(f"| RUNNER CLOUD ERROR | OcurriÃ³ un fallo en el escÃ¡ner: {e}")
+            print(f"| RUNNER CLOUD ERROR | OcurriÃ³ un fallo en el escáner: {e}")
             await reportar_error_nube("EscÃ¡ner Core", str(e))
             
         await asyncio.sleep(60) # Loop base optimizado a 60 segundos para evitar 429
 
 async def abrir_posicion_test(simbolo: str, lote: float) -> str:
-    """FunciÃ³n de prueba para abrir una posiciÃ³n directamente en MetaAPI."""
+    """FunciÃ³n de prueba para abrir una posición directamente en MetaAPI."""
     try:
         from metaapi_cloud_sdk import MetaApi
     except ImportError:
@@ -2258,7 +2258,7 @@ async def abrir_posicion_test(simbolo: str, lote: float) -> str:
         print(f"| TEST TRADE | Enviando compra al broker para {simbolo_broker} (Precio: {precio_ej}, SL: {sl}, TP: {tp})")
         result = await connection.create_market_buy_order(simbolo_broker, lote, sl, tp, options)
         order_id = result.get("orderId", "N/A")
-        print(f"| TEST TRADE SUCCESS | PosiciÃ³n abierta con Ã©xito. Ticket ID: {order_id}")
+        print(f"| TEST TRADE SUCCESS | PosiciÃ³n abierta con éxito. Ticket ID: {order_id}")
         return f"Exito: Orden colocada. Ticket ID: {order_id}"
     except Exception as e:
         print(f"| TEST TRADE ERROR | Fallo la orden de prueba: {e}")
