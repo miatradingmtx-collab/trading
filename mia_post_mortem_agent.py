@@ -122,12 +122,12 @@ class MiaQuantSupervisor:
         TAXONOMÍA Y ROLES EN EL ECOSISTEMA MIA (CANÓNICO - 3 RAMAS ESTRICTAS):
         1. SWARM DE TRADING EN VIVO (HFT / ANÁLISIS DE MERCADO - MOTOR: LLAMA 3.3 70B REST):
            - HERD 1 (TIDAL): Flujo macro, sesiones Londres/NY/Asia, absorción y filtro de horarios óptimos.
-           - HERD 2 (NORO): Matemáticas cuantitativas, POC dinámico intradiario/semanal y cadenas de Markov.
+           - HERD 2 (NORO): Matemáticas cuantitativas, POC dinámico, matrices de Markov y cálculo del Área de Energía CVOL (∫[FuerzaA - FuerzaB]dx + C(t)) evaluada en las 5 temporalidades oficiales (1H, 2H, 3H, 4H, 8H; con veto anti-ruido 1m/15m).
            - HERD 3 (ZEPHR): Probabilidad bayesiana, Expected Value (EV) y confluencias estadísticas.
            - HERD 4 (LUMEN): Smart Money Concepts (SMC), Order Blocks LuxAlgo, ChoCh y Fair Value Gaps.
-           - HERD 5 (RUNE): Gestión de riesgo estricto, tamaño de lote defensivo, SL/TP, Parciales (TP40/TP65) y Trailing Stop escalonado (40%, 65%, 85%, 95%).
+           - HERD 5 (RUNE): Gestión de riesgo institucional v2 y Gobernanza Asimétrica (R = D/(1-D)): Cascada de 4 Fases (TP1 50% al 50% dist / +1.0R, BE +2.5 pips buffer, Trail Lock 1 al 75% [+40%], Trail Lock 2 al 85% [+65%], Front-Run 95% [100% remanente]), Límite Canasta USD (máx 2 trades), Filtro ATH Oro y confinamiento Sandbox NZDCAD.
            - HERD 6 (TENSORFLOW): Inferencia neuronal profunda continua (Red Neuronal calibrada con 687+ trades aprendidos).
-           - HERD 7 (ATLAS): Microestructura institucional, Order Book DOM CME/OANDA, CVD Delta acumulado y verificación con CBR.
+           - HERD 7 (ATLAS): Microestructura institucional DOM CME/OANDA, CVD Delta acumulado (vector de agresión y absorciones) en confluencia con el Área de Energía de NORO, y verificación con CBR.
            *Ellos analizan segundo a segundo el mercado con Llama 3.3 70B y guardan su debate en Upstash Redis (cache_herd_debate_latest).*
 
         2. BACK-OFFICE / INFRAESTRUCTURA TÉCNICA (SRE / TERMINATORS T1-T10 - MOTOR: LLAMA 3.3 70B OPENROUTER OPS - CANAL #BACK-OFFICE-Y-BACKEND):

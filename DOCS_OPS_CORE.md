@@ -1298,3 +1298,24 @@ trigger: always_on
    Queda terminantemente prohibido que las colecciones de Firestore (`trading_matrix`), memoria RAM (`FIREBASE VIP`), Upstash Redis (`cache_trading_matrix`), endpoints, o microservicios de monitoreo carguen o mantengan activos ajenos al portafolio (como `BTC`, `UNKNOWN`, `XAUUSD_TEST`, `SP500`, `SPX500`, `NAS100`, `NASDAQ100`, `US30`, `USDJPY`, `USDCAD`, `USDCHF`, `EURGBP`, `GBPCAD`, `CHFJPY`, `EURJPY`).
 3. **Eficiencia de Cuotas LLM (Anti-429 Groq / Gemini / OpenRouter):**
    Los agentes de infraestructura y trading deben garantizar que el escaneo y llamadas a LLMs solo operen sobre los activos con liquidez institucional en su Killzone activa (Londres: `GBPUSD`, `EURUSD`, `GBPJPY` | NY: `EURUSD`, `XAUUSD` | Asia: `AUDUSD`, `GBPJPY`), reduciendo el consumo de tokens en un 70% y blindando las cuotas API.
+
+
+# 🛠️ GUÍA SRE: ARQUITECTURA SWARM REST v1.6.0 Y PERSISTENCIA ATÓMICA EN UPSTASH
+
+## 1. Purga de Frameworks y Reducción de Build Time en Railway
+- **Problema Previo:** La presencia de `crewai<0.50.0` y `langchain` generaba un árbol de dependencias conflictivo con `google-generativeai` y `charset-normalizer`, causando que el build de Railway excediera los 40 minutos o fallara por timeout.
+- **Solución Canónica:** Se purgó completamente `requirements.txt`. El runtime de los 7 Herds corre bajo `mia_master_swarm_rest.py` (cliente HTTP REST directo hacia OpenRouter con `requests.post` y timeout estricto de 8 segundos).
+- **Resultado:** Tiempo de compilación en Docker reducido de >40 minutos a **28 segundos**.
+
+## 2. Mapa de Persistencia Atómica en Upstash Redis
+Para blindar el sistema contra errores 429 de Firebase y caídas de RAM, Upstash gestiona los siguientes slots oficiales:
+- `cache_trading_matrix`: Matriz técnica viva de los 6 activos canónicos (`EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`, `NZDCAD`).
+- `cache_herd_debate_latest`: Veredicto y diálogo en tiempo real de los 7 Herds y Master Gatekeeper con desglose multiactivo.
+- `cache_trading_learning_kb`: Memoria viva de casos aprendidos del CBR para la cognición de trading y autopsias post-mortem.
+- `cache_mia_tensorflow`: Probabilidad y métricas de precisión del modelo neuronal profundo (Accuracy > 60%).
+- `cache_mt5`: Telemetría financiera en tiempo real desde MetaTrader 5 (Balance, Equity, Asimetría de Drawdown).
+
+## 3. Protocolo de los Herds T1 al T10 (Terminators de Infraestructura)
+- Monitoreo continuo de salud del microservicio Railway `trading-production-927a.up.railway.app` y `trading-production-0b51.up.railway.app`.
+- Verificación de consistencia append-only en colecciones históricas de Firebase.
+- Mandato estricto HITL: Todo ajuste o migración de esquemas se somete a `cache_pending_ops_approvals`.

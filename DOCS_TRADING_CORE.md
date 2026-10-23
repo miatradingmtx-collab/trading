@@ -489,3 +489,42 @@ trigger: always_on
    - **Fase 4 (Front-Run TP al 95%):** Cierre del 100% remanente al 95% de la distancia para evitar retrocesos antes de tocar el TP.
 2. **Filtro de Exposición en Canasta USD:** Máximo 2 posiciones abiertas simultáneas en pares correlacionados al dólar (`EURUSD`, `GBPUSD`, `AUDUSD`, `XAUUSD`).
 3. **Filtro Anti-Caza ATH en Oro (XAUUSD):** Prohibido comprar en Oro si la cotización se encuentra a menos del 0.5% del All-Time High sin un retroceso interbancario previo de al menos 30 a 50 pips.
+
+
+# 🔬 MÓDULO MATEMÁTICO INSTITUCIONAL: ÁREA DE ENERGÍA CVOL Y SINERGIA CON CVD DELTA
+
+## 1. Fundamento de Física Financiera
+El precio en los mercados de futuros y divisas interbancarias se desplaza bajo el principio del trabajo mecánico:
+$$W = \int_{x_1}^{x_2} F(x) \, dx$$
+Donde la fuerza neta $F(x) = Fuerza_A(x) - Fuerza_B(x)$ representa el choque de liquidez entre compradores agresores/pasivos y vendedores agresores/pasivos alrededor del Point of Control (POC).
+
+Para convertir este trabajo en una medida fidedigna de volatilidad institucional comparable a los benchmarks CME (FXVL para divisas y GVZ/GLCO para Oro), se integra la función de inercia temporal $C(t)$:
+$$\text{Área de Energía (CVOL)} = \int_{x_1}^{x_2} [Fuerza_A(x) - Fuerza_B(x)] \, dx + C(t)$$
+
+## 2. Calibración de la Constante $C(t)$ y Blindaje Anti-Ruido
+Mia no opera en el vacío ni en temporalidades de micro-ruido. $C(t)$ está calibrada en 5 coeficientes canónicos:
+- **1H ($C(t) = 1.00$):** Microestructura y barridos locales (Sweeps).
+- **2H ($C(t) = 2.25$):** Núcleo de la Regla de 3 (Order Blocks 2H · WR 80.38%).
+- **3H ($C(t) = 3.90$):** Flujo de manipulación y expansión AMD Londres-NY.
+- **4H ($C(t) = 7.03$):** Absorción institucional macro y muros de futuros CME.
+- **8H ($C(t) = 15.60$):** Sesión completa y campana de distribución interbancaria.
+
+**Filtro Anti-Ruido:** Temporalidades menores (1m, 5m, 15m) son bloqueadas automáticamente. El skill `calc_area_energia_cvol` las re-homologa al núcleo 2H.
+
+## 3. Matriz de Sinergia CVD Delta vs CVOL
+- **CVD (HERD 7 ATLAS):** Determina la DIRECCIÓN del flujo ($\sum [Vol_{Ask} - Vol_{Bid}]$).
+- **CVOL (HERD 2 NORO):** Determina la MASA Y ENERGÍA CINÉTICA disponible ($W = \int F \cdot dx + C(t)$).
+- **Confluencia Óptima:** Absorción en CVD + Régimen de Expansión o Absorción Equilibrada en CVOL.
+
+## 4. Portafolio Canónico Hermético y Mapeo de Futuros CME
+- `EURUSD`: Futuro CME G5 `6E`
+- `GBPUSD`: Futuro CME G5 `6B`
+- `AUDUSD`: Futuro CME G5 `6A`
+- `GBPJPY`: Futuro Sintético Cruzado CME `6B/6J`
+- `XAUUSD`: Futuro COMEX Gold `GC`
+- `NZDCAD`: Futuro Sintético Cruzado CME `6N/6C` (Sandbox Shadow Mode)
+
+## 5. Arquitectura Swarm REST Pura (v1.6.0-pure-swarm-rest)
+- Eliminadas 100% de dependencias pesadas `crewai`, `langchain`, `langchain-openai`, `langchain-google-genai`.
+- Ejecución REST determinista y desacoplada vía OpenRouter en 8s con failover.
+- Deliberación con desglose individual obligatorio de los 6 activos en cada ciclo.

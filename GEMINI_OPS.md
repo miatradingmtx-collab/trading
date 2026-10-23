@@ -413,3 +413,24 @@ trigger: always_on
    Queda terminantemente prohibido que `trading_matrix`, `app.py` (`ACTIVOS_INICIALIZADOS` / `FIREBASE VIP`), Upstash Redis (`cache_trading_matrix`), endpoints, o microservicios de monitoreo carguen o mantengan activos ajenos al portafolio (como `BTC`, `UNKNOWN`, `XAUUSD_TEST`, `SP500`, `SPX500`, `NAS100`, `NASDAQ100`, `US30`, `USDJPY`, `USDCAD`, `USDCHF`, `EURGBP`, `GBPCAD`, `CHFJPY`, `EURJPY`).
 3. **Control Anti-429 de Cuotas LLM:**
    El escaneo y deliberación de los Herds y LLMs solo procesa activos con liquidez activa en su Killzone institucional activa (Londres: `GBPUSD`, `EURUSD`, `GBPJPY` | NY: `EURUSD`, `XAUUSD` | Asia: `AUDUSD`, `GBPJPY`), erradicando el desperdicio de tokens en pares fuera de sesión.
+
+
+---
+name: contenedor_docker_puro_y_sincronizacion_batch_upstash
+description: Reglas SRE para Herds T1 al T10 y Supervisor Watchdog sobre el mantenimiento del contenedor ligero sin CrewAI/LangChain y la sincronizacion atómica de cache_trading_matrix.
+trigger: always_on
+---
+
+# 🛠️ REGLA: CONTENEDOR DOCKER PURO Y SINCRONIZACIÓN BATCH DE MATRICES
+**MANDATO PARA HERDS T1-T10 (TERMINATORS DE INFRAESTRUCTURA) Y SUPERVISOR WATCHDOG:**
+1. **Contenedor Ultraligero Libre de Pip Backtracking:**
+   - La imagen Docker de Railway corre en `python:3.10-slim` con dependencias estrictas y ligeras.
+   - Queda terminantemente PROHIBIDO reintroducir librerías legadas como `crewai`, `langchain`, `google-generativeai` o paquetes con resolución compleja que provoquen bucles de backtracking en `pip`.
+   - Las herramientas de agentes (`crew_tools.py`, `math_agent_skills.py`, `stat_agent_skills.py`) deben mantenerse en Python nativo determinista con el decorador `@tool` puro.
+2. **Sincronización Batch Atómica de `cache_trading_matrix` en Startup:**
+   - En el arranque (`startup_event()` de `app.py`), se debe asegurar que `GLOBAL_MATRICES_CACHE_FULL` mantenga cargados los 6 activos canónicos (`EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`, `NZDCAD`) y se envíen de inmediato a Upstash Redis (`set/cache_trading_matrix`).
+   - El Herd T1 (DBA Sentinel) y Herd T4 (Cache Latency) deben verificar que la latencia MGET de Upstash se mantenga sub-35ms y que ningún activo se caiga tras reinicios de Railway.
+3. **Canal Oficial y Restricción Temática:**
+   - Canal exclusivo de Infraestructura: `#back-office-y-backend` (`C0C4ZMFCMJ8`).
+   - Motor asignado: Llama 3.3 70B vía OpenRouter Ops.
+   - Cero intervención en SL/TP, velas o estrategias de trading. Mandato exclusivo de estabilidad técnica, Docker, Uvicorn, FastAPI y finanzas cloud.

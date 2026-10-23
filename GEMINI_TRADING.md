@@ -176,3 +176,56 @@ trigger: always_on
    - **Fase 4 (Front-Run TP al 95%):** Cierre del 100% de la posición remanente al 95% de la distancia para evitar que retrocesos de última hora erosionen el beneficio en el último pip.
 2. **Filtro de Exposición en Canasta USD:** Máximo 2 posiciones abiertas simultáneas en pares correlacionados al dólar (`EURUSD`, `GBPUSD`, `AUDUSD`, `XAUUSD`).
 3. **Filtro Anti-Caza ATH en Oro (XAUUSD):** Prohibido comprar en Oro si la cotización se encuentra a menos del 0.5% del All-Time High sin un retroceso previo consolidado de 30 a 50 pips.
+
+
+---
+name: calculo_integral_area_energia_cvol_y_sinergia_cvd
+description: Regla cuantitativa del calculo del Area de Energia como CVOL mediante integral definida, calibracion de C(t) en 5 temporalidades (1H-8H), veto anti-ruido a 1m/15m y sinergia con CVD Delta de ATLAS.
+trigger: always_on
+---
+
+# 📐 REGLA: CÁLCULO INTEGRAL DE ÁREA DE ENERGÍA CVOL Y SINERGIA CON CVD DELTA
+**MANDATO MATEMÁTICO PARA HERD 2 (NORO), HERD 7 (ATLAS), AGENTE POST-MORTEM Y SUPERVISOR QUANT:**
+1. **Fórmula Canónica de la Integral del Área de Energía (CVOL):**
+   El cálculo de la volatilidad y energía cinética institucional acumulada se rige estrictamente por la integral definida:
+   $$\text{Área de Energía (CVOL)} = \int_{x_1}^{x_2} [Fuerza_A(x) - Fuerza_B(x)] \, dx + C(t)$$
+   donde:
+   - $x_1, x_2$: Rangos de precio de interacción institucional en torno al Point of Control (POC).
+   - $Fuerza_A(x)$: Presión volumétrica y agresividad de compradores en Bid/Ask.
+   - $Fuerza_B(x)$: Presión volumétrica y agresividad de vendedores en Ask/Bid.
+   - $[Fuerza_A(x) - Fuerza_B(x)]$: Fuerza diferencial neta institucional.
+   - $C(t)$: Constante de inercia y energía basal institucional dependiente del horizonte temporal $t$.
+
+2. **Calibración Estricta de $C(t)$ y Homologación a las 5 Temporalidades Oficiales de Mia:**
+   Queda TERMINANTEMENTE PROHIBIDO calcular la integral sobre temporalidades arbitrarias, ciegas o de ruido retail. La constante $C(t)$ está indexada de forma inquebrantable a las 5 temporalidades que opera Mia:
+   - **1H ($C(t) = 1.00$):** Intradía Rápido · Microestructura y Sweeps de liquidez local.
+   - **2H ($C(t) = 2.25$):** Swing Intradía · POC Dinámico y Order Blocks de 2H (Top 2 Regla de 3 · WR 80.38%).
+   - **3H ($C(t) = 3.90$):** Sesión Londres & Overlap · Manipulación y Flujo AMD Institucional.
+   - **4H ($C(t) = 7.03$):** Macro Intradía · Absorción Mayor y Ballenas de Futuros CME.
+   - **8H ($C(t) = 15.60$):** Sesión Completa · Campana Interbancaria Consenso Fondos Soberanos.
+
+3. **Veto Anti-Ruido Obligatorio (Prohibición de 1m, 5m y 15m):**
+   Cualquier petición, escaneo o cálculo que involucre temporalidades como 1m, 5m o 15m es considerado 'ruido ciego' y queda automáticamente VETADO. El motor matemático (`math_agent_skills.py`) re-homologa forzosamente el marco temporal al núcleo canónico de 2H.
+
+4. **Sinergia Inseparable entre CVD Delta (ATLAS) y CVOL (NORO):**
+   - **CVD Delta (HERD 7 - ATLAS):** Mide el vector direccional de agresión neta ($\sum [Vol_{Ask} - Vol_{Bid}]$) identificando absorciones pasivas y trampas de liquidez.
+   - **Área de Energía CVOL (HERD 2 - NORO):** Mide el trabajo mecánico y la masa monetaria total ($W = \int F \cdot dx + C(t)$) que impulsa o frena el precio.
+   - **Regla de Ejecución:** Jamás ejecutar por simple agresión de CVD si el Área de Energía CVOL denota compresión extrema sin masa institucional de respaldo.
+
+---
+name: auditoria_multiactivo_integral_y_cbr_autonomia
+description: Regla de auditoria multiactivo obligatoria en los 7 Herds (5 Live MT5 + 1 Sandbox NZDCAD), eliminacion de CrewAI/LangChain a Swarm REST nativo v1.6.0 y capitalizacion en memoria CBR para autonomia futura.
+trigger: always_on
+---
+
+# 🌐 REGLA: AUDITORÍA MULTIACTIVO INTEGRAL EN 7 HERDS Y MEMORIA CBR
+1. **Mandato de Desglose Individual Obligatorio:**
+   En cada ciclo de deliberación del Swarm HFT (`mia_master_swarm_rest.py`), los 7 Herds (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS) y el MASTER Gatekeeper DEBEN auditar explícitamente y por separado los **6 activos canónicos**:
+   - 5 Pares en Vivo MT5: `EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`.
+   - 1 Par en Sandbox: `NZDCAD` (modo shadow / entrenamiento, 0 órdenes a broker).
+   Queda TERMINANTEMENTE PROHIBIDO resumir o descartar activos con la frase 'el resto de pares en observación neutra'.
+2. **Arquitectura Swarm REST Pura (v1.6.0-pure-swarm-rest):**
+   Quedan definitivamente prohibidas y erradicadas las librerías obsoletas `crewai`, `langchain`, `langchain-openai` y `langchain-google-genai`. Toda deliberación se realiza vía llamadas REST atómicas y deterministas a OpenRouter con 8s timeout y triple failover (Llama 3.3 70B -> Groq -> Gemini).
+3. **Memoria CBR de Trading (Aprendizaje Perpetuo para Autonomía Futura):**
+   - Cada autopsia de trade (Win, Loss, Breakeven) y cada divergencia institucional se archiva en la memoria viva `cache_trading_learning_kb` (Upstash) y memoria histórica `mia_trading_learning_history` (Firebase).
+   - Los 7 Herds, TensorFlow y el Agente Post-Mortem consultan obligatoriamente esta base de conocimiento antes de operar para aprender de los patrones pasados y no repetir errores, preparando al sistema para la transición hacia el Modo Autónomo tras superar la Prueba de Confianza.
