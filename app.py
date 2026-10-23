@@ -1282,8 +1282,8 @@ def health_check():
     return {
         "status": "ok",
         "service": "Mia Trading Bot",
-        "version": "1.5.0-hft-swarm",
-        "latest_commit": "deploy_sync_20261023",
+        "version": "1.6.0-pure-swarm-rest",
+        "latest_commit": "deploy_purge_crewai_langchain_393b4bb",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "firebase": "connected" if firebase_inicializado else "disconnected",
         "uptime": "24/7"
