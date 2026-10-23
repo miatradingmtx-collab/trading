@@ -39,12 +39,16 @@ enable_vt_mode()
 
 try:
     if hasattr(sys.stdout, 'reconfigure'):
-        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 except Exception:
     pass
 
-UPSTASH_URL = os.getenv("UPSTASH_REDIS_REST_URL", "https://certain-gnat-160816.upstash.io")
-UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA")
+import urllib.request
+
+UPSTASH_URL = os.getenv("UPSTASH_REDIS_REST_URL", "https://firm-koi-93555.upstash.io")
+UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg")
 headers = {"Authorization": f"Bearer {UPSTASH_TOKEN}"}
 
 # Colores ANSI
@@ -93,27 +97,41 @@ def get_market_data(symbol="EURUSD", override_price=None):
     if override_price is not None and override_price > 0:
         return float(override_price), specs
 
-    # 2. Intentar leer desde Upstash Redis (cache_mt5)
+    # 2. Intentar leer desde Upstash Redis (cache_trading_matrix o cache_mt5)
     try:
-        r = requests.get(f"{UPSTASH_URL}/get/cache_mt5", headers=headers, timeout=1.5)
+        r = requests.get(f"{UPSTASH_URL}/get/cache_trading_matrix", headers=headers, timeout=1.2)
         if r.status_code == 200 and r.json().get("result"):
             m = json.loads(r.json()["result"])
-            feed = m.get("feed", {})
-            if isinstance(feed, dict) and sym in feed and feed[sym].get("bid"):
-                bid = float(feed[sym]["bid"])
-                return bid, specs
+            if isinstance(m, dict) and sym in m and m[sym].get("current_price"):
+                cp = float(m[sym]["current_price"])
+                if cp > 0:
+                    return cp, specs
     except Exception:
         pass
 
-    # 3. Intentar consultar precio en vivo de Yahoo Finance (CME / FX)
+    try:
+        r2 = requests.get(f"{UPSTASH_URL}/get/cache_mt5", headers=headers, timeout=1.2)
+        if r2.status_code == 200 and r2.json().get("result"):
+            m2 = json.loads(r2.json()["result"])
+            feed = m2.get("feed", {})
+            if isinstance(feed, dict) and sym in feed and feed[sym].get("bid"):
+                bid = float(feed[sym]["bid"])
+                if bid > 0:
+                    return bid, specs
+    except Exception:
+        pass
+
+    # 3. Intentar consultar precio en vivo de Yahoo Finance (CME / FX) vía REST directo
     yf_sym = YF_TICKERS.get(sym)
     if yf_sym:
         try:
-            import yfinance as yf
-            ticker = yf.Ticker(yf_sym)
-            live_price = ticker.fast_info.last_price
-            if live_price and live_price > 0:
-                return float(live_price), specs
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yf_sym}?interval=1m&range=1d"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=1.8) as resp:
+                res = json.loads(resp.read().decode("utf-8"))
+                p = res["chart"]["result"][0]["meta"].get("regularMarketPrice")
+                if p and float(p) > 0:
+                    return float(p), specs
         except Exception:
             pass
 
