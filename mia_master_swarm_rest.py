@@ -686,6 +686,7 @@ def run_hft_cycle():
 
     # Cálculo Cuantitativo del Área de Energía CVOL (∫[FuerzaA - FuerzaB]dx + C(t)) - HERD 2 (NORO)
     cvol_noro_list = []
+    cvol_dict = {}
     try:
         for act in ACTIVOS_SWARM_TARGET:
             px = precios_spot.get(act, 0.0)
@@ -706,6 +707,7 @@ def run_hft_cycle():
             fuerza_a = [round(b_pct * 1.8, 1), round(b_pct * 2.2, 1), round(b_pct * 1.5, 1)]
             fuerza_b = [round(s_pct * 1.5, 1), round(s_pct * 2.0, 1), round(s_pct * 1.9, 1)]
             cvol_res = json.loads(calc_area_energia_cvol(fuerza_a, fuerza_b, px_levels, timeframe="2H", activo=act))
+            cvol_dict[act] = cvol_res
             cvol_noro_list.append(f"{act}: Energía={cvol_res.get('area_energia')} | CVOL={cvol_res.get('cvol_equivalente')} ({cvol_res.get('regimen_cvol')}) [TF:2H C(t)={cvol_res.get('constante_C_t')}]")
         cvol_energia_summary = " | ".join(cvol_noro_list)
     except Exception as e_cvol:
@@ -910,7 +912,11 @@ def run_hft_cycle():
             ]
 
             # 4. Métricas Continuas Normalizadas 5D (Eje Z)
-            z_atr = 0.35
+            # Met Z0: Volatilidad Dinámica Cuántica (Ratio de Energía Normalizada = Área / (2 * C(t)))
+            active_cvol = cvol_dict.get(active_symbol, {})
+            area_val = float(active_cvol.get("area_energia", 1.575))
+            ct_val = float(active_cvol.get("constante_C_t", 2.25))
+            z_atr = min(1.0, max(0.05, round(area_val / (2.0 * ct_val if ct_val > 0 else 2.0), 2)))
             z_rsi = 0.30
             z_spread = min(1.0, max(0.05, round(float(mt5_json.get("spread", 1.15)) / 5.0, 2)))
             z_dxy = 0.65
