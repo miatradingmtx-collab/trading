@@ -1256,8 +1256,10 @@ def ruta_principal():
     return {
         "estado": "activo",
         "servicio": "Trading Automation Bridge",
-        "arquitectura": "REST API (JSON)",
-        "nota": "Para enviar alertas, usa el mÃƒÆ’Ã‚Â©todo POST en /webhook"
+        "version": "1.5.0-hft-swarm",
+        "deploy_sync": "2026-10-23",
+        "arquitectura": "REST API (JSON) + 7 Herds Desacoplados + Multi-Timeframe DOM L3",
+        "nota": "Para enviar alertas, usa el metodo POST en /webhook"
     }
 
 # ------------------------------------------------------------------------------
@@ -1275,6 +1277,8 @@ def health_check():
     return {
         "status": "ok",
         "service": "Mia Trading Bot",
+        "version": "1.5.0-hft-swarm",
+        "latest_commit": "deploy_sync_20261023",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "firebase": "connected" if firebase_inicializado else "disconnected",
         "uptime": "24/7"
