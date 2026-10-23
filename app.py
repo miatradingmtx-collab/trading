@@ -1309,61 +1309,67 @@ async def webhook_market_alert(
     Recibe alertas de n8n cuando detecta palabras clave críticas en páginas de mercado.
     Despierta a Mia y registra el evento en Firebase.
     """
-    # Validar token de acceso
-    token = ACCESS_TOKEN
-    if authorization and authorization.startswith("Bearer "):
-        provided = authorization.split(" ")[1]
-        if provided != token and token not in ["tu-token-seguro-de-acceso", "", None]:
-            raise HTTPException(status_code=401, detail="Token de acceso inválido")
-
-    print(f"| N8N ALERT | Alerta de mercado recibida: {payload.alert_type}")
-    print(f"| N8N ALERT | Keywords: {payload.keywords}")
-    print(f"| N8N ALERT | Resumen: {payload.summary}")
-
-    # Guardar en Firebase si está disponible
-    if firebase_inicializado and db is not None:
-        try:
-            db.collection("market_alerts").add({
-                "source": payload.source,
-                "alert_type": payload.alert_type,
-                "keywords": payload.keywords,
-                "summary": payload.summary,
-                "timestamp": payload.timestamp or datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                "procesado": True
-            })
-            print("| FIREBASE | Alerta de mercado guardada en Firestore.")
-        except Exception as e:
-            print(f"| FIREBASE ERROR | No se pudo guardar alerta de mercado: {e}")
-            registrar_error_sistema("Firebase (Market Alert)", str(e))
-
-    # Consultar Mia (Gemini/Grok) con el contexto del mercado si hay keywords críticos
-    mia_response = None
-    if payload.keywords and len(payload.keywords) > 10:
-        try:
-            # Crear un TradeAlert simulado para usar las funciones existentes de análisis
-            fake_alert = TradeAlert(
-                activo="XAUUSD",
-                accion="ANLISIS",
-                precio=0.0,
-                stop_loss=0.0,
-                take_profit=0.0,
-                estrategia=f"N8N Monitor: {payload.keywords}"
-            )
-            if GEMINI_API_KEY and GEMINI_API_KEY not in ["TU_LLAVE_DE_GEMINI", ""]:
-                mia_response = consultar_analisis_gemini(fake_alert)
-            elif GROK_API_KEY and GROK_API_KEY not in ["TU_LLAVE_DE_GROK", ""]:
-                mia_response = consultar_analisis_grok(fake_alert)
-        except Exception as e:
-            print(f"| MIA ERROR | No se pudo obtener análisis de Mia: {e}")
-            registrar_error_sistema("Mia AI (Analysis)", str(e))
-
+    # MÓDULO N8N EN RECESO: Comentado para no emitir códigos de error ni consumir recursos
     return {
-        "status": "received",
-        "alert_type": payload.alert_type,
-        "keywords_detected": payload.keywords,
-        "mia_analysis": mia_response or "Mia no disponible (configura GEMINI_API_KEY o GROK_API_KEY)",
+        "status": "standby",
+        "mensaje": "Módulo de alertas n8n en receso temporal. Migración a Servidor MCP programada.",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
+
+    # # Validar token de acceso
+    # token = BRIDGE_ACCESS_TOKEN
+    # if authorization and authorization.startswith("Bearer "):
+    #     provided = authorization.split(" ")[1]
+    #     if provided != token and token not in ["tu-token-seguro-de-acceso", "", None]:
+    #         raise HTTPException(status_code=401, detail="Token de acceso inválido")
+
+    # print(f"| N8N ALERT | Alerta de mercado recibida: {payload.alert_type}")
+    # print(f"| N8N ALERT | Keywords: {payload.keywords}")
+    # print(f"| N8N ALERT | Resumen: {payload.summary}")
+    # 
+    # # Guardar en Firebase si está disponible
+    # if firebase_inicializado and db is not None:
+    #     try:
+    #         db.collection("market_alerts").add({
+    #             "source": payload.source,
+    #             "alert_type": payload.alert_type,
+    #             "keywords": payload.keywords,
+    #             "summary": payload.summary,
+    #             "timestamp": payload.timestamp or datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    #             "procesado": True
+    #         })
+    #         print("| FIREBASE | Alerta de mercado guardada en Firestore.")
+    #     except Exception as e:
+    #         print(f"| FIREBASE ERROR | No se pudo guardar alerta de mercado: {e}")
+    #         registrar_error_sistema("Firebase (Market Alert)", str(e))
+
+    # # Consultar Mia (Gemini/Grok) con el contexto del mercado si hay keywords críticos
+    # mia_response = None
+    # if payload.keywords and len(payload.keywords) > 10:
+    # try:
+    # # Crear un TradeAlert simulado para usar las funciones existentes de análisis
+    # fake_alert = TradeAlert(
+    # activo="XAUUSD",
+    # accion="ANLISIS",
+    # precio=0.0,
+    # stop_loss=0.0,
+    # take_profit=0.0,
+    # estrategia=f"N8N Monitor: {payload.keywords}"
+    # )
+    # if GEMINI_API_KEY and GEMINI_API_KEY not in ["TU_LLAVE_DE_GEMINI", ""]:
+    # mia_response = consultar_analisis_gemini(fake_alert)
+    # elif GROK_API_KEY and GROK_API_KEY not in ["TU_LLAVE_DE_GROK", ""]:
+    # mia_response = consultar_analisis_grok(fake_alert)
+    # except Exception as e:
+    # print(f"| MIA ERROR | No se pudo obtener análisis de Mia: {e}")
+    # registrar_error_sistema("Mia AI (Analysis)", str(e))
+    #     # return {
+    # "status": "received",
+    # "alert_type": payload.alert_type,
+    # "keywords_detected": payload.keywords,
+    # "mia_analysis": mia_response or "Mia no disponible (configura GEMINI_API_KEY o GROK_API_KEY)",
+    # "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+    # }
 
 def recalcular_memoria_colectiva():
     """Recalcula el resumen ejecutivo de mia_kb y lo guarda en system_memory/mia_collective"""
@@ -2353,12 +2359,11 @@ def recibir_anomalia(anomaly: MarketAnomaly, background_tasks: BackgroundTasks):
     print(f"Volumen: ${anomaly.volumen_usd:,.2f} | Sentimiento: {anomaly.sentimiento}")
     print(f"========================================================")
     
-    # Validar el umbral (solo procesamos anomalías institucionales mayores a $5,000,000)
-    # Puedes ajustar este umbral según tus preferencias de volumen
-    UMBRAL_MINIMO_USD = 5000000.0
-    if anomaly.volumen_usd < UBRAL_MINIMO_USD:
-        print(f"| FILTRO | Anomalía ignorada. Volumen (${anomaly.volumen_usd:,.2f}) menor al umbral mínimo (${UMBRAL_MINIMO_USD:,.2f})")
-        return {"resultado": "ignorado", "motivo": "volumen por debajo del umbral"}
+    # Validar el umbral institucional alineado al saldo base de $5,000 USD de Mia
+    UMBRAL_MINIMO_USD = float(os.getenv("UMBRAL_MINIMO_USD", "5000.0"))
+    if anomaly.volumen_usd < UMBRAL_MINIMO_USD:
+        print(f"| FILTRO | Anomalía ignorada. Volumen (${anomaly.volumen_usd:,.2f}) menor al saldo base institucional (${UMBRAL_MINIMO_USD:,.2f})")
+        return {"resultado": "ignorado", "motivo": "volumen por debajo del umbral base de $5,000 USD"}
         
     background_tasks.add_task(procesar_anomalia_firestore, anomaly)
     
@@ -3292,24 +3297,24 @@ def test_rss_llm_polling(authorization: Optional[str] = Header(None)):
     </canal>
 </mia_trading_learnings>"""
 
-        # 2. Run LLM tests
+        # 2. Run LLM tests (Comentado temporalmente: en migración hacia Servidor MCP API Key)
         responses = {}
         active_llms = []
         
-        # Test Gemini
-        if GEMINI_API_KEY and GEMINI_API_KEY != "TU_LLAVE_DE_GEMINI":
-            active_llms.append("Gemini")
-            responses["Gemini"] = consultar_llm_rss_helper(xml_content, "gemini")
-            
-        # Test ChatGPT (OpenAI)
-        if OPENAI_API_KEY and OPENAI_API_KEY != "TU_LLAVE_DE_OPENAI":
-            active_llms.append("ChatGPT")
-            responses["ChatGPT"] = consultar_llm_rss_helper(xml_content, "chatgpt")
-            
-        # Test Grok
-        if GROK_API_KEY and GROK_API_KEY != "TU_LLAVE_DE_GROK":
-            active_llms.append("Grok")
-            responses["Grok"] = consultar_llm_rss_helper(xml_content, "grok")
+        # # Test Gemini
+        # if GEMINI_API_KEY and GEMINI_API_KEY != "TU_LLAVE_DE_GEMINI":
+        #     active_llms.append("Gemini")
+        #     responses["Gemini"] = consultar_llm_rss_helper(xml_content, "gemini")
+        #     
+        # # Test ChatGPT (OpenAI)
+        # if OPENAI_API_KEY and OPENAI_API_KEY != "TU_LLAVE_DE_OPENAI":
+        #     active_llms.append("ChatGPT")
+        #     responses["ChatGPT"] = consultar_llm_rss_helper(xml_content, "chatgpt")
+        #     
+        # # Test Grok
+        # if GROK_API_KEY and GROK_API_KEY != "TU_LLAVE_DE_GROK":
+        #     active_llms.append("Grok")
+        #     responses["Grok"] = consultar_llm_rss_helper(xml_content, "grok")
             
         return {
             "status": "success",

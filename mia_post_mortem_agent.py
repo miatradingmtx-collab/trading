@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import firebase_admin
 try:
-    import google.generativeai as genai
+    import google.generativeai as genai  # type: ignore
 except ImportError:
     genai = None
 from firebase_admin import credentials, firestore
