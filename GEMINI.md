@@ -104,3 +104,27 @@ Toda mejora o corrección sobre los parámetros del bot DEBE ser enviada como un
    - **Caso 2: Balance >= $5,000.00 USD pero < High-Water Mark (Retroceso de Pico):**
      Si la cuenta sube a $5,400 y luego retrocede a $5,200 (caída de -3.70%), la recuperación requerida para sanar el retroceso al pico es $R_{HWM} = \frac{5,400 - 5,200}{5,200} \times 100 = +3.85\%$. Estado: `ESTADO DE LA CUENTA: EN RECUPERACIÓN / RETROCESO DE PICO HWM (-$200 USD / -3.70% vs HWM $5,400)`.
    - **Criterio Inquebrantable de Cuenta Sanada:** La cuenta SOLO se considera plenamente "Sanada y en Máximos" cuando el balance real auditado sea $\ge \$5,000.00$ USD Y $\ge B_{HWM}$.
+
+# 🛑 REGLA DE ORO DE PORTAFOLIO HERMÉTICO Y CONTROL ESTRICTO DE CUOTAS LLM (5 LIVE MT5 + 1 SANDBOX NZDCAD)
+**MANDATO ESTRICTO PARA TODOS LOS AGENTES (FRONT-OFFICE, BACK-OFFICE, HERDS Y SRE):**
+1. **Composición Inquebrantable del Portafolio:**
+   - **5 Pares Oficiales en Vivo MT5:** `EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`.
+   - **1 Par Oficial en Sandbox (Shadow Mode):** `NZDCAD` (estrictamente experimental / entrenamiento continuo, 0 órdenes reales a MetaTrader 5).
+2. **Prohibición Terminante de Activos Residuales o Ficticios:**
+   Queda TERMINANTEMENTE PROHIBIDO que `trading_matrix`, `app.py` (`ACTIVOS_INICIALIZADOS` / `FIREBASE VIP`), `mt5_executor_cloud.py`, `mia_master_swarm_rest.py`, escáneres o llamadas a APIs de LLMs (Groq, Gemini, OpenRouter) carguen, matriculen, procesen, evalúen o escaneen activos fuera del portafolio oficial (como `BTC`, `UNKNOWN`, `XAUUSD_TEST`, `SP500`, `SPX500`, `NAS100`, `NASDAQ100`, `US30`, `USDJPY`, `USDCAD`, `USDCHF`, `EURGBP`, `GBPCAD`, `CHFJPY`, `EURJPY`).
+3. **Eficiencia y Blindaje Anti-429 en Inferencia LLM:**
+   El escaneo y deliberación de los 7 Herds y LLMs solo procesa activos con liquidez activa en su Killzone correspondiente (Londres: `GBPUSD`, `EURUSD`, `GBPJPY` | NY: `EURUSD`, `XAUUSD` | Asia: `AUDUSD`, `GBPJPY`). No se queman tokens ni llamadas en pares cerrados o fuera de sesión.
+4. **Protección de la Colección `trading_matrix`:**
+   La colección `trading_matrix` en Firebase Firestore y el slot `cache_trading_matrix` en Upstash Redis deben albergar ÚNICAMENTE los 6 activos oficiales (`AUDUSD`, `EURUSD`, `GBPJPY`, `GBPUSD`, `NZDCAD`, `XAUUSD`). Cualquier documento ajeno o residual es purgado de raíz.
+
+# 🛑 REGLA DE ORO DE GESTIÓN DE RIESGO INSTITUCIONAL V2 (CASCADA RUNE 4 FASES & CANASTA USD)
+**MANDATO CUANTITATIVO PARA EJECUCIÓN MT5 Y HERD 5 (RUNE):**
+1. **Cascada Asimétrica de 4 Fases (RUNE):**
+   - **Fase 1 (TP1 Parcial):** Cobro obligado del 50% del volumen al 50% de la distancia total (+1.0R mínimo).
+   - **Fase 2 (Break-Even Institucional):** Desplazamiento automático del Stop Loss a Break-Even post-TP1 con buffer defensivo de **+2.5 pips** para amortiguar spreads y micro-ruido.
+   - **Fase 3 (Trailing Locks Asimétricos):**
+     * Al 75% del recorrido $\implies$ Trailing Lock 1 asegurando el **+40%** del beneficio total.
+     * Al 85% del recorrido $\implies$ Trailing Lock 2 asegurando el **+65%** del beneficio total.
+   - **Fase 4 (Front-Run TP):** Cierre del 100% de la posición remanente al **95%** de la distancia proyectada para erradicar pérdidas por retrocesos violentos a milímetros del objetivo.
+2. **Límite Canasta USD:** Máximo 2 operaciones simultáneas en pares que contengan USD (`EURUSD`, `GBPUSD`, `AUDUSD`, `XAUUSD`) para prevenir sobreexposición al dólar estadounidense.
+3. **Filtro Anti-Caza All-Time High en Oro (XAUUSD):** Prohibido abrir compras en Oro si el precio se ubica dentro del 0.5% del All-Time High sin un retroceso interbancario previo de al menos 30 a 50 pips.

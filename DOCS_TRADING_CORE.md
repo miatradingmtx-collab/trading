@@ -465,3 +465,27 @@ trigger: always_on
    - **Caso 2: Balance >= $5,000.00 USD pero < High-Water Mark (Retroceso de Pico):**
      Si la cuenta sube a $5,400 y luego retrocede a $5,200 (caída de -3.70%), la recuperación requerida para sanar el retroceso al pico es $R_{HWM} = \frac{5,400 - 5,200}{5,200} \times 100 = +3.85\%$. Estado: `ESTADO DE LA CUENTA: EN RECUPERACIÓN / RETROCESO DE PICO HWM (-$200 USD / -3.70% vs HWM $5,400)`.
    - **Criterio Inquebrantable de Cuenta Sanada:** La cuenta SOLO se considera plenamente "Sanada y en Máximos" cuando el balance real auditado sea $\ge \$5,000.00$ USD Y $\ge B_{HWM}$.
+
+# 🛑 REGLA DE ORO DE PORTAFOLIO HERMÉTICO INSTITUCIONAL MT5 (5 LIVE + 1 SANDBOX NZDCAD)
+1. **Definición Canónica del Portafolio:**
+   - **5 Pares en Vivo MT5:** `EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`.
+   - **1 Par en Sandbox (Shadow Mode):** `NZDCAD` (aislado estrictamente para entrenamiento neuronal; prohibida ejecución en broker real).
+2. **Prohibición Terminante de Activos Foráneos o Residuales:**
+   Queda terminantemente prohibido que las colecciones de Firestore (`trading_matrix`), memoria RAM (`FIREBASE VIP`), Upstash Redis (`cache_trading_matrix`), escáneres o llamadas a LLMs (Groq, Gemini, OpenRouter) procesen activos ajenos al portafolio (como `BTC`, `UNKNOWN`, `XAUUSD_TEST`, `SP500`, `SPX500`, `NAS100`, `NASDAQ100`, `US30`, `USDJPY`, `USDCAD`, `USDCHF`, `EURGBP`, `GBPCAD`, `CHFJPY`, `EURJPY`).
+3. **Control Estricto de Cuotas LLM (Anti-429 Groq / Gemini / OpenRouter):**
+   Las evaluaciones de los 7 Herds y LLMs solo se ejecutan sobre activos con liquidez institucional en su Killzone activa:
+   - **Londres:** `GBPUSD`, `EURUSD`, `GBPJPY`.
+   - **Nueva York:** `EURUSD`, `XAUUSD`.
+   - **Asia:** `AUDUSD`, `GBPJPY`.
+   Esto reduce el consumo de tokens en un 70%, erradicando errores 429 de cuota excedida.
+
+# 🛑 REGLA DE ORO DE GESTIÓN DE RIESGO INSTITUCIONAL V2 (CASCADA RUNE 4 FASES & CANASTA USD)
+1. **Cascada Asimétrica de 4 Fases (RUNE Herd 5):**
+   - **Fase 1 (TP1 Parcial al 50% de recorrido):** Cobro obligado del 50% del volumen inicial con ratio mínimo de +1.0R.
+   - **Fase 2 (Break-Even Institucional):** Desplazamiento automático de SL a BE post-TP1 con un buffer de **+2.5 pips** para soportar el spread interbancario.
+   - **Fase 3 (Trailing Locks Asimétricos):**
+     * Al 75% del recorrido $\implies$ Trailing Lock 1 asegurando el **+40%** de la ganancia proyectada.
+     * Al 85% del recorrido $\implies$ Trailing Lock 2 asegurando el **+65%** de la ganancia proyectada.
+   - **Fase 4 (Front-Run TP al 95%):** Cierre del 100% remanente al 95% de la distancia para evitar retrocesos antes de tocar el TP.
+2. **Filtro de Exposición en Canasta USD:** Máximo 2 posiciones abiertas simultáneas en pares correlacionados al dólar (`EURUSD`, `GBPUSD`, `AUDUSD`, `XAUUSD`).
+3. **Filtro Anti-Caza ATH en Oro (XAUUSD):** Prohibido comprar en Oro si la cotización se encuentra a menos del 0.5% del All-Time High sin un retroceso interbancario previo de al menos 30 a 50 pips.

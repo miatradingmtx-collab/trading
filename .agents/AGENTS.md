@@ -42,3 +42,18 @@ Telegram solo debe alertar (ya sea de apertura o cierre) sobre trades **ejecutad
 
 ## Regla de Logs (Bypass Notion & Excel)
 Dado que Notion y Excel actualmente no están configurados o habilitados, el sistema de Mia genera un log de error 401 para Notion y una advertencia de archivo no encontrado para Excel en Railway. **Estos no son errores críticos que deban ser corregidos**. Forman parte de un bypass intencional, y los agentes no deben enviar alertas de error ni intentar modificar el código para 'arreglarlos', simplemente ignorarlos en los logs de auditoría.
+
+## Regla de Portafolio Canónico (5 Live MT5 + 1 Sandbox NZDCAD) y Control Anti-429
+El portafolio de trading de Mia está estrictamente restringido a:
+1. **5 Pares Oficiales en Vivo MT5:** `EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`.
+2. **1 Par Oficial en Sandbox:** `NZDCAD` (modo shadow/entrenamiento, PROHIBIDA ejecución en broker real).
+Está terminantemente prohibido que `trading_matrix`, memorias RAM (`FIREBASE VIP`), escáneres o llamadas a LLMs procesen activos residuales o foráneos (como `BTC`, `UNKNOWN`, `XAUUSD_TEST`, índices o cruces exóticos). Las consultas a LLMs deben limitarse a los activos con liquidez activa en su sesión correspondiente para blindar las cuotas de Groq, Gemini y OpenRouter.
+
+## Regla de Gestión de Riesgo Institucional v2 (Cascada RUNE & Canasta USD)
+1. **Cascada de 4 Fases (RUNE):** TP1 cobro de 50% al 50% de distancia (+1.0R mínimo), Break-Even automático post-TP1 con buffer institucional de +2.5 pips, Trailing Lock 1 al 75% (+40% de ganancia asegurada), Trailing Lock 2 al 85% (+65% asegurado), y Front-Run TP al 95% (cierre de 100% remanente).
+2. **Límite Canasta USD:** Máximo 2 operaciones simultáneas en pares que contengan USD (`EURUSD`, `GBPUSD`, `AUDUSD`, `XAUUSD`).
+3. **Filtro Anti-Caza ATH en Oro:** Prohibido comprar XAUUSD si se encuentra a menos de 0.5% del All-Time High sin retroceso de 30 a 50 pips.
+
+## Regla de Verdad Financiera Base $5,000 USD y Asimetría Matemática (Ley D / (1 - D))
+1. **Capital Base Inicial:** La cuenta partió de $5,000.00 USD. Queda estrictamente prohibido reportar o calificar la cuenta como "saludable" u "óptima" mientras el balance sea < $5,000.00 USD.
+2. **Asimetría de Recuperación:** Las pérdidas se recuperan de forma asimétrica ($R = \frac{d}{1-d} \times 100$). Toda propuesta y gestión debe orientarse a sanar el drawdown estructural hacia la base de $5,000 USD y el High-Water Mark.

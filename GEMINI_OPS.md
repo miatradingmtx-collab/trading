@@ -398,3 +398,18 @@ trigger: always_on
    - **Caso 2: Balance >= $5,000.00 USD pero < High-Water Mark (Retroceso de Pico):**
      Si la cuenta sube a $5,400 y luego retrocede a $5,200 (caída de -3.70%), la recuperación requerida para sanar el retroceso al pico es $R_{HWM} = \frac{5,400 - 5,200}{5,200} \times 100 = +3.85\%$. Estado: `ESTADO DE LA CUENTA: EN RECUPERACIÓN / RETROCESO DE PICO HWM (-$200 USD / -3.70% vs HWM $5,400)`.
    - **Criterio Inquebrantable de Cuenta Sanada:** La cuenta SOLO se considera plenamente "Sanada y en Máximos" cuando el balance real auditado sea $\ge \$5,000.00$ USD Y $\ge B_{HWM}$.
+
+---
+name: portafolio_hermetico_ops
+description: Regla de portafolio hermético canónico (5 Live MT5 + 1 Sandbox NZDCAD) para Back-Office y SRE.
+trigger: always_on
+---
+
+# 🛑 REGLA: PORTAFOLIO HERMÉTICO INSTITUCIONAL MT5 (5 LIVE + 1 SANDBOX)
+1. **Composición Oficial Inmutable:**
+   - **5 Pares Oficiales en Vivo MT5:** `EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`.
+   - **1 Par Oficial en Sandbox (Shadow Mode):** `NZDCAD` (estrictamente experimental / entrenamiento continuo, 0 órdenes reales al broker).
+2. **Prohibición de Activos Residuales en Infraestructura y Caché:**
+   Queda terminantemente prohibido que `trading_matrix`, `app.py` (`ACTIVOS_INICIALIZADOS` / `FIREBASE VIP`), Upstash Redis (`cache_trading_matrix`), endpoints, o microservicios de monitoreo carguen o mantengan activos ajenos al portafolio (como `BTC`, `UNKNOWN`, `XAUUSD_TEST`, `SP500`, `SPX500`, `NAS100`, `NASDAQ100`, `US30`, `USDJPY`, `USDCAD`, `USDCHF`, `EURGBP`, `GBPCAD`, `CHFJPY`, `EURJPY`).
+3. **Control Anti-429 de Cuotas LLM:**
+   El escaneo y deliberación de los Herds y LLMs solo procesa activos con liquidez activa en su Killzone institucional activa (Londres: `GBPUSD`, `EURUSD`, `GBPJPY` | NY: `EURUSD`, `XAUUSD` | Asia: `AUDUSD`, `GBPJPY`), erradicando el desperdicio de tokens en pares fuera de sesión.

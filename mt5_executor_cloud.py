@@ -60,13 +60,8 @@ TICKETS_SINCRONIZADOS = set()
 ACTIVOS = ["EURUSD", "GBPUSD", "XAUUSD", "GBPJPY", "AUDUSD"]
 ACTIVOS_SANDBOX = ["NZDCAD"]  # Confinado a reentrenamiento en Sandbox (Shadow Mode)
 
-# Mapeo de nombres de activos locales a sÃ­mbolos del Broker
+# Mapeo de nombres de activos locales a símbolos del Broker (Portafolio Oficial Canónico MT5)
 MAPEO_BROKER = {
-    "NASDAQ100": "USTEC",
-    "SP500": "US500",
-    "US500": "US500",
-    "US30": "US30",
-    "BTC": "BTCUSD",
     "GBPJPY": "GBPJPY",
     "GBPUSD": "GBPUSD",
     "EURUSD": "EURUSD",

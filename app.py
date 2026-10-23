@@ -136,18 +136,25 @@ except Exception as e:
 # - Si el activo ya está en el set ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ 0 lecturas a Firestore (costo $0).
 # - Solo lee/escribe Firebase si el activo es genuinamente nuevo.
 # ==============================================================================
-ACTIVOS_INICIALIZADOS: set = {
-    "GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD",
-    "SPX500", "NAS100", "US30", "USDJPY", "USDCAD", "EURGBP",
-    "GBPCAD", "CHFJPY", "USDCHF", "EURJPY"
-}
+# PORTAFOLIO OFICIAL CANÓNICO (5 Live MT5 + 1 Sandbox NZDCAD)
+# Mandato Institucional Estricto: Cero tokens de escaneo para activos no oficiales.
+# ==============================================================================
+ACTIVOS_OFICIALES: list = ["EURUSD", "GBPUSD", "AUDUSD", "GBPJPY", "XAUUSD", "NZDCAD"]
+ACTIVOS_LIVE_MT5: list = ["EURUSD", "GBPUSD", "AUDUSD", "GBPJPY", "XAUUSD"]
+ACTIVOS_SANDBOX: list = ["NZDCAD"]
+
+ACTIVOS_INICIALIZADOS: set = set(ACTIVOS_OFICIALES)
 
 def auto_inicializar_activo(activo: str) -> bool:
-    """Inicializa un activo nuevo en la trading_matrix con el esquema completo de Mia si no existe."""
+    """Inicializa un activo nuevo en la trading_matrix con el esquema completo de Mia si pertenece al portafolio oficial."""
     global firebase_inicializado, db, ACTIVOS_INICIALIZADOS
     if not firebase_inicializado or db is None:
         return False
     activo_norm = normalizar_activo(activo)
+    
+    # FILTRO INSTITUCIONAL ESTRICTO: Prohibido inicializar activos fuera del portafolio oficial
+    if activo_norm not in ACTIVOS_OFICIALES:
+        return False
     
     # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬Ëœ BARRERA DE RAM: Si ya está en caché, no gastamos ni un token de Firebase
     if activo_norm in ACTIVOS_INICIALIZADOS:
@@ -326,32 +333,30 @@ async def startup_event():
     global firebase_inicializado, db
     if firebase_inicializado and db is not None:
         try:
-            # Lista de activos a validar
-            # Lista VIP base (pares del broker)
-            activos_vip = ["GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD",
-                           "SPX500", "NAS100", "US30", "USDJPY", "USDCAD", "EURGBP",
-                           "GBPCAD", "CHFJPY", "USDCHF", "EURJPY"]
+            # Portafolio Oficial Canónico MT5 (5 Live MT5 + 1 Sandbox NZDCAD)
+            activos_vip = list(ACTIVOS_OFICIALES)
             
-            print("| FIREBASE VIP | Cargando activos ya existentes en Firebase (1 sola lectura batch)...")
+            print("| FIREBASE VIP | Cargando activos oficiales en Firebase (1 sola lectura batch)...")
             
-            # 1 SOLA LECTURA BATCH: lee toda la colección de una vez
+            # 1 SOLA LECTURA BATCH: solo admite y matricula activos del portafolio oficial
             try:
                 docs_existentes = db.collection("trading_matrix").stream()
                 for doc in docs_existentes:
-                    ACTIVOS_INICIALIZADOS.add(doc.id)
+                    if doc.id in ACTIVOS_OFICIALES:
+                        ACTIVOS_INICIALIZADOS.add(doc.id)
             except Exception as e_stream:
                 print(f"| FIREBASE VIP WARN | Firestore en 429 durante stream ({e_stream}). Usando activos VIP pre-poblados en RAM.")  # Poblar caché RAM con los que ya existen
             
-            print(f"| FIREBASE VIP | {len(ACTIVOS_INICIALIZADOS)} activos ya cargados en caché RAM: {sorted(ACTIVOS_INICIALIZADOS)}")
+            print(f"| FIREBASE VIP | {len(ACTIVOS_INICIALIZADOS)} activos oficiales cargados en caché RAM: {sorted(ACTIVOS_INICIALIZADOS)}")
             
-            # Solo inicializar los que NO estén ya en Firebase
+            # Solo inicializar los oficiales que NO estén ya en Firebase
             nuevos = [a for a in activos_vip if a not in ACTIVOS_INICIALIZADOS]
             if nuevos:
-                print(f"| FIREBASE VIP | Inicializando {len(nuevos)} activos VIP nuevos: {nuevos}")
+                print(f"| FIREBASE VIP | Inicializando {len(nuevos)} activos oficiales nuevos: {nuevos}")
                 for activo in nuevos:
                     auto_inicializar_activo(activo)
             else:
-                print("| FIREBASE VIP | Todos los activos VIP ya están matriculados. Sin lecturas adicionales.")
+                print("| FIREBASE VIP | Todos los activos oficiales ya están matriculados. Sin lecturas adicionales.")
             print("| FIREBASE VIP | ✅ Verificación de matriz VIP completada.")
         except Exception as e:
             print(f"| FIREBASE ERROR | Falló la auto-inicialización en startup: {e}")
@@ -2385,11 +2390,11 @@ def get_matrix_activos(authorization: Optional[str] = Header(None)):
                 if res_m:
                     GLOBAL_MATRICES_CACHE_FULL = json.loads(res_m)
         
-        activos = list(GLOBAL_MATRICES_CACHE_FULL.keys()) if GLOBAL_MATRICES_CACHE_FULL else ["EURUSD", "GBPUSD", "XAUUSD", "GBPJPY", "USDJPY", "AUDUSD", "NZDCAD"]
+        activos = [a for a in list(GLOBAL_MATRICES_CACHE_FULL.keys()) if a in ACTIVOS_OFICIALES] if GLOBAL_MATRICES_CACHE_FULL else list(ACTIVOS_OFICIALES)
         return {"status": "success", "activos": activos, "source": "upstash_cache"}
     except Exception as e:
         print(f"| CLOUD ERROR | Error en get_matrix_activos: {e}")
-        return {"status": "success", "activos": ["EURUSD", "GBPUSD", "XAUUSD", "GBPJPY", "USDJPY", "AUDUSD", "NZDCAD"]}
+        return {"status": "success", "activos": list(ACTIVOS_OFICIALES)}
 
 MATRIX_CACHE = {}
 MATRIX_CACHE_TIME = {}
@@ -3835,11 +3840,7 @@ GLOBAL_INDICADORES = None
 ULTIMO_FETCH_FIREBASE = None
 # Caché RAM de activos ya matriculados en Firebase. Evita lecturas repetidas a Firestore.
 # Se llena en startup y se actualiza cuando se detecta un activo nuevo.
-ACTIVOS_INICIALIZADOS: set = {
-    "GBPJPY", "GBPUSD", "EURUSD", "XAUUSD", "AUDUSD", "NZDCAD",
-    "SPX500", "NAS100", "US30", "USDJPY", "USDCAD", "EURGBP",
-    "GBPCAD", "CHFJPY", "USDCHF", "EURJPY"
-}
+ACTIVOS_INICIALIZADOS: set = set(ACTIVOS_OFICIALES)
 
 def asegurar_cache_firebase():
     global firebase_inicializado, db

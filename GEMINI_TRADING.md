@@ -140,3 +140,39 @@ trigger: always_on
    - **Caso 2: Balance >= $5,000.00 USD pero < High-Water Mark (Retroceso de Pico):**
      Si la cuenta sube a $5,400 y luego retrocede a $5,200 (caída de -3.70%), la recuperación requerida para sanar el retroceso al pico es $R_{HWM} = \frac{5,400 - 5,200}{5,200} \times 100 = +3.85\%$. Estado: `ESTADO DE LA CUENTA: EN RECUPERACIÓN / RETROCESO DE PICO HWM (-$200 USD / -3.70% vs HWM $5,400)`.
    - **Criterio Inquebrantable de Cuenta Sanada:** La cuenta SOLO se considera plenamente "Sanada y en Máximos" cuando el balance real auditado sea $\ge \$5,000.00$ USD Y $\ge B_{HWM}$.
+
+---
+name: portafolio_hermetico_oficial_mt5
+description: Regla de portafolio hermético canónico (5 Live MT5 + 1 Sandbox NZDCAD) y control estricto anti-429 de inferencia LLM.
+trigger: always_on
+---
+
+# 🛑 REGLA: PORTAFOLIO HERMÉTICO INSTITUCIONAL MT5 (5 LIVE + 1 SANDBOX)
+1. **Composición Canónica Inalterable:**
+   - **5 Pares en Vivo MT5:** `EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`.
+   - **1 Par en Sandbox (Shadow Mode):** `NZDCAD` (aislado estrictamente para reentrenamiento; prohibido abrir órdenes en broker).
+2. **Prohibición de Activos Foráneos o Residuales:**
+   Queda terminantemente prohibido que los escáneres, matrices de confirmación (`trading_matrix`), memorias RAM (`FIREBASE VIP`) o deliberaciones de los Herds procesen activos fuera del portafolio (como `BTC`, `UNKNOWN`, `XAUUSD_TEST`, `SP500`, `SPX500`, `NAS100`, `NASDAQ100`, `US30`, `USDJPY`, `USDCAD`, `USDCHF`, `EURGBP`, `GBPCAD`, `CHFJPY`, `EURJPY`).
+3. **Optimización de Cuotas LLM (Anti-429 Groq / Gemini / OpenRouter):**
+   Para no agotar cuotas innecesariamente, los 7 Herds y LLMs solo evalúan activos que cuenten con liquidez en su Killzone institucional activa:
+   - **Londres:** `GBPUSD`, `EURUSD`, `GBPJPY`.
+   - **Nueva York:** `EURUSD`, `XAUUSD`.
+   - **Asia:** `AUDUSD`, `GBPJPY`.
+   Esto reduce el consumo de tokens en un 70% y previene bloqueos por rate limit 429.
+
+---
+name: cascada_riesgo_v2_rune
+description: Regla de gestión de riesgo institucional v2 con cascada asimétrica de 4 fases y límite de canasta USD.
+trigger: always_on
+---
+
+# 🛑 REGLA: GESTIÓN DE RIESGO INSTITUCIONAL V2 (CASCADA RUNE 4 FASES)
+1. **Cascada Asimétrica de 4 Fases (HERD 5 RUNE):**
+   - **Fase 1 (TP1 Parcial al 50% de recorrido):** Cobro obligado del 50% del volumen inicial con un ratio mínimo de +1.0R.
+   - **Fase 2 (Break-Even Institucional):** Desplazamiento automático de SL a BE tras consolidar TP1, agregando un buffer de **+2.5 pips** para soportar el spread y volatilidad interbancaria.
+   - **Fase 3 (Trailing Locks Asimétricos):**
+     * Al 75% del recorrido $\implies$ Trailing Lock 1 asegurando el **+40%** de la ganancia proyectada.
+     * Al 85% del recorrido $\implies$ Trailing Lock 2 asegurando el **+65%** de la ganancia proyectada.
+   - **Fase 4 (Front-Run TP al 95%):** Cierre del 100% de la posición remanente al 95% de la distancia para evitar que retrocesos de última hora erosionen el beneficio en el último pip.
+2. **Filtro de Exposición en Canasta USD:** Máximo 2 posiciones abiertas simultáneas en pares correlacionados al dólar (`EURUSD`, `GBPUSD`, `AUDUSD`, `XAUUSD`).
+3. **Filtro Anti-Caza ATH en Oro (XAUUSD):** Prohibido comprar en Oro si la cotización se encuentra a menos del 0.5% del All-Time High sin un retroceso previo consolidado de 30 a 50 pips.

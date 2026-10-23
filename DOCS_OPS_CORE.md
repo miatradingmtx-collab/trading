@@ -1289,3 +1289,12 @@ trigger: always_on
    - **Caso 2: Balance >= $5,000.00 USD pero < High-Water Mark (Retroceso de Pico):**
      Si la cuenta sube a $5,400 y luego retrocede a $5,200 (caída de -3.70%), la recuperación requerida para sanar el retroceso al pico es $R_{HWM} = \frac{5,400 - 5,200}{5,200} \times 100 = +3.85\%$. Estado: `ESTADO DE LA CUENTA: EN RECUPERACIÓN / RETROCESO DE PICO HWM (-$200 USD / -3.70% vs HWM $5,400)`.
    - **Criterio Inquebrantable de Cuenta Sanada:** La cuenta SOLO se considera plenamente "Sanada y en Máximos" cuando el balance real auditado sea $\ge \$5,000.00$ USD Y $\ge B_{HWM}$.
+
+# 🛑 REGLA DE ORO DE PORTAFOLIO HERMÉTICO Y CONTROL DE CUOTAS (5 LIVE MT5 + 1 SANDBOX NZDCAD)
+1. **Composición Canónica:**
+   - **5 Pares en Vivo MT5:** `EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`.
+   - **1 Par en Sandbox (Shadow Mode):** `NZDCAD` (aislado estrictamente para reentrenamiento; prohibido abrir órdenes en broker).
+2. **Prohibición de Activos Foráneos en Infraestructura:**
+   Queda terminantemente prohibido que las colecciones de Firestore (`trading_matrix`), memoria RAM (`FIREBASE VIP`), Upstash Redis (`cache_trading_matrix`), endpoints, o microservicios de monitoreo carguen o mantengan activos ajenos al portafolio (como `BTC`, `UNKNOWN`, `XAUUSD_TEST`, `SP500`, `SPX500`, `NAS100`, `NASDAQ100`, `US30`, `USDJPY`, `USDCAD`, `USDCHF`, `EURGBP`, `GBPCAD`, `CHFJPY`, `EURJPY`).
+3. **Eficiencia de Cuotas LLM (Anti-429 Groq / Gemini / OpenRouter):**
+   Los agentes de infraestructura y trading deben garantizar que el escaneo y llamadas a LLMs solo operen sobre los activos con liquidez institucional en su Killzone activa (Londres: `GBPUSD`, `EURUSD`, `GBPJPY` | NY: `EURUSD`, `XAUUSD` | Asia: `AUDUSD`, `GBPJPY`), reduciendo el consumo de tokens en un 70% y blindando las cuotas API.
