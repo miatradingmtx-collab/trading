@@ -57,7 +57,13 @@ def calc_area_energia_cvol(fuerza_a_json, fuerza_b_json, precios_json, timeframe
         area_energia = float(integral_fuerza + c_t)
         
         delta_p = abs(float(px[-1] - px[0])) if len(px) > 1 and abs(float(px[-1] - px[0])) > 0 else 0.0010
-        escala_cvol = 100.0 if "XAU" in activo.upper() else 10000.0
+        act_upper = activo.upper()
+        if "XAU" in act_upper or "GOLD" in act_upper:
+            escala_cvol = 1.0  # 1 punto = $1.00 USD en Oro COMEX
+        elif "JPY" in act_upper:
+            escala_cvol = 100.0  # 1 pip = 0.01 JPY en cruces Yen (GBPJPY)
+        else:
+            escala_cvol = 10000.0  # 1 pip = 0.0001 en FX estándar (EURUSD, GBPUSD, AUDUSD, NZDCAD)
         cvol_equivalente = round(abs(area_energia) / (delta_p * escala_cvol + 1e-6), 2)
         
         regimen = "EXPANSION_ALTA_ENERGIA" if cvol_equivalente >= 1.5 else ("ABSORCION_EQUILIBRADA" if cvol_equivalente >= 0.8 else "COMPRESION_BAJA_ENERGIA")

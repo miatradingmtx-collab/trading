@@ -691,8 +691,16 @@ def run_hft_cycle():
         for act in ACTIVOS_SWARM_TARGET:
             px = precios_spot.get(act, 0.0)
             poc = float(matrices_crudas.get(act, {}).get("poc_price", px) or px)
-            band = 0.0025 if "XAU" not in act else 15.0
-            px_levels = [round(poc - band, 5), round(poc, 5), round(poc + band, 5)]
+            if "XAU" in act:
+                band = 15.0  # $15 USD de banda en Oro COMEX
+                dec = 2
+            elif "JPY" in act:
+                band = 0.35  # 35 pips (0.35 JPY) en cruces Yen (GBPJPY)
+                dec = 3
+            else:
+                band = 0.0025  # 25 pips en pares Forex estándar (EURUSD, GBPUSD, AUDUSD, NZDCAD)
+                dec = 5
+            px_levels = [round(poc - band, dec), round(poc, dec), round(poc + band, dec)]
             b_pct = 50.0
             s_pct = 50.0
             if "dom_summaries" in locals() and dom_summaries:
@@ -835,6 +843,14 @@ def run_hft_cycle():
             },
             "dxy_smt_context": smt_data,
             "dictamen_dxy": smt_txt,
+            "cvol_context": {
+                "summary": cvol_energia_summary,
+                "matrices_por_activo": cvol_dict
+            },
+            "dom_multiactivo_context": {
+                "summary": dom_heatmap_summary,
+                "detalles": dom_summaries if "dom_summaries" in locals() else []
+            },
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
         
@@ -877,7 +893,10 @@ def run_hft_cycle():
         # Publicar slot dedicado de DXY SMT en Upstash para acceso instantáneo de los 7 Herds
         if smt_data:
             requests.post("https://firm-koi-93555.upstash.io/set/cache_dxy_smt_latest", headers=upstash_headers, json=smt_data, timeout=5)
-        emit_ws_event("Master", "INFO", "Debate y sensor DXY SMT sincronizados en Upstash Redis.")
+        
+        # Publicar slot dedicado de CVOL y Energía Integral en Upstash
+        requests.post("https://firm-koi-93555.upstash.io/set/cache_cvol_latest", headers=upstash_headers, json={"timestamp": payload["timestamp"], "cvol_dict": cvol_dict, "summary": cvol_energia_summary}, timeout=5)
+        emit_ws_event("Master", "INFO", "Debate, DXY SMT y CVOL Multiactivo sincronizados en Upstash Redis.")
 
         # Inyección Tensorial en Vivo a cache_vector_indicadores (22D Neural Matrix Homologada)
         try:
