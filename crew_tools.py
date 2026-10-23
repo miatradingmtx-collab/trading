@@ -2,7 +2,17 @@ import os
 import json
 import firebase_admin
 from firebase_admin import credentials, firestore
-from langchain.tools import tool
+def tool(name=None):
+    def decorator(func):
+        func.tool_name = name or func.__name__
+        func.func = func
+        return func
+    if callable(name):
+        f = name
+        name = f.__name__
+        return decorator(f)
+    return decorator
+
 
 import requests
 

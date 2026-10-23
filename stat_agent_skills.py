@@ -1,6 +1,16 @@
 import json
 import numpy as np
-from langchain.tools import tool
+def tool(name=None):
+    def decorator(func):
+        func.tool_name = name or func.__name__
+        func.func = func
+        return func
+    if callable(name):
+        f = name
+        name = f.__name__
+        return decorator(f)
+    return decorator
+
 
 @tool("Calcular Esperanza Matematica")
 def calculate_expected_value(win_rate: float, avg_win: float, avg_loss: float) -> str:

@@ -1,6 +1,16 @@
 import numpy as np
 import json
-from langchain.tools import tool
+def tool(name=None):
+    def decorator(func):
+        func.tool_name = name or func.__name__
+        func.func = func
+        return func
+    if callable(name):
+        f = name
+        name = f.__name__
+        return decorator(f)
+    return decorator
+
 
 @tool("Calcular Area Bajo Curva")
 def calc_area_under_curve(volume_data: str, time_intervals: str) -> str:

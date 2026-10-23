@@ -12,9 +12,5 @@ numpy>=1.24.0
 firebase-admin>=6.2.0
 metaapi-cloud-sdk>=24.2.0
 httpx>=0.24.0
-crewai<0.50.0
-langchain
-langchain-openai
-langchain-google-genai
 
 tensorflow-cpu>=2.15.0
