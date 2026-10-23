@@ -344,6 +344,7 @@ async def startup_event():
                 for doc in docs_existentes:
                     if doc.id in ACTIVOS_OFICIALES:
                         ACTIVOS_INICIALIZADOS.add(doc.id)
+                        GLOBAL_MATRICES_CACHE_FULL[doc.id] = doc.to_dict()
             except Exception as e_stream:
                 print(f"| FIREBASE VIP WARN | Firestore en 429 durante stream ({e_stream}). Usando activos VIP pre-poblados en RAM.")  # Poblar caché RAM con los que ya existen
             
@@ -358,6 +359,13 @@ async def startup_event():
             else:
                 print("| FIREBASE VIP | Todos los activos oficiales ya están matriculados. Sin lecturas adicionales.")
             print("| FIREBASE VIP | ✅ Verificación de matriz VIP completada.")
+            try:
+                import requests, json
+                up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+                requests.post("https://firm-koi-93555.upstash.io/set/cache_trading_matrix", headers=up_headers, data=json.dumps(GLOBAL_MATRICES_CACHE_FULL, default=str), timeout=3)
+                print(f"| UPSTASH VIP | cache_trading_matrix sincronizado exitosamente con {len(GLOBAL_MATRICES_CACHE_FULL)} activos oficiales.")
+            except Exception as e_up_init:
+                print(f"| UPSTASH VIP WARN | Error sincronizando matriz inicial: {e_up_init}")
         except Exception as e:
             print(f"| FIREBASE ERROR | Falló la auto-inicialización en startup: {e}")
             

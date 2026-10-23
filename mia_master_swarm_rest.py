@@ -583,19 +583,32 @@ def run_hft_cycle():
                 current_px = float(matrices_crudas[act].get("current_price", precios_spot.get(act, 0.0)) or precios_spot.get(act, 0.0))
                 break
 
-    # Inyección de Skill DOM CME FX & OANDA
+    # Inyección de Skill DOM CME FX & OANDA Multiactivo (5 MT5 + 1 Sandbox NZDCAD)
     dom_heatmap_summary = "Sin datos de libro"
     try:
-        dom_analisis = scan_institutional_dom(active_symbol, current_px, poc_px, precios_spot=precios_spot)
-        smt_data = dom_analisis.get("dxy_smt_context", {})
-        smt_txt = f"DXY: {smt_data.get('dxy_spot', 102.3)} | SMT: {smt_data.get('tipo_divergencia', 'NEUTRAL')}"
-        if smt_data.get("divergencia_detectada"):
-            smt_txt += f" | ⚠️ SMT VETO: {smt_data.get('motivo')}"
-        vol_info = dom_analisis.get("cme_volatility_regime", {})
-        vol_txt = f"Régimen CME: {vol_info.get('estado_volatilidad', 'BALANCEADO')} ({vol_info.get('benchmark_volatilidad', 'FXVL')})"
-        dom_heatmap_summary = f"CME: {dom_analisis['cme_contract']} | {vol_txt} | Flujo: {dom_analisis['dom_imbalance']} (Compradores {dom_analisis['buyer_volume_pct']}% vs Vendedores {dom_analisis['seller_volume_pct']}%) | Trampas: BuyStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_alcista (Buy Stops)']} SellStops={dom_analisis['heatmap_resting_liquidity']['zona_trampa_bajista (Sell Stops)']} | {smt_txt}"
+        dom_summaries = []
+        smt_txt = "DXY SMT: NEUTRAL"
+        for act in ACTIVOS_SWARM_TARGET:
+            px = precios_spot.get(act, 0.0)
+            poc = float(matrices_crudas.get(act, {}).get("poc_price", px) or px)
+            d_an = scan_institutional_dom(act, px, poc, precios_spot=precios_spot)
+            tag = " [SANDBOX]" if act in ACTIVOS_SANDBOX else " [LIVE]"
+            cme = d_an.get('cme_contract', act)
+            imb = d_an.get('dom_imbalance', 'NEUTRAL')
+            b_pct = d_an.get('buyer_volume_pct', 50)
+            s_pct = d_an.get('seller_volume_pct', 50)
+            traps = d_an.get('heatmap_resting_liquidity', {})
+            buy_trap = traps.get('zona_trampa_alcista (Buy Stops)', 'N/A')
+            sell_trap = traps.get('zona_trampa_bajista (Sell Stops)', 'N/A')
+            dom_summaries.append(f"{act}{tag}: {cme} | Flujo:{imb} (B:{b_pct}%/S:{s_pct}%) | Trampas: BuyStops={buy_trap} SellStops={sell_trap}")
+            if act == "EURUSD":
+                smt_data = d_an.get("dxy_smt_context", {})
+                smt_txt = f"DXY: {smt_data.get('dxy_spot', 102.3)} | SMT: {smt_data.get('tipo_divergencia', 'NEUTRAL')}"
+                if smt_data.get("divergencia_detectada"):
+                    smt_txt += f" | ⚠️ SMT VETO: {smt_data.get('motivo')}"
+        dom_heatmap_summary = f"{smt_txt} | " + " | ".join(dom_summaries)
     except Exception as e_dom:
-        dom_heatmap_summary = f"Error escaneando DOM: {e_dom}"
+        dom_heatmap_summary = f"Error escaneando DOM Multiactivo: {e_dom}"
 
     # Microestructura y Confluencia
     emit_ws_event("NORO", "CALCULATING", "Evaluando matrices HFT, POC y Order Blocks...")
@@ -693,18 +706,31 @@ def run_hft_cycle():
     10. PORTAFOLIO DE ACTIVOS: En Vivo MT5 ({', '.join(ACTIVOS_LIVE_MT5)}) | Sandbox ({', '.join(ACTIVOS_SANDBOX)} - Modo Entrenamiento/Shadow, prohibida ejecución real en broker).
     
     INSTRUCCIONES DE DELIBERACIÓN DE LA MALLA (7 HERDS ESPECIALIZADOS + MASTER):
-    Genera el diálogo de debate, contrapuntos y consenso final entre los 7 Herds independientes:
-    **HERD 1 - TIDAL**: Tendencia macro de sesiones (Londres/NY/Asia), monitoreo de Dollar Index (DXY) y validación de divergencias institucionales SMT (vetar si DXY diverge o muestra absorción en contra).
-    **HERD 2 - NORO**: Niveles cuantitativos clave (POC dinámico, POC semanal y confluencia de Markov).
-    **HERD 3 - ZEPHR**: Probabilidad estadística bayesiana y cálculo de Expected Value (EV en R) ponderado por la Ley de Asimetría Matemática (para superar drawdown de -X%, la ganancia requerida no es simétrica sino +Y% = X/(1-X) sobre el capital reducido).
-    **HERD 4 - LUMEN**: Smart Money Concepts (Order Blocks LuxAlgo, Fair Value Gaps y barridos AMD Multi-Timeframe 1H, 2H, 3H, 4H, 8H. Bloquear entradas contra liquidez macro pendiente sin barrer).
-    **HERD 5 - RUNE**: Gestión de riesgo institucional v2 y Gobernanza Asimétrica de Capital: aplica la Ley de Asimetría Matemática (para sanar la cuenta se requiere ganancia asimétrica R = D/(1-D), prohibido asumir proyecciones simétricas). SL técnico defensivo, cascada 4 fases: TP1 cobro 50% volumen al 50% dist (+1.0R), Break-Even post-TP1 con 2.5 pips buffer, Trailing Lock 1 al 75% (+40% asegurado), Trailing Lock 2 al 85% (+65% asegurado), Front-Run TP al 95% cierre 100% remanente; límite de canasta máx 2 operaciones USD, y restricción estricta de NZDCAD en Sandbox.
-    **HERD 6 - TENSORFLOW**: Inferencia de red neuronal profunda (probabilidad continua de acierto del modelo sobre los activos en vivo).
-    **HERD 7 - ATLAS**: Microestructura de libro de órdenes DOM (CVD Delta, bandas dinámicas por ATR, MCP y verificación del CBR).
-    **MASTER**: Veredicto final del Quórum Calificado [APROBADO ✅ o VETADO ⛔] indicando el Score Ponderado (0.00 a 1.00, umbral >= 0.70). Si hay múltiples señales simultáneas en pares de USD, aplicar selector de convexidad (EV Picker) priorizando solo el par óptimo. Si la señal es para NZDCAD, el veredicto debe ser estrictamente SIMULACIÓN SANDBOX (sin orden a broker).
-    
+    Genera el diálogo de debate, contrapuntos y consenso final entre los 7 Herds independientes.
+    MANDATO OBLIGATORIO DE COBERTURA INTEGRAL DEL PORTAFOLIO (5 LIVE MT5 + 1 SANDBOX NZDCAD):
+    Queda TERMINANTEMENTE PROHIBIDO evaluar solo un par y omitir los demás diciendo 'resto en observación'.
+    Los 7 Herds deben auditar los 6 activos en su deliberación:
+    - 5 Pares Oficiales en Vivo MT5: EURUSD, GBPUSD, AUDUSD, GBPJPY, XAUUSD.
+    - 1 Par Oficial en Sandbox: NZDCAD (estrictamente simulado / Shadow Mode, prohibida orden a broker).
+
+    **HERD 1 - TIDAL**: Tendencia macro de sesiones (Londres/NY/Asia), DXY y SMT en pares USD (EURUSD, GBPUSD, AUDUSD, XAUUSD) y cruces (GBPJPY, NZDCAD Sandbox).
+    **HERD 2 - NORO**: Niveles cuantitativos: POC dinámico y matrices de Markov de los 5 pares MT5 y NZDCAD.
+    **HERD 3 - ZEPHR**: Probabilidad bayesiana y Expected Value (EV en R) ponderado por Asimetría de Drawdown R = D/(1-D) para la canasta completa.
+    **HERD 4 - LUMEN**: SMC (Order Blocks LuxAlgo, FVGs y Sweeps AMD) en los pares activos y el estado de manipulación de NZDCAD.
+    **HERD 5 - RUNE**: Gestión de riesgo institucional v2: Cascada de 4 Fases (TP1 50% al 50% dist, BE +2.5 pips, Trail Locks 75%/85%, Front-Run 95%), Límite Canasta USD (máx 2 trades), Filtro ATH en Oro (XAUUSD) y Confinamiento estricto de NZDCAD en Sandbox (0 órdenes reales MT5).
+    **HERD 6 - TENSORFLOW**: Inferencia de red neuronal profunda (Accuracy={tf_acc*100:.1f}%) sobre la canasta.
+    **HERD 7 - ATLAS**: Microestructura DOM CME/OANDA, CVD Delta y absorciones institucionales en los 5 pares MT5 y en el Sandbox NZDCAD.
+    **MASTER**: Veredicto final del Quórum Calificado [APROBADO ✅ o VETADO ⛔] indicando el Score Ponderado (umbral >= 0.70).
+    El MASTER DEBE desglosar explícitamente el estatus individual de cada uno de los 6 activos:
+    - EURUSD [LIVE]: [Estado / Señal / Score]
+    - GBPUSD [LIVE]: [Estado / Señal / Score]
+    - AUDUSD [LIVE]: [Estado / Señal / Score]
+    - GBPJPY [LIVE]: [Estado / Señal / Score]
+    - XAUUSD [LIVE]: [Estado / Señal / Score]
+    - NZDCAD [SANDBOX]: [SIMULACIÓN SHADOW / Confinado]
+
     (REGLA CBR: Si el activo coincide con un precedente perdedor del CBR sin nueva confluencia, el Quórum debe VETAR o exigir confirmación estricta).
-    Responde estrictamente con exactamente una intervención por Herd (máximo 2 líneas por Herd, concisas y técnicas) y el veredicto del MASTER.
+    Responde estrictamente con exactamente una intervención por Herd (concisas y técnicas) y el veredicto del MASTER con el desglose de los 6 activos.
     """
     
     emit_ws_event("Master", "DELIBERATION", "Iniciando debate inter-agente en Malla de 7 Herds Desacoplados + Master...")
