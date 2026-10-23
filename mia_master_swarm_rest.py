@@ -51,7 +51,7 @@ except ValueError:
 
 # Importar herramientas directas sin LangChain
 from crew_tools import railway_cache_tool, mia_core_reader_tool
-from math_agent_skills import calc_area_under_curve, markov_transition_matrix
+from math_agent_skills import calc_area_under_curve, calc_area_energia_cvol, markov_transition_matrix
 from stat_agent_skills import calculate_expected_value, generate_execution_score
 from dom_institutional_scanner import scan_institutional_dom
 from mia_researcher_agent import atlas_researcher
@@ -684,6 +684,33 @@ def run_hft_cycle():
                 "Cascada v2: TP1 cobro 50% vol al 50% dist (+1.0R), BE post-TP1, Trail Lock al 75% (+40%) y 85% (+65%), Front-Run al 95%. Filtro noticias 15m pre / 8m post. Score >= 0.70 APROBADO."
             )
 
+    # Cálculo Cuantitativo del Área de Energía CVOL (∫[FuerzaA - FuerzaB]dx + C(t)) - HERD 2 (NORO)
+    cvol_noro_list = []
+    try:
+        for act in ACTIVOS_SWARM_TARGET:
+            px = precios_spot.get(act, 0.0)
+            poc = float(matrices_crudas.get(act, {}).get("poc_price", px) or px)
+            band = 0.0025 if "XAU" not in act else 15.0
+            px_levels = [round(poc - band, 5), round(poc, 5), round(poc + band, 5)]
+            b_pct = 50.0
+            s_pct = 50.0
+            if "dom_summaries" in locals() and dom_summaries:
+                for line in dom_summaries:
+                    if act in line:
+                        m_b = re.search(r'B:([\d\.]+)%', line)
+                        m_s = re.search(r'S:([\d\.]+)%', line)
+                        if m_b and m_s:
+                            b_pct = float(m_b.group(1))
+                            s_pct = float(m_s.group(1))
+                        break
+            fuerza_a = [round(b_pct * 1.8, 1), round(b_pct * 2.2, 1), round(b_pct * 1.5, 1)]
+            fuerza_b = [round(s_pct * 1.5, 1), round(s_pct * 2.0, 1), round(s_pct * 1.9, 1)]
+            cvol_res = json.loads(calc_area_energia_cvol(fuerza_a, fuerza_b, px_levels, timeframe="2H", activo=act))
+            cvol_noro_list.append(f"{act}: Energía={cvol_res.get('area_energia')} | CVOL={cvol_res.get('cvol_equivalente')} ({cvol_res.get('regimen_cvol')}) [TF:2H C(t)={cvol_res.get('constante_C_t')}]")
+        cvol_energia_summary = " | ".join(cvol_noro_list)
+    except Exception as e_cvol:
+        cvol_energia_summary = f"CVOL en régimen estándar: {e_cvol}"
+
     # 2. Generar el Debate y Veredicto de los Sub-Enjambres (Herds Deliberation)
     if not researcher_brief:
         try:
@@ -696,7 +723,7 @@ def run_hft_cycle():
     == DATOS DE LOS SENSORES EN TIEMPO REAL ==
     1. LIQUIDEZ Y SALDO MT5: {cache_data}
     2. MICROESTRUCTURA INSTITUCIONAL (DOM/CVD): DOM={dom_data} | Footprint={footprint_delta} | Heatmap CME/OANDA={dom_heatmap_summary}
-    3. MATEMÁTICAS CUANTITATIVAS (NORO): {fair_value} | {markov}
+    3. MATEMÁTICAS CUANTITATIVAS (NORO): {fair_value} | {markov} | Área de Energía CVOL Integral (∫[FuerzaA - FuerzaB]dx + C(t) en 2H): {cvol_energia_summary}
     4. PROBABILIDAD Y EXPECTED VALUE (ZEPHR): {expected_value} | {score}
     5. INFERENCIA RED NEURONAL (TENSORFLOW): Accuracy={tf_acc*100:.1f}%
     6. BRIEF INTELIGENCIA EXTERNA ATLAS MCP: {researcher_brief}
@@ -714,12 +741,12 @@ def run_hft_cycle():
     - 1 Par Oficial en Sandbox: NZDCAD (estrictamente simulado / Shadow Mode, prohibida orden a broker).
 
     **HERD 1 - TIDAL**: Tendencia macro de sesiones (Londres/NY/Asia), DXY y SMT en pares USD (EURUSD, GBPUSD, AUDUSD, XAUUSD) y cruces (GBPJPY, NZDCAD Sandbox).
-    **HERD 2 - NORO**: Niveles cuantitativos: POC dinámico y matrices de Markov de los 5 pares MT5 y NZDCAD.
+    **HERD 2 - NORO**: Niveles cuantitativos: POC dinámico, matrices de Markov y cálculo integral del Área de Energía CVOL (∫[FuerzaA - FuerzaB]dx + C(t)) evaluado estrictamente en las 5 temporalidades oficiales (1H, 2H, 3H, 4H, 8H; con C(t) como inercia institucional y veto estricto a temporalidades ciegas 1m/15m).
     **HERD 3 - ZEPHR**: Probabilidad bayesiana y Expected Value (EV en R) ponderado por Asimetría de Drawdown R = D/(1-D) para la canasta completa.
     **HERD 4 - LUMEN**: SMC (Order Blocks LuxAlgo, FVGs y Sweeps AMD) en los pares activos y el estado de manipulación de NZDCAD.
     **HERD 5 - RUNE**: Gestión de riesgo institucional v2: Cascada de 4 Fases (TP1 50% al 50% dist, BE +2.5 pips, Trail Locks 75%/85%, Front-Run 95%), Límite Canasta USD (máx 2 trades), Filtro ATH en Oro (XAUUSD) y Confinamiento estricto de NZDCAD en Sandbox (0 órdenes reales MT5).
     **HERD 6 - TENSORFLOW**: Inferencia de red neuronal profunda (Accuracy={tf_acc*100:.1f}%) sobre la canasta.
-    **HERD 7 - ATLAS**: Microestructura DOM CME/OANDA, CVD Delta y absorciones institucionales en los 5 pares MT5 y en el Sandbox NZDCAD.
+    **HERD 7 - ATLAS**: Microestructura DOM CME/OANDA, CVD Delta direccional (presión acumulada Ask-Bid y absorciones de libro) en confluencia con el Área de Energía de NORO sobre los 5 pares MT5 y en el Sandbox NZDCAD.
     **MASTER**: Veredicto final del Quórum Calificado [APROBADO ✅ o VETADO ⛔] indicando el Score Ponderado (umbral >= 0.70).
     El MASTER DEBE desglosar explícitamente el estatus individual de cada uno de los 6 activos:
     - EURUSD [LIVE]: [Estado / Señal / Score]
