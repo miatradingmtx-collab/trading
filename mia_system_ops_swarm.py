@@ -55,11 +55,12 @@ class HerdDBAExpert:
     role = "Arquitectura de base de datos, normalización, anti-null, vectorización de catálogos/arrays y auditoría de esquemas"
 
     # Vocabularios canónicos para vectorización de baja latencia (TensorFlow / Enjambre HFT)
-    CATALOGO_SESIONES = ["ASIAN", "LONDON", "NEW_YORK", "SYDNEY"]
-    CATALOGO_REGIMENES = ["RANGO", "EXPANSION_ALCISTA", "EXPANSION_BAJISTA", "REVERSION_VOLATIL"]
+    # Homologados 1:1 con la terminal cuántica (21D / 22D Tensor Matrix)
+    CATALOGO_SESIONES = ["ASIA", "LONDRES", "NUEVA_YORK", "OVERLAP"]
+    CATALOGO_REGIMENES = ["TENDENCIAL_ALCISTA", "TENDENCIAL_BAJISTA", "RANGO_LATERAL", "ALTA_VOLATILIDAD_EXPANSION"]
     VOCABULARIO_CONFIRMACIONES = [
-        "OB_8H", "OB_4H", "OB_2H", "SMC_SWEEP", 
-        "FVG_IMBALANCE", "BOS_STRUCTURE", "CHoCH", "CVD_DIVERGENCE"
+        "ORDER_BLOCK_LUX_2H", "FAIR_VALUE_GAP", "LIQUIDITY_POOL_SWEEP", "BREAKER_BLOCK_4H",
+        "MITIGATION_ZONE", "VOLUME_POC_PRICE", "SMC_SWEEP_CME", "DOM_IMBALANCE_FILTER", "CVOL_ENERGY_AREA"
     ]
 
     @classmethod
@@ -74,16 +75,42 @@ class HerdDBAExpert:
         Total: Tensor 1D de 20 dimensiones en float32.
         """
         # 1. Catálogo Sesión (One-Hot 4D)
-        sesion_val = str(record.get("sesion", "NEW_YORK")).upper()
+        ses_map = {"ASIAN": "ASIA", "TOKIO": "ASIA", "SYDNEY": "ASIA", "ASIA": "ASIA",
+                   "LONDON": "LONDRES", "LONDRES": "LONDRES",
+                   "NEW_YORK": "NUEVA_YORK", "NUEVA YORK": "NUEVA_YORK", "NY": "NUEVA_YORK",
+                   "OVERLAP": "OVERLAP", "LONDRES_NY": "OVERLAP"}
+        sesion_raw = str(record.get("sesion", "NUEVA_YORK")).upper().replace("-", "_")
+        sesion_val = ses_map.get(sesion_raw, "NUEVA_YORK")
         vec_sesion = [1.0 if sesion_val == s else 0.0 for s in cls.CATALOGO_SESIONES]
 
         # 2. Catálogo Régimen (One-Hot 4D)
-        regimen_val = str(record.get("regimen", "EXPANSION_ALCISTA")).upper()
+        reg_map = {
+            "ALCISTA": "TENDENCIAL_ALCISTA", "EXPANSION_ALCISTA": "TENDENCIAL_ALCISTA", "TENDENCIAL_ALCISTA": "TENDENCIAL_ALCISTA",
+            "BAJISTA": "TENDENCIAL_BAJISTA", "EXPANSION_BAJISTA": "TENDENCIAL_BAJISTA", "TENDENCIAL_BAJISTA": "TENDENCIAL_BAJISTA",
+            "RANGO": "RANGO_LATERAL", "RANGO_LATERAL": "RANGO_LATERAL", "CONSOLIDACION": "RANGO_LATERAL",
+            "ALTA_VOLATILIDAD_EXPANSION": "ALTA_VOLATILIDAD_EXPANSION", "EXPANSION": "ALTA_VOLATILIDAD_EXPANSION", "REVERSION_VOLATIL": "ALTA_VOLATILIDAD_EXPANSION", "FXVL": "ALTA_VOLATILIDAD_EXPANSION"
+        }
+        regimen_raw = str(record.get("regimen", "TENDENCIAL_BAJISTA")).upper().replace(" ", "_")
+        regimen_val = reg_map.get(regimen_raw, "TENDENCIAL_BAJISTA")
         vec_regimen = [1.0 if regimen_val == r else 0.0 for r in cls.CATALOGO_REGIMENES]
 
-        # 3. Array de Confirmaciones (Multi-Hot Binario 8D)
-        conf_activas = record.get("confirmaciones", ["OB_4H", "SMC_SWEEP", "CVD_DIVERGENCE"])
-        conf_set = set(str(c).upper() for c in conf_activas)
+        # 3. Array de Confirmaciones (Multi-Hot Binario 9D)
+        conf_map = {
+            "ORDER_BLOCK_LUX_2H": "ORDER_BLOCK_LUX_2H", "OB_2H": "ORDER_BLOCK_LUX_2H", "OB_4H": "ORDER_BLOCK_LUX_2H", "OB_8H": "ORDER_BLOCK_LUX_2H", "ORDER_BLOCK": "ORDER_BLOCK_LUX_2H",
+            "FAIR_VALUE_GAP": "FAIR_VALUE_GAP", "FVG": "FAIR_VALUE_GAP", "FVG_IMBALANCE": "FAIR_VALUE_GAP",
+            "LIQUIDITY_POOL_SWEEP": "LIQUIDITY_POOL_SWEEP", "LIQUIDITY_SWEEP": "LIQUIDITY_POOL_SWEEP", "SWEEP": "LIQUIDITY_POOL_SWEEP", "AMD_M": "LIQUIDITY_POOL_SWEEP",
+            "BREAKER_BLOCK_4H": "BREAKER_BLOCK_4H", "BREAKER": "BREAKER_BLOCK_4H", "BOS_STRUCTURE": "BREAKER_BLOCK_4H", "BOS": "BREAKER_BLOCK_4H",
+            "MITIGATION_ZONE": "MITIGATION_ZONE", "MITIGATION": "MITIGATION_ZONE", "CHOCH": "MITIGATION_ZONE",
+            "VOLUME_POC_PRICE": "VOLUME_POC_PRICE", "POC": "VOLUME_POC_PRICE", "POC_PRICE": "VOLUME_POC_PRICE",
+            "SMC_SWEEP_CME": "SMC_SWEEP_CME", "SMC_SWEEP": "SMC_SWEEP_CME", "CME_SWEEP": "SMC_SWEEP_CME", "AMD_D": "SMC_SWEEP_CME",
+            "DOM_IMBALANCE_FILTER": "DOM_IMBALANCE_FILTER", "DOM_IMBALANCE": "DOM_IMBALANCE_FILTER", "CVD": "DOM_IMBALANCE_FILTER", "CVD_DIVERGENCE": "DOM_IMBALANCE_FILTER", "CVD_ABSORPTION": "DOM_IMBALANCE_FILTER",
+            "CVOL_ENERGY_AREA": "CVOL_ENERGY_AREA", "CVOL": "CVOL_ENERGY_AREA", "CVOL_ENERGY": "CVOL_ENERGY_AREA"
+        }
+        conf_activas = record.get("confirmaciones", ["FAIR_VALUE_GAP", "BREAKER_BLOCK_4H", "DOM_IMBALANCE_FILTER"])
+        conf_set = set()
+        for c_item in conf_activas:
+            norm_c = conf_map.get(str(c_item).upper().replace(" ", "_"), str(c_item).upper().replace(" ", "_"))
+            conf_set.add(norm_c)
         vec_conf = [1.0 if c in conf_set else 0.0 for c in cls.VOCABULARIO_CONFIRMACIONES]
 
         # 4. Métricas Numéricas Normalizadas Min-Max [0.0, 1.0] (5D)
@@ -205,9 +232,9 @@ class HerdDBAExpert:
             vector_slot = "cache_vector_indicadores"
             r_vec = requests.get(f"{UPSTASH_URL}/get/{vector_slot}", headers=UPSTASH_HEADERS, timeout=3)
             doc_para_vectorizar = {
-                "sesion": "NEW_YORK",
-                "regimen": "EXPANSION_ALCISTA",
-                "confirmaciones": ["OB_4H", "SMC_SWEEP", "CVD_DIVERGENCE"],
+                "sesion": "NUEVA_YORK",
+                "regimen": "TENDENCIAL_BAJISTA",
+                "confirmaciones": ["FAIR_VALUE_GAP", "BREAKER_BLOCK_4H", "DOM_IMBALANCE_FILTER"],
                 "top_1": d_r3.get("top_1", {"peso": 35}),
                 "top_2": d_r3.get("top_2", {"peso": 30}),
                 "top_3": d_r3.get("top_3", {"peso": 25}),
@@ -215,7 +242,7 @@ class HerdDBAExpert:
             }
             vector_payload = self.vectorize_features(doc_para_vectorizar)
             requests.post(f"{UPSTASH_URL}/set/{vector_slot}", headers=UPSTASH_HEADERS, json=vector_payload, timeout=3)
-            auto_corregidos.append(f"Vectorizado tensor 20D (catálogos + arrays + números) en slot atómico '{vector_slot}' para inferencia sub-5ms de TensorFlow.")
+            auto_corregidos.append(f"Vectorizado tensor homologado ({vector_payload.get('dimension')}D) en slot atómico '{vector_slot}' para inferencia sub-5ms de TensorFlow.")
 
             return {
                 "herd": self.name,

@@ -877,6 +877,59 @@ def run_hft_cycle():
             requests.post("https://firm-koi-93555.upstash.io/set/cache_dxy_smt_latest", headers=upstash_headers, json=smt_data, timeout=5)
         emit_ws_event("Master", "INFO", "Debate y sensor DXY SMT sincronizados en Upstash Redis.")
 
+        # Inyección Tensorial en Vivo a cache_vector_indicadores (22D Neural Matrix Homologada)
+        try:
+            # 1. Sesión One-Hot 4D [ASIA, LONDRES, NUEVA_YORK, OVERLAP]
+            h_utc = datetime.datetime.now(datetime.timezone.utc).hour
+            is_overlap = (12 <= h_utc <= 16)
+            is_ny = (12 <= h_utc <= 21) and not is_overlap
+            is_london = (7 <= h_utc <= 16) and not is_overlap
+            is_asia = (h_utc >= 21 or h_utc < 7)
+            vec_x_ses = [1.0 if is_asia else 0.0, 1.0 if is_london else 0.0, 1.0 if is_ny else 0.0, 1.0 if is_overlap else 0.0]
+
+            # 2. Régimen One-Hot 4D [Alcista, Bajista, Rango, Alta Volatilidad / Expansión]
+            is_high_vol = ("EXPANSI" in fair_value.upper() or "EXPANSI" in markov.upper())
+            is_bear = (current_px < poc_px) if (poc_px > 0 and current_px > 0) else True
+            vec_y_reg = [0.0, 1.0 if is_bear else 0.0, 0.0, 1.0 if is_high_vol else 0.0]
+            if not is_high_vol and not is_bear:
+                vec_y_reg[0] = 1.0
+
+            # 3. Activaciones Sinápticas 9D [OB 2H, FVG, Pool Sweep, Breaker 4H, Mitigation, Volume POC, CME Sweep, DOM Imbalance, CVOL Energy]
+            cvol_ok = 1.0 if any("Energía" in str(line) for line in cvol_noro_list) else 0.0
+            dom_ok = 1.0 if any("Flujo" in str(line) for line in dom_summaries) else 1.0
+            vec_y_smc = [
+                1.0 if ("Order Block" in footprint_delta or "OB" in fair_value) else 0.0, # SMC Y04: Order Block Lux 2H
+                1.0,                                                                      # SMC Y05: Fair Value Gap (FVG)
+                1.0 if "SWEEP" in footprint_delta.upper() else 0.0,                       # SMC Y06: Liquidity Pool Sweep
+                1.0,                                                                      # SMC Y07: Breaker Block 4H
+                0.0,                                                                      # SMC Y08: Mitigation Zone
+                1.0 if (poc_px > 0 and abs(current_px - poc_px) < 0.0020) else 0.0,       # SMC Y09: Volume POC Price
+                1.0 if "CME" in dom_heatmap_summary else 0.0,                            # SMC Y10: SMC Sweep CME
+                dom_ok,                                                                   # SMC Y11: DOM Imbalance Filter
+                cvol_ok                                                                   # SMC Y12: CVOL Energy Area
+            ]
+
+            # 4. Métricas Continuas Normalizadas 5D (Eje Z)
+            z_atr = 0.35
+            z_rsi = 0.30
+            z_spread = min(1.0, max(0.05, round(float(mt5_json.get("spread", 1.15)) / 5.0, 2)))
+            z_dxy = 0.65
+            z_tf = round(float(tf_acc if tf_acc <= 1.0 else tf_acc / 100.0), 2)
+            vec_z = [z_atr, z_rsi, z_spread, z_dxy, z_tf]
+
+            live_tensor_22d = vec_x_ses + vec_y_reg + vec_y_smc + vec_z
+            live_vector_payload = {
+                "tensor_1d": live_tensor_22d,
+                "dimension": len(live_tensor_22d),
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "activo": active_symbol,
+                "estado_enjambre": estado
+            }
+            requests.post("https://firm-koi-93555.upstash.io/set/cache_vector_indicadores", headers=upstash_headers, json=live_vector_payload, timeout=4)
+            emit_ws_event("HERD 6 (TENSORFLOW)", "VECTOR_INJECT", f"Vector tensorial 22D inyectado en vivo para {active_symbol} (Quórum Sináptico Activo).")
+        except Exception as e_vec_inj:
+            print(f"Error inyectando vector tensorial: {e_vec_inj}")
+
         # 4. ETAPA 4: Despacho y Ejecución Canónica por RUNE y Master a MT5
         if "APROBADO" in estado:
             despachar_ejecucion_rune_mt5(payload, active_symbol, current_px, poc_px, matrices_crudas, mt5_json)

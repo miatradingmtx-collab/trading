@@ -68,12 +68,18 @@ def render_tensor_matrix():
         # Z: Dimensión Cuantitativa Continua (Indices 16..20)
         dim_x = raw_vec[0:4]
         dim_y_reg = raw_vec[4:8]
-        dim_y_smc = raw_vec[8:16]
-        dim_z = raw_vec[16:21] if len(raw_vec) >= 21 else (raw_vec[16:20] + [accuracy / 100.0])
+        if len(raw_vec) >= 22:
+            dim_y_smc = raw_vec[8:17]
+            dim_z = raw_vec[17:22]
+            tensor_dim_label = f'{len(raw_vec)}D TENSOR MATRIX'
+        else:
+            dim_y_smc = raw_vec[8:16]
+            dim_z = raw_vec[16:21] if len(raw_vec) >= 21 else (raw_vec[16:20] + [accuracy / 100.0])
+            tensor_dim_label = '21D TENSOR MATRIX'
 
         sys.stdout.write(CLEAR)
         sys.stdout.write(f"{CYAN}{BOLD}========================================================================================{RESET}\n")
-        sys.stdout.write(f"{MAGENTA}{BOLD}   MIA TENSORFLOW NEURAL ENGINE · MONITOR TRIDIMENSIONAL EN VIVO (21D TENSOR MATRIX)   {RESET}\n")
+        sys.stdout.write(f"{MAGENTA}{BOLD}   MIA TENSORFLOW NEURAL ENGINE · MONITOR TRIDIMENSIONAL EN VIVO ({tensor_dim_label})   {RESET}\n")
         sys.stdout.write(f"{CYAN}{BOLD}========================================================================================{RESET}\n")
         sys.stdout.write(f"{DIM}Timestamp: {ts} | Trades Aprendidos: {GREEN}{trades_learned}{RESET} | Precision Modelo: {GREEN}{accuracy:.2f}%{RESET} | Balance: {GREEN}${balance:.2f}{RESET}\n\n")
 
@@ -94,12 +100,13 @@ def render_tensor_matrix():
 
         smc_labels = [
             "Order Block Lux 2H", "Fair Value Gap (FVG)", "Liquidity Pool Sweep", "Breaker Block 4H",
-            "Mitigation Zone", "Volume POC Price", "SMC Sweep CME", "DOM Imbalance Filter"
+            "Mitigation Zone", "Volume POC Price", "SMC Sweep CME", "DOM Imbalance Filter", "CVOL Energy Area"
         ]
         sys.stdout.write(f"\n  {CYAN}Matriz de Activaciones Sinápticas (Multi-Hot 1/0):{RESET}\n")
         for i, val in enumerate(dim_y_smc):
             node = f"{GREEN}● 1.0{RESET}" if val == 1.0 else f"{DIM}○ 0.0{RESET}"
-            sys.stdout.write(f"    SMC Y{i+4:02d} [{smc_labels[i]:24s}]: {node}\n")
+            lbl = smc_labels[i] if i < len(smc_labels) else f"SMC Node Y{i+4:02d}"
+            sys.stdout.write(f"    SMC Y{i+4:02d} [{lbl:24s}]: {node}\n")
 
         # 3. EJE Z: MATRIZ CUANTITATIVA CONTINUA (MÉTRICAS NORMALIZADAS)
         z_labels = [
