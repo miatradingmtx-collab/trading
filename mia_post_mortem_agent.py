@@ -493,18 +493,29 @@ class MiaQuantSupervisor:
             except Exception as e:
                 print(f"| QUANT AGENT | Error enviando Block Kit: {e}")
 
-            # Bifurcación Estricta: Si hubo un error técnico de infraestructura, notificar exclusivamente a #back-office-y-backend
+            # Desacoplamiento Canónico (Rama 1 -> Rama 2 vía Upstash Redis):
+            # Si se detectó una anomalía técnica en la ejecución del trade, encolar en cache_ops_incidents_queue
+            # para que MiaOpsWatchdogAgent (Rama 2) lo procese con Llama 3.3 70B y alerte a #back-office-y-backend.
+            # CERO acoplamiento directo ni despacho a canales de Ops desde este agente cuantitativo.
             if "nominal" not in nota_infra.lower() and "sin fallas" not in nota_infra.lower():
                 try:
-                    slack_bridge.send_channel_message(
-                        text=f"🚨 *ALERTA TÉCNICA INFRAESTRUCTURA (T1-T10 / SRE)*: Trade `{ticket}` en {symbol} reportó anomalía técnica: {nota_infra}",
-                        channel=os.getenv("SLACK_CHANNEL_OPS", "C0C4ZMFCMJ8"),
-                        username="MIA SRE Watchdog",
-                        icon_emoji=":warning:"
+                    incident_payload = {
+                        "origen": "QUANT_POST_MORTEM",
+                        "tipo": "INFRASTRUCTURE_TRADE_ANOMALY",
+                        "ticket": ticket,
+                        "symbol": symbol,
+                        "timestamp": datetime.datetime.now().isoformat(),
+                        "nota_tecnica": nota_infra
+                    }
+                    requests.post(
+                        f"{self.UPSTASH_URL}/rpush/cache_ops_incidents_queue",
+                        headers=self.UPSTASH_HEADERS,
+                        data=json.dumps([json.dumps(incident_payload)]),
+                        timeout=3
                     )
-                    print(f"| QUANT AGENT | Incidente técnico bifurcado a #back-office-y-backend para {ticket}.")
-                except Exception as e_ops:
-                    print(f"| QUANT AGENT | Error enviando alerta técnica a ops: {e_ops}")
+                    print(f"| QUANT AGENT | Incidente técnico encolado asíncronamente en cache_ops_incidents_queue para Ticket {ticket}.")
+                except Exception as e_queue:
+                    print(f"| QUANT AGENT WARN | Error encolando incidente técnico en Redis: {e_queue}")
 
     def reconcile_and_process_daily_trades(self, days_back: int = 2):
         """
