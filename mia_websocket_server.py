@@ -180,7 +180,7 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.post("/emit")
 async def emit_event(event: dict):
     """
-    Endpoint para que mia_master_swarm.py empuje eventos al WebSocket vía HTTP POST.
+    Endpoint para que mia_master_swarm_rest.py empuje eventos al WebSocket vía HTTP POST.
     """
     await manager.broadcast(event)
     return {"status": "ok"}

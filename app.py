@@ -5212,8 +5212,8 @@ def supervisor_audit():
     3. Redondea a 2 decimales mÃ©tricas simuladas de Shadow Trading.
     """
     try:
-        from mia_supervisor_agent import supervisor_agent
-        res = supervisor_agent.run_full_supervision()
+        from mia_supervisor_watchdog import mia_watchdog_supervisor
+        res = mia_watchdog_supervisor.run_full_audit_and_dispatch(notify_slack=False)
         return res
     except Exception as e:
         return {"status": "error", "message": str(e)}
