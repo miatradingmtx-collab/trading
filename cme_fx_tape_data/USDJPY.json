@@ -1,0 +1,194 @@
+{
+  "fieldMask": "header,payload.orders,payload.tradeDetails,payload.calculations",
+  "header": {
+    "asset": "USDJPY",
+    "sentTime": "2026-03-10T13:07:46.449386172Z",
+    "version": "1.0"
+  },
+  "payload": {
+    "calculations": [
+      {
+        "calcType": "EBSC_XFXS_MIDPX",
+        "calcValue": 78.888,
+        "transactTime": "2026-03-10T13:07:46.123924680Z"
+      }
+    ],
+    "instruments": [
+      {
+        "exchangeMic": "XFXS",
+        "periodCode": "202603",
+        "securityId": 42091434,
+        "symbol": "6J:YF:USDJPY:H6",
+        "transactTime": "2026-03-08T17:01:20.247930862Z"
+      },
+      {
+        "exchangeMic": "XCME",
+        "periodCode": "202603",
+        "securityId": 10908,
+        "symbol": "6JH6",
+        "transactTime": "2026-03-08T17:00:52.668991877Z"
+      },
+      {
+        "exchangeMic": "GLBX",
+        "periodCode": "205012",
+        "securityId": 688196,
+        "symbol": "USDJPYZ5031",
+        "transactTime": "2026-03-08T17:00:45.632803517Z"
+      },
+      {
+        "exchangeMic": "EBSC",
+        "securityId": 14913582,
+        "symbol": "USD/JPY",
+        "transactTime": "2026-03-08T17:01:03.398459488Z"
+      }
+    ],
+    "marketStates": [
+      {
+        "exchangeMic": "XFXS",
+        "securityId": 42091434,
+        "tradingStatus": "OPEN",
+        "transactTime": "2026-03-09T22:00:00.000000000Z"
+      },
+      {
+        "exchangeMic": "GLBX",
+        "securityId": 688196,
+        "tradingStatus": "OPEN",
+        "transactTime": "2026-03-09T22:00:00.000000000Z"
+      },
+      {
+        "exchangeMic": "XCME",
+        "securityId": 10908,
+        "tradingStatus": "OPEN",
+        "transactTime": "2026-03-09T22:00:00.000000000Z"
+      },
+      {
+        "exchangeMic": "EBSC",
+        "securityId": 14913582,
+        "tradingStatus": "OPEN",
+        "transactTime": "2026-03-09T21:00:00.000000000Z"
+      }
+    ],
+    "orders": [
+      {
+        "bestAsk": 0.122,
+        "bestBid": -0.107,
+        "exchangeMic": "XFXS",
+        "midPx": 0.008,
+        "transactTime": "2026-03-10T13:07:46.038858175Z"
+      },
+      {
+        "bestAsk": 157.785,
+        "bestBid": 157.57,
+        "exchangeMic": "GLBX",
+        "midPx": 157.678,
+        "transactTime": "2026-03-10T13:07:46.038858175Z"
+      },
+      {
+        "bestAsk": 0.006,
+        "bestBid": 0.006,
+        "exchangeMic": "XCME",
+        "midPx": 0.006,
+        "transactTime": "2026-03-10T13:07:46.015916937Z"
+      },
+      {
+        "bestAsk": 157.775,
+        "bestBid": 157.76,
+        "exchangeMic": "EBSC",
+        "midPx": 157.767,
+        "transactTime": "2026-03-10T13:07:46.023023450Z"
+      }
+    ],
+    "statistics": [
+      {
+        "dailyOpenPx": -0.081,
+        "dailyTrueRange": 0.4,
+        "exchangeMic": "XFXS",
+        "previousOpenPx": -0.161,
+        "previousTrueRange": 0.4,
+        "transactTime": "2026-03-09T22:01:33.331434989Z"
+      },
+      {
+        "dailyOpenPx": 0.006,
+        "dailyTrueRange": 0.0,
+        "exchangeMic": "XCME",
+        "previousOpenPx": 0.006,
+        "previousTrueRange": 0.0,
+        "transactTime": "2026-03-09T22:00:00.799653881Z"
+      },
+      {
+        "dailyOpenPx": 157.637,
+        "dailyTrueRange": 12.3,
+        "exchangeMic": "GLBX",
+        "previousOpenPx": 157.305,
+        "previousTrueRange": 68.5,
+        "transactTime": "2026-03-09T22:01:33.331434989Z"
+      },
+      {
+        "dailyCloseAsk": 157.91,
+        "dailyCloseBid": 157.635,
+        "dailyOpenAsk": 157.905,
+        "dailyOpenBid": 157.64,
+        "dailyTrueRange": 65.0,
+        "exchangeMic": "EBSC",
+        "previousCloseAsk": 157.91,
+        "previousCloseBid": 157.635,
+        "previousOpenAsk": 158.01,
+        "previousOpenBid": 157.5,
+        "previousTrueRange": 72.5,
+        "transactTime": "2026-03-09T21:00:01.879746626Z"
+      }
+    ],
+    "tradeDetails": [
+      {
+        "exchangeMic": "XFXS",
+        "touchHigh": -0.079,
+        "touchLow": -0.083,
+        "transactTime": "2026-03-10T12:48:47.384779273Z"
+      },
+      {
+        "exchangeMic": "GLBX",
+        "touchHigh": 157.95,
+        "touchLow": 157.267,
+        "transactTime": "2026-03-10T12:59:24.452315633Z"
+      },
+      {
+        "exchangeMic": "XCME",
+        "touchHigh": 0.006,
+        "touchLow": 0.006,
+        "trades": [
+          {
+            "aggressorSide": "BUY",
+            "tradePx": 0.006,
+            "tradeVol": "1",
+            "transactTime": "2026-03-10T13:07:46.012748559Z"
+          },
+          {
+            "aggressorSide": "BUY",
+            "tradePx": 0.006,
+            "tradeVol": "2",
+            "transactTime": "2026-03-10T13:07:46.013103071Z"
+          },
+          {
+            "aggressorSide": "SELL",
+            "tradePx": 0.006,
+            "tradeVol": "5",
+            "transactTime": "2026-03-10T13:07:46.013786445Z"
+          },
+          {
+            "aggressorSide": "SELL",
+            "tradePx": 0.006,
+            "tradeVol": "1",
+            "transactTime": "2026-03-10T13:07:46.015495149Z"
+          }
+        ],
+        "transactTime": "2026-03-10T13:07:46.015495149Z"
+      },
+      {
+        "exchangeMic": "EBSC",
+        "touchHigh": 157.975,
+        "touchLow": 157.26,
+        "transactTime": "2026-03-10T13:06:52.884879598Z"
+      }
+    ]
+  }
+}

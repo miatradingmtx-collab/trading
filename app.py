@@ -3844,6 +3844,39 @@ async def render_dashboard():
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo cargar el dashboard: {e}")
+
+@app.get("/cme_tape", response_class=HTMLResponse)
+async def render_cme_tape_dashboard():
+    try:
+        with open("cme_fx_tape_dashboard.html", "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HTMLResponse(
+            content=html_content,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"No se pudo cargar el dashboard CME FX Tape+: {e}")
+
+@app.get("/api/cme_tape_data")
+def get_cme_tape_data():
+    """Devuelve los datos y muestras de CME FX Tape+ (4 CLOBs: EBSC, XCME, GLBX, XFXS)."""
+    import json
+    data = {}
+    folder = "cme_fx_tape_data"
+    for sym in ["EURUSD", "GBPUSD", "USDJPY"]:
+        p = os.path.join(folder, f"{sym}.json")
+        if os.path.exists(p):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    data[sym] = json.load(f)
+            except Exception:
+                pass
+    return {"status": "success", "data": data}
+
 GLOBAL_AUDIT_LOGS = None
 GLOBAL_SYSTEM_LOGS = None
 GLOBAL_PATRONES = None

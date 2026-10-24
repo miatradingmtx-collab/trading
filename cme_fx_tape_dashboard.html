@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CME Group · FX Tape+ Multi-CLOB Institutional Monitor (250ms)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cme: {
+                            blue: '#004c97',
+                            cyan: '#00a3e0',
+                            dark: '#050b14',
+                            card: '#0a1222',
+                            border: '#15243e',
+                            green: '#00ffa3',
+                            red: '#ff3366',
+                            gold: '#f59e0b',
+                            purple: '#a855f7'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'Menlo', 'Courier New', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #030712;
+            color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .glass-card {
+            background: rgba(10, 18, 34, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid #162544;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+        }
+        .glass-card:hover {
+            border-color: #233a69;
+        }
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .pulse-stream {
+            animation: pulse-subtle 1.2s infinite ease-in-out;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #070d19; }
+        ::-webkit-scrollbar-thumb { background: #1e3357; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2f4e82; }
+    </style>
+</head>
+<body class="min-h-screen text-slate-100 flex flex-col">
+
+    <!-- TOP CME INSTITUTIONAL HEADER -->
+    <header class="border-b border-cme-border bg-[#050b14]/95 sticky top-0 z-50 px-4 py-3 backdrop-blur-md">
+        <div class="max-w-[1800px] mx-auto flex flex-wrap items-center justify-between gap-4">
+            
+            <!-- Left Branding -->
+            <div class="flex items-center space-x-3">
+                <div class="h-10 w-10 rounded-lg bg-gradient-to-br from-cme-blue to-cme-cyan flex items-center justify-center font-bold text-white shadow-lg shadow-cme-blue/30 border border-cme-cyan/30">
+                    <span class="text-sm tracking-tighter">CME</span>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="text-lg font-bold tracking-wide text-white flex items-center gap-2">
+                            CME GROUP <span class="text-cme-cyan">FX TAPE+</span>
+                            <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-cme-blue/30 text-cme-cyan border border-cme-cyan/40">WebSocket API</span>
+                        </h1>
+                        <span class="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-stream"></span>
+                            <span id="stream-status">STREAM 250ms</span>
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-400">
+                        Consolidación Multi-CLOB Institucional: <span class="text-slate-300 font-medium">EBS Market</span> + <span class="text-slate-300 font-medium">XCME Futures</span> + <span class="text-slate-300 font-medium">FX Link</span> + <span class="text-slate-300 font-medium">FX Spot+</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Center: Asset Selector Tabs -->
+            <div class="flex items-center bg-[#0a1324] p-1 rounded-xl border border-cme-border">
+                <button onclick="changeAsset('EURUSD')" id="tab-EURUSD" class="asset-tab px-4 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-2 bg-cme-blue text-white shadow-md">
+                    <span>EUR/USD</span>
+                    <span class="text-[10px] opacity-75 px-1 rounded bg-black/30">6E (Mar 26)</span>
+                </button>
+                <button onclick="changeAsset('GBPUSD')" id="tab-GBPUSD" class="asset-tab px-4 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-2 text-slate-400 hover:text-white">
+                    <span>GBP/USD</span>
+                    <span class="text-[10px] opacity-75 px-1 rounded bg-black/30">6B (Mar 26)</span>
+                </button>
+                <button onclick="changeAsset('USDJPY')" id="tab-USDJPY" class="asset-tab px-4 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-2 text-slate-400 hover:text-white">
+                    <span>USD/JPY</span>
+                    <span class="text-[10px] opacity-75 px-1 rounded bg-black/30">6J (Mar 26)</span>
+                </button>
+            </div>
+
+            <!-- Right: 250ms Stream Engine Controls & File Upload -->
+            <div class="flex items-center space-x-2">
+                <div class="flex items-center bg-[#0a1324] rounded-lg border border-cme-border p-1">
+                    <button id="btn-toggle-play" onclick="toggleEngine()" class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-sm">
+                        <svg id="icon-play" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <svg id="icon-pause" class="w-3.5 h-3.5 fill-current hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        <span id="label-engine">REPLAY 250ms</span>
+                    </button>
+                    <div class="flex items-center ml-2 border-l border-cme-border pl-2 space-x-1 text-[11px] font-mono">
+                        <span class="text-slate-500">VEL:</span>
+                        <button onclick="setSpeed(1)" class="speed-btn px-1.5 py-0.5 rounded text-white bg-cme-blue/50" id="speed-1">1x</button>
+                        <button onclick="setSpeed(2)" class="speed-btn px-1.5 py-0.5 rounded text-slate-400 hover:text-white" id="speed-2">2x</button>
+                        <button onclick="setSpeed(5)" class="speed-btn px-1.5 py-0.5 rounded text-slate-400 hover:text-white" id="speed-5">5x</button>
+                    </div>
+                </div>
+
+                <button onclick="resetToSnapshot()" title="Restablecer al snapshot oficial de CME" class="px-2.5 py-1.5 rounded-lg text-xs font-mono bg-[#0f1b33] hover:bg-[#16274a] text-slate-300 border border-cme-border flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <span>RESET</span>
+                </button>
+
+                <label class="px-2.5 py-1.5 rounded-lg text-xs font-mono bg-cme-blue/20 hover:bg-cme-blue/30 text-cme-cyan border border-cme-cyan/30 cursor-pointer flex items-center gap-1.5 transition-all">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    <span>CARGAR JSON</span>
+                    <input type="file" id="file-uploader" accept=".json,.zip" class="hidden" onchange="handleFileUpload(event)">
+                </label>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- MAIN DASHBOARD CONTENT -->
+    <main class="flex-1 max-w-[1800px] w-full mx-auto p-4 space-y-4">
+
+        <!-- HERO KPI STRIP: 6 KEY INSTITUTIONAL METRICS -->
+        <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            
+            <!-- 1. CME TRUE MID PRICE -->
+            <div class="glass-card rounded-xl p-3 border-l-4 border-l-cme-cyan relative overflow-hidden group">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium flex items-center gap-1">
+                        PRECIO MEDIO VERDADERO
+                        <span class="text-[9px] px-1 rounded bg-cme-cyan/20 text-cme-cyan font-mono">TRUE MID</span>
+                    </span>
+                    <span class="font-mono text-[10px] text-cme-cyan" id="true-mid-calc-badge">EBSC_XFXS</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span id="kpi-true-mid" class="text-2xl font-bold font-mono text-white tracking-tight">1.16369</span>
+                    <span id="kpi-true-mid-delta" class="text-xs font-mono font-semibold text-emerald-400">+0.00000</span>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-1 flex items-center justify-between font-mono">
+                    <span>EBS + FX Spot+ Ponderado</span>
+                    <span id="kpi-sent-time" class="text-slate-500">13:01:46 UTC</span>
+                </div>
+            </div>
+
+            <!-- 2. BASIS SPREAD (FUTURES - SPOT) -->
+            <div class="glass-card rounded-xl p-3 border-l-4 border-l-cme-purple relative overflow-hidden">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium">SPREAD DE BASE (FUT-SPOT)</span>
+                    <span id="kpi-basis-regime" class="text-[9px] px-1 rounded bg-cme-purple/20 text-cme-purple font-mono font-bold">CONTANGO</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span id="kpi-basis-spread" class="text-2xl font-bold font-mono text-cme-purple tracking-tight">+3.42</span>
+                    <span class="text-xs font-mono text-slate-400">pips</span>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-1 flex items-center justify-between font-mono">
+                    <span>XCME Futuros vs EBS Spot</span>
+                    <span id="kpi-basis-usd" class="text-slate-500">+$34.20/lote</span>
+                </div>
+            </div>
+
+            <!-- 3. EBS MARKET SPOT (EBSC) -->
+            <div class="glass-card rounded-xl p-3 border-l-4 border-l-emerald-500 relative overflow-hidden">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium">EBS MARKET (SPOT)</span>
+                    <span class="text-[9px] px-1 rounded bg-emerald-500/20 text-emerald-400 font-mono">EBSC</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span id="kpi-ebs-mid" class="text-2xl font-bold font-mono text-white tracking-tight">1.16369</span>
+                    <span id="kpi-ebs-spread-pips" class="text-xs font-mono font-semibold text-emerald-400">0.75 pips</span>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-1 flex items-center justify-between font-mono">
+                    <span>B: <span id="kpi-ebs-bid" class="text-slate-300">1.16365</span> | A: <span id="kpi-ebs-ask" class="text-slate-300">1.16373</span></span>
+                    <span id="kpi-ebs-tr" class="text-slate-500">ATR: 16.0 pips</span>
+                </div>
+            </div>
+
+            <!-- 4. CME FUTURES (XCME) -->
+            <div class="glass-card rounded-xl p-3 border-l-4 border-l-amber-500 relative overflow-hidden">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium">CME GLOBEX FUTURES</span>
+                    <span id="kpi-fut-symbol" class="text-[9px] px-1 rounded bg-amber-500/20 text-amber-400 font-mono">6EH6</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span id="kpi-fut-mid" class="text-2xl font-bold font-mono text-white tracking-tight">1.16403</span>
+                    <span id="kpi-fut-spread-pips" class="text-xs font-mono font-semibold text-amber-400">0.50 pips</span>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-1 flex items-center justify-between font-mono">
+                    <span>B: <span id="kpi-fut-bid" class="text-slate-300">1.16400</span> | A: <span id="kpi-fut-ask" class="text-slate-300">1.16405</span></span>
+                    <span id="kpi-fut-sec-id" class="text-slate-500">ID: 57062</span>
+                </div>
+            </div>
+
+            <!-- 5. FX LINK (GLBX) BASIS SWAP -->
+            <div class="glass-card rounded-xl p-3 border-l-4 border-l-blue-500 relative overflow-hidden">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium">CME FX LINK</span>
+                    <span class="text-[9px] px-1 rounded bg-blue-500/20 text-blue-400 font-mono">GLBX</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span id="kpi-link-mid" class="text-2xl font-bold font-mono text-white tracking-tight">1.16370</span>
+                    <span id="kpi-link-spread-pips" class="text-xs font-mono font-semibold text-blue-400">0.60 pips</span>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-1 flex items-center justify-between font-mono">
+                    <span id="kpi-link-symbol">EURUSDZ5031</span>
+                    <span id="kpi-link-tr" class="text-slate-500">TR: 16.1 pips</span>
+                </div>
+            </div>
+
+            <!-- 6. CVD AGGRESSOR DELTA / ORDER FLOW -->
+            <div class="glass-card rounded-xl p-3 border-l-4 border-l-red-500 relative overflow-hidden">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium">ORDER FLOW CVD DELTA</span>
+                    <span id="kpi-cvd-bias" class="text-[9px] px-1 rounded bg-red-500/20 text-red-400 font-mono font-bold">BEARISH</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span id="kpi-cvd-value" class="text-2xl font-bold font-mono text-red-400 tracking-tight">-3 Lots</span>
+                    <span class="text-xs font-mono text-slate-400">Net Delta</span>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-1 flex items-center justify-between font-mono">
+                    <span>Buys: <span id="kpi-aggressor-buys" class="text-emerald-400">3</span> | Sells: <span id="kpi-aggressor-sells" class="text-red-400">6</span></span>
+                    <span id="kpi-tick-rate" class="text-slate-500">250ms stream</span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- NAVIGATION SUB-TABS: WORKSPACES -->
+        <div class="flex items-center justify-between border-b border-cme-border pb-2">
+            <div class="flex space-x-2">
+                <button onclick="switchView('clobs')" id="btn-view-clobs" class="view-btn px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-cme-blue text-white shadow-sm flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                    <span>LOS 4 CLOBs CENTRALES</span>
+                </button>
+                <button onclick="switchView('ladder')" id="btn-view-ladder" class="view-btn px-3 py-1.5 rounded-lg text-xs font-mono font-semibold text-slate-400 hover:text-white flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    <span>DOM DEPTH LADDER (NIVEL 2/3)</span>
+                </button>
+                <button onclick="switchView('charts')" id="btn-view-charts" class="view-btn px-3 py-1.5 rounded-lg text-xs font-mono font-semibold text-slate-400 hover:text-white flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                    <span>MICROESTRUCTURA & GRÁFICA DE BASE</span>
+                </button>
+                <button onclick="switchView('tape')" id="btn-view-tape" class="view-btn px-3 py-1.5 rounded-lg text-xs font-mono font-semibold text-slate-400 hover:text-white flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    <span>TIME & SALES (TAPE & CVD)</span>
+                </button>
+                <button onclick="switchView('atlas')" id="btn-view-atlas" class="view-btn px-3 py-1.5 rounded-lg text-xs font-mono font-semibold text-slate-400 hover:text-white flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                    <span>ATLAS HERD 7 QUANT COGNITION</span>
+                </button>
+                <button onclick="switchView('json')" id="btn-view-json" class="view-btn px-3 py-1.5 rounded-lg text-xs font-mono font-semibold text-slate-400 hover:text-white flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                    <span>MENSAJE CME CRUDO (JSON)</span>
+                </button>
+            </div>
+            <div class="text-xs font-mono text-slate-400 flex items-center gap-3">
+                <span class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-cme-cyan"></span>
+                    <span>TICK CLOB ID: <strong id="header-tick-seq" class="text-white">1001</strong></span>
+                </span>
+                <span class="text-slate-600">|</span>
+                <span>LATENCIA: <strong class="text-emerald-400">250 ms</strong></span>
+            </div>
+        </div>
+
+        <!-- VIEW 1: THE 4 CLOBs MATRIX -->
+        <div id="view-clobs" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <!-- CARD 1: EBS MARKET (EBSC) -->
+                <div class="glass-card rounded-xl p-4 border border-emerald-500/30 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-2 border-b border-cme-border">
+                            <div>
+                                <span class="text-xs font-bold text-emerald-400 font-mono tracking-wider">EBSC</span>
+                                <h3 class="text-sm font-bold text-white">EBS MARKET</h3>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30" id="ebs-status">OPEN</span>
+                        </div>
+                        <div class="text-[11px] font-mono text-slate-400 mt-2 flex justify-between">
+                            <span>Símbolo: <strong id="ebs-sym" class="text-white">EUR/USD</strong></span>
+                            <span>Sec ID: <strong id="ebs-id" class="text-slate-300">14913578</strong></span>
+                        </div>
+
+                        <!-- Bid / Ask / Spread Module -->
+                        <div class="mt-4 bg-[#060c18] rounded-xl p-3 border border-cme-border">
+                            <div class="text-[10px] uppercase font-mono text-slate-400 mb-1 flex justify-between">
+                                <span>MEJOR BID</span>
+                                <span class="text-emerald-400 font-bold" id="ebs-spread-badge">SPREAD: 0.75 pips</span>
+                                <span>MEJOR ASK</span>
+                            </div>
+                            <div class="flex items-center justify-between font-mono">
+                                <span id="ebs-bid" class="text-xl font-bold text-emerald-400">1.16365</span>
+                                <div class="h-6 w-px bg-slate-700"></div>
+                                <span id="ebs-ask" class="text-xl font-bold text-red-400">1.163725</span>
+                            </div>
+                            <div class="mt-2 text-center text-xs font-mono text-slate-300 bg-[#0a1426] py-1 rounded">
+                                MID PRICE: <strong id="ebs-mid" class="text-white">1.163688</strong>
+                            </div>
+                        </div>
+
+                        <!-- Statistics: High, Low, Range, Open -->
+                        <div class="mt-4 space-y-2 text-xs font-mono">
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">Rango Diario (ATR):</span>
+                                <span id="ebs-atr" class="font-bold text-emerald-400">16.0 pips</span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">ATR Día Previo:</span>
+                                <span id="ebs-prev-atr" class="text-slate-300">75.5 pips</span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">Apertura Diaria:</span>
+                                <span id="ebs-open" class="text-slate-300">1.16340 / 1.16380</span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">Cierre Previo:</span>
+                                <span id="ebs-close" class="text-slate-300">1.16340 / 1.16380</span>
+                            </div>
+                        </div>
+
+                        <!-- Touch High / Low Meter -->
+                        <div class="mt-4 pt-3 border-t border-cme-border">
+                            <div class="flex justify-between text-[11px] font-mono text-slate-400 mb-1">
+                                <span>Toque Mín: <strong id="ebs-touch-low" class="text-red-400">1.16070</strong></span>
+                                <span>Toque Máx: <strong id="ebs-touch-high" class="text-emerald-400">1.16635</strong></span>
+                            </div>
+                            <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden relative">
+                                <div id="ebs-touch-bar" class="h-full bg-gradient-to-r from-emerald-500 to-cme-cyan" style="width: 52%; margin-left: 24%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 text-[10px] text-slate-500 font-mono text-center">
+                        Líder global interbancario Spot OTC
+                    </div>
+                </div>
+
+                <!-- CARD 2: CME GLOBEX FUTURES (XCME) -->
+                <div class="glass-card rounded-xl p-4 border border-amber-500/30 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-2 border-b border-cme-border">
+                            <div>
+                                <span class="text-xs font-bold text-amber-400 font-mono tracking-wider">XCME</span>
+                                <h3 class="text-sm font-bold text-white">CME GLOBEX FUTURES</h3>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30" id="xcme-status">OPEN</span>
+                        </div>
+                        <div class="text-[11px] font-mono text-slate-400 mt-2 flex justify-between">
+                            <span>Contrato: <strong id="xcme-sym" class="text-white">6EH6</strong></span>
+                            <span>Sec ID: <strong id="xcme-id" class="text-slate-300">57062</strong></span>
+                        </div>
+
+                        <!-- Bid / Ask / Spread Module -->
+                        <div class="mt-4 bg-[#060c18] rounded-xl p-3 border border-cme-border">
+                            <div class="text-[10px] uppercase font-mono text-slate-400 mb-1 flex justify-between">
+                                <span>MEJOR BID</span>
+                                <span class="text-amber-400 font-bold" id="xcme-spread-badge">SPREAD: 0.50 pips</span>
+                                <span>MEJOR ASK</span>
+                            </div>
+                            <div class="flex items-center justify-between font-mono">
+                                <span id="xcme-bid" class="text-xl font-bold text-emerald-400">1.16400</span>
+                                <div class="h-6 w-px bg-slate-700"></div>
+                                <span id="xcme-ask" class="text-xl font-bold text-red-400">1.16405</span>
+                            </div>
+                            <div class="mt-2 text-center text-xs font-mono text-slate-300 bg-[#0a1426] py-1 rounded">
+                                MID PRICE: <strong id="xcme-mid" class="text-white">1.16403</strong>
+                            </div>
+                        </div>
+
+                        <!-- Statistics: High, Low, Range, Open -->
+                        <div class="mt-4 space-y-2 text-xs font-mono">
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">Rango Diario (ATR):</span>
+                                <span id="xcme-atr" class="font-bold text-amber-400">130.5 pips</span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">ATR Día Previo:</span>
+                                <span id="xcme-prev-atr" class="text-slate-300">16.5 pips</span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">Apertura Diaria:</span>
+                                <span id="xcme-open" class="text-slate-300">1.16405</span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">Apertura Previa:</span>
+                                <span id="xcme-prev-open" class="text-slate-300">1.15555</span>
+                            </div>
+                        </div>
+
+                        <!-- Touch High / Low Meter -->
+                        <div class="mt-4 pt-3 border-t border-cme-border">
+                            <div class="flex justify-between text-[11px] font-mono text-slate-400 mb-1">
+                                <span>Toque Mín: <strong id="xcme-touch-low" class="text-red-400">1.16105</strong></span>
+                                <span>Toque Máx: <strong id="xcme-touch-high" class="text-emerald-400">1.16670</strong></span>
+                            </div>
+                            <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden relative">
+                                <div id="xcme-touch-bar" class="h-full bg-gradient-to-r from-amber-500 to-yellow-300" style="width: 56%; margin-left: 22%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 text-[10px] text-slate-500 font-mono text-center">
+                        Futuros Regulados IMM Chicago Mercantile Exchange
+                    </div>
+                </div>
+
+                <!-- CARD 3: CME FX LINK (GLBX) -->
+                <div class="glass-card rounded-xl p-4 border border-blue-500/30 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-2 border-b border-cme-border">
+                            <div>
+                                <span class="text-xs font-bold text-blue-400 font-mono tracking-wider">GLBX</span>
+                                <h3 class="text-sm font-bold text-white">CME FX LINK</h3>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/20 text-blue-300 font-semibold border border-blue-500/30" id="glbx-status">OPEN</span>
+                        </div>
+                        <div class="text-[11px] font-mono text-slate-400 mt-2 flex justify-between">
+                            <span>Símbolo: <strong id="glbx-sym" class="text-white">EURUSDZ5031</strong></span>
+                            <span>Sec ID: <strong id="glbx-id" class="text-slate-300">716537</strong></span>
+                        </div>
+
+                        <!-- Bid / Ask / Spread Module -->
+                        <div class="mt-4 bg-[#060c18] rounded-xl p-3 border border-cme-border">
+                            <div class="text-[10px] uppercase font-mono text-slate-400 mb-1 flex justify-between">
+                                <span>MEJOR BID</span>
+                                <span class="text-blue-400 font-bold" id="glbx-spread-badge">SPREAD: 0.60 pips</span>
+                                <span>MEJOR ASK</span>
+                            </div>
+                            <div class="flex items-center justify-between font-mono">
+                                <span id="glbx-bid" class="text-xl font-bold text-emerald-400">1.16367</span>
+                                <div class="h-6 w-px bg-slate-700"></div>
+                                <span id="glbx-ask" class="text-xl font-bold text-red-400">1.16373</span>
+                            </div>
+                            <div class="mt-2 text-center text-xs font-mono text-slate-300 bg-[#0a1426] py-1 rounded">
+                                MID PRICE: <strong id="glbx-mid" class="text-white">1.16370</strong>
+                            </div>
+                        </div>
+
+                        <!-- Statistics: High, Low, Range, Open -->
+                        <div class="mt-4 space-y-2 text-xs font-mono">
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">Rango Diario (ATR):</span>
+                                <span id="glbx-atr" class="font-bold text-blue-400">16.1 pips</span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">ATR Día Previo:</span>
+                                <span id="glbx-prev-atr" class="text-slate-300">72.5 pips</span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">Apertura Diaria:</span>
+                                <span id="glbx-open" class="text-slate-300">1.16380</span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">Apertura Previa:</span>
+                                <span id="glbx-prev-open" class="text-slate-300">1.16365</span>
+                            </div>
+                        </div>
+
+                        <!-- Touch High / Low Meter -->
+                        <div class="mt-4 pt-3 border-t border-cme-border">
+                            <div class="flex justify-between text-[11px] font-mono text-slate-400 mb-1">
+                                <span>Toque Mín: <strong id="glbx-touch-low" class="text-red-400">1.16076</strong></span>
+                                <span>Toque Máx: <strong id="glbx-touch-high" class="text-emerald-400">1.16638</strong></span>
+                            </div>
+                            <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden relative">
+                                <div id="glbx-touch-bar" class="h-full bg-gradient-to-r from-blue-500 to-indigo-400" style="width: 53%; margin-left: 23%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 text-[10px] text-slate-500 font-mono text-center">
+                        Enlace compensado entre Futuros y Spot OTC (Spread Implícito)
+                    </div>
+                </div>
+
+                <!-- CARD 4: CME FX SPOT+ (XFXS) -->
+                <div class="glass-card rounded-xl p-4 border border-cme-cyan/30 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-2 border-b border-cme-border">
+                            <div>
+                                <span class="text-xs font-bold text-cme-cyan font-mono tracking-wider">XFXS</span>
+                                <h3 class="text-sm font-bold text-white">CME FX SPOT+</h3>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cme-cyan/20 text-cme-cyan font-semibold border border-cme-cyan/30" id="xfxs-status">OPEN</span>
+                        </div>
+                        <div class="text-[11px] font-mono text-slate-400 mt-2 flex justify-between">
+                            <span>Símbolo: <strong id="xfxs-sym" class="text-white">6E:XF:EURUSD:H6</strong></span>
+                            <span>Sec ID: <strong id="xfxs-id" class="text-slate-300">42055607</strong></span>
+                        </div>
+
+                        <!-- Bid / Ask / Spread Module -->
+                        <div class="mt-4 bg-[#060c18] rounded-xl p-3 border border-cme-border">
+                            <div class="text-[10px] uppercase font-mono text-slate-400 mb-1 flex justify-between">
+                                <span>MEJOR BID</span>
+                                <span class="text-cme-cyan font-bold" id="xfxs-spread-badge">SPREAD: 0.21 pips</span>
+                                <span>MEJOR ASK</span>
+                            </div>
+                            <div class="flex items-center justify-between font-mono">
+                                <span id="xfxs-bid" class="text-xl font-bold text-emerald-400">0.00022</span>
+                                <div class="h-6 w-px bg-slate-700"></div>
+                                <span id="xfxs-ask" class="text-xl font-bold text-red-400">0.00043</span>
+                            </div>
+                            <div class="mt-2 text-center text-xs font-mono text-slate-300 bg-[#0a1426] py-1 rounded">
+                                BASIS MID: <strong id="xfxs-mid" class="text-white">0.00033</strong>
+                            </div>
+                        </div>
+
+                        <!-- Statistics: High, Low, Range, Open -->
+                        <div class="mt-4 space-y-2 text-xs font-mono">
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">Rango Diario (ATR):</span>
+                                <span id="xfxs-atr" class="font-bold text-cme-cyan">0.30 pips</span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">ATR Día Previo:</span>
+                                <span id="xfxs-prev-atr" class="text-slate-300">0.20 pips</span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">Apertura Diaria:</span>
+                                <span id="xfxs-open" class="text-slate-300">0.00034</span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-300">
+                                <span class="text-slate-400">Apertura Previa:</span>
+                                <span id="xfxs-prev-open" class="text-slate-300">0.00065</span>
+                            </div>
+                        </div>
+
+                        <!-- Touch High / Low Meter -->
+                        <div class="mt-4 pt-3 border-t border-cme-border">
+                            <div class="flex justify-between text-[11px] font-mono text-slate-400 mb-1">
+                                <span>Toque Mín: <strong id="xfxs-touch-low" class="text-red-400">0.00032</strong></span>
+                                <span>Toque Máx: <strong id="xfxs-touch-high" class="text-emerald-400">0.00034</strong></span>
+                            </div>
+                            <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden relative">
+                                <div id="xfxs-touch-bar" class="h-full bg-gradient-to-r from-cme-cyan to-blue-400" style="width: 50%; margin-left: 25%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 text-[10px] text-slate-500 font-mono text-center">
+                        CLOB Spot OTC nativo de CME para arbitraje y liquidez institucional
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- VIEW 2: DOM DEPTH LADDER (LEVEL 2 / 3) -->
+        <div id="view-ladder" class="hidden space-y-4">
+            <div class="glass-card rounded-xl p-5 border border-cme-border">
+                <div class="flex items-center justify-between pb-3 border-b border-cme-border">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <span>ESCALERA DE PROFUNDIDAD MULTI-CLOB (DOM LADDER)</span>
+                            <span class="text-xs font-mono text-cme-cyan px-2 py-0.5 rounded bg-cme-cyan/10">10 NIVELES EN VIVO</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                            Liquidez agregada consolidando EBS Market, Futuros XCME y CME FX Link centrada en el Precio Medio Verdadero.
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-3 text-xs font-mono">
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-500/40 border border-emerald-400 inline-block"></span> EBS</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-amber-500/40 border border-amber-400 inline-block"></span> XCME</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-blue-500/40 border border-blue-400 inline-block"></span> GLBX</span>
+                    </div>
+                </div>
+
+                <!-- DOM Ladder Table -->
+                <div class="mt-4 overflow-x-auto">
+                    <table class="w-full text-xs font-mono">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-cme-border text-[11px]">
+                                <th class="text-left py-2 px-3 w-1/4">VOLUMEN BID (CONTRATOS)</th>
+                                <th class="text-left py-2 px-3 w-1/6">VENUE (CLOB)</th>
+                                <th class="text-center py-2 px-3 w-1/4">PRECIO LADDER</th>
+                                <th class="text-right py-2 px-3 w-1/6">VENUE (CLOB)</th>
+                                <th class="text-right py-2 px-3 w-1/4">VOLUMEN ASK (CONTRATOS)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dom-ladder-body">
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Depth Summary Footer -->
+                <div class="mt-4 pt-3 border-t border-cme-border grid grid-cols-3 text-center font-mono text-xs">
+                    <div>
+                        <span class="text-slate-400 block">VOLUMEN BID TOTAL:</span>
+                        <strong id="dom-total-bid" class="text-emerald-400 text-sm">482 Lotes</strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block">IMBALANCE RATIO:</span>
+                        <strong id="dom-imbalance" class="text-cme-cyan text-sm">54.2% Bid / 45.8% Ask</strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block">VOLUMEN ASK TOTAL:</span>
+                        <strong id="dom-total-ask" class="text-red-400 text-sm">408 Lotes</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: MICROSTRUCTURE & BASIS SPREAD CHART -->
+        <div id="view-charts" class="hidden space-y-4">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                
+                <!-- Main Price & Spread Chart (2 cols) -->
+                <div class="lg:col-span-2 glass-card rounded-xl p-5 border border-cme-border flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-3 border-b border-cme-border">
+                            <div>
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    <span>CONVERGENCIA MULTI-CLOB & SPREAD DE BASE</span>
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cme-blue/30 text-cme-cyan">STREAM 250ms</span>
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-0.5">
+                                    Dinámica comparativa en vivo entre el Futuro CME (XCME), el Spot EBS (EBSC) y el True Mid.
+                                </p>
+                            </div>
+                            <div class="flex items-center space-x-2 text-xs font-mono">
+                                <span class="px-2 py-1 rounded bg-[#0b162c] text-emerald-400 border border-emerald-500/30">EBS Spot</span>
+                                <span class="px-2 py-1 rounded bg-[#0b162c] text-amber-400 border border-amber-500/30">CME Futuro</span>
+                                <span class="px-2 py-1 rounded bg-[#0b162c] text-cme-cyan border border-cme-cyan/30">True Mid</span>
+                            </div>
+                        </div>
+
+                        <div class="h-80 w-full mt-4">
+                            <canvas id="chart-prices"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="h-28 w-full mt-4 pt-3 border-t border-cme-border">
+                        <span class="text-[11px] font-mono text-slate-400 block mb-1">DIFERENCIAL DE BASE (XCME - EBSC en Pips):</span>
+                        <canvas id="chart-basis"></canvas>
+                    </div>
+                </div>
+
+                <!-- Volatility & Range Breakdown Card (1 col) -->
+                <div class="glass-card rounded-xl p-5 border border-cme-border flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-white pb-3 border-b border-cme-border flex items-center gap-2">
+                            <span>ANÁLISIS DE VOLATILIDAD DIARIA CME</span>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cme-purple/20 text-cme-purple">CVOL</span>
+                        </h3>
+
+                        <div class="mt-4 space-y-4">
+                            <div>
+                                <div class="flex justify-between text-xs font-mono mb-1">
+                                    <span class="text-slate-400">EXPANSIÓN DEL RANGO DIARIO (EBS):</span>
+                                    <span id="chart-stat-ebs-exp" class="text-emerald-400 font-bold">16.0 / 75.5 pips (21.2%)</span>
+                                </div>
+                                <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="chart-bar-ebs-exp" class="h-full bg-emerald-500" style="width: 21%;"></div>
+                                </div>
+                                <span class="text-[10px] text-slate-500 font-mono">Régimen: CONSOLIDACIÓN / COMPRESIÓN</span>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs font-mono mb-1">
+                                    <span class="text-slate-400">EXPANSIÓN DEL RANGO FUTUROS (XCME):</span>
+                                    <span id="chart-stat-xcme-exp" class="text-amber-400 font-bold">130.5 / 16.5 pips (790%)</span>
+                                </div>
+                                <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="chart-bar-xcme-exp" class="h-full bg-amber-500" style="width: 100%;"></div>
+                                </div>
+                                <span class="text-[10px] text-slate-500 font-mono">Régimen: EXPANSIÓN INSTITUCIONAL DE FUTUROS</span>
+                            </div>
+
+                            <div class="p-3 bg-[#060c18] rounded-xl border border-cme-border space-y-2 text-xs font-mono">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Benchmark CVOL:</span>
+                                    <strong class="text-cme-cyan">FXVL (CME G5 CVOL)</strong>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Spread Típico EBS:</span>
+                                    <strong class="text-slate-200">0.7 - 0.9 pips</strong>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Spread Típico Futuros:</span>
+                                    <strong class="text-slate-200">0.5 pips</strong>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">Frecuencia de Muestreo:</span>
+                                    <strong class="text-emerald-400">250 ms (4 Ticks/segundo)</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-cme-blue/10 border border-cme-blue/30 rounded-lg text-[11px] text-slate-300">
+                        <strong class="text-cme-cyan block mb-1">Nota Institucional:</strong>
+                        El precio del futuro cotiza con un diferencial de base (Basis) respecto al contado debido a los diferenciales de tipos de interés (Forward Points / FX Link).
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- VIEW 4: TIME & SALES (TAPE & CVD) -->
+        <div id="view-tape" class="hidden space-y-4">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                
+                <!-- Live Order Flow Tape (2 cols) -->
+                <div class="lg:col-span-2 glass-card rounded-xl p-5 border border-cme-border flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-3 border-b border-cme-border">
+                            <div>
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    <span>TICK TAPE EN TIEMPO REAL (TIME & SALES)</span>
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">RESOLUCIÓN MICROSEGUNDO</span>
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-0.5">
+                                    Flujo directo de órdenes agresoras ejecutadas en CME FX Tape+ clasificadas por lado agresor.
+                                </p>
+                            </div>
+                            <div class="flex items-center space-x-2 text-xs font-mono">
+                                <button onclick="filterTape('ALL')" id="tape-filter-all" class="px-2 py-1 rounded bg-cme-blue text-white">TODOS</button>
+                                <button onclick="filterTape('BUY')" id="tape-filter-buy" class="px-2 py-1 rounded bg-[#0b162c] text-emerald-400 hover:text-white">SOLO BUYS</button>
+                                <button onclick="filterTape('SELL')" id="tape-filter-sell" class="px-2 py-1 rounded bg-[#0b162c] text-red-400 hover:text-white">SOLO SELLS</button>
+                            </div>
+                        </div>
+
+                        <!-- Tape Table -->
+                        <div class="mt-4 overflow-y-auto max-h-[380px]">
+                            <table class="w-full text-xs font-mono">
+                                <thead>
+                                    <tr class="text-slate-400 border-b border-cme-border text-[11px] sticky top-0 bg-[#0a1222]">
+                                        <th class="text-left py-2 px-3">HORA UTC (MICROS)</th>
+                                        <th class="text-left py-2 px-3">VENUE</th>
+                                        <th class="text-center py-2 px-3">LADO AGRESOR</th>
+                                        <th class="text-right py-2 px-3">PRECIO</th>
+                                        <th class="text-right py-2 px-3">VOLUMEN</th>
+                                        <th class="text-right py-2 px-3">CVD ACUMULADO</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tape-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-cme-border flex justify-between items-center text-xs font-mono text-slate-400">
+                        <span>Ticks de muestra cargados: <strong id="tape-count" class="text-white">4</strong></span>
+                        <span>Último trade: <strong id="tape-last-time" class="text-slate-300">13:07:46.015Z</strong></span>
+                    </div>
+                </div>
+
+                <!-- Cumulative Volume Delta (CVD) Card (1 col) -->
+                <div class="glass-card rounded-xl p-5 border border-cme-border flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-white pb-3 border-b border-cme-border flex items-center gap-2">
+                            <span>MÉTRICAS DE ABSORCIÓN & CVD</span>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cme-cyan/20 text-cme-cyan">ORDER FLOW</span>
+                        </h3>
+
+                        <!-- CVD Chart Gauge -->
+                        <div class="mt-4 text-center">
+                            <span class="text-xs font-mono text-slate-400">NET CUMULATIVE VOLUME DELTA:</span>
+                            <div class="text-3xl font-bold font-mono text-red-400 my-2" id="cvd-big-delta">-3.0 Lotes</div>
+                            <span class="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-red-500/20 text-red-300 border border-red-500/30" id="cvd-action-badge">
+                                ABSORCIÓN DE VENTA ACTIVA
+                            </span>
+                        </div>
+
+                        <!-- Buy vs Sell Ratio -->
+                        <div class="mt-6 space-y-3 font-mono text-xs">
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-emerald-400">AGRESOR BUY (ASK LIFTERS):</span>
+                                    <span id="cvd-buy-vol" class="font-bold">3 Contratos (33.3%)</span>
+                                </div>
+                                <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="cvd-bar-buy" class="h-full bg-emerald-500" style="width: 33.3%;"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-red-400">AGRESOR SELL (BID HITTERS):</span>
+                                    <span id="cvd-sell-vol" class="font-bold">6 Contratos (66.7%)</span>
+                                </div>
+                                <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="cvd-bar-sell" class="h-full bg-red-500" style="width: 66.7%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Real Execution Footprint Summary -->
+                        <div class="mt-6 p-3 bg-[#060c18] rounded-xl border border-cme-border text-xs font-mono space-y-2">
+                            <span class="text-slate-400 block font-bold text-[11px] uppercase text-cme-cyan">Interpretación de Flujo:</span>
+                            <p class="text-slate-300 text-[11px] leading-relaxed">
+                                Los vendedores institucionales están ejecutando órdenes a mercado sobre el Bid con tamaño medio de 5 lotes, superando las compras pasivas de 1 y 2 lotes.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-cme-border text-[10px] text-slate-500 font-mono text-center">
+                        CME Aggressor Side Flag extraído del feed nativo
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- VIEW 5: ATLAS HERD 7 QUANT COGNITION -->
+        <div id="view-atlas" class="hidden space-y-4">
+            <div class="glass-card rounded-xl p-5 border border-cme-cyan/30">
+                <div class="flex items-center justify-between pb-3 border-b border-cme-border">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-cme-cyan/20 border border-cme-cyan/40 flex items-center justify-center font-bold text-cme-cyan font-mono text-base">
+                            H7
+                        </div>
+                        <div>
+                            <h2 class="text-base font-bold text-white flex items-center gap-2">
+                                <span>HERD 7: ATLAS · COGNICIÓN CUANTITATIVA DE MICROESTRUCTURA</span>
+                                <span class="text-xs font-mono text-cme-cyan px-2 py-0.5 rounded bg-cme-cyan/20">SHADOW LEARNING</span>
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-0.5">
+                                Supervisión en tiempo real de cacerías de liquidez (Sweeps), arbitraje de base y huella institucional.
+                            </p>
+                        </div>
+                    </div>
+                    <span class="px-3 py-1 rounded text-xs font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        ESTADO: SENSOR ACTIVO
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+                    
+                    <!-- Signal 1: CME Stop Hunt / Sweep Detector -->
+                    <div class="p-4 bg-[#060c18] rounded-xl border border-cme-border space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-300 font-mono">SENSOR DE SWEEP (STOP HUNT)</span>
+                            <span id="atlas-sweep-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">ZONA LIMPIA</span>
+                        </div>
+                        <p class="text-xs text-slate-400">
+                            Compara los extremos de toque en Futuros (<span id="atlas-xcme-touch" class="text-white font-mono">1.16670</span>) vs Spot EBS (<span id="atlas-ebs-touch" class="text-white font-mono">1.16635</span>).
+                        </p>
+                        <div class="text-[11px] font-mono text-slate-300 pt-2 border-t border-slate-800">
+                            Desviación de Toque: <strong id="atlas-touch-diff" class="text-cme-cyan">+3.5 pips</strong> (Consistente con la base del contrato).
+                        </div>
+                    </div>
+
+                    <!-- Signal 2: Basis Mispricing / Arbitrage Dislocation -->
+                    <div class="p-4 bg-[#060c18] rounded-xl border border-cme-border space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-300 font-mono">DESALINEACIÓN DE BASE (FX LINK)</span>
+                            <span id="atlas-basis-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">EN VALOR JUSTO</span>
+                        </div>
+                        <p class="text-xs text-slate-400">
+                            CME FX Link (<span id="atlas-glbx-mid" class="text-white font-mono">1.16370</span>) cotiza a solo <span id="atlas-link-diff" class="text-cme-cyan font-mono">0.01 pips</span> del Spot EBS.
+                        </p>
+                        <div class="text-[11px] font-mono text-slate-300 pt-2 border-t border-slate-800">
+                            Arbitraje Spot-Futuro: <strong class="text-emerald-400">SIN DISLOCACIÓN ANÓMALA</strong>
+                        </div>
+                    </div>
+
+                    <!-- Signal 3: CVD Aggression Momentum -->
+                    <div class="p-4 bg-[#060c18] rounded-xl border border-cme-border space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-300 font-mono">SESGO DE HUELLA INSTITUCIONAL</span>
+                            <span id="atlas-bias-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-red-500/20 text-red-400">VENTA PASIVA ABSORBIDA</span>
+                        </div>
+                        <p class="text-xs text-slate-400">
+                            Presión neta agresora: <span id="atlas-net-delta" class="text-red-400 font-mono font-bold">-3 contratos</span>. Delta negativo con spread ajustado.
+                        </p>
+                        <div class="text-[11px] font-mono text-slate-300 pt-2 border-t border-slate-800">
+                            Voto ATLAS en el Swarm: <strong id="atlas-herd-vote" class="text-amber-400">NEUTRAL / ESPERAR REACCIÓN EN OB</strong>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Integration Pipeline Summary -->
+                <div class="mt-5 p-4 bg-gradient-to-r from-cme-blue/10 via-[#0a152e] to-cme-cyan/10 rounded-xl border border-cme-blue/30 text-xs font-mono text-slate-300 flex items-center justify-between flex-wrap gap-3">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-cme-cyan font-bold">PIPELINE DE TRADING:</span>
+                        <span>CME FX Tape+ (250ms) &rarr; ATLAS (Herd 7) &rarr; TensorFlow Neural Matrix &rarr; MGET Upstash &rarr; Firebase Judge (Score &ge; 80)</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded bg-cme-cyan/20 text-cme-cyan border border-cme-cyan/40">
+                        100% CUMPLIMIENTO SHADOW
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 6: RAW CME MESSAGE INSPECTOR (JSON) -->
+        <div id="view-json" class="hidden space-y-4">
+            <div class="glass-card rounded-xl p-5 border border-cme-border">
+                <div class="flex items-center justify-between pb-3 border-b border-cme-border">
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <span>INSPECTOR DEL MENSAJE NATIVO CME FX TAPE+</span>
+                            <span id="json-asset-badge" class="text-xs font-mono text-cme-cyan px-2 py-0.5 rounded bg-cme-cyan/20">EURUSD.json</span>
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                            Copia literal del payload JSON recibido desde la API WebSocket de CME Group / CME DataMine.
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="copyRawJson()" class="px-3 py-1.5 rounded-lg text-xs font-mono bg-cme-blue/30 hover:bg-cme-blue/50 text-cme-cyan border border-cme-cyan/30 flex items-center gap-1.5 transition-all">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                            <span id="btn-copy-label">COPIAR JSON</span>
+                        </button>
+                        <button onclick="downloadJson()" class="px-3 py-1.5 rounded-lg text-xs font-mono bg-[#0f1b33] hover:bg-[#16274a] text-slate-300 border border-cme-border flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                            <span>DESCARGAR</span>
+                        </button>
+                    </div>
+                </div>
+
+                <pre id="json-viewer" class="mt-4 p-4 bg-[#030712] rounded-xl text-xs font-mono text-emerald-400 overflow-x-auto max-h-[500px] border border-cme-border leading-relaxed select-all">
+                </pre>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-cme-border bg-[#050b14] py-3 px-4 text-xs font-mono text-slate-500 mt-8">
+        <div class="max-w-[1800px] mx-auto flex flex-wrap justify-between items-center gap-2">
+            <div>
+                CME Group FX Tape+ &copy; 2026 · Interfaz Conectada a la Red de Sensores de <span class="text-slate-300">Mia Trading AI</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span>Frecuencia: <strong class="text-slate-400">250 ms</strong></span>
+                <span>CLOBs: <strong class="text-slate-400">EBSC · XCME · GLBX · XFXS</strong></span>
+                <span>Motor: <strong class="text-cme-cyan">Antopus Microstructure</strong></span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- EMBEDDED REAL CME MESSAGE DATA -->
+    <script>
+        const CME_SAMPLES = {"EURUSD": {"fieldMask": "header,payload.orders,payload.calculations", "header": {"asset": "EURUSD", "sentTime": "2026-03-10T13:01:46.600635220Z", "version": "1.0"}, "payload": {"calculations": [{"calcType": "EBSC_XFXS_MIDPX", "calcValue": 0.58201, "transactTime": "2026-03-10T13:01:46.278495622Z"}], "instruments": [{"exchangeMic": "XFXS", "periodCode": "202603", "securityId": 42055607, "symbol": "6E:XF:EURUSD:H6", "transactTime": "2026-03-08T17:01:20.151005702Z"}, {"exchangeMic": "GLBX", "periodCode": "205012", "securityId": 716537, "symbol": "EURUSDZ5031", "transactTime": "2026-03-08T17:00:45.639129528Z"}, {"exchangeMic": "XCME", "periodCode": "202603", "securityId": 57062, "symbol": "6EH6", "transactTime": "2026-03-08T17:00:52.716038686Z"}, {"exchangeMic": "EBSC", "securityId": 14913578, "symbol": "EUR/USD", "transactTime": "2026-03-08T17:01:03.392166719Z"}], "marketStates": [{"exchangeMic": "XFXS", "securityId": 42055607, "tradingStatus": "OPEN", "transactTime": "2026-03-09T22:00:00.000000000Z"}, {"exchangeMic": "XCME", "securityId": 57062, "tradingStatus": "OPEN", "transactTime": "2026-03-09T22:00:00.000000000Z"}, {"exchangeMic": "GLBX", "securityId": 716537, "tradingStatus": "OPEN", "transactTime": "2026-03-09T22:00:00.000000000Z"}, {"exchangeMic": "EBSC", "securityId": 14913578, "tradingStatus": "OPEN", "transactTime": "2026-03-09T21:00:00.000000000Z"}], "orders": [{"bestAsk": 0.00043, "bestBid": 0.00022, "exchangeMic": "XFXS", "midPx": 0.00033, "transactTime": "2026-03-10T13:01:46.161398071Z"}, {"bestAsk": 1.16405, "bestBid": 1.164, "exchangeMic": "XCME", "midPx": 1.16403, "transactTime": "2026-03-10T13:01:46.182764097Z"}, {"bestAsk": 1.16373, "bestBid": 1.16367, "exchangeMic": "GLBX", "midPx": 1.1637, "transactTime": "2026-03-10T13:01:46.182764097Z"}, {"bestAsk": 1.163725, "bestBid": 1.16365, "exchangeMic": "EBSC", "midPx": 1.163688, "transactTime": "2026-03-10T13:01:46.167011632Z"}], "statistics": [{"dailyOpenPx": 0.00034, "dailyTrueRange": 0.3, "exchangeMic": "XFXS", "previousOpenPx": 0.00065, "previousTrueRange": 0.2, "transactTime": "2026-03-09T22:00:07.797506759Z"}, {"dailyOpenPx": 1.16405, "dailyTrueRange": 130.5, "exchangeMic": "XCME", "previousOpenPx": 1.15555, "previousTrueRange": 16.5, "transactTime": "2026-03-09T22:00:00.000000000Z"}, {"dailyOpenPx": 1.1638, "dailyTrueRange": 16.1, "exchangeMic": "GLBX", "previousOpenPx": 1.16365, "previousTrueRange": 72.5, "transactTime": "2026-03-09T22:00:07.797506759Z"}, {"dailyCloseAsk": 1.1638, "dailyCloseBid": 1.1634, "dailyOpenAsk": 1.1638, "dailyOpenBid": 1.1634, "dailyTrueRange": 16.0, "exchangeMic": "EBSC", "previousCloseAsk": 1.1638, "previousCloseBid": 1.1634, "previousOpenAsk": 1.16, "previousOpenBid": 1.1598, "previousTrueRange": 75.5, "transactTime": "2026-03-09T21:00:01.878640076Z"}], "tradeDetails": [{"exchangeMic": "XFXS", "touchHigh": 0.00034, "touchLow": 0.00032, "transactTime": "2026-03-10T12:59:04.660840465Z"}, {"exchangeMic": "GLBX", "touchHigh": 1.16638, "touchLow": 1.16076, "transactTime": "2026-03-10T12:59:04.660840465Z"}, {"exchangeMic": "XCME", "touchHigh": 1.1667, "touchLow": 1.16105, "transactTime": "2026-03-10T13:01:41.837469305Z"}, {"exchangeMic": "EBSC", "touchHigh": 1.16635, "touchLow": 1.1607, "transactTime": "2026-03-10T13:01:42.504012669Z"}]}}, "GBPUSD": {"fieldMask": "header,payload.orders", "header": {"asset": "GBPUSD", "sentTime": "2026-03-10T13:04:30.737526602Z", "version": "1.0"}, "payload": {"calculations": [{"calcType": "EBSC_XFXS_MIDPX", "calcValue": 0.67546, "transactTime": "2026-02-20T21:59:58.808465492Z"}], "instruments": [{"exchangeMic": "XFXS", "periodCode": "202603", "securityId": 42105586, "symbol": "6B:XF:GBPUSD:H6", "transactTime": "2026-03-08T17:01:20.283225160Z"}, {"exchangeMic": "XCME", "periodCode": "202603", "securityId": 131442, "symbol": "6BH6", "transactTime": "2026-03-08T17:00:52.731117706Z"}, {"exchangeMic": "GLBX", "periodCode": "205012", "securityId": 524161, "symbol": "GBPUSDZ5031", "transactTime": "2026-03-08T17:00:45.617880457Z"}, {"exchangeMic": "EBSC", "securityId": 14082104, "symbol": "GBP/USD", "transactTime": "2026-03-08T17:01:03.379729480Z"}], "marketStates": [{"exchangeMic": "XFXS", "securityId": 42105586, "tradingStatus": "OPEN", "transactTime": "2026-03-09T22:00:00.000000000Z"}, {"exchangeMic": "XCME", "securityId": 131442, "tradingStatus": "OPEN", "transactTime": "2026-03-09T22:00:00.000000000Z"}, {"exchangeMic": "GLBX", "securityId": 524161, "tradingStatus": "OPEN", "transactTime": "2026-03-09T22:00:00.000000000Z"}, {"exchangeMic": "EBSC", "securityId": 14082104, "tradingStatus": "OPEN", "transactTime": "2026-03-09T21:00:00.000000000Z"}], "orders": [{"bestBid": -0.00011, "exchangeMic": "XFXS", "transactTime": "2026-03-10T13:04:23.627593799Z"}, {"bestAsk": 1.3449, "bestBid": 1.3447, "exchangeMic": "XCME", "midPx": 1.3448, "transactTime": "2026-03-10T13:04:30.315263531Z"}, {"bestAsk": 1.34481, "bestBid": 1.34469, "exchangeMic": "GLBX", "midPx": 1.34475, "transactTime": "2026-03-10T13:04:30.314830993Z"}, {"bestAsk": 1.34485, "bestBid": 1.34465, "exchangeMic": "EBSC", "midPx": 1.34475, "transactTime": "2026-03-10T13:04:29.450013186Z"}], "statistics": [{"dailyOpenPx": -1e-05, "dailyTrueRange": 0.5, "exchangeMic": "XFXS", "previousOpenPx": -3e-05, "previousTrueRange": 0.2, "transactTime": "2026-03-09T22:03:41.590849827Z"}, {"dailyOpenPx": 1.3448, "dailyTrueRange": 164.0, "exchangeMic": "XCME", "previousOpenPx": 1.3349, "previousTrueRange": 21.0, "transactTime": "2026-03-09T22:00:00.404566251Z"}, {"dailyOpenPx": 1.34411, "dailyTrueRange": 41.3, "exchangeMic": "GLBX", "previousOpenPx": 1.34, "previousTrueRange": 95.2, "transactTime": "2026-03-09T22:03:41.590849827Z"}, {"dailyCloseAsk": 1.345, "dailyCloseBid": 1.3435, "dailyOpenAsk": 1.345, "dailyOpenBid": 1.3435, "dailyTrueRange": 42.0, "exchangeMic": "EBSC", "previousCloseAsk": 1.345, "previousCloseBid": 1.3435, "previousOpenAsk": 1.336, "previousOpenBid": 1.3324, "previousTrueRange": 82.0, "transactTime": "2026-03-09T21:00:01.876545917Z"}], "tradeDetails": [{"exchangeMic": "XFXS", "touchHigh": 1e-05, "touchLow": -1e-05, "transactTime": "2026-03-10T13:01:10.307015517Z"}, {"exchangeMic": "GLBX", "touchHigh": 1.34813, "touchLow": 1.3423, "transactTime": "2026-03-10T13:01:10.307015517Z"}, {"exchangeMic": "XCME", "touchHigh": 1.3484, "touchLow": 1.3414, "transactTime": "2026-03-10T13:04:20.830655187Z"}, {"exchangeMic": "EBSC", "touchHigh": 1.348, "touchLow": 1.34155, "transactTime": "2026-03-10T13:00:07.965948551Z"}]}}, "USDJPY": {"fieldMask": "header,payload.orders,payload.tradeDetails,payload.calculations", "header": {"asset": "USDJPY", "sentTime": "2026-03-10T13:07:46.449386172Z", "version": "1.0"}, "payload": {"calculations": [{"calcType": "EBSC_XFXS_MIDPX", "calcValue": 78.888, "transactTime": "2026-03-10T13:07:46.123924680Z"}], "instruments": [{"exchangeMic": "XFXS", "periodCode": "202603", "securityId": 42091434, "symbol": "6J:YF:USDJPY:H6", "transactTime": "2026-03-08T17:01:20.247930862Z"}, {"exchangeMic": "XCME", "periodCode": "202603", "securityId": 10908, "symbol": "6JH6", "transactTime": "2026-03-08T17:00:52.668991877Z"}, {"exchangeMic": "GLBX", "periodCode": "205012", "securityId": 688196, "symbol": "USDJPYZ5031", "transactTime": "2026-03-08T17:00:45.632803517Z"}, {"exchangeMic": "EBSC", "securityId": 14913582, "symbol": "USD/JPY", "transactTime": "2026-03-08T17:01:03.398459488Z"}], "marketStates": [{"exchangeMic": "XFXS", "securityId": 42091434, "tradingStatus": "OPEN", "transactTime": "2026-03-09T22:00:00.000000000Z"}, {"exchangeMic": "GLBX", "securityId": 688196, "tradingStatus": "OPEN", "transactTime": "2026-03-09T22:00:00.000000000Z"}, {"exchangeMic": "XCME", "securityId": 10908, "tradingStatus": "OPEN", "transactTime": "2026-03-09T22:00:00.000000000Z"}, {"exchangeMic": "EBSC", "securityId": 14913582, "tradingStatus": "OPEN", "transactTime": "2026-03-09T21:00:00.000000000Z"}], "orders": [{"bestAsk": 0.122, "bestBid": -0.107, "exchangeMic": "XFXS", "midPx": 0.008, "transactTime": "2026-03-10T13:07:46.038858175Z"}, {"bestAsk": 157.785, "bestBid": 157.57, "exchangeMic": "GLBX", "midPx": 157.678, "transactTime": "2026-03-10T13:07:46.038858175Z"}, {"bestAsk": 0.006, "bestBid": 0.006, "exchangeMic": "XCME", "midPx": 0.006, "transactTime": "2026-03-10T13:07:46.015916937Z"}, {"bestAsk": 157.775, "bestBid": 157.76, "exchangeMic": "EBSC", "midPx": 157.767, "transactTime": "2026-03-10T13:07:46.023023450Z"}], "statistics": [{"dailyOpenPx": -0.081, "dailyTrueRange": 0.4, "exchangeMic": "XFXS", "previousOpenPx": -0.161, "previousTrueRange": 0.4, "transactTime": "2026-03-09T22:01:33.331434989Z"}, {"dailyOpenPx": 0.006, "dailyTrueRange": 0.0, "exchangeMic": "XCME", "previousOpenPx": 0.006, "previousTrueRange": 0.0, "transactTime": "2026-03-09T22:00:00.799653881Z"}, {"dailyOpenPx": 157.637, "dailyTrueRange": 12.3, "exchangeMic": "GLBX", "previousOpenPx": 157.305, "previousTrueRange": 68.5, "transactTime": "2026-03-09T22:01:33.331434989Z"}, {"dailyCloseAsk": 157.91, "dailyCloseBid": 157.635, "dailyOpenAsk": 157.905, "dailyOpenBid": 157.64, "dailyTrueRange": 65.0, "exchangeMic": "EBSC", "previousCloseAsk": 157.91, "previousCloseBid": 157.635, "previousOpenAsk": 158.01, "previousOpenBid": 157.5, "previousTrueRange": 72.5, "transactTime": "2026-03-09T21:00:01.879746626Z"}], "tradeDetails": [{"exchangeMic": "XFXS", "touchHigh": -0.079, "touchLow": -0.083, "transactTime": "2026-03-10T12:48:47.384779273Z"}, {"exchangeMic": "GLBX", "touchHigh": 157.95, "touchLow": 157.267, "transactTime": "2026-03-10T12:59:24.452315633Z"}, {"exchangeMic": "XCME", "touchHigh": 0.006, "touchLow": 0.006, "trades": [{"aggressorSide": "BUY", "tradePx": 0.006, "tradeVol": "1", "transactTime": "2026-03-10T13:07:46.012748559Z"}, {"aggressorSide": "BUY", "tradePx": 0.006, "tradeVol": "2", "transactTime": "2026-03-10T13:07:46.013103071Z"}, {"aggressorSide": "SELL", "tradePx": 0.006, "tradeVol": "5", "transactTime": "2026-03-10T13:07:46.013786445Z"}, {"aggressorSide": "SELL", "tradePx": 0.006, "tradeVol": "1", "transactTime": "2026-03-10T13:07:46.015495149Z"}], "transactTime": "2026-03-10T13:07:46.015495149Z"}, {"exchangeMic": "EBSC", "touchHigh": 157.975, "touchLow": 157.26, "transactTime": "2026-03-10T13:06:52.884879598Z"}]}}};
+
+        // State
+        let currentAsset = 'EURUSD';
+        let currentView = 'clobs';
+        let engineRunning = false;
+        let engineTimer = null;
+        let engineSpeed = 1;
+        let tickCount = 0;
+        let currentDynamicData = null;
+        let chartPricesInstance = null;
+        let chartBasisInstance = null;
+        let tapeRecords = [];
+        let cvdAccumulator = -3.0;
+
+        // Initialize On Load
+        window.addEventListener('DOMContentLoaded', () => {
+            currentDynamicData = JSON.parse(JSON.stringify(CME_SAMPLES[currentAsset]));
+            initCharts();
+            renderDashboard();
+        });
+
+        // Switch Active Asset
+        function changeAsset(sym) {
+            if (!CME_SAMPLES[sym]) return;
+            currentAsset = sym;
+            currentDynamicData = JSON.parse(JSON.stringify(CME_SAMPLES[sym]));
+            
+            // Update tabs UI
+            document.querySelectorAll('.asset-tab').forEach(tab => {
+                tab.classList.remove('bg-cme-blue', 'text-white', 'shadow-md');
+                tab.classList.add('text-slate-400');
+            });
+            const activeTab = document.getElementById(`tab-${sym}`);
+            if (activeTab) {
+                activeTab.classList.remove('text-slate-400');
+                activeTab.classList.add('bg-cme-blue', 'text-white', 'shadow-md');
+            }
+
+            // Reset tape & chart history for new symbol
+            tapeRecords = [];
+            resetCharts();
+            renderDashboard();
+        }
+
+        // Switch Workspace View
+        function switchView(viewName) {
+            currentView = viewName;
+            ['clobs', 'ladder', 'charts', 'tape', 'atlas', 'json'].forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                const btn = document.getElementById(`btn-view-${v}`);
+                if (el) el.classList.add('hidden');
+                if (btn) {
+                    btn.classList.remove('bg-cme-blue', 'text-white', 'shadow-sm');
+                    btn.classList.add('text-slate-400');
+                }
+            });
+
+            const activeEl = document.getElementById(`view-${viewName}`);
+            const activeBtn = document.getElementById(`btn-view-${viewName}`);
+            if (activeEl) activeEl.classList.remove('hidden');
+            if (activeBtn) {
+                activeBtn.classList.remove('text-slate-400');
+                activeBtn.classList.add('bg-cme-blue', 'text-white', 'shadow-sm');
+            }
+
+            if (viewName === 'charts') {
+                setTimeout(() => {
+                    if (chartPricesInstance) chartPricesInstance.resize();
+                    if (chartBasisInstance) chartBasisInstance.resize();
+                }, 100);
+            }
+        }
+
+        // Toggle Live 250ms Simulation Engine
+        function toggleEngine() {
+            engineRunning = !engineRunning;
+            const btn = document.getElementById('btn-toggle-play');
+            const iconPlay = document.getElementById('icon-play');
+            const iconPause = document.getElementById('icon-pause');
+            const label = document.getElementById('label-engine');
+            const statusBadge = document.getElementById('stream-status');
+
+            if (engineRunning) {
+                iconPlay.classList.add('hidden');
+                iconPause.classList.remove('hidden');
+                label.textContent = 'PAUSAR';
+                btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
+                btn.classList.add('bg-amber-600', 'hover:bg-amber-500');
+                statusBadge.textContent = `VIVO ${Math.round(250/engineSpeed)}ms`;
+                startEngine();
+            } else {
+                iconPlay.classList.remove('hidden');
+                iconPause.classList.add('hidden');
+                label.textContent = 'REPLAY 250ms';
+                btn.classList.remove('bg-amber-600', 'hover:bg-amber-500');
+                btn.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+                statusBadge.textContent = 'PAUSADO';
+                clearInterval(engineTimer);
+            }
+        }
+
+        function setSpeed(speed) {
+            engineSpeed = speed;
+            document.querySelectorAll('.speed-btn').forEach(b => {
+                b.classList.remove('text-white', 'bg-cme-blue/50');
+                b.classList.add('text-slate-400');
+            });
+            const bActive = document.getElementById(`speed-${speed}`);
+            if (bActive) {
+                bActive.classList.remove('text-slate-400');
+                bActive.classList.add('text-white', 'bg-cme-blue/50');
+            }
+            if (engineRunning) {
+                clearInterval(engineTimer);
+                startEngine();
+            }
+        }
+
+        function startEngine() {
+            const interval = 250 / engineSpeed;
+            engineTimer = setInterval(() => {
+                tickCount++;
+                simulateTick();
+            }, interval);
+        }
+
+        function resetToSnapshot() {
+            currentDynamicData = JSON.parse(JSON.stringify(CME_SAMPLES[currentAsset]));
+            tickCount = 0;
+            tapeRecords = [];
+            resetCharts();
+            renderDashboard();
+        }
+
+        // Simulate a Realistic Micro-Tick at 250ms interval
+        function simulateTick() {
+            if (!currentDynamicData) return;
+            const p = currentDynamicData.payload;
+            const isJpy = currentAsset === 'USDJPY';
+            const tickPip = isJpy ? 0.005 : 0.00002;
+            const jitter = (Math.random() - 0.49) * tickPip;
+
+            // Micro-adjust orders
+            p.orders.forEach(o => {
+                if (o.bestBid !== undefined) o.bestBid = Number((o.bestBid + jitter).toFixed(isJpy ? 3 : 6));
+                if (o.bestAsk !== undefined) o.bestAsk = Number((o.bestAsk + jitter).toFixed(isJpy ? 3 : 6));
+                if (o.midPx !== undefined) o.midPx = Number((o.midPx + jitter).toFixed(isJpy ? 3 : 6));
+            });
+
+            // Adjust True Mid
+            if (p.calculations && p.calculations.length > 0) {
+                p.calculations[0].calcValue = Number((p.calculations[0].calcValue + jitter*0.5).toFixed(isJpy ? 3 : 5));
+            }
+
+            // Simulate sporadic trade execution in Tape
+            if (Math.random() < 0.65) {
+                const side = Math.random() < 0.45 ? 'BUY' : 'SELL';
+                const vol = Math.floor(Math.random() * 5) + 1;
+                const xcmeOrder = p.orders.find(o => o.exchangeMic === 'XCME');
+                const price = xcmeOrder ? (side === 'BUY' ? xcmeOrder.bestAsk : xcmeOrder.bestBid) : 1.16400;
+                
+                cvdAccumulator += (side === 'BUY' ? vol : -vol);
+
+                const d = new Date();
+                const nowStr = d.toISOString().replace('T', ' ').substring(11, 23);
+
+                tapeRecords.unshift({
+                    time: nowStr,
+                    venue: 'XCME',
+                    side: side,
+                    price: price,
+                    vol: vol,
+                    cvd: cvdAccumulator
+                });
+
+                if (tapeRecords.length > 50) tapeRecords.pop();
+            }
+
+            document.getElementById('header-tick-seq').textContent = 1000 + tickCount;
+            renderDashboard(true);
+        }
+
+        // Render All Dashboard Components
+        function renderDashboard(isLiveUpdate = false) {
+            const data = currentDynamicData;
+            if (!data || !data.payload) return;
+            const p = data.payload;
+            const isJpy = currentAsset === 'USDJPY';
+            const digits = isJpy ? 3 : 5;
+
+            // Orders lookup by exchange MIC
+            const orders = {};
+            (p.orders || []).forEach(o => { orders[o.exchangeMic] = o; });
+
+            // Stats lookup by exchange MIC
+            const stats = {};
+            (p.statistics || []).forEach(s => { stats[s.exchangeMic] = s; });
+
+            // Trade details lookup
+            const trades = {};
+            (p.tradeDetails || []).forEach(td => { trades[td.exchangeMic] = td; });
+
+            // Instruments lookup
+            const instruments = {};
+            (p.instruments || []).forEach(i => { instruments[i.exchangeMic] = i; });
+
+            // Market states lookup
+            const states = {};
+            (p.marketStates || []).forEach(m => { states[m.exchangeMic] = m; });
+
+            // Calculations lookup
+            const calc = (p.calculations && p.calculations[0]) ? p.calculations[0] : null;
+
+            // Extract main quotes
+            const ebs = orders['EBSC'] || {};
+            const xcme = orders['XCME'] || {};
+            const glbx = orders['GLBX'] || {};
+            const xfxs = orders['XFXS'] || {};
+
+            // 1. HERO KPI CARDS
+            const ebsMidVal = Number(ebs.midPx || (isJpy ? 157.767 : 1.16369));
+            const xcmeMidVal = Number(xcme.midPx || (isJpy ? 157.770 : 1.16403));
+            const glbxMidVal = Number(glbx.midPx || (isJpy ? 157.678 : 1.16370));
+            const trueMidVal = calc ? calc.calcValue : ebsMidVal;
+
+            // Update True Mid KPI
+            const elTrueMid = document.getElementById('kpi-true-mid');
+            if (elTrueMid) {
+                const displayTrueMid = (calc && calc.calcValue < 1.0 && ebsMidVal > 1.0) ? (calc.calcValue * 2) : trueMidVal;
+                elTrueMid.textContent = Number(displayTrueMid).toFixed(digits);
+            }
+            if (calc) {
+                document.getElementById('true-mid-calc-badge').textContent = calc.calcType || 'EBSC_XFXS';
+            }
+            if (data.header && data.header.sentTime) {
+                document.getElementById('kpi-sent-time').textContent = data.header.sentTime.substring(11, 19) + ' UTC';
+            }
+
+            // Basis Spread: XCME Futures Mid - EBSC Spot Mid
+            const pipMult = isJpy ? 100 : 10000;
+            const basisPips = ((xcmeMidVal - ebsMidVal) * pipMult);
+            const elBasis = document.getElementById('kpi-basis-spread');
+            if (elBasis) {
+                elBasis.textContent = (basisPips >= 0 ? '+' : '') + basisPips.toFixed(2);
+                document.getElementById('kpi-basis-regime').textContent = basisPips > 0.5 ? 'CONTANGO' : (basisPips < -0.5 ? 'BACKWARDATION' : 'EQUILIBRIO');
+                document.getElementById('kpi-basis-usd').textContent = (basisPips >= 0 ? '+$' : '-$') + Math.abs(basisPips * 10).toFixed(2) + '/lote';
+            }
+
+            // EBS Spot KPI
+            document.getElementById('kpi-ebs-mid').textContent = ebsMidVal.toFixed(digits);
+            const ebsSpreadPips = ((Number(ebs.bestAsk || 0) - Number(ebs.bestBid || 0)) * pipMult).toFixed(2);
+            document.getElementById('kpi-ebs-spread-pips').textContent = `${ebsSpreadPips} pips`;
+            document.getElementById('kpi-ebs-bid').textContent = Number(ebs.bestBid || 0).toFixed(digits);
+            document.getElementById('kpi-ebs-ask').textContent = Number(ebs.bestAsk || 0).toFixed(digits);
+            const ebsStat = stats['EBSC'] || {};
+            document.getElementById('kpi-ebs-tr').textContent = `ATR: ${ebsStat.dailyTrueRange || 16.0} pips`;
+
+            // XCME Futures KPI
+            document.getElementById('kpi-fut-mid').textContent = xcmeMidVal.toFixed(digits);
+            const xcmeSpreadPips = ((Number(xcme.bestAsk || 0) - Number(xcme.bestBid || 0)) * pipMult).toFixed(2);
+            document.getElementById('kpi-fut-spread-pips').textContent = `${xcmeSpreadPips} pips`;
+            document.getElementById('kpi-fut-bid').textContent = Number(xcme.bestBid || 0).toFixed(digits);
+            document.getElementById('kpi-fut-ask').textContent = Number(xcme.bestAsk || 0).toFixed(digits);
+            const xcmeInst = instruments['XCME'] || {};
+            document.getElementById('kpi-fut-symbol').textContent = xcmeInst.symbol || '6E';
+            document.getElementById('kpi-fut-sec-id').textContent = `ID: ${xcmeInst.securityId || '-'}`;
+
+            // FX Link KPI
+            document.getElementById('kpi-link-mid').textContent = glbxMidVal.toFixed(digits);
+            const glbxSpreadPips = ((Number(glbx.bestAsk || 0) - Number(glbx.bestBid || 0)) * pipMult).toFixed(2);
+            document.getElementById('kpi-link-spread-pips').textContent = `${glbxSpreadPips} pips`;
+            const glbxInst = instruments['GLBX'] || {};
+            document.getElementById('kpi-link-symbol').textContent = glbxInst.symbol || 'FX LINK';
+            const glbxStat = stats['GLBX'] || {};
+            document.getElementById('kpi-link-tr').textContent = `TR: ${glbxStat.dailyTrueRange || 16.1} pips`;
+
+            // CVD Delta KPI
+            const elCvdVal = document.getElementById('kpi-cvd-value');
+            if (elCvdVal) {
+                elCvdVal.textContent = `${cvdAccumulator >= 0 ? '+' : ''}${cvdAccumulator.toFixed(1)} Lotes`;
+                elCvdVal.className = `text-2xl font-bold font-mono tracking-tight ${cvdAccumulator >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+            }
+
+            // 2. THE 4 CLOBs CARDS VIEW
+            renderClobCard('ebs', ebs, stats['EBSC'], trades['EBSC'], instruments['EBSC'], states['EBSC'], digits, pipMult);
+            renderClobCard('xcme', xcme, stats['XCME'], trades['XCME'], instruments['XCME'], states['XCME'], digits, pipMult);
+            renderClobCard('glbx', glbx, stats['GLBX'], trades['GLBX'], instruments['GLBX'], states['GLBX'], digits, pipMult);
+            renderClobCard('xfxs', xfxs, stats['XFXS'], trades['XFXS'], instruments['XFXS'], states['XFXS'], 6, pipMult);
+
+            // 3. RENDER DOM LADDER
+            renderDomLadder(ebsMidVal, xcmeMidVal, glbxMidVal, digits, pipMult);
+
+            // 4. RENDER TIME & SALES TAPE
+            renderTape();
+
+            // 5. UPDATE ATLAS HERD 7 COGNITION SIGNALS
+            renderAtlasSignals(ebsMidVal, xcmeMidVal, glbxMidVal, trades['XCME'], trades['EBSC'], basisPips);
+
+            // 6. UPDATE RAW JSON VIEWER
+            const elJson = document.getElementById('json-viewer');
+            if (elJson) {
+                elJson.textContent = JSON.stringify(data, null, 2);
+                document.getElementById('json-asset-badge').textContent = `${currentAsset}.json`;
+            }
+
+            // 7. UPDATE CHARTS
+            updateCharts(ebsMidVal, xcmeMidVal, glbxMidVal, basisPips);
+        }
+
+        // Helper to render individual CLOB card
+        function renderClobCard(prefix, order, stat, trade, inst, state, digits, pipMult) {
+            order = order || {};
+            stat = stat || {};
+            trade = trade || {};
+            inst = inst || {};
+            state = state || {};
+
+            const elBid = document.getElementById(`${prefix}-bid`);
+            const elAsk = document.getElementById(`${prefix}-ask`);
+            const elMid = document.getElementById(`${prefix}-mid`);
+            const elSpreadBadge = document.getElementById(`${prefix}-spread-badge`);
+
+            if (elBid) elBid.textContent = Number(order.bestBid || 0).toFixed(digits);
+            if (elAsk) elAsk.textContent = Number(order.bestAsk || 0).toFixed(digits);
+            if (elMid) elMid.textContent = Number(order.midPx || 0).toFixed(digits);
+
+            const spreadPips = ((Number(order.bestAsk || 0) - Number(order.bestBid || 0)) * pipMult).toFixed(2);
+            if (elSpreadBadge) elSpreadBadge.textContent = `SPREAD: ${spreadPips} pips`;
+
+            if (document.getElementById(`${prefix}-sym`)) document.getElementById(`${prefix}-sym`).textContent = inst.symbol || '-';
+            if (document.getElementById(`${prefix}-id`)) document.getElementById(`${prefix}-id`).textContent = inst.securityId || '-';
+            if (document.getElementById(`${prefix}-status`)) document.getElementById(`${prefix}-status`).textContent = state.tradingStatus || 'OPEN';
+
+            if (document.getElementById(`${prefix}-atr`)) document.getElementById(`${prefix}-atr`).textContent = `${stat.dailyTrueRange || 0} pips`;
+            if (document.getElementById(`${prefix}-prev-atr`)) document.getElementById(`${prefix}-prev-atr`).textContent = `${stat.previousTrueRange || 0} pips`;
+            if (document.getElementById(`${prefix}-open`)) {
+                if (stat.dailyOpenAsk !== undefined) {
+                    document.getElementById(`${prefix}-open`).textContent = `${Number(stat.dailyOpenBid).toFixed(digits)} / ${Number(stat.dailyOpenAsk).toFixed(digits)}`;
+                } else {
+                    document.getElementById(`${prefix}-open`).textContent = Number(stat.dailyOpenPx || 0).toFixed(digits);
+                }
+            }
+
+            if (document.getElementById(`${prefix}-touch-high`)) document.getElementById(`${prefix}-touch-high`).textContent = Number(trade.touchHigh || 0).toFixed(digits);
+            if (document.getElementById(`${prefix}-touch-low`)) document.getElementById(`${prefix}-touch-low`).textContent = Number(trade.touchLow || 0).toFixed(digits);
+        }
+
+        // Render DOM Depth Ladder (10 Levels)
+        function renderDomLadder(ebsMid, xcmeMid, glbxMid, digits, pipMult) {
+            const tbody = document.getElementById('dom-ladder-body');
+            if (!tbody) return;
+
+            const isJpy = currentAsset === 'USDJPY';
+            const step = isJpy ? 0.010 : 0.00005; // half pip step
+            const centerPrice = ebsMid;
+
+            let html = '';
+            let totalBidVol = 0;
+            let totalAskVol = 0;
+
+            for (let i = 5; i >= -5; i--) {
+                if (i === 0) continue;
+                const p = centerPrice + (i * step);
+                const isAsk = i > 0;
+                
+                const vol = Math.floor(40 + Math.abs(i) * 22 + (Math.sin(tickCount + i) * 15));
+                if (isAsk) totalAskVol += vol; else totalBidVol += vol;
+
+                const venue = Math.abs(i) % 3 === 0 ? 'XCME' : (Math.abs(i) % 2 === 0 ? 'EBSC' : 'GLBX');
+                const venueClass = venue === 'XCME' ? 'text-amber-400 bg-amber-400/10' : (venue === 'EBSC' ? 'text-emerald-400 bg-emerald-400/10' : 'text-blue-400 bg-blue-400/10');
+                const barWidth = Math.min(100, Math.round((vol / 180) * 100));
+
+                html += `
+                    <tr class="border-b border-cme-border/50 hover:bg-[#0e1a32] transition-colors">
+                        <td class="py-1.5 px-3">
+                            ${!isAsk ? `
+                                <div class="flex items-center gap-2">
+                                    <span class="w-10 text-right font-bold text-emerald-400">${vol}</span>
+                                    <div class="h-2 bg-emerald-500/30 rounded-full flex-1 overflow-hidden">
+                                        <div class="h-full bg-emerald-400" style="width: ${barWidth}%;"></div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </td>
+                        <td class="py-1.5 px-3">
+                            ${!isAsk ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${venueClass}">${venue}</span>` : ''}
+                        </td>
+                        <td class="py-1.5 px-3 text-center font-bold ${isAsk ? 'text-red-400' : 'text-emerald-400'} bg-[#060c18]">
+                            ${p.toFixed(digits)}
+                        </td>
+                        <td class="py-1.5 px-3 text-right">
+                            ${isAsk ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${venueClass}">${venue}</span>` : ''}
+                        </td>
+                        <td class="py-1.5 px-3 text-right">
+                            ${isAsk ? `
+                                <div class="flex items-center justify-end gap-2">
+                                    <div class="h-2 bg-red-500/30 rounded-full flex-1 overflow-hidden">
+                                        <div class="h-full bg-red-400 ml-auto" style="width: ${barWidth}%;"></div>
+                                    </div>
+                                    <span class="w-10 text-left font-bold text-red-400">${vol}</span>
+                                </div>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            }
+
+            tbody.innerHTML = html;
+            document.getElementById('dom-total-bid').textContent = `${totalBidVol} Lotes`;
+            document.getElementById('dom-total-ask').textContent = `${totalAskVol} Lotes`;
+            const bidPct = ((totalBidVol / (totalBidVol + totalAskVol)) * 100).toFixed(1);
+            const askPct = (100 - bidPct).toFixed(1);
+            document.getElementById('dom-imbalance').textContent = `${bidPct}% Bid / ${askPct}% Ask`;
+        }
+
+        // Render Real Time Tape
+        function renderTape() {
+            const tbody = document.getElementById('tape-table-body');
+            if (!tbody) return;
+
+            if (tapeRecords.length === 0) {
+                const p = currentDynamicData.payload;
+                const xcmeTrades = (p.tradeDetails && p.tradeDetails.find(t => t.exchangeMic === 'XCME')) || {};
+                if (xcmeTrades.trades && xcmeTrades.trades.length > 0) {
+                    xcmeTrades.trades.forEach(t => {
+                        cvdAccumulator += (t.aggressorSide === 'BUY' ? Number(t.tradeVol) : -Number(t.tradeVol));
+                        tapeRecords.push({
+                            time: (t.transactTime || '').substring(11, 23),
+                            venue: 'XCME',
+                            side: t.aggressorSide || 'BUY',
+                            price: t.tradePx || 1.16400,
+                            vol: t.tradeVol || 1,
+                            cvd: cvdAccumulator
+                        });
+                    });
+                } else {
+                    tapeRecords = [
+                        { time: '13:07:46.012', venue: 'XCME', side: 'BUY', price: 1.16405, vol: 1, cvd: 1 },
+                        { time: '13:07:46.013', venue: 'XCME', side: 'BUY', price: 1.16405, vol: 2, cvd: 3 },
+                        { time: '13:07:46.014', venue: 'XCME', side: 'SELL', price: 1.16400, vol: 5, cvd: -2 },
+                        { time: '13:07:46.015', venue: 'XCME', side: 'SELL', price: 1.16400, vol: 1, cvd: -3 }
+                    ];
+                    cvdAccumulator = -3;
+                }
+            }
+
+            let html = '';
+            tapeRecords.forEach(r => {
+                const isBuy = r.side === 'BUY';
+                html += `
+                    <tr class="border-b border-cme-border/50 hover:bg-[#0e1a32] text-slate-300">
+                        <td class="py-2 px-3">${r.time}</td>
+                        <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-400 font-bold">${r.venue}</span></td>
+                        <td class="py-2 px-3 text-center">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isBuy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}">
+                                ${r.side}
+                            </span>
+                        </td>
+                        <td class="py-2 px-3 text-right font-bold text-white">${r.price}</td>
+                        <td class="py-2 px-3 text-right font-bold ${r.vol >= 5 ? 'text-cme-cyan' : 'text-slate-200'}">${r.vol}</td>
+                        <td class="py-2 px-3 text-right font-bold ${r.cvd >= 0 ? 'text-emerald-400' : 'text-red-400'}">${r.cvd}</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            document.getElementById('tape-count').textContent = tapeRecords.length;
+            if (tapeRecords[0]) {
+                document.getElementById('tape-last-time').textContent = tapeRecords[0].time;
+            }
+        }
+
+        // Render ATLAS Signals
+        function renderAtlasSignals(ebsMid, xcmeMid, glbxMid, xcmeTrade, ebsTrade, basisPips) {
+            xcmeTrade = xcmeTrade || {};
+            ebsTrade = ebsTrade || {};
+            const digits = currentAsset === 'USDJPY' ? 3 : 5;
+
+            const xTouch = Number(xcmeTrade.touchHigh || 1.16670);
+            const eTouch = Number(ebsTrade.touchHigh || 1.16635);
+            document.getElementById('atlas-xcme-touch').textContent = xTouch.toFixed(digits);
+            document.getElementById('atlas-ebs-touch').textContent = eTouch.toFixed(digits);
+            
+            const diffPips = ((xTouch - eTouch) * (currentAsset === 'USDJPY' ? 100 : 10000)).toFixed(1);
+            document.getElementById('atlas-touch-diff').textContent = `+${diffPips} pips`;
+
+            document.getElementById('atlas-glbx-mid').textContent = glbxMid.toFixed(digits);
+            const linkDiff = Math.abs((glbxMid - ebsMid) * (currentAsset === 'USDJPY' ? 100 : 10000)).toFixed(2);
+            document.getElementById('atlas-link-diff').textContent = `${linkDiff} pips`;
+
+            document.getElementById('atlas-net-delta').textContent = `${cvdAccumulator >= 0 ? '+' : ''}${cvdAccumulator.toFixed(0)} contratos`;
+        }
+
+        // Initialize Chart.js
+        function initCharts() {
+            const ctx1 = document.getElementById('chart-prices').getContext('2d');
+            const ctx2 = document.getElementById('chart-basis').getContext('2d');
+
+            const labels = [];
+            const d1 = [];
+            const d2 = [];
+            const d3 = [];
+            const dBasis = [];
+
+            for (let i = 20; i >= 0; i--) {
+                labels.push(`-${i*250}ms`);
+                d1.push(null);
+                d2.push(null);
+                d3.push(null);
+                dBasis.push(null);
+            }
+
+            chartPricesInstance = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'EBS Spot (EBSC)', data: d1, borderColor: '#10b981', borderWidth: 2, tension: 0.1, pointRadius: 0 },
+                        { label: 'CME Futuros (XCME)', data: d2, borderColor: '#f59e0b', borderWidth: 2, tension: 0.1, pointRadius: 0 },
+                        { label: 'True Mid (CME)', data: d3, borderColor: '#00a3e0', borderWidth: 2, borderDash: [4, 4], pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        x: { display: true, grid: { color: '#15243e' }, ticks: { color: '#64748b', font: { size: 10 } } },
+                        y: { display: true, grid: { color: '#15243e' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            chartBasisInstance = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Basis (Pips)', data: dBasis, borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.1)', fill: true, borderWidth: 1.5, pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        x: { display: false },
+                        y: { display: true, grid: { color: '#15243e' }, ticks: { color: '#94a3b8', font: { size: 9 } } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function resetCharts() {
+            if (!chartPricesInstance || !chartBasisInstance) return;
+            chartPricesInstance.data.datasets.forEach(ds => ds.data = []);
+            chartBasisInstance.data.datasets.forEach(ds => ds.data = []);
+            chartPricesInstance.data.labels = [];
+            chartBasisInstance.data.labels = [];
+        }
+
+        function updateCharts(ebsMid, xcmeMid, glbxMid, basisPips) {
+            if (!chartPricesInstance || !chartBasisInstance) return;
+
+            const timeLabel = new Date().toISOString().substring(17, 23);
+            chartPricesInstance.data.labels.push(timeLabel);
+            chartBasisInstance.data.labels.push(timeLabel);
+
+            chartPricesInstance.data.datasets[0].data.push(ebsMid);
+            chartPricesInstance.data.datasets[1].data.push(xcmeMid);
+            chartPricesInstance.data.datasets[2].data.push(Number((ebsMid + xcmeMid)/2));
+            chartBasisInstance.data.datasets[0].data.push(basisPips);
+
+            if (chartPricesInstance.data.labels.length > 30) {
+                chartPricesInstance.data.labels.shift();
+                chartBasisInstance.data.labels.shift();
+                chartPricesInstance.data.datasets.forEach(ds => ds.data.shift());
+                chartBasisInstance.data.datasets.forEach(ds => ds.data.shift());
+            }
+
+            chartPricesInstance.update('none');
+            chartBasisInstance.update('none');
+        }
+
+        // Copy raw JSON to clipboard
+        function copyRawJson() {
+            const raw = JSON.stringify(currentDynamicData, null, 2);
+            navigator.clipboard.writeText(raw).then(() => {
+                const label = document.getElementById('btn-copy-label');
+                label.textContent = '¡COPIADO!';
+                setTimeout(() => { label.textContent = 'COPIAR JSON'; }, 1800);
+            });
+        }
+
+        // Download JSON
+        function downloadJson() {
+            const raw = JSON.stringify(currentDynamicData, null, 2);
+            const blob = new Blob([raw], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `CME_FX_Tape_${currentAsset}_${new Date().toISOString().substring(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // File Uploader handler
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    let sym = 'EURUSD';
+                    if (parsed.header && parsed.header.asset) {
+                        sym = parsed.header.asset.replace('/', '').toUpperCase();
+                    }
+                    CME_SAMPLES[sym] = parsed;
+                    alert(`Archivo CME cargado exitosamente para el activo: ${sym}`);
+                    changeAsset(sym);
+                } catch (err) {
+                    alert('Error al leer el archivo JSON de CME: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
