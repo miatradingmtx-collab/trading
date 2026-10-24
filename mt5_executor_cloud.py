@@ -71,22 +71,162 @@ MAPEO_BROKER = {
 }
 
 # ------------------------------------------------------------------------------
-# 1. CONEXIÃ“N CON METAAPI
+# 1. CONEXIÓN CON METAAPI & DEFENSIVE MONKEYPATCH
 # ------------------------------------------------------------------------------
+def patch_metaapi_subscription_manager():
+    """Parchea defensivamente SubscriptionManager.schedule_subscribe para evitar:
+    1. KeyError: 'type' cuando TooManyRequestsException no contiene la clave 'type' en metadata.
+    2. 'Task exception was never retrieved' en tareas asíncronas internas de suscripción.
+    """
+    try:
+        from metaapi_cloud_sdk.clients.metaapi.subscription_manager import SubscriptionManager
+        from metaapi_cloud_sdk.clients.error_handler import TooManyRequestsException
+        from metaapi_cloud_sdk.metaapi.models import date
+        from datetime import datetime
+        import asyncio
+
+        if getattr(SubscriptionManager, "_mia_patched", False):
+            return
+
+        async def patched_schedule_subscribe(self, account_id: str, instance_number: int, is_disconnected_retry_mode: bool = False):
+            instance_id = account_id + ':' + str(instance_number or 0)
+            if instance_id not in self._subscriptions:
+                self._subscriptions[instance_id] = {
+                    'shouldRetry': True,
+                    'task': None,
+                    'wait_task': None,
+                    'future': None,
+                    'isDisconnectedRetryMode': is_disconnected_retry_mode,
+                }
+                subscribe_retry_interval_in_seconds = 3
+                while self._subscriptions[instance_id]['shouldRetry']:
+
+                    async def subscribe_task():
+                        try:
+                            self._logger.debug(f"{account_id}:{instance_number}: running subscribe task")
+                            await self.subscribe(account_id, instance_number)
+                        except Exception as err:
+                            if isinstance(err, TooManyRequestsException):
+                                socket_instance_index = self._websocket_client.socket_instances_by_accounts.get(
+                                    instance_number, {}
+                                ).get(account_id)
+                                metadata = getattr(err, 'metadata', None) or {}
+                                err_type = metadata.get('type') if isinstance(metadata, dict) else None
+
+                                if err_type == 'LIMIT_ACCOUNT_SUBSCRIPTIONS_PER_USER':
+                                    self._log_subscription_error(account_id, f'{instance_id}: Failed to subscribe', err)
+
+                                if err_type in [
+                                    'LIMIT_ACCOUNT_SUBSCRIPTIONS_PER_USER',
+                                    'LIMIT_ACCOUNT_SUBSCRIPTIONS_PER_SERVER',
+                                    'LIMIT_ACCOUNT_SUBSCRIPTIONS_PER_USER_PER_SERVER',
+                                ]:
+                                    if instance_number in self._websocket_client.socket_instances_by_accounts and account_id in self._websocket_client.socket_instances_by_accounts[instance_number]:
+                                        del self._websocket_client.socket_instances_by_accounts[instance_number][account_id]
+                                    asyncio.create_task(
+                                        self._websocket_client.lock_socket_instance(
+                                            instance_number,
+                                            socket_instance_index,
+                                            self._websocket_client.get_account_region(account_id),
+                                            metadata,
+                                        )
+                                    )
+                                else:
+                                    nonlocal subscribe_retry_interval_in_seconds
+                                    retry_time = None
+                                    if isinstance(metadata, dict) and 'recommendedRetryTime' in metadata:
+                                        try:
+                                            retry_time = date(metadata['recommendedRetryTime']).timestamp()
+                                        except Exception:
+                                            retry_time = None
+
+                                    if retry_time and datetime.now().timestamp() + subscribe_retry_interval_in_seconds < retry_time:
+                                        sleep_duration = max(1.0, retry_time - datetime.now().timestamp() - subscribe_retry_interval_in_seconds)
+                                        await asyncio.sleep(sleep_duration)
+                                    else:
+                                        await asyncio.sleep(subscribe_retry_interval_in_seconds)
+                            else:
+                                self._log_subscription_error(account_id, f'{instance_id}: Failed to subscribe', err)
+
+                                if err.__class__.__name__ == 'NotFoundException':
+                                    self.refresh_account(account_id)
+
+                                if err.__class__.__name__ == 'TimeoutException':
+                                    main_account_id = self._websocket_client.accounts_by_replica_id.get(account_id)
+                                    if main_account_id:
+                                        region = self._websocket_client.get_account_region(account_id)
+                                        connected_instances = (
+                                            self._latency_service.get_active_account_instances(
+                                                main_account_id
+                                            )
+                                        )
+
+                                        is_instance_main = False
+                                        for instance in connected_instances:
+                                            if instance.startswith(f"{main_account_id}:{region}"):
+                                                is_instance_main = True
+                                                break
+
+                                        if not is_instance_main:
+                                            self._timeout_error_counter[account_id] = self._timeout_error_counter.get(
+                                                account_id, 0
+                                            ) + 1
+
+                                            if self._timeout_error_counter[account_id] > 4:
+                                                self._timeout_error_counter[account_id] = 0
+                                                self.refresh_account(account_id)
+
+                    t = asyncio.create_task(subscribe_task())
+                    self._subscriptions[instance_id]['task'] = t
+                    done, _ = await asyncio.wait({t})
+                    # Consumir excepción para que asyncio nunca emita 'Task exception was never retrieved'
+                    for finished_task in done:
+                        if not finished_task.cancelled():
+                            exc = finished_task.exception()
+                            if exc:
+                                self._logger.warning(f"Handled subscription exception for {instance_id}: {exc}")
+
+                    if not self._subscriptions[instance_id]['shouldRetry']:
+                        break
+                    retry_interval = subscribe_retry_interval_in_seconds
+                    subscribe_retry_interval_in_seconds = min(subscribe_retry_interval_in_seconds * 2, 300)
+                    subscribe_future = asyncio.Future()
+
+                    async def wait_task():
+                        await asyncio.sleep(retry_interval)
+                        if not subscribe_future.done():
+                            subscribe_future.set_result(True)
+
+                    self._subscriptions[instance_id]['wait_task'] = asyncio.create_task(wait_task())
+                    self._subscriptions[instance_id]['future'] = subscribe_future
+                    result = await self._subscriptions[instance_id]['future']
+                    self._subscriptions[instance_id]['future'] = None
+                    if not result:
+                        break
+                del self._subscriptions[instance_id]
+
+        SubscriptionManager.schedule_subscribe = patched_schedule_subscribe
+        SubscriptionManager._mia_patched = True
+        print("🛡️ [METAAPI PATCH] SubscriptionManager parcheado exitosamente contra KeyError('type') y unhandled exceptions.")
+    except Exception as e_patch:
+        print(f"⚠️ [METAAPI PATCH WARN] No se pudo aplicar monkeypatch a SubscriptionManager: {e_patch}")
+
 async def conectar_metaapi():
-    """Inicializa la API, busca la cuenta demo y retorna el objeto de cuenta y conexiÃ³n RPC."""
+    """Inicializa la API, busca la cuenta demo y retorna el objeto de cuenta y conexión RPC."""
     try:
         import logging
         from metaapi_cloud_sdk import MetaApi
         from metaapi_cloud_sdk.logger import LoggerManager
         LoggerManager.use_logging()
         logging.getLogger("SubscriptionManager").setLevel(logging.CRITICAL)
+        # Aplicar el parche defensivo contra KeyError('type') y unhandled task exceptions
+        patch_metaapi_subscription_manager()
     except ImportError:
-        print("âŒ Error: Se requiere la librerÃ­a 'metaapi-cloud-sdk'.")
+        print("❌ Error: Se requiere la librería 'metaapi-cloud-sdk'.")
         return None, None
 
     if not METAAPI_TOKEN:
-        print("âŒ Error: Falta METAAPI_TOKEN en el entorno.")
+        print("❌ Error: Falta METAAPI_TOKEN en el entorno.")
         return None, None
 
     print("🔌 Conectando a MetaAPI Cloud...")
@@ -96,10 +236,14 @@ async def conectar_metaapi():
         # Buscar cuenta demo
         accounts_data = await api.metatrader_account_api.get_accounts_with_infinite_scroll_pagination()
         accounts = accounts_data if isinstance(accounts_data, list) else (accounts_data.get('items', []) if hasattr(accounts_data, 'get') else getattr(accounts_data, 'items', []))
-        account = next((a for a in accounts if a.login == MT5_LOGIN), None)
+        
+        # Filtrar prioritariamente cuenta DEPLOYED que coincida con MT5_LOGIN
+        account = next((a for a in accounts if str(a.login) == str(MT5_LOGIN) and a.state == 'DEPLOYED'), None)
+        if not account:
+            account = next((a for a in accounts if str(a.login) == str(MT5_LOGIN)), None)
 
         if not account:
-            print(f"ðŸ“ Registrando cuenta demo {MT5_LOGIN} en MetaAPI...")
+            print(f"📝 Registrando cuenta demo {MT5_LOGIN} en MetaAPI...")
             account = await api.metatrader_account_api.create_account({
                 'name': 'Mia Demo Account',
                 'type': 'cloud',
@@ -111,21 +255,25 @@ async def conectar_metaapi():
             })
             print(f"✅ Cuenta creada en MetaAPI. ID: {account.id}")
         else:
-            print(f"✅ Cuenta encontrada en MetaAPI. ID: {account.id}")
+            print(f"✅ Cuenta encontrada en MetaAPI. ID: {account.id} (Login: {account.login}, Estado actual: {account.state})")
 
-        # Recargar la cuenta para asegurar que tenemos el estado mÃ¡s reciente
+        # Recargar la cuenta para asegurar que tenemos el estado más reciente
         await account.reload()
         print(f"Estado de la cuenta: {account.state}")
 
-        # Desplegar la cuenta si estÃ¡ desconectada
+        # Desplegar la cuenta si está desconectada o en proceso de despliegue
         if account.state != 'DEPLOYED':
             print("🚀 Desplegando cuenta de trading demo en MetaAPI...")
             await account.deploy()
+            print("⏳ Esperando despliegue de cuenta (wait_deployed)...")
+            await account.wait_deployed()
+            print("✅ Cuenta desplegada exitosamente.")
         
+        print("⏳ Esperando conexión con el Broker (wait_connected)...")
         await account.wait_connected()
         print("✅ Cuenta conectada al Broker.")
 
-        # Obtener conexiÃ³n RPC
+        # Obtener conexión RPC
         connection = account.get_rpc_connection()
         await connection.connect()
         await connection.wait_synchronized()
@@ -134,7 +282,7 @@ async def conectar_metaapi():
         return account, connection
 
     except Exception as e:
-        print(f"âŒ Error en la conexiÃ³n a MetaAPI: {e}")
+        print(f"❌ Error en la conexión a MetaAPI: {e}")
         return None, None
 
 async def obtener_balance(connection) -> tuple:
@@ -2011,21 +2159,31 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
         await asyncio.sleep(2)
 
 async def run_escaner_loop():
-    """Bucle infinito del escáner en segundo plano diseÃ±ado para integrarse con FastAPI."""
+    """Bucle infinito del escáner en segundo plano diseñado para integrarse con FastAPI."""
     print("🤖 Iniciando escáner e ejecutor asíncrono de MetaAPI en la nube...")
     
-    # Bucle de conexiÃ³n hasta tener éxito
+    # Bucle de conexión hasta tener éxito con Backoff Exponencial defensivo
     account, connection = None, None
+    retry_delay = 15
     while not account or not connection:
-        account, connection = await conectar_metaapi()
-        if not account or not connection:
-            print("â³ Reintentando conexiÃ³n a MetaAPI en 15 segundos...")
-            await asyncio.sleep(15)
+        try:
+            account, connection = await conectar_metaapi()
+            if not account or not connection:
+                print(f"⏳ Reintentando conexión a MetaAPI en {retry_delay} segundos...")
+                await asyncio.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, 120)
+            else:
+                retry_delay = 15
+        except Exception as e_con:
+            print(f"❌ Excepción en conectar_metaapi: {e_con}. Reintentando en {retry_delay} segundos...")
+            await asyncio.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 120)
             
-    print("🚀 EscÃ¡ner de trading asíncrono iniciado correctamente.")
+    print("🚀 Escáner de trading asíncrono iniciado correctamente.")
     
     # Temporizador para el escáner pesado (cada 15 min)
     ultima_ejecucion_escaner = 0
+    desconexion_contador = 0
     
     while True:
         try:
@@ -2034,6 +2192,22 @@ async def run_escaner_loop():
             
             # Obtener balance SIEMPRE (el Gestor de Riesgo lo necesita cada 30s)
             balance, equity = await obtener_balance(connection)
+            
+            # Detección de pérdida de sincronización RPC y auto-recuperación
+            if balance == 0.0 and equity == 0.0:
+                desconexion_contador += 1
+                if desconexion_contador >= 3:
+                    print("⚠️ Conexión RPC inactiva o desincronizada (3 lecturas fallidas). Re-sincronizando conexión...")
+                    try:
+                        acc_new, conn_new = await conectar_metaapi()
+                        if acc_new and conn_new:
+                            account, connection = acc_new, conn_new
+                            desconexion_contador = 0
+                            print("✅ Conexión RPC re-sincronizada exitosamente.")
+                    except Exception as e_re:
+                        print(f"❌ Error re-sincronizando RPC: {e_re}")
+            else:
+                desconexion_contador = 0
             
             # ðŸ›¡ï¸ MONITOREO 24/7 ACTIVADO: Se quitÃ³ el bloqueo de es_ventana_operativa 
             # ya que el Firebase Cache Bug fue resuelto y la API estÃ¡ a salvo.
@@ -2199,9 +2373,10 @@ async def run_escaner_loop():
         await asyncio.sleep(60) # Loop base optimizado a 60 segundos para evitar 429
 
 async def abrir_posicion_test(simbolo: str, lote: float) -> str:
-    """FunciÃ³n de prueba para abrir una posición directamente en MetaAPI."""
+    """Función de prueba para abrir una posición directamente en MetaAPI."""
     try:
         from metaapi_cloud_sdk import MetaApi
+        patch_metaapi_subscription_manager()
     except ImportError:
         return "Error: metaapi-cloud-sdk no instalada"
         
@@ -2213,10 +2388,16 @@ async def abrir_posicion_test(simbolo: str, lote: float) -> str:
     try:
         accounts_data = await api.metatrader_account_api.get_accounts_with_infinite_scroll_pagination()
         accounts = accounts_data if isinstance(accounts_data, list) else (accounts_data.get('items', []) if hasattr(accounts_data, 'get') else getattr(accounts_data, 'items', []))
-        account = next((a for a in accounts if a.login == MT5_LOGIN), None)
+        account = next((a for a in accounts if str(a.login) == str(MT5_LOGIN) and a.state == 'DEPLOYED'), None)
+        if not account:
+            account = next((a for a in accounts if str(a.login) == str(MT5_LOGIN)), None)
         
         if not account:
             return f"Error: Cuenta demo {MT5_LOGIN} no encontrada en MetaAPI"
+            
+        if account.state != 'DEPLOYED':
+            await account.deploy()
+            await account.wait_deployed()
             
         await account.wait_connected()
         connection = account.get_rpc_connection()

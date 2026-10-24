@@ -369,6 +369,24 @@ async def startup_event():
         except Exception as e:
             print(f"| FIREBASE ERROR | Falló la auto-inicialización en startup: {e}")
             
+    # Configurar Exception Handler global para asyncio para atrapar y suprimir KeyError('type') de SDKs externos
+    try:
+        loop = asyncio.get_running_loop()
+        def _mia_asyncio_exception_handler(loop, context):
+            exc = context.get('exception')
+            msg = context.get('message', '')
+            if isinstance(exc, KeyError) and 'type' in str(exc):
+                print("🛡️ [ASYNCIO HANDLER] Interceptado KeyError('type') benigno de background task en SDK.")
+                return
+            if "TooManyRequestsException" in str(type(exc)) or "TooManyRequestsException" in msg:
+                print(f"🛡️ [ASYNCIO HANDLER] Interceptado TooManyRequestsException en background task: {exc or msg}")
+                return
+            loop.default_exception_handler(context)
+
+        loop.set_exception_handler(_mia_asyncio_exception_handler)
+    except Exception as e_h:
+        print(f"⚠️ [ASYNCIO HANDLER WARN] No se pudo configurar handler global: {e_h}")
+
     # Lanzar el escáner asíncrono de MetaAPI en segundo plano si está activado en el entorno
     if os.getenv("RUN_SCANNER_CLOUD", "false").lower() == "true":
         asyncio.create_task(run_escaner_loop())
