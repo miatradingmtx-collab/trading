@@ -1153,18 +1153,43 @@
         quorumEl.className = 'font-bold text-emerald-400 truncate';
         statusEl.textContent = 'ONLINE - DESPACHO CANÓNICO MT5';
         statusEl.className = 'font-bold text-emerald-400 truncate';
-        document.getElementById('node-out_1').classList.add('node-green', 'node-selected');
-        document.getElementById('node-d2_2').classList.add('node-green');
 
+        // 1. Capa 1: Iluminar los 7 Herds que generan la confluencia de entrada
+        ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7'].forEach(hId => {
+          const el = document.getElementById(`node-${hId}`);
+          if (el) el.classList.add('node-green');
+        });
+
+        // 2. Capa 2: Iluminar el debate central y el Quórum del Master
+        const elDebate = document.getElementById('node-d1_5');
+        if (elDebate) elDebate.classList.add('node-green');
+        const elMaster = document.getElementById('node-d2_2');
+        if (elMaster) elMaster.classList.add('node-green');
+        const elScore = document.getElementById('node-d2_5');
+        if (elScore) elScore.classList.add('node-green');
+
+        // 3. Capa 3: Iluminar la salida ejecutada a MT5
+        document.getElementById('node-out_1').classList.add('node-green', 'node-selected');
+
+        // 4. Malla de Axones: Flujo completo desde los 7 Herds -> Capa 2 -> Master -> MT5
         document.querySelectorAll('.axon-line').forEach(line => {
-          if (line.dataset.target === 'out_1' || line.dataset.source === 'd2_2' || line.dataset.target === 'd2_2') {
+          const src = line.dataset.source;
+          const tgt = line.dataset.target;
+          const isFromHerdToDelib = src.startsWith('h') && (tgt === 'd1_5' || tgt === 'd1_3' || tgt === 'd1_1');
+          const isFromDelibToMaster = (src === 'd1_5' || src === 'd1_3') && tgt === 'd2_2';
+          const isFromMasterToOut = tgt === 'out_1' || src === 'd2_2' || tgt === 'd2_2';
+
+          if (isFromHerdToDelib || isFromDelibToMaster || isFromMasterToOut) {
             line.classList.add('axon-approved');
           } else {
             line.classList.add('axon-dimmed');
           }
         });
+
         if (logEvent) {
-          appendTerminalLog('MT5 EXEC', 'Quórum alcanzado (0.84 >= 0.70) sin veto absoluto. Despachando orden canónica a MT5 Live.', 'text-emerald-400');
+          appendTerminalLog('Swarm Confluencia', '7 Herds convergen con Score Quórum 0.84 >= 0.70 (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TF, ATLAS).', 'text-cyan-400');
+          appendTerminalLog('Master Quórum', 'Consenso cualificado alcanzado sin veto. Transfiriendo orden a H5: RUNE para dimensionamiento y Cascada MT5.', 'text-amber-400');
+          appendTerminalLog('RUNE MT5 Dispatch', 'Filtro de riesgo nominal superado. Despachando orden canónica a MT5 Live con Cascada 4 Fases activa.', 'text-emerald-400');
           spawnFullNetworkWave('#00ff9d');
         }
       } else if (mode === 'vetoed') {
