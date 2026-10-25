@@ -3879,6 +3879,32 @@ async def render_cme_tape_dashboard():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo cargar el dashboard CME FX Tape+: {e}")
 
+@app.get("/enjambres", response_class=HTMLResponse)
+@app.get("/swarm_architecture", response_class=HTMLResponse)
+async def render_swarm_architecture_dashboard():
+    """
+    Retorna el dashboard interactivo de arquitectura horizontal de los 7 Herds del Swarm,
+    mostrando el flujo desacoplado de especificaciones .md, consultas MGET a Upstash Redis,
+    inferencia paralela Llama 3.3 70B REST, Quorum canonico / Veto RUNE, y retroalimentacion CBR
+    con animacion multi-color en tiempo real.
+    """
+    dashboard_path = os.path.join(os.path.dirname(__file__), "swarm_architecture_dashboard.html")
+    if not os.path.exists(dashboard_path):
+        dashboard_path = "swarm_architecture_dashboard.html"
+    try:
+        with open(dashboard_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HTMLResponse(
+            content=html_content,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"No se pudo cargar el dashboard de arquitectura de enjambres: {e}")
+
 @app.get("/api/cme_tape_data")
 def get_cme_tape_data():
     """Devuelve los datos y muestras de CME FX Tape+ (4 CLOBs: EBSC, XCME, GLBX, XFXS)."""

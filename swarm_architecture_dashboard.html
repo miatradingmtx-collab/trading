@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>MIA Master Swarm HFT — Mapa de Arquitectura y Flujo de Datos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-obsidian: #080a0f;
+      --node-bg: rgba(18, 22, 32, 0.94);
+      --node-border: #333b4d;
+      --cyan-neon: #38bdf8;
+      --blue-neon: #60a5fa;
+      --purple-neon: #c084fc;
+      --magenta-neon: #e879f9;
+      --green-neon: #4ade80;
+      --red-neon: #f87171;
+      --gold-neon: #facc15;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-obsidian);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(30, 58, 138, 0.18), transparent 55%),
+        radial-gradient(circle at 10% 40%, rgba(192, 132, 252, 0.06), transparent 45%),
+        radial-gradient(circle at 90% 70%, rgba(250, 204, 21, 0.05), transparent 45%),
+        radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 100% 100%, 28px 28px;
+      color: #f1f5f9;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Títulos de capas horizontales */
+    .layer-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #94a3b8;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      z-index: 20;
+    }
+
+    .layer-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.25), transparent);
+    }
+
+    /* Nodos Tipo Píldora / Cápsula Institucional */
+    .swarm-node {
+      position: relative;
+      z-index: 20;
+      background: var(--node-bg);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1.5px solid var(--node-border);
+      border-radius: 9999px;
+      padding: 11px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.75);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      min-width: 0; /* Evita desbordamiento en grid */
+      width: 100%;
+    }
+
+    .swarm-node:hover {
+      border-color: #64748b;
+      transform: translateY(-2px);
+      background: rgba(26, 32, 48, 0.98);
+      box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.85);
+    }
+
+    /* Variantes por dominio */
+    .swarm-node.variant-gold {
+      border-color: #9a7b2c;
+    }
+    .swarm-node.variant-gold:hover {
+      border-color: #facc15;
+    }
+
+    .swarm-node.variant-quorum {
+      border-color: #4b5563;
+    }
+    .swarm-node.variant-quorum:hover {
+      border-color: #93c5fd;
+    }
+
+    /* Estado Seleccionado / Foco Primario */
+    .swarm-node.is-selected {
+      background: linear-gradient(180deg, rgba(28, 54, 138, 0.95) 0%, rgba(20, 38, 105, 0.98) 100%) !important;
+      border: 2px solid #38bdf8 !important;
+      box-shadow: 
+        0 0 0 3px rgba(56, 189, 248, 0.22),
+        0 10px 32px -4px rgba(14, 165, 233, 0.55) !important;
+      transform: translateY(-2px) scale(1.02);
+    }
+
+    /* Estado de Conexión Activa por Color */
+    .swarm-node.is-connected {
+      background: rgba(24, 38, 78, 0.82);
+      border-color: #38bdf8;
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.35);
+    }
+
+    .swarm-node.is-connected-purple {
+      background: rgba(68, 25, 102, 0.82) !important;
+      border-color: #c084fc !important;
+      box-shadow: 0 0 18px rgba(192, 132, 252, 0.4) !important;
+    }
+
+    .swarm-node.is-connected-green {
+      background: rgba(18, 64, 42, 0.82) !important;
+      border-color: #4ade80 !important;
+      box-shadow: 0 0 18px rgba(74, 222, 128, 0.4) !important;
+    }
+
+    .swarm-node.is-connected-red {
+      background: rgba(74, 20, 32, 0.82) !important;
+      border-color: #f87171 !important;
+      box-shadow: 0 0 18px rgba(248, 113, 113, 0.4) !important;
+    }
+
+    .swarm-node.is-connected-gold {
+      background: rgba(66, 50, 16, 0.82) !important;
+      border-color: #facc15 !important;
+      box-shadow: 0 0 18px rgba(250, 204, 21, 0.4) !important;
+    }
+
+    .swarm-node.is-dimmed {
+      opacity: 0.35;
+      filter: saturate(0.45);
+    }
+
+    .node-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #f8fafc;
+      letter-spacing: -0.01em;
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .node-subtitle {
+      font-family: 'JetBrains Mono', monospace;
+      font-style: italic;
+      font-size: 0.72rem;
+      font-weight: 400;
+      color: #94a3b8;
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .swarm-node.is-selected .node-subtitle,
+    .swarm-node.is-connected .node-subtitle {
+      color: #bae6fd;
+    }
+
+    /* Píldoras en los conectores de ruta */
+    .edge-pill {
+      position: absolute;
+      z-index: 25;
+      transform: translate(-50%, -50%);
+      background: #10141d;
+      border: 1px solid #333c4e;
+      border-radius: 9999px;
+      padding: 3px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-style: italic;
+      font-size: 0.72rem;
+      color: #cbd5e1;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.22s ease;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.8);
+    }
+
+    .edge-pill:hover {
+      border-color: #38bdf8;
+      color: #ffffff;
+      transform: translate(-50%, -50%) scale(1.06);
+    }
+
+    .edge-pill.is-active-cyan {
+      background: #0c2b4d;
+      border: 1.5px solid #38bdf8;
+      color: #e0f2fe;
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.5);
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+
+    .edge-pill.is-active-purple {
+      background: #33154f;
+      border: 1.5px solid #c084fc;
+      color: #f5d0fe;
+      box-shadow: 0 0 16px rgba(192, 132, 252, 0.5);
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+
+    .edge-pill.is-active-green {
+      background: #0f3521;
+      border: 1.5px solid #4ade80;
+      color: #dcfce7;
+      box-shadow: 0 0 16px rgba(74, 222, 128, 0.5);
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+
+    .edge-pill.is-active-red {
+      background: #45151c;
+      border: 1.5px solid #f87171;
+      color: #fee2e2;
+      box-shadow: 0 0 16px rgba(248, 113, 113, 0.5);
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+
+    .edge-pill.is-active-gold {
+      background: #382c0b;
+      border: 1.5px solid #facc15;
+      color: #fef08a;
+      box-shadow: 0 0 16px rgba(250, 204, 21, 0.5);
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+
+    .edge-pill.is-dimmed {
+      opacity: 0.28;
+    }
+
+    /* Animación del flujo en los tubos SVG */
+    @keyframes dashFlow {
+      to {
+        stroke-dashoffset: -32;
+      }
+    }
+
+    .svg-connector {
+      fill: none;
+      transition: stroke 0.25s ease, stroke-width 0.25s ease, opacity 0.25s ease;
+    }
+
+    .svg-connector.is-active-cyan {
+      animation: dashFlow 0.85s linear infinite;
+      filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.6));
+    }
+
+    .svg-connector.is-active-purple {
+      animation: dashFlow 0.85s linear infinite;
+      filter: drop-shadow(0 0 6px rgba(192, 132, 252, 0.6));
+    }
+
+    .svg-connector.is-active-green {
+      animation: dashFlow 0.85s linear infinite;
+      filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.6));
+    }
+
+    .svg-connector.is-active-red {
+      animation: dashFlow 0.85s linear infinite;
+      filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.6));
+    }
+
+    .svg-connector.is-active-gold {
+      animation: dashFlow 0.85s linear infinite;
+      filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.6));
+    }
+
+    /* Botones de Presets */
+    .preset-btn {
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .preset-btn:hover {
+      transform: translateY(-1px);
+    }
+    .preset-btn.active {
+      box-shadow: 0 0 15px currentColor;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #080a0f;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #252c3c;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b455c;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- ==================== HEADER DE NAVEGACIÓN Y PRESETS ==================== -->
+  <header class="sticky top-0 z-40 bg-[#080a0f]/95 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-6 py-3 shadow-2xl">
+    <div class="max-w-[1480px] mx-auto flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+      
+      <!-- Título & Badges -->
+      <div class="flex items-center gap-3">
+        <div class="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_12px_#38bdf8] animate-pulse flex-shrink-0"></div>
+        <div>
+          <h1 class="text-sm sm:text-base font-bold tracking-wide text-slate-100 flex items-center gap-2 flex-wrap">
+            <span>MIA MASTER SWARM HFT</span>
+            <span class="text-xs font-mono font-normal px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-sky-300">
+              Llama 3.3 70B REST + Gemini 1.5 Pro CBR
+            </span>
+          </h1>
+          <p class="text-[11px] text-slate-400 hidden sm:block">
+            Flujo end-to-end de deliberación de enjambres: consultas atómicas en RAM, inferencia HFT, despacho y retroalimentación CBR
+          </p>
+        </div>
+      </div>
+
+      <!-- Presets / Escenarios Interactivos con Código de Color -->
+      <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0">
+        <button onclick="selectPreset('default')" id="btn-default" class="preset-btn active text-xs font-medium px-3 py-1.5 rounded-full border border-slate-700 bg-slate-800/90 text-slate-200">
+          🌐 Vista Inicial
+        </button>
+        <button onclick="selectPreset('ram_boot')" id="btn-ram_boot" class="preset-btn text-xs font-medium px-3 py-1.5 rounded-full border border-sky-800/80 bg-sky-950/40 text-sky-300">
+          1. Carga RAM (.MD)
+        </button>
+        <button onclick="selectPreset('mget_cache')" id="btn-mget_cache" class="preset-btn text-xs font-medium px-3 py-1.5 rounded-full border border-blue-800/80 bg-blue-950/40 text-blue-300">
+          2. MGET Redis
+        </button>
+        <button onclick="selectPreset('llm_debate')" id="btn-llm_debate" class="preset-btn text-xs font-medium px-3 py-1.5 rounded-full border border-purple-800/80 bg-purple-950/40 text-purple-300">
+          3. Debate Llama 70B
+        </button>
+        <button onclick="selectPreset('hft_approved')" id="btn-hft_approved" class="preset-btn text-xs font-medium px-3 py-1.5 rounded-full border border-emerald-800/80 bg-emerald-950/40 text-emerald-300">
+          4. APROBADO (MT5)
+        </button>
+        <button onclick="selectPreset('hft_vetoed')" id="btn-hft_vetoed" class="preset-btn text-xs font-medium px-3 py-1.5 rounded-full border border-rose-800/80 bg-rose-950/40 text-rose-300">
+          5. VETADO
+        </button>
+        <button onclick="selectPreset('cbr_loop')" id="btn-cbr_loop" class="preset-btn text-xs font-medium px-3 py-1.5 rounded-full border border-amber-800/80 bg-amber-950/40 text-amber-300">
+          6. Memoria CBR
+        </button>
+        <button onclick="toggleSimulation()" id="btn-sim" class="preset-btn text-xs font-semibold px-3.5 py-1.5 rounded-full border border-sky-500/70 bg-sky-950/70 text-sky-300 hover:bg-sky-900 transition flex items-center gap-1.5">
+          <span id="sim-dot" class="w-2 h-2 rounded-full bg-sky-400"></span>
+          <span id="sim-label">▶ Recorrido Animado</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ==================== LIENZO PRINCIPAL DEL DIAGRAMA ==================== -->
+  <main class="flex-1 relative overflow-x-auto overflow-y-visible">
+    <div id="diagram-canvas" class="relative max-w-[1440px] min-w-[1080px] mx-auto px-8 sm:px-14 pt-8 pb-32">
+      
+      <!-- Capa SVG Dinámica para Tubos y Conectores Ortogonales -->
+      <svg id="svg-layer" class="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible"></svg>
+
+      <!-- Capa de Píldoras Interactivas sobre los Conectores -->
+      <div id="edge-pills-layer" class="absolute inset-0 pointer-events-none z-20"></div>
+
+      <!-- =========================================================================
+           CAPA 1: ESPECIFICACIONES INDIVIDUALES (.MD) EN DISCO / OBSIDIAN
+           ========================================================================= -->
+      <section class="mb-14 relative">
+        <div class="layer-title">
+          <span>CAPA 1: ESPECIFICACIONES INDIVIDUALES (.MD) EN DISCO / OBSIDIAN</span>
+        </div>
+
+        <!-- Grid de 4 Columnas con espaciado amplio para evitar solapes de texto -->
+        <div class="grid grid-cols-4 gap-x-6 gap-y-4 pt-1">
+          
+          <!-- Fila 1 -->
+          <div class="swarm-node" data-id="herd_7_atlas" onclick="handleNodeClick('herd_7_atlas')">
+            <div class="node-title">herd_7_atlas</div>
+            <div class="node-subtitle">HERD_7_ATLAS.md • DOM CME, CVD</div>
+          </div>
+
+          <div class="swarm-node" data-id="herd_1_tidal" onclick="handleNodeClick('herd_1_tidal')">
+            <div class="node-title">herd_1_tidal</div>
+            <div class="node-subtitle">HERD_1_TIDAL.md • Macro, Killzones</div>
+          </div>
+
+          <div class="swarm-node" data-id="herd_2_nord" onclick="handleNodeClick('herd_2_nord')">
+            <div class="node-title">herd_2_nord</div>
+            <div class="node-subtitle">HERD_2_NORD.md • CVOL, Markov</div>
+          </div>
+
+          <div class="swarm-node" data-id="herd_4_lumen" onclick="handleNodeClick('herd_4_lumen')">
+            <div class="node-title">herd_4_lumen</div>
+            <div class="node-subtitle">HERD_4_LUMEN.md • SMC, Sweeps</div>
+          </div>
+
+          <!-- Fila 2 -->
+          <div class="swarm-node" data-id="herd_3_zephyr" onclick="handleNodeClick('herd_3_zephyr')">
+            <div class="node-title">herd_3_zephyr</div>
+            <div class="node-subtitle">HERD_3_ZEPHYR.md • EV, Asimetría</div>
+          </div>
+
+          <div class="swarm-node" data-id="herd_8_tensorflow" onclick="handleNodeClick('herd_8_tensorflow')">
+            <div class="node-title">herd_8_tensorflow</div>
+            <div class="node-subtitle">HERD_8_TENSORFLOW.md • Tensores 22D</div>
+          </div>
+
+          <div class="swarm-node" data-id="herd_5_rune" onclick="handleNodeClick('herd_5_rune')">
+            <div class="node-title">herd_5_rune</div>
+            <div class="node-subtitle">HERD_5_RUNE.md • Cascada 4 Fases</div>
+          </div>
+
+          <div class="swarm-node variant-quorum" data-id="master_orchestrator" onclick="handleNodeClick('master_orchestrator')">
+            <div class="node-title">master_orchestrator</div>
+            <div class="node-subtitle">MASTER_ORCHESTRATOR.md • Quórum >= 0.70</div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           CAPA 2: PYTHON REGISTRY & LECTURA ATÓMICA SUB-30MS
+           ========================================================================= -->
+      <section class="mb-14 relative pt-2">
+        <div class="layer-title">
+          <span>CAPA 2: PYTHON REGISTRY &amp; CONSULTA DE CACHÉ REDIS (SUB-30MS · CERO I/O EN BUCLE)</span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-x-8 pt-1 items-center">
+          <div class="swarm-node" data-id="load_herd_spec" onclick="handleNodeClick('load_herd_spec')">
+            <div class="node-title">@lru_cache: load_herd_specification()</div>
+            <div class="node-subtitle">Carga única en RAM • 0 I/O disco</div>
+          </div>
+
+          <div class="swarm-node" data-id="fetch_swarm_context" onclick="handleNodeClick('fetch_swarm_context')">
+            <div class="node-title">fetch_swarm_context_mget()</div>
+            <div class="node-subtitle">Lectura Atómica Sub-30ms de Upstash</div>
+          </div>
+
+          <div class="swarm-node" data-id="herd_context_dto" onclick="handleNodeClick('herd_context_dto')">
+            <div class="node-title">HerdContextDTO</div>
+            <div class="node-subtitle">Variables Tipadas y Normalizadas</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           CAPA 3: MOTOR DE INFERENCIA & DELIBERACIÓN HFT (LLAMA 3.3 70B)
+           CAPA 4: EJECUCIÓN A METATRADER 5 (CANASTA 5 LIVE + 1 SANDBOX)
+           ========================================================================= -->
+      <section class="mb-14 relative pt-2">
+        <div class="grid grid-cols-12 gap-x-8 items-start">
+          
+          <!-- Bloque Capa 3 -->
+          <div class="col-span-8">
+            <div class="layer-title">
+              <span>CAPA 3: MOTOR DE DELIBERACIÓN HFT (LLAMA 3.3 70B REST / GROQ)</span>
+            </div>
+            <div class="grid grid-cols-2 gap-x-8 pt-1 items-center">
+              <div class="swarm-node" data-id="debate_dinamico_herds" onclick="handleNodeClick('debate_dinamico_herds')">
+                <div class="node-title">debate_dinamico_7_herds</div>
+                <div class="node-subtitle">Prompt: 1,500 tokens • Inferencia: 2.3s</div>
+              </div>
+
+              <div class="swarm-node variant-quorum" data-id="quorum_master" onclick="handleNodeClick('quorum_master')">
+                <div class="node-title">quorum_master >= 0.70</div>
+                <div class="node-subtitle">¿Sin Veto Absoluto? (Consenso HFT)</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloque Capa 4 -->
+          <div class="col-span-4">
+            <div class="layer-title">
+              <span>CAPA 4: EJECUCIÓN A MT5</span>
+            </div>
+            <div class="pt-1">
+              <div class="swarm-node" data-id="despacho_canonico_rune" onclick="handleNodeClick('despacho_canonico_rune')">
+                <div class="node-title">despacho_canonico_rune_mt5</div>
+                <div class="node-subtitle">5 Pares Live / NZDCAD Sandbox</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           CAPA 5: MOTOR CBR & AUTOPSIA COGNITIVA (GEMINI 1.5 PRO)
+           ========================================================================= -->
+      <section class="relative pt-2">
+        <div class="layer-title">
+          <span>CAPA 5: MOTOR CBR &amp; AUTOPSIA (GEMINI 1.5 PRO — CREDIT ASSIGNMENT &amp; RETROALIMENTACIÓN)</span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-x-8 pt-1 items-center">
+          <div class="swarm-node" data-id="autopsia_trade_cerrado" onclick="handleNodeClick('autopsia_trade_cerrado')">
+            <div class="node-title">autopsia_trade_cerrado</div>
+            <div class="node-subtitle">Ticket MT5 • Gemini 1.5 Pro CBR</div>
+          </div>
+
+          <div class="swarm-node" data-id="score_premio_castigo" onclick="handleNodeClick('score_premio_castigo')">
+            <div class="node-title">score_premio_castigo_herd</div>
+            <div class="node-subtitle">Credit Assignment (+R / -R por Herd)</div>
+          </div>
+
+          <div class="swarm-node variant-gold" data-id="cache_trading_learning" onclick="handleNodeClick('cache_trading_learning')">
+            <div class="node-title">cache_trading_learning_kb</div>
+            <div class="node-subtitle">Upstash Redis RAM &amp; Firebase History</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ==================== FOOTER INSPECTOR TÉCNICO INTERACTIVO ==================== -->
+  <footer class="sticky bottom-0 z-40 bg-[#0b0e14]/95 backdrop-blur-md border-t border-slate-800/90 px-4 sm:px-8 py-3.5 shadow-2xl">
+    <div class="max-w-[1480px] mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+      
+      <div class="flex items-center gap-3.5">
+        <div id="inspector-badge" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-sky-950 text-sky-300 border border-sky-500/50 flex-shrink-0">
+          CAPA 3 • CONSENSO &amp; VETO
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h2 id="inspector-title" class="text-sm font-bold text-white font-mono">
+              quorum_master >= 0.70
+            </h2>
+            <span id="inspector-file" class="text-xs font-mono italic text-sky-400">
+              MASTER_ORCHESTRATOR.md
+            </span>
+          </div>
+          <p id="inspector-desc" class="text-xs text-slate-300 mt-0.5 line-clamp-2 md:line-clamp-none">
+            Evalúa la votación ponderada de los 7 Herds y verifica que no exista ningún Veto Absoluto antes de despachar a MetaTrader 5.
+          </p>
+        </div>
+      </div>
+
+      <!-- Leyenda Cromática de Rutas -->
+      <div class="flex items-center gap-4 text-xs text-slate-400 flex-shrink-0 flex-wrap">
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-1 bg-sky-400 rounded-full inline-block shadow-[0_0_8px_#38bdf8]"></span>
+          <span>1. RAM / Caché</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-1 bg-purple-400 rounded-full inline-block shadow-[0_0_8px_#c084fc]"></span>
+          <span>2. Deliberación LLM</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-1 bg-emerald-400 rounded-full inline-block shadow-[0_0_8px_#4ade80]"></span>
+          <span>3. Aprobado MT5</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-1 bg-rose-400 rounded-full inline-block shadow-[0_0_8px_#f87171]"></span>
+          <span>4. Vetado</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-1 bg-amber-400 rounded-full inline-block shadow-[0_0_8px_#facc15]"></span>
+          <span>5. Bucle CBR</span>
+        </div>
+      </div>
+
+    </div>
+  </footer>
+
+  <script>
+    /********************************************************************
+     * 1. METADATOS TÉCNICOS DETALLADOS DE CADA NODO
+     ********************************************************************/
+    const NODE_METADATA = {
+      herd_7_atlas: {
+        layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
+        title: 'herd_7_atlas',
+        file: 'HERD_7_ATLAS.md',
+        desc: 'Especialista en microestructura de mercado: libro de órdenes DOM CME, desbalances de volumen y divergencias CVD Delta.'
+      },
+      herd_1_tidal: {
+        layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
+        title: 'herd_1_tidal',
+        file: 'HERD_1_TIDAL.md',
+        desc: 'Especialista Macro y Sesiones: Killzones de Londres y New York, ciclo de tasas y correlación con el índice DXY.'
+      },
+      herd_2_nord: {
+        layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
+        title: 'herd_2_nord',
+        file: 'HERD_2_NORD.md',
+        desc: 'Modelado cuantitativo de volatilidad: CVOL Integral del CME, Point of Control (POC) y cadenas estocásticas de Markov.'
+      },
+      herd_4_lumen: {
+        layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
+        title: 'herd_4_lumen',
+        file: 'HERD_4_LUMEN.md',
+        desc: 'Estructura institucional Smart Money Concepts (SMC): detección de Order Blocks de 2H-4H y barridos de liquidez AMD Sweeps.'
+      },
+      herd_3_zephyr: {
+        layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
+        title: 'herd_3_zephyr',
+        file: 'HERD_3_ZEPHYR.md',
+        desc: 'Cálculo de probabilidad bayesiana, Valor Esperado (EV positivo) y ratio de asimetría matemática R:R.'
+      },
+      herd_8_tensorflow: {
+        layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
+        title: 'herd_8_tensorflow',
+        file: 'HERD_8_TENSORFLOW.md',
+        desc: 'Representación vectorial de tensores en 22 dimensiones y red neuronal Keras Sequential entrenada con 790+ trades.'
+      },
+      herd_5_rune: {
+        layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
+        title: 'herd_5_rune',
+        file: 'HERD_5_RUNE.md',
+        desc: 'Gestor supremo de riesgo institucional: Cascada de 4 Fases (TP1 50%, BE +2.5 pips, Trailing Locks y Front-Run TP).'
+      },
+      master_orchestrator: {
+        layer: 'CAPA 1 • CONSTITUCIÓN MAESTRA',
+        title: 'master_orchestrator',
+        file: 'MASTER_ORCHESTRATOR.md',
+        desc: 'Reglas de gobernanza del Swarm HFT: exige quórum calificado >= 0.70 y ausencia de veto por parte de RUNE o ATLAS.'
+      },
+      load_herd_spec: {
+        layer: 'CAPA 2 • PYTHON REGISTRY',
+        title: '@lru_cache: load_herd_specification()',
+        file: 'mia_master_swarm_rest.py',
+        desc: 'Carga única en memoria RAM de los archivos .md al inicializar el servicio. Garantiza Cero I/O de disco durante el bucle HFT.'
+      },
+      fetch_swarm_context: {
+        layer: 'CAPA 2 • CONSULTA ATÓMICA DE CACHÉ',
+        title: 'fetch_swarm_context_mget()',
+        file: 'Upstash Redis RAM',
+        desc: 'Recupera en lote (MGET) sub-30ms la telemetría viva de mercado (cache_mt5, cache_trading_matrix, cache_regla_de_3).'
+      },
+      herd_context_dto: {
+        layer: 'CAPA 2 • DTO & NORMALIZACIÓN',
+        title: 'HerdContextDTO',
+        file: 'Pydantic Data Transfer Object',
+        desc: 'Normaliza y tipa estrictamente los datos de mercado antes de entregarlos al prompt de los modelos cognitivos.'
+      },
+      debate_dinamico_herds: {
+        layer: 'CAPA 3 • INFERENCIA HFT REST',
+        title: 'debate_dinamico_7_herds',
+        file: 'Llama 3.3 70B REST / Groq',
+        desc: 'Deliberación en paralelo de los 7 Herds con prompt compacto de 1,500 tokens y tiempo de inferencia medio de 2.3 segundos.'
+      },
+      quorum_master: {
+        layer: 'CAPA 3 • CONSENSO & VETO',
+        title: 'quorum_master >= 0.70',
+        file: '¿Sin Veto Absoluto?',
+        desc: 'Puerta lógica de decisión HFT: si el consenso supera 0.70 y no hay veto de RUNE, autoriza el despacho canónico a MT5.'
+      },
+      despacho_canonico_rune: {
+        layer: 'CAPA 4 • EJECUCIÓN MT5',
+        title: 'despacho_canonico_rune_mt5',
+        file: 'MetaTrader 5 Bridge',
+        desc: 'Ejecuta la orden en MetaTrader 5 aplicando la Cascada RUNE sobre el portafolio oficial (5 Live + 1 Sandbox NZDCAD).'
+      },
+      autopsia_trade_cerrado: {
+        layer: 'CAPA 5 • MOTOR CBR & AUTOPSIA',
+        title: 'autopsia_trade_cerrado',
+        file: 'Google Gemini 1.5 Pro',
+        desc: 'Autopsia forense profunda de cada trade cerrado (Win, Loss, BE o Veto) contrastando la tesis del debate contra la realidad.'
+      },
+      score_premio_castigo: {
+        layer: 'CAPA 5 • CREDIT ASSIGNMENT',
+        title: 'score_premio_castigo_herd',
+        file: 'Motor de Ponderación',
+        desc: 'Asigna recompensa (+R) o penalización (-R) a cada Herd según el acierto predictivo en el resultado final del trade.'
+      },
+      cache_trading_learning: {
+        layer: 'CAPA 5 • MEMORIA PERSISTENTE',
+        title: 'cache_trading_learning_kb',
+        file: 'Upstash Redis + Firestore',
+        desc: 'Almacena lecciones aprendidas en Upstash y Firebase, y retroalimenta de regreso a la Capa 2 para trades futuros.'
+      }
+    };
+
+    /********************************************************************
+     * 2. DEFINICIÓN DE CONEXIONES (EDGES) CON CÓDIGOS DE COLOR
+     ********************************************************************/
+    const EDGES = [
+      // Capa 1 -> Capa 2 (Carga de Especificaciones a RAM)
+      { id: 'e_h7_ram', from: 'herd_7_atlas', to: 'load_herd_spec', type: 'md_boot', color: 'cyan' },
+      { id: 'e_h1_ram', from: 'herd_1_tidal', to: 'load_herd_spec', type: 'md_boot', color: 'cyan' },
+      { id: 'e_h2_ram', from: 'herd_2_nord', to: 'load_herd_spec', type: 'md_boot', color: 'cyan' },
+      { id: 'e_h4_ram', from: 'herd_4_lumen', to: 'load_herd_spec', type: 'md_boot', color: 'cyan' },
+      { id: 'e_h3_ram', from: 'herd_3_zephyr', to: 'load_herd_spec', type: 'md_boot', color: 'cyan' },
+      { id: 'e_h8_ram', from: 'herd_8_tensorflow', to: 'load_herd_spec', type: 'md_boot', color: 'cyan' },
+      { id: 'e_h5_ram', from: 'herd_5_rune', to: 'load_herd_spec', type: 'md_boot', color: 'cyan' },
+      { id: 'e_master_ram', from: 'master_orchestrator', to: 'load_herd_spec', type: 'md_boot', label: 'carga_inicial_ram', color: 'cyan' },
+
+      // Capa 2 interna (Caché MGET -> DTO)
+      { id: 'e_mget_dto', from: 'fetch_swarm_context', to: 'herd_context_dto', type: 'horizontal', label: 'sub_30ms_mget', color: 'cyan' },
+
+      // Capa 2 -> Capa 3 (Inyección al Debate)
+      { id: 'e_ram_debate', from: 'load_herd_spec', to: 'debate_dinamico_herds', type: 'step_down', color: 'purple' },
+      { id: 'e_dto_debate', from: 'herd_context_dto', to: 'debate_dinamico_herds', type: 'step_down', label: 'contexto_tipado', color: 'purple' },
+
+      // Capa 3 interna (Debate -> Quórum)
+      { id: 'e_debate_quorum', from: 'debate_dinamico_herds', to: 'quorum_master', type: 'horizontal', label: 'consenso_7_herds', color: 'purple' },
+
+      // Capa 3 -> Capa 4 (Aprobado -> MT5)
+      { id: 'e_quorum_mt5', from: 'quorum_master', to: 'despacho_canonico_rune', type: 'horizontal', label: 'Sí: APROBADO', color: 'green' },
+
+      // Capa 3 -> Capa 5 (Veto Directo -> Autopsia)
+      { id: 'e_quorum_veto', from: 'quorum_master', to: 'autopsia_trade_cerrado', type: 'veto_bypass', label: 'No: VETADO', color: 'red' },
+
+      // Capa 4 -> Capa 5 (Cierre de Posición MT5 -> Autopsia)
+      { id: 'e_mt5_autopsia', from: 'despacho_canonico_rune', to: 'autopsia_trade_cerrado', type: 'close_position', label: 'cierre_posicion', color: 'gold' },
+
+      // Capa 5 interna (CBR Credit Assignment)
+      { id: 'e_autopsia_score', from: 'autopsia_trade_cerrado', to: 'score_premio_castigo', type: 'horizontal', label: 'credit_assignment', color: 'gold' },
+      { id: 'e_score_kb', from: 'score_premio_castigo', to: 'cache_trading_learning', type: 'horizontal', label: '+R / -R por Herd', color: 'gold' },
+
+      // Capa 5 -> Capa 2 (Retroalimentación Dorada de Aprendizaje)
+      { id: 'e_kb_feedback', from: 'cache_trading_learning', to: 'fetch_swarm_context', type: 'cbr_feedback', label: 'retroalimentacion_casos_y_pesos', color: 'gold' }
+    ];
+
+    let selectedNodes = new Set(['quorum_master', 'despacho_canonico_rune']);
+    let activeEdges = new Set(['e_debate_quorum', 'e_quorum_mt5', 'e_quorum_veto']);
+    let focusedPrimaryNode = 'quorum_master';
+    let currentFlowColor = 'cyan';
+    let simInterval = null;
+
+    /********************************************************************
+     * 3. CÁLCULO GEOMÉTRICO Y RENDERIZADO SVG DE TUBERÍAS
+     ********************************************************************/
+    function getRelativeBox(nodeId) {
+      const canvas = document.getElementById('diagram-canvas');
+      const el = document.querySelector(`.swarm-node[data-id="${nodeId}"]`);
+      if (!canvas || !el) return null;
+
+      const cRect = canvas.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+
+      const left = r.left - cRect.left;
+      const top = r.top - cRect.top;
+      const width = r.width;
+      const height = r.height;
+
+      return {
+        left,
+        top,
+        right: left + width,
+        bottom: top + height,
+        cx: left + width / 2,
+        cy: top + height / 2,
+        width,
+        height
+      };
+    }
+
+    function buildEdgeGeometry(edge) {
+      const from = getRelativeBox(edge.from);
+      const to = getRelativeBox(edge.to);
+      if (!from || !to) return null;
+
+      let d = '';
+      let labelPos = null;
+
+      if (edge.type === 'md_boot') {
+        const busY = to.top - 24;
+        const startX = from.cx;
+        const startY = from.bottom;
+        const endX = to.cx;
+        const endY = to.top - 4;
+
+        d = `M ${startX} ${startY} L ${startX} ${busY} L ${endX} ${busY} L ${endX} ${endY}`;
+        if (edge.label) {
+          labelPos = { x: endX + 90, y: busY };
+        }
+      } else if (edge.type === 'horizontal') {
+        const startX = from.right;
+        const startY = from.cy;
+        const endX = to.left - 5;
+        const endY = to.cy;
+
+        d = `M ${startX} ${startY} L ${endX} ${endY}`;
+        if (edge.label) {
+          labelPos = { x: (startX + endX) / 2, y: (startY + endY) / 2 - 14 };
+        }
+      } else if (edge.type === 'step_down') {
+        const startX = from.cx;
+        const startY = from.bottom;
+        const endX = to.cx;
+        const endY = to.top - 5;
+        const midY = (startY + endY) / 2;
+
+        d = `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
+        if (edge.label) {
+          labelPos = { x: (startX + endX) / 2, y: midY };
+        }
+      } else if (edge.type === 'veto_bypass') {
+        const startX = from.cx;
+        const startY = from.bottom;
+        const endX = to.cx + 26;
+        const endY = to.top - 5;
+        const midY = startY + (endY - startY) * 0.48;
+
+        d = `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
+        if (edge.label) {
+          labelPos = { x: startX, y: midY - 12 };
+        }
+      } else if (edge.type === 'close_position') {
+        const startX = from.cx;
+        const startY = from.bottom;
+        const endX = to.cx - 26;
+        const endY = to.top - 5;
+        const midY = startY + (endY - startY) * 0.65;
+
+        d = `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
+        if (edge.label) {
+          labelPos = { x: startX - 90, y: midY };
+        }
+      } else if (edge.type === 'cbr_feedback') {
+        const startX = from.cx;
+        const startY = from.bottom;
+        const bottomRailY = from.bottom + 34;
+        const leftChannelX = 22;
+        const targetY = to.cy;
+        const endX = to.left - 5;
+
+        d = `M ${startX} ${startY} 
+             L ${startX} ${bottomRailY} 
+             L ${leftChannelX} ${bottomRailY} 
+             L ${leftChannelX} ${targetY} 
+             L ${endX} ${targetY}`;
+
+        if (edge.label) {
+          labelPos = { x: leftChannelX + 150, y: bottomRailY };
+        }
+      }
+
+      return { d, labelPos };
+    }
+
+    function renderDiagram() {
+      const svg = document.getElementById('svg-layer');
+      const pillsContainer = document.getElementById('edge-pills-layer');
+      if (!svg || !pillsContainer) return;
+
+      // Definición de marcadores de flecha en SVG
+      svg.innerHTML = `
+        <defs>
+          <marker id="arrow-muted" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 1 1 L 8 5 L 1 9" fill="none" stroke="#475569" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arrow-cyan" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M 1 1 L 8 5 L 1 9" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arrow-purple" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M 1 1 L 8 5 L 1 9" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arrow-green" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M 1 1 L 8 5 L 1 9" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arrow-red" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M 1 1 L 8 5 L 1 9" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arrow-gold" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M 1 1 L 8 5 L 1 9" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+      `;
+
+      pillsContainer.innerHTML = '';
+      const hasSelection = selectedNodes.size > 0;
+
+      const sortedEdges = [...EDGES].sort((a, b) => {
+        const aActive = activeEdges.has(a.id) ? 1 : 0;
+        const bActive = activeEdges.has(b.id) ? 1 : 0;
+        return aActive - bActive;
+      });
+
+      sortedEdges.forEach((edge) => {
+        const geom = buildEdgeGeometry(edge);
+        if (!geom) return;
+
+        const isActive = activeEdges.has(edge.id);
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', geom.d);
+        path.setAttribute('stroke-linejoin', 'round');
+        path.setAttribute('stroke-linecap', 'round');
+
+        let strokeColor = '#334155';
+        let marker = 'url(#arrow-muted)';
+        let dashArray = '3 5';
+        let strokeWidth = '1.6';
+        let extraClass = '';
+
+        if (isActive) {
+          dashArray = '6 6';
+          strokeWidth = '2.4';
+          if (edge.color === 'cyan') {
+            strokeColor = '#38bdf8';
+            marker = 'url(#arrow-cyan)';
+            extraClass = 'is-active-cyan';
+          } else if (edge.color === 'purple') {
+            strokeColor = '#c084fc';
+            marker = 'url(#arrow-purple)';
+            extraClass = 'is-active-purple';
+          } else if (edge.color === 'green') {
+            strokeColor = '#4ade80';
+            marker = 'url(#arrow-green)';
+            extraClass = 'is-active-green';
+          } else if (edge.color === 'red') {
+            strokeColor = '#f87171';
+            marker = 'url(#arrow-red)';
+            extraClass = 'is-active-red';
+          } else if (edge.color === 'gold') {
+            strokeColor = '#facc15';
+            marker = 'url(#arrow-gold)';
+            extraClass = 'is-active-gold';
+          }
+        } else {
+          if (edge.color === 'gold') strokeColor = '#71581e';
+          if (edge.color === 'green') strokeColor = '#215c3d';
+          if (edge.color === 'red') strokeColor = '#66222b';
+        }
+
+        path.setAttribute('stroke', strokeColor);
+        path.setAttribute('stroke-width', strokeWidth);
+        path.setAttribute('stroke-dasharray', dashArray);
+        path.setAttribute('marker-end', marker);
+        path.setAttribute('class', `svg-connector ${extraClass}`);
+        path.style.opacity = isActive ? '1' : (hasSelection ? '0.28' : '0.55');
+
+        svg.appendChild(path);
+
+        // Píldoras de descripción en ruta
+        if (edge.label && geom.labelPos) {
+          const pill = document.createElement('div');
+          pill.className = 'edge-pill pointer-events-auto';
+          if (isActive) {
+            if (edge.color === 'cyan') pill.classList.add('is-active-cyan');
+            else if (edge.color === 'purple') pill.classList.add('is-active-purple');
+            else if (edge.color === 'green') pill.classList.add('is-active-green');
+            else if (edge.color === 'red') pill.classList.add('is-active-red');
+            else if (edge.color === 'gold') pill.classList.add('is-active-gold');
+          } else if (hasSelection) {
+            pill.classList.add('is-dimmed');
+          }
+
+          pill.style.left = `${geom.labelPos.x}px`;
+          pill.style.top = `${geom.labelPos.y}px`;
+          pill.textContent = edge.label;
+          pill.onclick = (e) => {
+            e.stopPropagation();
+            handleEdgeClick(edge);
+          };
+
+          pillsContainer.appendChild(pill);
+        }
+      });
+
+      // Actualizar Nodos
+      document.querySelectorAll('.swarm-node').forEach((nodeEl) => {
+        const id = nodeEl.getAttribute('data-id');
+        nodeEl.classList.remove('is-selected', 'is-connected', 'is-connected-purple', 'is-connected-green', 'is-connected-red', 'is-connected-gold', 'is-dimmed');
+
+        if (id === focusedPrimaryNode) {
+          nodeEl.classList.add('is-selected');
+        } else if (selectedNodes.has(id)) {
+          if (currentFlowColor === 'purple') nodeEl.classList.add('is-connected-purple');
+          else if (currentFlowColor === 'green') nodeEl.classList.add('is-connected-green');
+          else if (currentFlowColor === 'red') nodeEl.classList.add('is-connected-red');
+          else if (currentFlowColor === 'gold') nodeEl.classList.add('is-connected-gold');
+          else nodeEl.classList.add('is-connected');
+        } else if (hasSelection) {
+          nodeEl.classList.add('is-dimmed');
+        }
+      });
+
+      updateInspector(focusedPrimaryNode);
+    }
+
+    /********************************************************************
+     * 4. INTERACTIVIDAD DE NODOS Y PRESETS
+     ********************************************************************/
+    function handleNodeClick(nodeId) {
+      stopSimulationIfRunning();
+      focusedPrimaryNode = nodeId;
+      selectedNodes = new Set([nodeId]);
+      activeEdges = new Set();
+      currentFlowColor = 'cyan';
+
+      EDGES.forEach((edge) => {
+        if (edge.from === nodeId || edge.to === nodeId) {
+          activeEdges.add(edge.id);
+          selectedNodes.add(edge.from);
+          selectedNodes.add(edge.to);
+          if (edge.color) currentFlowColor = edge.color;
+        }
+      });
+
+      renderDiagram();
+    }
+
+    function handleEdgeClick(edge) {
+      stopSimulationIfRunning();
+      focusedPrimaryNode = edge.to;
+      selectedNodes = new Set([edge.from, edge.to]);
+      activeEdges = new Set([edge.id]);
+      currentFlowColor = edge.color || 'cyan';
+
+      if (edge.type === 'md_boot') {
+        EDGES.filter(e => e.type === 'md_boot').forEach(e => {
+          activeEdges.add(e.id);
+          selectedNodes.add(e.from);
+        });
+      }
+
+      renderDiagram();
+    }
+
+    function selectPreset(presetName) {
+      stopSimulationIfRunning();
+
+      document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = document.getElementById(`btn-${presetName}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      if (presetName === 'default') {
+        currentFlowColor = 'cyan';
+        focusedPrimaryNode = 'quorum_master';
+        selectedNodes = new Set(['debate_dinamico_herds', 'quorum_master', 'despacho_canonico_rune', 'autopsia_trade_cerrado']);
+        activeEdges = new Set(['e_debate_quorum', 'e_quorum_mt5', 'e_quorum_veto']);
+      } else if (presetName === 'ram_boot') {
+        currentFlowColor = 'cyan';
+        focusedPrimaryNode = 'load_herd_spec';
+        selectedNodes = new Set([
+          'herd_7_atlas', 'herd_1_tidal', 'herd_2_nord', 'herd_4_lumen',
+          'herd_3_zephyr', 'herd_8_tensorflow', 'herd_5_rune', 'master_orchestrator',
+          'load_herd_spec'
+        ]);
+        activeEdges = new Set([
+          'e_h7_ram', 'e_h1_ram', 'e_h2_ram', 'e_h4_ram',
+          'e_h3_ram', 'e_h8_ram', 'e_h5_ram', 'e_master_ram'
+        ]);
+      } else if (presetName === 'mget_cache') {
+        currentFlowColor = 'cyan';
+        focusedPrimaryNode = 'fetch_swarm_context';
+        selectedNodes = new Set(['fetch_swarm_context', 'herd_context_dto', 'debate_dinamico_herds']);
+        activeEdges = new Set(['e_mget_dto', 'e_dto_debate']);
+      } else if (presetName === 'llm_debate') {
+        currentFlowColor = 'purple';
+        focusedPrimaryNode = 'debate_dinamico_herds';
+        selectedNodes = new Set(['load_herd_spec', 'herd_context_dto', 'debate_dinamico_herds', 'quorum_master']);
+        activeEdges = new Set(['e_ram_debate', 'e_dto_debate', 'e_debate_quorum']);
+      } else if (presetName === 'hft_approved') {
+        currentFlowColor = 'green';
+        focusedPrimaryNode = 'despacho_canonico_rune';
+        selectedNodes = new Set(['quorum_master', 'despacho_canonico_rune']);
+        activeEdges = new Set(['e_quorum_mt5']);
+      } else if (presetName === 'hft_vetoed') {
+        currentFlowColor = 'red';
+        focusedPrimaryNode = 'autopsia_trade_cerrado';
+        selectedNodes = new Set(['quorum_master', 'autopsia_trade_cerrado']);
+        activeEdges = new Set(['e_quorum_veto']);
+      } else if (presetName === 'cbr_loop') {
+        currentFlowColor = 'gold';
+        focusedPrimaryNode = 'cache_trading_learning';
+        selectedNodes = new Set(['despacho_canonico_rune', 'autopsia_trade_cerrado', 'score_premio_castigo', 'cache_trading_learning', 'fetch_swarm_context']);
+        activeEdges = new Set(['e_mt5_autopsia', 'e_autopsia_score', 'e_score_kb', 'e_kb_feedback']);
+      }
+
+      renderDiagram();
+    }
+
+    function updateInspector(nodeId) {
+      const meta = NODE_METADATA[nodeId];
+      if (!meta) return;
+
+      document.getElementById('inspector-badge').textContent = meta.layer;
+      document.getElementById('inspector-title').textContent = meta.title;
+      document.getElementById('inspector-file').textContent = meta.file;
+      document.getElementById('inspector-desc').textContent = meta.desc;
+    }
+
+    /********************************************************************
+     * 5. SIMULACIÓN DE RECORRIDO ANIMADO MULTI-COLOR PASO A PASO
+     ********************************************************************/
+    const SIMULATION_STAGES = [
+      { name: 'ram_boot', desc: 'Fase 1 (Cyan): Carga en RAM de las especificaciones de los 7 Herds (@lru_cache)' },
+      { name: 'mget_cache', desc: 'Fase 2 (Azul): Consulta atómica MGET sub-30ms a Upstash Redis para armar el DTO' },
+      { name: 'llm_debate', desc: 'Fase 3 (Púrpura): Inferencia y debate síncrono Llama 3.3 70B REST (Prompt 1,500 tokens)' },
+      { name: 'hft_approved', desc: 'Fase 4A (Verde): Quórum calificado >= 0.70 alcanzado → Despacho canónico a MT5 Live' },
+      { name: 'cbr_loop', desc: 'Fase 5 (Dorado): Autopsia Gemini 1.5 Pro, Credit Assignment (+R/-R) y retroalimentación CBR' }
+    ];
+    let simStageIdx = 0;
+
+    function toggleSimulation() {
+      if (simInterval) {
+        stopSimulationIfRunning();
+        return;
+      }
+
+      const btnLabel = document.getElementById('sim-label');
+      const simDot = document.getElementById('sim-dot');
+      btnLabel.textContent = '⏸ Detener Recorrido';
+      simDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+
+      const runStep = () => {
+        const stage = SIMULATION_STAGES[simStageIdx];
+        selectPreset(stage.name);
+        document.getElementById('inspector-desc').textContent = stage.desc;
+        simStageIdx = (simStageIdx + 1) % SIMULATION_STAGES.length;
+      };
+
+      runStep();
+      simInterval = setInterval(runStep, 2400);
+    }
+
+    function stopSimulationIfRunning() {
+      if (simInterval) {
+        clearInterval(simInterval);
+        simInterval = null;
+        document.getElementById('sim-label').textContent = '▶ Recorrido Animado';
+        document.getElementById('sim-dot').className = 'w-2 h-2 rounded-full bg-sky-400';
+      }
+    }
+
+    // Inicialización al cargar la ventana
+    window.addEventListener('load', () => {
+      selectPreset('default');
+      setTimeout(renderDiagram, 160);
+    });
+
+    window.addEventListener('resize', () => {
+      requestAnimationFrame(renderDiagram);
+    });
+  </script>
+</body>
+</html>
