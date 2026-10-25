@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>MIA TENSORFLOW CORE 3D — RED NEURONAL 22D KERAS v2.0</title>
+  <title>MIA MASTER SWARM HFT / TENSORFLOW CORE 3D v2.0 (MATRIZ 22D)</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts -->
@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-void: #03060c;
+      --bg-void: #04070d;
       --cyan-glow: #00f0ff;
       --blue-neon: #0088ff;
       --magenta-neon: #e024ff;
@@ -34,13 +34,13 @@
     body {
       background-color: var(--bg-void);
       background-image: 
-        radial-gradient(circle at 50% 45%, rgba(0, 140, 255, 0.14) 0%, transparent 60%),
-        radial-gradient(circle at 20% 20%, rgba(168, 85, 247, 0.08) 0%, transparent 55%),
-        radial-gradient(circle at 80% 80%, rgba(0, 255, 157, 0.06) 0%, transparent 55%);
+        radial-gradient(circle at 60% 45%, rgba(0, 140, 255, 0.14) 0%, transparent 55%),
+        radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.08) 0%, transparent 65%);
       color: #e2e8f0;
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
       overflow: hidden;
       height: 100vh;
+      height: 100dvh;
       width: 100vw;
       display: flex;
       flex-direction: column;
@@ -50,25 +50,34 @@
       font-family: 'JetBrains Mono', monospace;
     }
 
+    /* Scrollbars invisibles o estilizadas */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
     /* ================= HEADER & PILLS ================= */
     .header-glass {
-      background: linear-gradient(180deg, rgba(6, 12, 24, 0.96) 0%, rgba(4, 8, 18, 0.88) 100%);
+      background: linear-gradient(180deg, rgba(6, 12, 24, 0.96) 0%, rgba(5, 9, 18, 0.88) 100%);
       border-bottom: 1px solid rgba(0, 240, 255, 0.22);
-      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(0, 240, 255, 0.12) inset;
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.75), 0 1px 0 rgba(0, 240, 255, 0.1) inset;
       z-index: 100;
     }
 
     .cyber-title {
       color: #00f0ff;
       text-shadow: 0 0 12px rgba(0, 240, 255, 0.65), 0 0 24px rgba(0, 136, 255, 0.35);
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
     }
 
     .pill-btn {
       background: rgba(12, 22, 42, 0.75);
       border: 1px solid rgba(56, 189, 248, 0.3);
       color: #cbd5e1;
-      padding: 5px 12px;
+      padding: 6px 14px;
       border-radius: 9999px;
       font-size: 11px;
       font-weight: 600;
@@ -80,6 +89,14 @@
       gap: 6px;
       backdrop-filter: blur(8px);
       white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 640px) {
+      .pill-btn {
+        padding: 5px 10px;
+        font-size: 10px;
+      }
     }
 
     .pill-btn:hover {
@@ -141,12 +158,12 @@
 
     .world-3d {
       position: absolute;
-      width: 1220px;
-      height: 680px;
+      width: 1180px;
+      height: 660px;
       top: 50%;
       left: 50%;
-      margin-left: -610px;
-      margin-top: -340px;
+      margin-left: -590px;
+      margin-top: -330px;
       transform-style: preserve-3d;
       transition: transform 0.1s cubic-bezier(0.1, 0.9, 0.2, 1);
       will-change: transform;
@@ -155,24 +172,24 @@
     /* Suelo Perspectiva */
     .cyber-floor {
       position: absolute;
-      width: 1800px;
-      height: 1800px;
-      left: -290px;
-      top: -360px;
+      width: 1700px;
+      height: 1700px;
+      left: -260px;
+      top: -340px;
       background-image: 
         linear-gradient(to right, rgba(0, 240, 255, 0.08) 1px, transparent 1px),
         linear-gradient(to bottom, rgba(0, 240, 255, 0.08) 1px, transparent 1px);
       background-size: 50px 50px;
-      transform: rotateX(90deg) translateZ(-340px);
+      transform: rotateX(90deg) translateZ(-330px);
       pointer-events: none;
-      opacity: 0.65;
+      opacity: 0.6;
       mask-image: radial-gradient(circle at 50% 50%, black 25%, transparent 75%);
     }
 
-    /* ================= PLACAS ACRÍLICAS ACRYLIC GLASS SLABS ================= */
+    /* ================= PLACAS ACRÍLICAS (ACRYLIC GLASS SLABS) ================= */
     .glass-slab {
       position: absolute;
-      background: linear-gradient(135deg, rgba(8, 20, 44, 0.45) 0%, rgba(5, 12, 28, 0.7) 100%);
+      background: linear-gradient(135deg, rgba(8, 20, 44, 0.45) 0%, rgba(5, 12, 28, 0.72) 100%);
       border: 1.5px solid rgba(0, 240, 255, 0.35);
       border-radius: 20px;
       backdrop-filter: blur(12px);
@@ -212,7 +229,7 @@
     .slab-caption-top { top: -28px; }
     .slab-caption-bottom { bottom: -28px; }
 
-    /* ================= SVG AXONS (CANVAS DE LÍNEAS 3D) ================= */
+    /* ================= SVG AXONS ================= */
     .axon-svg {
       position: absolute;
       top: 0;
@@ -229,7 +246,7 @@
       stroke-linecap: round;
       stroke-linejoin: round;
       transition: stroke 0.3s ease, stroke-width 0.3s ease, opacity 0.3s ease;
-      opacity: 0.38;
+      opacity: 0.35;
     }
 
     .axon-path.axon-active {
@@ -249,15 +266,21 @@
       stroke-width: 2.4px;
       filter: drop-shadow(0 0 8px rgba(255, 42, 85, 0.9));
     }
+    .axon-path.axon-purple {
+      stroke: var(--magenta-neon) !important;
+      opacity: 0.9;
+      stroke-width: 2px;
+      filter: drop-shadow(0 0 6px rgba(224, 36, 255, 0.8));
+    }
 
     /* Partículas Sinápticas */
     .synaptic-particle {
       position: absolute;
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: #ffffff;
-      box-shadow: 0 0 12px #00f0ff, 0 0 20px #0088ff;
+      box-shadow: 0 0 12px #00f0ff, 0 0 18px #0088ff;
       pointer-events: none;
       transform: translate(-50%, -50%);
       z-index: 45;
@@ -266,16 +289,16 @@
     /* ================= NEURONAS 3D (NODOS ESFÉRICOS) ================= */
     .neuron-node {
       position: absolute;
-      width: 22px;
-      height: 22px;
-      margin-left: -11px;
-      margin-top: -11px;
+      width: 20px;
+      height: 20px;
+      margin-left: -10px;
+      margin-top: -10px;
       border-radius: 50%;
       background: radial-gradient(circle at 35% 35%, #ffffff 0%, #00d4ff 45%, #0044aa 100%);
       box-shadow: 
-        0 0 16px rgba(0, 240, 255, 0.7),
-        0 0 30px rgba(0, 136, 255, 0.45),
-        inset 0 0 6px rgba(255, 255, 255, 0.8);
+        0 0 14px rgba(0, 240, 255, 0.7),
+        0 0 25px rgba(0, 136, 255, 0.45),
+        inset 0 0 5px rgba(255, 255, 255, 0.8);
       cursor: pointer;
       transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
       z-index: 50;
@@ -283,35 +306,35 @@
     }
 
     .neuron-node:hover {
-      transform: scale(1.35) translateZ(10px);
-      box-shadow: 0 0 24px #00f0ff, 0 0 45px #0088ff, inset 0 0 8px #ffffff;
+      transform: scale(1.35) translateZ(8px);
+      box-shadow: 0 0 22px #00f0ff, 0 0 40px #0088ff, inset 0 0 8px #ffffff;
     }
 
-    /* Variantes por Estado de Activación */
+    /* Variantes de Coloración de Neuronas */
     .neuron-node.node-off {
-      background: radial-gradient(circle at 35% 35%, #64748b 0%, #334155 50%, #0f172a 100%);
-      box-shadow: 0 0 6px rgba(51, 65, 85, 0.5);
-      opacity: 0.45;
+      background: radial-gradient(circle at 35% 35%, #475569 0%, #1e293b 50%, #090d16 100%);
+      box-shadow: 0 0 6px rgba(30, 41, 59, 0.5);
+      opacity: 0.42;
     }
 
     .neuron-node.node-green {
       background: radial-gradient(circle at 35% 35%, #ffffff 0%, #00ff9d 45%, #057a4a 100%) !important;
-      box-shadow: 0 0 20px rgba(0, 255, 157, 0.9), 0 0 35px rgba(0, 255, 157, 0.5) !important;
+      box-shadow: 0 0 20px rgba(0, 255, 157, 0.95), 0 0 35px rgba(0, 255, 157, 0.6) !important;
     }
 
     .neuron-node.node-red {
       background: radial-gradient(circle at 35% 35%, #ffffff 0%, #ff2a55 45%, #880520 100%) !important;
-      box-shadow: 0 0 20px rgba(255, 42, 85, 0.9), 0 0 35px rgba(255, 42, 85, 0.5) !important;
-    }
-
-    .neuron-node.node-amber {
-      background: radial-gradient(circle at 35% 35%, #ffffff 0%, #ffb800 45%, #945200 100%) !important;
-      box-shadow: 0 0 20px rgba(255, 184, 0, 0.9), 0 0 35px rgba(255, 184, 0, 0.5) !important;
+      box-shadow: 0 0 20px rgba(255, 42, 85, 0.95), 0 0 35px rgba(255, 42, 85, 0.6) !important;
     }
 
     .neuron-node.node-purple {
       background: radial-gradient(circle at 35% 35%, #ffffff 0%, #c084fc 45%, #6b21a8 100%) !important;
-      box-shadow: 0 0 20px rgba(192, 132, 252, 0.9), 0 0 35px rgba(192, 132, 252, 0.5) !important;
+      box-shadow: 0 0 18px rgba(192, 132, 252, 0.85), 0 0 30px rgba(192, 132, 252, 0.5) !important;
+    }
+
+    .neuron-node.node-amber {
+      background: radial-gradient(circle at 35% 35%, #ffffff 0%, #ffb800 45%, #945200 100%) !important;
+      box-shadow: 0 0 18px rgba(255, 184, 0, 0.85), 0 0 30px rgba(255, 184, 0, 0.5) !important;
     }
 
     /* Píldora de Texto Flotante en Neurona */
@@ -356,7 +379,7 @@
       transform: translateX(-50%);
     }
 
-    /* ================= HUD FLOTANTE SUPERIOR / LATERAL ================= */
+    /* ================= HUD FLOTANTE LATERAL E INFERIOR ================= */
     .hud-card {
       background: linear-gradient(135deg, rgba(8, 16, 34, 0.92) 0%, rgba(4, 9, 20, 0.96) 100%);
       border: 1px solid rgba(0, 240, 255, 0.28);
@@ -439,48 +462,55 @@
         </span>
         <div>
           <h1 class="text-xs sm:text-sm font-bold tracking-tight text-white flex items-center gap-2">
-            <span class="cyber-title">MIA TENSORFLOW CORE 3D</span>
-            <span class="text-[10px] font-mono-code px-1.5 py-0.2 rounded bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">v2.0 · 22D TENSOR</span>
+            <span class="cyber-title">MIA MASTER SWARM HFT</span>
+            <span class="text-slate-400 font-normal">/</span>
+            <span class="text-slate-100 font-bold tracking-wide">TENSORFLOW CORE 3D</span>
+            <span class="text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">v2.0 · 22D TENSOR</span>
           </h1>
           <p class="text-[10px] text-slate-400 hidden sm:block">
-            Visualizador Volumétrico de la Red Neuronal Profunda Keras (Vector Tensorial 22D)
+            Haz clic en cualquier nodo, capa o etiqueta de flujo para inspeccionar sus rutas activas y tensores en tiempo real
           </p>
         </div>
       </div>
 
       <div class="flex items-center gap-2 md:hidden">
-        <a href="/agentes" class="text-[11px] font-mono-code px-2 py-0.5 rounded bg-slate-800 text-sky-300 border border-slate-700">
-          🐝 Swarm
-        </a>
+        <span class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-emerald-950/90 border border-emerald-500/40 text-emerald-300">
+          ● ONLINE 22D
+        </span>
       </div>
     </div>
 
-    <!-- Píldoras de Modo e Inferencia -->
-    <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 justify-start md:justify-end">
+    <!-- Píldoras de Modo e Inferencia (Estilo Idéntico a Imagen 1) -->
+    <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 justify-start md:justify-end no-scrollbar">
       <button class="pill-btn active-cyan" data-mode="isometric" id="pill-iso">
         <span>🌐 Vista 3D</span>
       </button>
-      <button class="pill-btn" data-mode="filter_x" id="pill-x">
-        <span>📊 Eje X (Sesión 4D)</span>
+      <button class="pill-btn" data-mode="input_22d" id="pill-22d">
+        <span>1. Matriz 22D (Input)</span>
       </button>
-      <button class="pill-btn" data-mode="filter_y" id="pill-y">
-        <span>📈 Eje Y (SMC 13D)</span>
+      <button class="pill-btn pill-green" data-mode="approved" id="pill-approved">
+        <span>2. Flujo Sí: APROBADO</span>
       </button>
-      <button class="pill-btn" data-mode="filter_z" id="pill-z">
-        <span>📉 Eje Z (Métricas 5D)</span>
+      <button class="pill-btn pill-red" data-mode="vetoed" id="pill-vetoed">
+        <span>3. Flujo No: VETADO</span>
       </button>
-      <button class="pill-btn pill-green" data-mode="signal_buy" id="pill-buy">
-        <span>🟢 Señal BUY</span>
-      </button>
-      <button class="pill-btn pill-red" data-mode="signal_sell" id="pill-sell">
-        <span>🔴 Señal SELL</span>
+      <button class="pill-btn pill-amber" data-mode="deliberating" id="pill-deliberating">
+        <span>4. Deliberando (Dense)</span>
       </button>
       <button class="pill-btn" data-mode="autotour" id="pill-tour">
-        <span>🪐 AutoTour</span>
+        <span>🔄 AutoTour 3D</span>
       </button>
-      <a href="/agentes" class="pill-btn hidden md:inline-flex text-slate-300 hover:text-white">
-        <span>🐝 Swarm Hub (/agentes)</span>
-      </a>
+
+      <!-- Badge de Estado en Vivo (Sin Reintentos) -->
+      <div class="hidden xl:flex items-center gap-2 ml-1">
+        <span class="text-[10px] font-mono-code px-2 py-1 rounded bg-purple-950/60 border border-purple-500/30 text-purple-300">
+          🟣 Llama 3.3 70B + Gemini 1.5 Pro CBR
+        </span>
+        <span id="badge-online-hft" class="text-[10px] font-mono-code px-2.5 py-1 rounded bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>ONLINE HFT</span>
+        </span>
+      </div>
     </div>
 
   </header>
@@ -493,26 +523,26 @@
       <!-- Suelo en cuadrícula perspectiva -->
       <div class="cyber-floor"></div>
 
-      <!-- PLACA 1: CAPA 1 VECTOR TENSORIAL 22D (INPUT) -->
-      <div class="glass-slab" id="slab-1" style="left: 35px; top: 35px; width: 370px; height: 610px;" data-layer="1">
+      <!-- PLACA 1: CAPA 1 MATRIZ TENSORIAL 22D (INPUT) -->
+      <div class="glass-slab" id="slab-1" style="left: 45px; top: 40px; width: 335px; height: 580px;" data-layer="1">
         <div class="slab-caption-top">CAPA 1: MATRIZ TENSORIAL 22D (INPUT)</div>
         <div class="slab-caption-bottom">EJE X (4D) • EJE Y (13D) • EJE Z (5D)</div>
       </div>
 
-      <!-- PLACA 2: CAPA 2 CAPAS DENSAS PROFUNDAS (16, 8) -->
-      <div class="glass-slab" id="slab-2" style="left: 445px; top: 35px; width: 340px; height: 610px;" data-layer="2">
-        <div class="slab-caption-top">CAPA 2: EXTRACCIÓN NO LINEAL (DENSE 16, 8 ReLU)</div>
-        <div class="slab-caption-bottom">DENSE 1 (16) ➔ DENSE 2 (8) CONEXIONES SINÁPTICAS</div>
+      <!-- PLACA 2: CAPA 2 MOTOR DELIBERACIÓN & DENSE (10, 8) -->
+      <div class="glass-slab" id="slab-2" style="left: 425px; top: 40px; width: 360px; height: 580px;" data-layer="2">
+        <div class="slab-caption-top">CAPA 2: EXTRACCIÓN NO LINEAL &amp; CONFLUENCIAS (DENSE 10, 8)</div>
+        <div class="slab-caption-bottom">DENSE 10 [ReLU] ➔ DENSE 8 [CONSOLIDADOR]</div>
       </div>
 
       <!-- PLACA 3: CAPA 3 SALIDAS / SIGMOID -->
-      <div class="glass-slab" id="slab-3" style="left: 835px; top: 35px; width: 280px; height: 610px;" data-layer="3">
+      <div class="glass-slab" id="slab-3" style="left: 835px; top: 40px; width: 275px; height: 580px;" data-layer="3">
         <div class="slab-caption-top">CAPA 3: SALIDAS / SIGMOID (OUTPUT)</div>
-        <div class="slab-caption-bottom">PROBABILIDAD COMPRA / VENTA · CONSENSO KERAS</div>
+        <div class="slab-caption-bottom">CONFLUENCIA ALCISTA (BUY) / BAJISTA (SELL)</div>
       </div>
 
       <!-- MALLA DE AXONES Y PULSOS (SVG EN EL PLANO 3D) -->
-      <svg class="axon-svg" id="axon-svg" viewBox="0 0 1220 680">
+      <svg class="axon-svg" id="axon-svg" viewBox="0 0 1180 660">
         <defs>
           <linearGradient id="grad-purple-cyan" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.85" />
@@ -547,21 +577,25 @@
     <aside id="hud-metrics-panel" class="hud-card fixed top-16 left-3 sm:left-5 w-[285px] sm:w-[325px] p-3 sm:p-4 text-xs font-mono-code flex flex-col gap-2.5 z-40 pointer-events-auto">
       <div class="flex items-center justify-between border-b border-cyan-500/30 pb-2">
         <h2 class="text-xs sm:text-sm font-bold tracking-wider text-cyan-300">
-          TENSORFLOW CORE 22D
+          TENSORFLOW CORE
         </h2>
-        <span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950/90 border border-cyan-400/40 text-cyan-300">
-          KERAS 3D
+        <span class="text-[9px] px-2 py-0.5 rounded bg-cyan-950/90 border border-cyan-400/40 text-cyan-300">
+          KERAS 3D · 22D
         </span>
       </div>
 
       <div class="space-y-1.5 text-[11px] leading-tight text-slate-300">
         <div class="flex justify-between gap-2">
-          <span class="text-slate-400">ESTADO MODELO:</span>
-          <span id="hud-status" class="font-bold text-emerald-400 truncate">ONLINE · INFERENCIA EN VIVO</span>
+          <span class="text-slate-400">STATUS:</span>
+          <span id="hud-status" class="font-bold text-emerald-400 truncate">ONLINE · INFERENCIA 22D</span>
         </div>
         <div class="flex justify-between gap-2">
           <span class="text-slate-400">ARQUITECTURA:</span>
-          <span class="font-semibold text-slate-200">22D ➔ Dense(16, 8) ➔ 2</span>
+          <span class="font-semibold text-slate-200">Matriz 22D ➔ Dense(10, 8)</span>
+        </div>
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-400">MODELO:</span>
+          <span class="text-slate-200">Sequential (Keras Deep Learning)</span>
         </div>
         <div class="flex justify-between gap-2">
           <span class="text-slate-400">PRECISIÓN (ACC):</span>
@@ -569,23 +603,23 @@
         </div>
         <div class="flex justify-between gap-2">
           <span class="text-slate-400">TRADES APRENDIDOS:</span>
-          <span id="hud-trades" class="font-bold text-emerald-300">798 Trades</span>
+          <span id="hud-trades" class="font-bold text-emerald-300">798</span>
         </div>
         <div class="flex justify-between gap-2">
-          <span class="text-slate-400">DIMENSIÓN TENSORIAL:</span>
-          <span class="font-semibold text-amber-300">22 Features (4X + 13Y + 5Z)</span>
+          <span class="text-slate-400">CAPAS:</span>
+          <span class="font-semibold text-slate-200">Input (22), Dense (10, 8), Sigmoid (2)</span>
         </div>
         <div class="flex justify-between gap-2">
-          <span class="text-slate-400">CONSENSO NEURAL:</span>
-          <span id="hud-consensus" class="font-bold text-emerald-400">83.4% [QUÓRUM BUY]</span>
+          <span class="text-slate-400">QUÓRUM CONSENSO:</span>
+          <span id="hud-consensus" class="font-bold text-emerald-400">QUÓRUM 0.84 ≥ 0.70 (APROBADO MT5)</span>
         </div>
       </div>
 
       <!-- Inspector Dinámico de Neurona -->
       <div class="mt-1 pt-2 border-t border-cyan-500/25 bg-slate-950/65 rounded-lg p-2">
         <div class="flex items-center justify-between text-[9px] text-cyan-400 mb-1">
-          <span class="font-bold tracking-wider">INSPECTOR DE TENSOR SELECCIONADO</span>
-          <span id="insp-dim" class="text-purple-300">EJE Y • SMC 13D</span>
+          <span class="font-bold tracking-wider">INSPECTOR DE TENSORES / NODO</span>
+          <span id="insp-layer" class="text-purple-300">EJE Y • SMC 13D</span>
         </div>
         <div id="insp-name" class="text-[11px] font-bold text-white truncate mb-1">
           SMC Y04 [Order Block Lux 2H]
@@ -601,21 +635,21 @@
           </div>
           <div class="bg-slate-900/90 border border-slate-800 rounded px-1.5 py-1">
             <div class="text-slate-400">SINAPSIS</div>
-            <div id="insp-syn" class="text-fuchsia-400 font-bold">16 axones</div>
+            <div id="insp-syn" class="text-fuchsia-400 font-bold">10 axones</div>
           </div>
         </div>
       </div>
     </aside>
 
     <!-- ==================== TERMINAL INFERIOR IZQUIERDA ==================== -->
-    <section id="hud-terminal-panel" class="hud-terminal fixed bottom-16 lg:bottom-4 left-3 sm:left-5 w-[calc(100vw-24px)] sm:w-[460px] h-[140px] sm:h-[155px] p-3 font-mono-code text-xs flex flex-col pointer-events-auto z-40">
+    <section id="hud-terminal-panel" class="hud-terminal fixed bottom-16 lg:bottom-5 left-3 sm:left-5 w-[calc(100vw-24px)] sm:w-[450px] h-[145px] sm:h-[160px] p-3 font-mono-code text-xs flex flex-col pointer-events-auto z-40">
       <div class="flex items-center justify-between border-b border-emerald-500/25 pb-1 mb-1">
         <span class="text-[10px] font-bold tracking-wider text-amber-400 truncate">
-          &gt; TERMINAL DE TENSORES // KERAS SEQUENTIAL 22D
+          &gt; TERMINAL DE NEURONAS // MATRIZ 22D + KERAS
         </span>
         <div class="flex items-center gap-1.5 flex-shrink-0">
           <button id="btn-pulse-burst" class="text-[9px] px-2 py-0.5 rounded bg-fuchsia-950/90 border border-fuchsia-500/50 text-fuchsia-300 hover:bg-fuchsia-900/80 transition cursor-pointer">
-            ⚡ Pulso Neural
+            ⚡ Pulso
           </button>
         </div>
       </div>
@@ -646,68 +680,62 @@
      ********************************************************************/
     const NODES = [
       // ==================== PLACA 1: EJE X (TEMPORALIDAD Y SESIÓN - 4D) ====================
-      { id: 'x0', layer: 1, group: 'x', x: 80,  y: 110, label: 'X0: ASIA (Tokio/Sidney)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 1.0, isContinuous: false },
-      { id: 'x1', layer: 1, group: 'x', x: 80,  y: 195, label: 'X1: LONDRES (Apertura)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
-      { id: 'x2', layer: 1, group: 'x', x: 80,  y: 280, label: 'X2: NUEVA YORK (Expansión)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
-      { id: 'x3', layer: 1, group: 'x', x: 80,  y: 365, label: 'X3: OVERLAP (Londres-NY)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'x0', layer: 1, group: 'x', x: 95,  y: 110, label: 'Pos X0: ASIA (Tokio/Sidney)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 1.0, isContinuous: false },
+      { id: 'x1', layer: 1, group: 'x', x: 95,  y: 200, label: 'Pos X1: LONDRES (Apertura)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'x2', layer: 1, group: 'x', x: 95,  y: 290, label: 'Pos X2: NUEVA YORK (Expansión)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'x3', layer: 1, group: 'x', x: 95,  y: 380, label: 'Pos X3: OVERLAP (Londres-NY)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
 
       // ==================== PLACA 1: EJE Y (RÉGIMEN Y SMC - 13D) ====================
-      { id: 'y0', layer: 1, group: 'y', x: 200, y: 55,  label: 'Y0: Tendencial Alcista', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 0.0, isContinuous: false },
-      { id: 'y1', layer: 1, group: 'y', x: 200, y: 98,  label: 'Y1: Tendencial Bajista', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 1.0, isContinuous: false },
-      { id: 'y2', layer: 1, group: 'y', x: 200, y: 141, label: 'Y2: Rango Lateral', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 0.0, isContinuous: false },
-      { id: 'y3', layer: 1, group: 'y', x: 200, y: 184, label: 'Y3: Alta Volatilidad / Expansión', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 1.0, isContinuous: false },
-      { id: 'y4', layer: 1, group: 'y', x: 200, y: 227, label: 'Y4: Order Block Lux 2H', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
-      { id: 'y5', layer: 1, group: 'y', x: 200, y: 270, label: 'Y5: Fair Value Gap (FVG)', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
-      { id: 'y6', layer: 1, group: 'y', x: 200, y: 313, label: 'Y6: Liquidity Pool Sweep', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
-      { id: 'y7', layer: 1, group: 'y', x: 200, y: 356, label: 'Y7: Breaker Block 4H', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
-      { id: 'y8', layer: 1, group: 'y', x: 200, y: 399, label: 'Y8: Mitigation Zone', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
-      { id: 'y9', layer: 1, group: 'y', x: 200, y: 442, label: 'Y9: Volume POC Price', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
-      { id: 'y10', layer: 1, group: 'y', x: 200, y: 485, label: 'Y10: SMC Sweep CME', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
-      { id: 'y11', layer: 1, group: 'y', x: 200, y: 528, label: 'Y11: DOM Imbalance Filter', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
-      { id: 'y12', layer: 1, group: 'y', x: 200, y: 571, label: 'Y12: CVOL Energy Area', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y0', layer: 1, group: 'y', x: 205, y: 58,  label: 'Reg Y0: Tendencial Alcista', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'y1', layer: 1, group: 'y', x: 205, y: 99,  label: 'Reg Y1: Tendencial Bajista', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 1.0, isContinuous: false },
+      { id: 'y2', layer: 1, group: 'y', x: 205, y: 140, label: 'Reg Y2: Rango Lateral', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'y3', layer: 1, group: 'y', x: 205, y: 181, label: 'Reg Y3: Alta Volatilidad / Expansión', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 1.0, isContinuous: false },
+      { id: 'y4', layer: 1, group: 'y', x: 205, y: 222, label: 'SMC Y04: Order Block Lux 2H', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y5', layer: 1, group: 'y', x: 205, y: 263, label: 'SMC Y05: Fair Value Gap (FVG)', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y6', layer: 1, group: 'y', x: 205, y: 304, label: 'SMC Y06: Liquidity Pool Sweep', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
+      { id: 'y7', layer: 1, group: 'y', x: 205, y: 345, label: 'SMC Y07: Breaker Block 4H', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y8', layer: 1, group: 'y', x: 205, y: 386, label: 'SMC Y08: Mitigation Zone', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
+      { id: 'y9', layer: 1, group: 'y', x: 205, y: 427, label: 'SMC Y09: Volume POC Price', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
+      { id: 'y10', layer: 1, group: 'y', x: 205, y: 468, label: 'SMC Y10: SMC Sweep CME', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y11', layer: 1, group: 'y', x: 205, y: 509, label: 'SMC Y11: DOM Imbalance Filter', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y12', layer: 1, group: 'y', x: 205, y: 550, label: 'SMC Y12: CVOL Energy Area', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
 
       // ==================== PLACA 1: EJE Z (MÉTRICAS CONTINUAS - 5D) ====================
-      { id: 'z0', layer: 1, group: 'z', x: 325, y: 110, label: 'Z0: ATR Dinámico Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.50, isContinuous: true },
-      { id: 'z1', layer: 1, group: 'z', x: 325, y: 195, label: 'Z1: RSI Extremo Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.30, isContinuous: true },
-      { id: 'z2', layer: 1, group: 'z', x: 325, y: 280, label: 'Z2: Spread Broker Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.23, isContinuous: true },
-      { id: 'z3', layer: 1, group: 'z', x: 325, y: 365, label: 'Z3: DXY SMT Correlation Ratio', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.65, isContinuous: true },
-      { id: 'z4', layer: 1, group: 'z', x: 325, y: 450, label: 'Z4: TensorFlow Neural Confidence', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.60, isContinuous: true },
+      { id: 'z0', layer: 1, group: 'z', x: 310, y: 110, label: 'Met Z0: ATR Dinámico Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.50, isContinuous: true },
+      { id: 'z1', layer: 1, group: 'z', x: 310, y: 195, label: 'Met Z1: RSI Extremo Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.30, isContinuous: true },
+      { id: 'z2', layer: 1, group: 'z', x: 310, y: 280, label: 'Met Z2: Spread Broker Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.23, isContinuous: true },
+      { id: 'z3', layer: 1, group: 'z', x: 310, y: 365, label: 'Met Z3: DXY SMT Correlation Ratio', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.65, isContinuous: true },
+      { id: 'z4', layer: 1, group: 'z', x: 310, y: 450, label: 'Met Z4: TensorFlow Neural Confidence', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.60, isContinuous: true },
 
-      // ==================== PLACA 2: DENSE 1 (16 NEURONAS ReLU) ====================
-      ...Array.from({ length: 16 }).map((_, i) => ({
-        id: `d1_${i}`,
-        layer: 2,
-        subLayer: 'dense1',
-        x: 520,
-        y: 65 + i * 34,
-        label: `Dense_16_Unit_${i < 9 ? '0' : ''}${i+1} [ReLU]`,
-        dim: 'CAPA 2 • DENSE 16',
-        type: 'Hidden ReLU',
-        val: 0.72 + (i % 5) * 0.05,
-        isContinuous: true
-      })),
+      // ==================== PLACA 2: DENSE 1 (10 NEURONAS ReLU) ====================
+      { id: 'd1_0', layer: 2, subLayer: 'dense1', x: 495, y: 82,  label: 'Dense 10_01 [Sesión + Volatilidad]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.88, isContinuous: true },
+      { id: 'd1_1', layer: 2, subLayer: 'dense1', x: 495, y: 135, label: 'Dense 10_02 [Régimen + Macro DXY]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.74, isContinuous: true },
+      { id: 'd1_2', layer: 2, subLayer: 'dense1', x: 495, y: 188, label: 'Dense 10_03 [Order Block 2H + POC]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.92, isContinuous: true },
+      { id: 'd1_3', layer: 2, subLayer: 'dense1', x: 495, y: 241, label: 'Dense 10_04 [FVG + Liquidity Sweep]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.81, isContinuous: true },
+      { id: 'd1_4', layer: 2, subLayer: 'dense1', x: 495, y: 294, label: 'Dense 10_05 [CME Tape DOM Imbalance]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.95, isContinuous: true },
+      { id: 'd1_5', layer: 2, subLayer: 'dense1', x: 495, y: 347, label: 'Dense 10_06 [CVOL Energy Area Integral]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.77, isContinuous: true },
+      { id: 'd1_6', layer: 2, subLayer: 'dense1', x: 495, y: 400, label: 'Dense 10_07 [RSI Extremo + Spread Filter]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.68, isContinuous: true },
+      { id: 'd1_7', layer: 2, subLayer: 'dense1', x: 495, y: 453, label: 'Dense 10_08 [Cross-Asset SMT Confluence]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.85, isContinuous: true },
+      { id: 'd1_8', layer: 2, subLayer: 'dense1', x: 495, y: 506, label: 'Dense 10_09 [Dropout 0.2 Regularization]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.59, isContinuous: true },
+      { id: 'd1_9', layer: 2, subLayer: 'dense1', x: 495, y: 558, label: 'Dense 10_10 [Non-Linear Tensor Activation]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.81, isContinuous: true },
 
-      // ==================== PLACA 2: DENSE 2 (8 NEURONAS ReLU) ====================
-      ...Array.from({ length: 8 }).map((_, i) => ({
-        id: `d2_${i}`,
-        layer: 2,
-        subLayer: 'dense2',
-        x: 695,
-        y: 95 + i * 65,
-        label: `Dense_8_Unit_0${i+1} [Consolidator]`,
-        dim: 'CAPA 2 • DENSE 8',
-        type: 'Hidden Dropout',
-        val: 0.81 + (i % 3) * 0.06,
-        isContinuous: true
-      })),
+      // ==================== PLACA 2: DENSE 2 (8 NEURONAS CONSOLIDACIÓN) ====================
+      { id: 'd2_0', layer: 2, subLayer: 'dense2', x: 685, y: 105, label: 'Dense 8_01 [Synaptic Weight Consolidator]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.79, isContinuous: true },
+      { id: 'd2_1', layer: 2, subLayer: 'dense2', x: 685, y: 166, label: 'Dense 8_02 [Quórum Neural Gate ≥ 0.70]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.93, isContinuous: true },
+      { id: 'd2_2', layer: 2, subLayer: 'dense2', x: 685, y: 227, label: 'Dense 8_03 [Probability Normalizer]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.80, isContinuous: true },
+      { id: 'd2_3', layer: 2, subLayer: 'dense2', x: 685, y: 288, label: 'Dense 8_04 [Risk/Reward Evaluator]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.76, isContinuous: true },
+      { id: 'd2_4', layer: 2, subLayer: 'dense2', x: 685, y: 349, label: 'Dense 8_05 [Institutional Bias Extractor]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.89, isContinuous: true },
+      { id: 'd2_5', layer: 2, subLayer: 'dense2', x: 685, y: 410, label: 'Dense 8_06 [Confluence Threshold Filter]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.82, isContinuous: true },
+      { id: 'd2_6', layer: 2, subLayer: 'dense2', x: 685, y: 471, label: 'Dense 8_07 [Historical Memory Weight]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.87, isContinuous: true },
+      { id: 'd2_7', layer: 2, subLayer: 'dense2', x: 685, y: 532, label: 'Dense 8_08 [Sigmoid Pre-Activation]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.75, isContinuous: true },
 
       // ==================== PLACA 3: CAPA 3 OUTPUT (2 NEURONAS SIGMOID) ====================
-      { id: 'out_buy', layer: 3, subLayer: 'output', x: 975, y: 220, label: 'OUT 1: CONFLUENCIA ALCISTA (BUY)', dim: 'CAPA 3 • OUTPUT', type: 'Sigmoid Probability', val: 0.834, isContinuous: true },
-      { id: 'out_sell', layer: 3, subLayer: 'output', x: 975, y: 420, label: 'OUT 2: CONFLUENCIA BAJISTA (SELL)', dim: 'CAPA 3 • OUTPUT', type: 'Sigmoid Probability', val: 0.166, isContinuous: true }
+      { id: 'out_1', layer: 3, subLayer: 'output', x: 940, y: 215, label: 'OUT 1: POSICIÓN ABIERTA (APROBADO MT5)', dim: 'CAPA 3 • OUTPUT', type: 'Sigmoid Probability', val: 0.842, isContinuous: true },
+      { id: 'out_2', layer: 3, subLayer: 'output', x: 940, y: 430, label: 'OUT 2: VETO / CRIOSUEÑO (BLOQUEO RIESGO)', dim: 'CAPA 3 • OUTPUT', type: 'Sigmoid Probability', val: 0.158, isContinuous: true }
     ];
 
     /********************************************************************
-     * 2. GENERACIÓN DE AXONES Y CONEXIONES (INPUT 22 ➔ D1 16 ➔ D2 8 ➔ OUT 2)
+     * 2. GENERACIÓN DE AXONES Y CONEXIONES (INPUT 22 ➔ D1 10 ➔ D2 8 ➔ OUT 2)
      ********************************************************************/
     const LINKS = [];
     const inputNodes = NODES.filter(n => n.layer === 1);
@@ -715,7 +743,7 @@
     const dense2Nodes = NODES.filter(n => n.subLayer === 'dense2');
     const outputNodes = NODES.filter(n => n.subLayer === 'output');
 
-    // Input 22 -> Dense 1 (16) = Conexiones representativas principales
+    // Input 22 -> Dense 1 (10)
     inputNodes.forEach((src, i) => {
       dense1Nodes.forEach((tgt, j) => {
         if ((i + j) % 2 === 0 || i % 3 === 0) {
@@ -723,23 +751,21 @@
             id: `axon_${src.id}_${tgt.id}`,
             source: src,
             target: tgt,
-            color: 'cyan'
+            colorType: (i + j) % 2 === 0 ? 'cyan' : 'purple'
           });
         }
       });
     });
 
-    // Dense 1 (16) -> Dense 2 (8)
+    // Dense 1 (10) -> Dense 2 (8)
     dense1Nodes.forEach((src, i) => {
       dense2Nodes.forEach((tgt, j) => {
-        if ((i + j) % 2 === 0) {
-          LINKS.push({
-            id: `axon_${src.id}_${tgt.id}`,
-            source: src,
-            target: tgt,
-            color: 'purple'
-          });
-        }
+        LINKS.push({
+          id: `axon_${src.id}_${tgt.id}`,
+          source: src,
+          target: tgt,
+          colorType: (i + j) % 2 === 0 ? 'purple' : 'cyan'
+        });
       });
     });
 
@@ -750,7 +776,7 @@
           id: `axon_${src.id}_${tgt.id}`,
           source: src,
           target: tgt,
-          color: tgt.id === 'out_buy' ? 'green' : 'red'
+          colorType: tgt.id === 'out_1' ? 'green' : 'red'
         });
       });
     });
@@ -778,7 +804,12 @@
         path.setAttribute('d', d);
         path.setAttribute('class', 'axon-path');
         path.setAttribute('id', link.id);
-        path.setAttribute('stroke', link.color === 'green' ? '#00ff9d' : (link.color === 'red' ? '#ff2a55' : (link.color === 'purple' ? '#c084fc' : '#38bdf8')));
+        
+        let strokeColor = '#38bdf8';
+        if (link.colorType === 'green') strokeColor = '#00ff9d';
+        else if (link.colorType === 'red') strokeColor = '#ff2a55';
+        else if (link.colorType === 'purple') strokeColor = '#c084fc';
+        path.setAttribute('stroke', strokeColor);
         path.setAttribute('stroke-width', '1.2');
         axonLayer.appendChild(path);
       });
@@ -797,11 +828,11 @@
             if (node.val === 1.0) el.classList.add('node-green');
             else el.classList.add('node-off');
           } else {
-            el.classList.add('node-cyan');
+            el.classList.add('node-amber');
           }
         } else if (node.layer === 2) {
           el.classList.add('node-purple');
-        } else if (node.id === 'out_buy') {
+        } else if (node.id === 'out_1') {
           el.classList.add('node-green');
         } else {
           el.classList.add('node-red');
@@ -829,14 +860,14 @@
     }
 
     function inspectNode(node) {
-      document.getElementById('insp-dim').textContent = node.dim;
+      document.getElementById('insp-layer').textContent = node.dim;
       document.getElementById('insp-name').textContent = node.label;
       document.getElementById('insp-type').textContent = node.type;
       const valStr = node.isContinuous ? `${node.val.toFixed(3)} σ` : (node.val === 1.0 ? '1.0 [ACTIVO]' : '0.0 [INACTIVO]');
       document.getElementById('insp-val').textContent = valStr;
 
       // Resaltar axones conectados
-      document.querySelectorAll('.axon-path').forEach(p => p.classList.remove('axon-active', 'axon-green', 'axon-red'));
+      document.querySelectorAll('.axon-path').forEach(p => p.classList.remove('axon-active', 'axon-green', 'axon-red', 'axon-purple'));
       LINKS.filter(l => l.source.id === node.id || l.target.id === node.id).forEach(l => {
         const p = document.getElementById(l.id);
         if (p) p.classList.add('axon-active');
@@ -875,18 +906,68 @@
 
     function toggleAutoTour() {
       isAutoTour = !isAutoTour;
+      const btnTour = document.getElementById('pill-tour');
       if (isAutoTour) {
+        btnTour.classList.add('active-cyan');
         tourTimer = setInterval(() => {
           camRotY += 0.4;
           updateCameraTransform();
         }, 30);
-      } else if (tourTimer) {
-        clearInterval(tourTimer);
-        tourTimer = null;
+      } else {
+        btnTour.classList.remove('active-cyan');
+        if (tourTimer) {
+          clearInterval(tourTimer);
+          tourTimer = null;
+        }
       }
     }
     document.getElementById('cam-orbit').onclick = toggleAutoTour;
     document.getElementById('pill-tour').onclick = toggleAutoTour;
+
+    // Presets de Modos Interactivos
+    document.getElementById('pill-iso').onclick = () => {
+      document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active-cyan', 'active-mode'));
+      document.getElementById('pill-iso').classList.add('active-cyan');
+      camRotX = 22; camRotY = -24; camZoom = 0.92;
+      updateCameraTransform();
+      document.querySelectorAll('.axon-path').forEach(p => p.classList.remove('axon-active', 'axon-green', 'axon-red'));
+    };
+
+    document.getElementById('pill-22d').onclick = () => {
+      document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active-cyan', 'active-mode'));
+      document.getElementById('pill-22d').classList.add('active-cyan');
+      inspectNode(NODES[4]); // Inspeccionar OB Lux 2H
+    };
+
+    document.getElementById('pill-approved').onclick = () => {
+      document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active-cyan', 'active-mode'));
+      document.getElementById('pill-approved').classList.add('active-mode');
+      document.querySelectorAll('.axon-path').forEach(p => {
+        p.classList.remove('axon-active', 'axon-red', 'axon-purple');
+        p.classList.add('axon-green');
+      });
+      inspectNode(NODES.find(n => n.id === 'out_1'));
+    };
+
+    document.getElementById('pill-vetoed').onclick = () => {
+      document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active-cyan', 'active-mode'));
+      document.getElementById('pill-vetoed').classList.add('active-mode');
+      document.querySelectorAll('.axon-path').forEach(p => {
+        p.classList.remove('axon-active', 'axon-green', 'axon-purple');
+        p.classList.add('axon-red');
+      });
+      inspectNode(NODES.find(n => n.id === 'out_2'));
+    };
+
+    document.getElementById('pill-deliberating').onclick = () => {
+      document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active-cyan', 'active-mode'));
+      document.getElementById('pill-deliberating').classList.add('active-mode');
+      document.querySelectorAll('.axon-path').forEach(p => {
+        p.classList.remove('axon-green', 'axon-red');
+        p.classList.add('axon-purple');
+      });
+      inspectNode(NODES.find(n => n.id === 'd1_2'));
+    };
 
     // Arrastre con el mouse / touch
     let isDragging = false;
@@ -942,7 +1023,7 @@
 
         // Actualizar HUD
         if (data.accuracy) document.getElementById('hud-acc').textContent = `${(data.accuracy * 100).toFixed(2)}%`;
-        if (data.trades_aprendidos) document.getElementById('hud-trades').textContent = `${data.trades_aprendidos} Trades`;
+        if (data.trades_aprendidos) document.getElementById('hud-trades').textContent = `${data.trades_aprendidos}`;
         if (data.activo) document.getElementById('hud-status').textContent = `ONLINE · ${data.activo} EN VIVO`;
 
         // Refrescar Nodos
@@ -954,7 +1035,7 @@
         const row = document.createElement('div');
         row.innerHTML = `<span class="text-cyan-400">[${now}]</span> <span class="text-emerald-400 font-bold">[22D Ingest]</span> Vector inyectado (${data.activo}) • Sesión: Asia(${vec[0]}), SMC OB(${vec[8]}), Conf(${vec[21] || 0.6})`;
         term.insertBefore(row, term.firstChild);
-        while (term.children.length > 6) term.removeChild(term.lastChild);
+        while (term.children.length > 5) term.removeChild(term.lastChild);
 
       } catch (err) {
         // Fail-safe silencioso
