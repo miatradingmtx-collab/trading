@@ -1,5 +1,21 @@
 # DOCUMENTACION CORE - FRONT-OFFICE TRADING
 
+# 🏛️ ARQUITECTURA MODULAR DE ESPECIFICACIONES HERDS (.MD) & ROUTER GLOBAL
+A partir de la actualización de Octubre 2026, la base de conocimiento se desacopla en un **Esquema de Dos Niveles (Two-Tier Architecture)**:
+1. **Nivel 1 (Master Core Blueprint):** Este documento (`DOCS_TRADING_CORE.md`) define la constitución, reglas globales, portafolio y leyes matemáticas del sistema.
+2. **Nivel 2 (Micro-Especificaciones por Agente en `specs/herds/`):**
+   - [`HERD_1_TIDAL.md`](specs/herds/HERD_1_TIDAL.md): Macro Trend, Killzones (Londres, NY, Asia), Sensor DXY & Divergencia SMT.
+   - [`HERD_2_NORO.md`](specs/herds/HERD_2_NORO.md): Matemáticas Cuantitativas, Integral de Energía CVOL, POC Dinámico y Cadenas de Markov (1H-8H).
+   - [`HERD_3_ZEPHR.md`](specs/herds/HERD_3_ZEPHR.md): Probabilidad Bayesiana, Expected Value ($EV$), Convexidad y Asimetría $D/(1-D)$.
+   - [`HERD_4_LUMEN.md`](specs/herds/HERD_4_LUMEN.md): Smart Money Concepts (SMC), Order Blocks LuxAlgo 2H/4H, FVGs y Sweeps AMD Multi-Temporal.
+   - [`HERD_5_RUNE.md`](specs/herds/HERD_5_RUNE.md): Guardián de Riesgo Institucional v2, Cascada Asimétrica de 4 Fases y Límite Canasta USD.
+   - [`HERD_6_TENSORFLOW.md`](specs/herds/HERD_6_TENSORFLOW.md): Inferencia Neuronal Continua, Matriz Sináptica 22D y Quórum de Deep Learning.
+   - [`HERD_7_ATLAS.md`](specs/herds/HERD_7_ATLAS.md): Microestructura DOM CME Tape+, CVD Delta Direccional y Servidor MCP.
+   - [`MASTER_ORCHESTRATOR.md`](specs/herds/MASTER_ORCHESTRATOR.md): Gatekeeper Supremo, Quórum Ponderado (Score $\ge 0.70$) y Veto Absoluto Dominante.
+   - [`CBR_POST_MORTEM_QUANT.md`](specs/herds/CBR_POST_MORTEM_QUANT.md): Autopsia Gemini Pro, Score de Premio ($+R$) y Castigo ($-R$) RL ligado a Ticket MT5 + Case ID.
+
+---
+
 #  DOCUMENTACION CORE DE MIA TRADING AI
 
 #  MIA KB: Vectorizacion del Sweep y Ciclo AMD

@@ -346,22 +346,69 @@ class MiaQuantSupervisor:
 
         nota_infra = str(gemini_analysis.get("nota_infraestructura_t1_t10", "Infraestructura backend nominal."))
 
-        # 3. Asignación del Caso CBR vinculado al Ticket Oficial de Entrada de MT5
+        # 3. Asignación del Caso CBR vinculado al Ticket Oficial de Entrada de MT5 con Score RL (Premio / Castigo)
         ts_now = int(datetime.datetime.now().timestamp())
         case_id = f"TRADE_CASE_{ticket}_{ts_now}"
 
+        # Cálculo Cuantitativo de Recompensa Asimétrica (Reward / Penalty Score)
+        riesgo_base_usd = 50.0  # Riesgo estimado por trade en USD
+        r_multiplo = round(profit / riesgo_base_usd, 2) if riesgo_base_usd > 0 else 0.0
+        
+        # Factor de Asimetría según Ley D / (1 - D)
+        bal_actual = float(trade.get("balance", 3688.0) or 3688.0)
+        drawdown_base = max(0.0, 5000.0 - bal_actual)
+        d_frac = min(0.95, drawdown_base / 5000.0)
+        factor_asimetria = round(1.0 / (1.0 - d_frac), 2) if d_frac < 1.0 else 1.0
+
+        if profit > 0:
+            recompensa_neta = round((profit / riesgo_base_usd) * 1.0, 2)
+            delta_weights = {
+                "herd_1_tidal": 0.05,
+                "herd_2_noro": 0.08,
+                "herd_3_zephr": 0.06,
+                "herd_4_lumen": 0.12,
+                "herd_5_rune": 0.08,
+                "herd_6_tensorflow": 0.05,
+                "herd_7_atlas": 0.10
+            }
+            tipo_resultado = "PREMIO_GANADOR"
+        elif profit < 0:
+            recompensa_neta = round((-abs(profit) / riesgo_base_usd) * 1.5 * factor_asimetria, 2)
+            delta_weights = {
+                "herd_1_tidal": -0.05,
+                "herd_2_noro": -0.05,
+                "herd_3_zephr": -0.05,
+                "herd_4_lumen": -0.08,
+                "herd_5_rune": +0.05,
+                "herd_6_tensorflow": -0.05,
+                "herd_7_atlas": -0.08
+            }
+            tipo_resultado = "CASTIGO_PERDEDOR"
+        else:
+            recompensa_neta = 0.20
+            delta_weights = {k: 0.01 for k in ["herd_1_tidal", "herd_2_noro", "herd_3_zephr", "herd_4_lumen", "herd_5_rune", "herd_6_tensorflow", "herd_7_atlas"]}
+            tipo_resultado = "BREAK_EVEN_NEUTRAL"
+
         payload_cbr = {
-            "caso": f"Análisis Post-Mortem Quant Trade {ticket}",
+            "case_id": case_id,
+            "caso": f"Análisis Post-Mortem Quant Trade #{ticket}",
             "fecha": datetime.datetime.now().isoformat(),
             "ticket": ticket,
             "symbol": symbol,
             "profit": profit,
+            "r_multiplo": r_multiplo,
             "diagnostico": diagnostico,
             "solucion_aprendida": sugerencia_trading,
             "nota_infraestructura_t1_t10": nota_infra,
             "veredicto_humano": "PENDIENTE_HITL",
-            "score_confianza": 0.0,
-            "accion_ejecutada": "NINGUNA. REGISTRO DE CBR QUANT (MANDATO HITL ACTIVO)."
+            "score_confianza": 0.85 if profit > 0 else 0.40,
+            "accion_ejecutada": "NINGUNA. REGISTRO DE CBR QUANT (MANDATO HITL ACTIVO).",
+            "score_premio_castigo": {
+                "tipo_resultado": tipo_resultado,
+                "recompensa_neta_r": recompensa_neta,
+                "factor_asimetria_aplicado": factor_asimetria,
+                "delta_weights_herds": delta_weights
+            }
         }
 
         # Guardar en Firestore y Upstash
@@ -394,7 +441,8 @@ class MiaQuantSupervisor:
                     "text": {
                         "type": "mrkdwn",
                         "text": (
-                            f"*Símbolo:* {symbol} | *Resultado:*\n`{profit}`\n\n"
+                            f"*Símbolo:* {symbol} | *Resultado:* `{profit} USD` ({r_multiplo:+.2f}R)\n"
+                            f"*⚖️ RL Score:* `{recompensa_neta:+.2f}R` ({tipo_resultado}) | *Asimetría:* `{factor_asimetria}x`\n\n"
                             f"*🧠 Diagnóstico Gemini Pro:*\n{diagnostico}\n\n"
                             f"*🎯 Acción Propuesta para los 7 Herds de Trading (LUMEN, TIDAL, NORO, ZEPHR, RUNE, ATLAS, TENSORFLOW):*\n{sugerencia_trading}"
                         )

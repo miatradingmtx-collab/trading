@@ -80,19 +80,24 @@ def emit_ws_event(agent_name, action, data, **kwargs):
 def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
     """Llamada ultrarrápida vía REST con Failover Multi-Proveedor (OpenRouter -> Groq -> Gemini -> Quórum Sintético Determinista)"""
     global ULTIMO_PROVEEDOR_LLM
-    system_text = (
-        "Eres el Motor de Deliberación Inter-Agente Herds de MIA Core. "
-        "Una malla desacoplada de 7 Herds especializados dialogan, se cuestionan, se corrigen y alcanzan consenso financiero antes de ejecutar: "
-        "HERD 1 (TIDAL): Flujo macro, sesiones Londres/NY y volumen delta; "
-        "HERD 2 (NORO): Matemáticas cuantitativas, POC dinámico y cadenas de Markov; "
-        "HERD 3 (ZEPHR): Probabilidad bayesiana, Expected Value y ratio Sharpe; "
-        "HERD 4 (LUMEN): Smart Money Concepts (SMC), Order Blocks LuxAlgo y Fair Value Gaps; "
-        "HERD 5 (RUNE): Gestión de riesgo estricto, tamaño de lote defensivo y trailing stop; "
-        "HERD 6 (TENSORFLOW): Inferencia neuronal profunda continua; "
-        "HERD 7 (ATLAS): Microestructura institucional, Order Book DOM CME/OANDA, CVD Delta y MCP; "
-        "MASTER: Veredicto final ponderado (Score >= 0.70 APROBADO o VETADO). "
-        "El debate es directo, técnico, sin rodeos y sin repetir texto."
-    )
+    # Carga declarativa desde el registro modular de especificaciones (.md en specs/herds/)
+    try:
+        from swarm_specs_registry import build_swarm_system_grounding
+        system_text = build_swarm_system_grounding()
+    except Exception as e_reg:
+        system_text = (
+            "Eres el Motor de Deliberación Inter-Agente Herds de MIA Core. "
+            "Una malla desacoplada de 7 Herds especializados dialogan, se cuestionan, se corrigen y alcanzan consenso financiero antes de ejecutar: "
+            "HERD 1 (TIDAL): Flujo macro, sesiones Londres/NY y volumen delta; "
+            "HERD 2 (NORO): Matemáticas cuantitativas, POC dinámico y cadenas de Markov; "
+            "HERD 3 (ZEPHR): Probabilidad bayesiana, Expected Value y ratio Sharpe; "
+            "HERD 4 (LUMEN): Smart Money Concepts (SMC), Order Blocks LuxAlgo y Fair Value Gaps; "
+            "HERD 5 (RUNE): Gestión de riesgo estricto, tamaño de lote defensivo y trailing stop; "
+            "HERD 6 (TENSORFLOW): Inferencia neuronal profunda continua; "
+            "HERD 7 (ATLAS): Microestructura institucional, Order Book DOM CME/OANDA, CVD Delta y MCP; "
+            "MASTER: Veredicto final ponderado (Score >= 0.70 APROBADO o VETADO). "
+            "El debate es directo, técnico, sin rodeos y sin repetir texto."
+        )
 
     # 1. Intento Primario: OpenRouter
     if OPENROUTER_API_KEY:
