@@ -5411,6 +5411,7 @@ async def handle_slack_interaction(request: Request):
                                 caso["score_confianza"] = 1.0 if action_type == "APROBADO" else 0.0
                                 caso["timestamp_aprobacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                         requests.post("https://firm-koi-93555.upstash.io/set/cache_trading_learning_kb", headers=up_headers, json=cbr_data[:50])
+                        requests.post("https://firm-koi-93555.upstash.io/set/cache_cbr", headers=up_headers, json=cbr_data[:50])
                     except Exception as up_err:
                         print(f"| QUANT CBR UPSTASH ERROR | {up_err}")
                         

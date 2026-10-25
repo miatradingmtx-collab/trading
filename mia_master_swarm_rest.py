@@ -504,9 +504,15 @@ def run_hft_cycle():
         researcher_data = json.loads(researcher_raw) if isinstance(researcher_raw, str) else (researcher_raw or {})
         researcher_brief = researcher_data.get("brief", "")
 
-        # 5. Memoria CBR de Trading (slot 5)
+        # 5. Memoria CBR de Trading (slot 5: cache_trading_learning_kb / fallback cache_cbr)
         cbr_raw = slots[5] if len(slots) > 5 and slots[5] else []
         cbr_list = json.loads(cbr_raw) if isinstance(cbr_raw, str) else (cbr_raw or [])
+        if not cbr_list:
+            try:
+                r_cbr_fb = session.get("https://firm-koi-93555.upstash.io/get/cache_cbr", headers=upstash_headers, timeout=2).json()
+                cbr_list = json.loads(r_cbr_fb.get("result", "[]")) if r_cbr_fb.get("result") else []
+            except Exception:
+                pass
         cbr_items = []
         for c in cbr_list[:3]:
             c_sym = c.get('symbol', 'N/A')
