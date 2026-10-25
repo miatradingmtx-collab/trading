@@ -1,262 +1,1536 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>MIA - Matriz Profunda (TensorFlow Core & 7 Herds)</title>
-    <style>
-        body { margin: 0; padding: 0; background-color: #040609; color: #fff; font-family: "Courier New", Courier, monospace; overflow: hidden; }
-        #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; padding: 20px; box-sizing: border-box; }
-        .hud-box { background: rgba(10, 15, 25, 0.85); border: 1px solid rgba(0, 255, 163, 0.3); padding: 15px; border-radius: 8px; backdrop-filter: blur(8px); box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
-        h1 { color: #00ffa3; font-size: 22px; margin: 0 0 10px 0; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 10px rgba(0, 255, 163, 0.5); }
-        .stats { font-size: 11.5px; color: #8892b0; line-height: 1.8; }
-        .stat-value { color: #e6f1ff; font-weight: bold; }
-        .badge-herd { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; margin-right: 4px; }
-        .log-container { position: absolute; bottom: 20px; left: 20px; width: 440px; height: 180px; overflow-y: hidden; }
-        .log-entry { font-size: 11px; margin-bottom: 6px; opacity: 0.9; line-height: 1.4; word-break: break-word; }
-        .log-entry.TIDAL { color: #00ffa3; }
-        .log-entry.NORO { color: #ff6a00; }
-        .log-entry.ZEPHR { color: #38bdf8; }
-        .log-entry.LUMEN { color: #fbbf24; }
-        .log-entry.RUNE { color: #ef4444; }
-        .log-entry.TENSORFLOW { color: #c084fc; }
-        .log-entry.ATLAS { color: #2dd4bf; }
-        .log-entry.MASTER { color: #ffffff; font-weight: bold; text-shadow: 0 0 6px rgba(255,255,255,0.7); }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>MIA MASTER SWARM HFT / TENSORFLOW CORE 3D v1.5</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-void: #04070d;
+      --cyan-glow: #00f0ff;
+      --blue-neon: #0088ff;
+      --magenta-neon: #e024ff;
+      --purple-deep: #7b2cbf;
+      --orange-axon: #ff5500;
+      --green-neon: #00ff9d;
+      --red-neon: #ff2a55;
+      --amber-neon: #ffb800;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-void);
+      background-image: 
+        radial-gradient(circle at 60% 45%, rgba(0, 140, 255, 0.12) 0%, transparent 55%),
+        radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.08) 0%, transparent 65%);
+      color: #e2e8f0;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      height: 100dvh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Scrollbars invisibles o estilizadas */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* ================= HEADER & PILLS ================= */
+    .header-glass {
+      background: linear-gradient(180deg, rgba(6, 12, 24, 0.96) 0%, rgba(5, 9, 18, 0.88) 100%);
+      border-bottom: 1px solid rgba(0, 240, 255, 0.22);
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.75), 0 1px 0 rgba(0, 240, 255, 0.1) inset;
+      z-index: 100;
+    }
+
+    .cyber-title {
+      color: #00f0ff;
+      text-shadow: 0 0 12px rgba(0, 240, 255, 0.65), 0 0 24px rgba(0, 136, 255, 0.35);
+      letter-spacing: 0.08em;
+    }
+
+    .pill-btn {
+      background: rgba(12, 22, 42, 0.75);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #cbd5e1;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      backdrop-filter: blur(8px);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 640px) {
+      .pill-btn {
+        padding: 5px 10px;
+        font-size: 10px;
+      }
+    }
+
+    .pill-btn:hover {
+      border-color: var(--cyan-glow);
+      color: #ffffff;
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.35), inset 0 0 8px rgba(0, 240, 255, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .pill-btn.active-cyan {
+      background: linear-gradient(90deg, rgba(0, 136, 255, 0.35), rgba(0, 240, 255, 0.25));
+      border-color: var(--cyan-glow);
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.5), inset 0 0 10px rgba(0, 240, 255, 0.25);
+    }
+
+    .pill-green {
+      border-color: rgba(0, 255, 157, 0.35);
+      color: #86efac;
+    }
+    .pill-green:hover, .pill-green.active-mode {
+      background: rgba(0, 255, 157, 0.2);
+      border-color: var(--green-neon);
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(0, 255, 157, 0.5), inset 0 0 10px rgba(0, 255, 157, 0.25);
+    }
+
+    .pill-red {
+      border-color: rgba(255, 42, 85, 0.4);
+      color: #fca5a5;
+    }
+    .pill-red:hover, .pill-red.active-mode {
+      background: rgba(255, 42, 85, 0.22);
+      border-color: var(--red-neon);
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(255, 42, 85, 0.55), inset 0 0 10px rgba(255, 42, 85, 0.25);
+    }
+
+    .pill-amber {
+      border-color: rgba(255, 184, 0, 0.4);
+      color: #fde047;
+    }
+    .pill-amber:hover, .pill-amber.active-mode {
+      background: rgba(255, 184, 0, 0.22);
+      border-color: var(--amber-neon);
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(255, 184, 0, 0.55), inset 0 0 10px rgba(255, 184, 0, 0.25);
+    }
+
+    /* ================= 3D VIEWPORT & WORLD ================= */
+    .viewport-3d {
+      flex: 1;
+      position: relative;
+      perspective: 1450px;
+      overflow: hidden;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .viewport-3d:active {
+      cursor: grabbing;
+    }
+
+    .world-3d {
+      position: absolute;
+      top: 50%;
+      left: 56%;
+      width: 1160px;
+      height: 640px;
+      margin-left: -580px;
+      margin-top: -320px;
+      transform-style: preserve-3d;
+      transition: transform 0.08s ease-out;
+      will-change: transform;
+    }
+
+    @media (max-width: 1024px) {
+      .world-3d {
+        left: 50%;
+      }
+    }
+
+    /* Suelo cyber grid */
+    .cyber-floor {
+      position: absolute;
+      width: 2600px;
+      height: 2000px;
+      left: -720px;
+      top: -680px;
+      background-image:
+        linear-gradient(rgba(0, 210, 255, 0.09) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 210, 255, 0.09) 1px, transparent 1px),
+        linear-gradient(rgba(0, 140, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 140, 255, 0.03) 1px, transparent 1px);
+      background-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px;
+      transform: translateZ(-55px);
+      mask-image: radial-gradient(ellipse at center, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 72%);
+      -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 72%);
+      pointer-events: none;
+    }
+
+    /* Placas de cristal translúcido en 3D con grosor */
+    .glass-slab {
+      position: absolute;
+      border-radius: 22px;
+      background: linear-gradient(
+        135deg,
+        rgba(0, 195, 255, 0.14) 0%,
+        rgba(8, 28, 58, 0.45) 50%,
+        rgba(0, 240, 255, 0.1) 100%
+      );
+      border: 1.5px solid rgba(0, 240, 255, 0.55);
+      box-shadow:
+        0 0 32px rgba(0, 210, 255, 0.22),
+        inset 0 0 28px rgba(0, 240, 255, 0.18);
+      transform-style: preserve-3d;
+      transition: all 0.35s ease;
+      cursor: pointer;
+    }
+
+    /* Base inferior del cristal para simular bloque acrílico 3D */
+    .glass-slab::before {
+      content: '';
+      position: absolute;
+      inset: -1.5px;
+      border-radius: 22px;
+      border: 1.5px solid rgba(0, 210, 255, 0.45);
+      background: rgba(0, 80, 140, 0.14);
+      transform: translateZ(-22px);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.85), 0 0 25px rgba(0, 180, 255, 0.25);
+      pointer-events: none;
+    }
+
+    /* Reflejo diagonal cristalino */
+    .glass-slab::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 22px;
+      background: linear-gradient(115deg, rgba(255,255,255,0.12) 0%, transparent 38%, transparent 65%, rgba(0, 240, 255, 0.08) 100%);
+      pointer-events: none;
+    }
+
+    .glass-slab:hover, .glass-slab.slab-active {
+      border-color: #5efaff;
+      box-shadow:
+        0 0 45px rgba(0, 240, 255, 0.42),
+        inset 0 0 36px rgba(0, 240, 255, 0.28);
+    }
+
+    .slab-caption-top {
+      position: absolute;
+      top: -26px;
+      left: 14px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: #7dd3fc;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.55);
+      white-space: nowrap;
+      pointer-events: none;
+      transform: translateZ(8px);
+    }
+
+    .slab-caption-bottom {
+      position: absolute;
+      bottom: -28px;
+      left: 14px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: #93c5fd;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+      white-space: nowrap;
+      pointer-events: none;
+      transform: translateZ(-10px);
+    }
+
+    /* ================= SVG AXON LAYER ================= */
+    .axon-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1160px;
+      height: 640px;
+      transform: translateZ(16px);
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .axon-line {
+      stroke-width: 1.05px;
+      opacity: 0.34;
+      transition: opacity 0.25s ease, stroke-width 0.25s ease, filter 0.25s ease;
+    }
+
+    .axon-line.axon-highlighted {
+      opacity: 0.95 !important;
+      stroke-width: 2.4px !important;
+      filter: drop-shadow(0 0 6px #ff36f8);
+    }
+
+    .axon-line.axon-approved {
+      stroke: #00ff9d !important;
+      opacity: 0.75;
+      stroke-width: 1.8px;
+    }
+
+    .axon-line.axon-vetoed {
+      stroke: #ff2a55 !important;
+      opacity: 0.75;
+      stroke-width: 1.8px;
+    }
+
+    .axon-line.axon-dimmed {
+      opacity: 0.06;
+    }
+
+    /* ================= NEURAL NODES (3D ORBS & TAGS) ================= */
+    .nodes-layer-3d {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1160px;
+      height: 640px;
+      transform: translateZ(20px);
+      transform-style: preserve-3d;
+      pointer-events: none;
+    }
+
+    .neuron-node {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      margin-left: -11px;
+      margin-top: -11px;
+      transform-style: preserve-3d;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+    .neuron-orb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 32% 30%, #ffffff 0%, #ff55ff 32%, #9d00ff 70%, #3b0078 100%);
+      box-shadow:
+        0 0 14px #e024ff,
+        0 0 28px rgba(224, 36, 255, 0.65);
+      transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+      position: relative;
+    }
+
+    .neuron-orb::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 1px solid rgba(240, 100, 255, 0.45);
+      animation: orb-pulse 2.4s infinite ease-out;
+    }
+
+    .neuron-node:hover .neuron-orb,
+    .neuron-node.node-selected .neuron-orb {
+      transform: scale(1.38) translateZ(8px);
+      box-shadow:
+        0 0 20px #ffffff,
+        0 0 35px #ff24f0,
+        0 0 55px #00f0ff;
+    }
+
+    .neuron-node.node-green .neuron-orb {
+      background: radial-gradient(circle at 32% 30%, #ffffff 0%, #4dffb8 35%, #00c46b 75%, #004d29 100%);
+      box-shadow: 0 0 18px #00ff9d, 0 0 34px rgba(0, 255, 157, 0.7);
+    }
+
+    .neuron-node.node-red .neuron-orb {
+      background: radial-gradient(circle at 32% 30%, #ffffff 0%, #ff6b8b 35%, #ff003c 75%, #590015 100%);
+      box-shadow: 0 0 18px #ff2a55, 0 0 34px rgba(255, 42, 85, 0.7);
+    }
+
+    @keyframes orb-pulse {
+      0% { transform: scale(0.75); opacity: 0.85; }
+      100% { transform: scale(1.65); opacity: 0; }
+    }
+
+    /* Etiqueta flotante tipo píldora sobre los nodos */
+    .neuron-pill {
+      position: absolute;
+      white-space: nowrap;
+      background: rgba(7, 15, 30, 0.92);
+      border: 1px solid rgba(0, 210, 255, 0.45);
+      color: #e2e8f0;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 10.5px;
+      font-weight: 600;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.75), 0 0 10px rgba(0, 195, 255, 0.2);
+      transform: translateZ(16px);
+      transition: all 0.2s ease;
+      pointer-events: auto;
+    }
+
+    .neuron-node:hover .neuron-pill,
+    .neuron-node.node-selected .neuron-pill {
+      background: rgba(0, 40, 75, 0.96);
+      border-color: #00f0ff;
+      color: #ffffff;
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.65);
+      transform: translateZ(26px) scale(1.06);
+      z-index: 40;
+    }
+
+    /* Posiciones de etiquetas según la columna */
+    .pill-left {
+      right: 28px;
+      top: 50%;
+      transform: translateY(-50%) translateZ(14px);
+    }
+    .neuron-node:hover .pill-left,
+    .neuron-node.node-selected .pill-left {
+      transform: translateY(-50%) translateZ(24px) scale(1.05);
+    }
+
+    .pill-center {
+      left: 50%;
+      bottom: 26px;
+      transform: translateX(-50%) translateZ(18px);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      background: rgba(8, 16, 34, 0.92);
+      border-color: rgba(168, 85, 247, 0.55);
+    }
+    .neuron-node:hover .pill-center,
+    .neuron-node.node-selected .pill-center {
+      transform: translateX(-50%) translateZ(28px) scale(1.07);
+    }
+
+    .pill-right {
+      left: 28px;
+      top: 50%;
+      transform: translateY(-50%) translateZ(16px);
+    }
+    .neuron-node:hover .pill-right,
+    .neuron-node.node-selected .pill-right {
+      transform: translateY(-50%) translateZ(26px) scale(1.06);
+    }
+
+    /* ================= HUD PANELS (OVERLAYS) ================= */
+    .hud-card {
+      background: linear-gradient(160deg, rgba(8, 16, 30, 0.90) 0%, rgba(5, 10, 20, 0.96) 100%);
+      border: 1.5px solid rgba(0, 240, 255, 0.5);
+      box-shadow:
+        0 0 26px rgba(0, 240, 255, 0.22),
+        0 16px 40px rgba(0, 0, 0, 0.8),
+        inset 0 0 18px rgba(0, 240, 255, 0.08);
+      border-radius: 14px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 80;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+    }
+
+    .hud-terminal {
+      background: linear-gradient(180deg, rgba(6, 12, 22, 0.92) 0%, rgba(4, 8, 15, 0.96) 100%);
+      border: 1px solid rgba(0, 200, 180, 0.38);
+      box-shadow:
+        0 0 22px rgba(0, 240, 255, 0.14),
+        0 16px 40px rgba(0, 0, 0, 0.85);
+      border-radius: 12px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 80;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+    }
+
+    /* Estados móviles para ocultar/mostrar HUD */
+    @media (max-width: 1023px) {
+      .hud-mobile-hidden {
+        transform: translateY(120%) scale(0.95);
+        opacity: 0;
+        pointer-events: none !important;
+      }
+      .hud-mobile-visible {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+        pointer-events: auto !important;
+      }
+    }
+
+    .cursor-blink {
+      display: inline-block;
+      width: 7px;
+      height: 13px;
+      background-color: #e2e8f0;
+      vertical-align: middle;
+      margin-left: 4px;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* Botones de cámara derecha */
+    .cam-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: rgba(9, 19, 38, 0.88);
+      border: 1px solid rgba(0, 210, 255, 0.4);
+      color: #7dd3fc;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+    }
+
+    @media (max-width: 640px) {
+      .cam-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 13px;
+      }
+    }
+
+    .cam-btn:hover, .cam-btn.active {
+      background: rgba(0, 160, 255, 0.28);
+      border-color: #00f0ff;
+      color: #ffffff;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+    }
+
+    /* Barra flotante inferior para móviles */
+    .mobile-hud-bar {
+      display: none;
+    }
+    @media (max-width: 1023px) {
+      .mobile-hud-bar {
+        display: flex;
+        position: fixed;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 95;
+        background: rgba(6, 14, 28, 0.88);
+        border: 1px solid rgba(0, 240, 255, 0.4);
+        border-radius: 9999px;
+        padding: 4px 8px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.85), 0 0 15px rgba(0, 240, 255, 0.2);
+        backdrop-filter: blur(12px);
+        gap: 6px;
+      }
+    }
+  </style>
 </head>
 <body>
-<div id="canvas-container">
-    <canvas id="netCanvas"></canvas>
-</div>
-<div id="ui-layer">
-    <div class="hud-box" style="width: 380px;">
-        <h1>TENSORFLOW CORE</h1>
-        <div class="stats">
-            <div>STATUS: <span class="stat-value" id="tf-status" style="color:#00ffa3">EN LÍNEA (SHADOW TRADING)</span></div>
-            <div>ARQUITECTURA: <span class="stat-value" style="color:#38bdf8">7 Herds Desacoplados + Master</span></div>
-            <div>MODELO: <span class="stat-value">Sequential (Keras Deep Learning)</span></div>
-            <div>PRECISIÓN (ACC): <span class="stat-value" id="tf-acc" style="color:#00ffa3">81.25%</span></div>
-            <div>TRADES APRENDIDOS: <span class="stat-value" id="tf-trades">764</span></div>
-            <div>CAPAS: <span class="stat-value">Input (7 Herds), Dense (10, 8), Sigmoid (2)</span></div>
-            <div>QUÓRUM CONSENSO: <span class="stat-value" id="tf-pred" style="color:#fbbf24">ESPERANDO DELIBERACIÓN...</span></div>
-        </div>
-    </div>
-    <div class="hud-box log-container" id="logBox">
-        <div style="font-size: 10px; color: #ff6a00; margin-bottom: 8px; font-weight: bold;">
-            > TERMINAL DE NEURONAS // MALLA 7 HERDS + MASTER
-        </div>
-    </div>
-</div>
-<script>
-    const canvas = document.getElementById("netCanvas");
-    const ctx = canvas.getContext("2d");
-    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-    window.addEventListener("resize", resize); resize();
 
-    // 7 Entradas (1 por cada Herd desacoplado) -> 10 Ocultas -> 8 Ocultas -> 2 Salidas (Consenso Buy/Sell)
-    const layers = [7, 10, 8, 2];
-    const inputLabels = [
-        "H1: TIDAL (Macro)",
-        "H2: NORO (Quant)",
-        "H3: ZEPHR (Stats)",
-        "H4: LUMEN (SMC)",
-        "H5: RUNE (Risk)",
-        "H6: TF (Neural)",
-        "H7: ATLAS (DOM/MCP)"
+  <!-- ==================== CABECERA SUPERIOR ==================== -->
+  <header class="header-glass px-3 sm:px-5 py-2.5 flex flex-col gap-2">
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <div class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_12px_#00f0ff] animate-pulse flex-shrink-0"></div>
+        <div>
+          <h1 class="text-sm sm:text-base md:text-xl font-extrabold tracking-wider flex items-center gap-1.5 flex-wrap leading-tight">
+            <span class="cyber-title">MIA MASTER SWARM HFT</span>
+            <span class="text-slate-500 font-light hidden sm:inline">/</span>
+            <span class="text-slate-100 font-bold tracking-wide">TENSORFLOW CORE 3D</span>
+            <span class="text-[10px] sm:text-xs font-mono-code px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">v1.5</span>
+          </h1>
+          <p class="text-[10px] sm:text-[11px] text-slate-400 hidden sm:block">
+            Haz clic en cualquier nodo, capa o etiqueta de flujo para inspeccionar sus rutas activas y tensores en tiempo real
+          </p>
+        </div>
+      </div>
+
+      <!-- Indicadores rápidos superiores derecha -->
+      <div class="flex items-center gap-2 text-xs font-mono-code flex-shrink-0">
+        <span class="hidden md:flex px-2.5 py-1 rounded-md bg-slate-900/90 border border-slate-700/80 text-slate-300 items-center gap-1.5 text-[11px]">
+          <span class="w-2 h-2 rounded-full bg-purple-400"></span> Llama 3.3 70B + Gemini 1.5 Pro CBR
+        </span>
+        <button id="btn-toggle-online" class="px-2 sm:px-2.5 py-1 rounded-md bg-red-950/70 border border-red-500/50 text-red-300 hover:bg-red-900/60 transition cursor-pointer flex items-center gap-1.5 text-[10px] sm:text-xs" title="Conmutar Estado Online / Criosueño">
+          <span id="dot-online" class="w-2 h-2 rounded-full bg-red-500 animate-ping flex-shrink-0"></span>
+          <span id="txt-online-short">REINTENTANDO...</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Barra de Píldoras Interactivas (Scroll horizontal suave en móviles) -->
+    <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1">
+      <button class="pill-btn active-cyan" data-mode="isometric" id="pill-iso">
+        <span>🌐</span> <span>Vista 3D</span>
+      </button>
+      <button class="pill-btn" data-mode="input_herds" id="pill-herds">
+        <span>1.</span> <span>7 Herds (.MD)</span>
+      </button>
+      <button class="pill-btn pill-green" data-mode="approved" id="pill-approved">
+        <span>2.</span> <span>Flujo Sí: APROBADO</span>
+      </button>
+      <button class="pill-btn pill-red" data-mode="vetoed" id="pill-vetoed">
+        <span>3.</span> <span>Flujo No: VETADO</span>
+      </button>
+      <button class="pill-btn pill-amber" data-mode="deliberating" id="pill-delib">
+        <span>4.</span> <span>Deliberando</span>
+      </button>
+      <button class="pill-btn" id="pill-autotour">
+        <span>🔄</span> <span>AutoTour 3D</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== ESCENARIO CENTRAL 3D ==================== -->
+  <main class="viewport-3d" id="viewport">
+
+    <!-- MUNDO 3D CON PRESERVE-3D -->
+    <div class="world-3d" id="world">
+      <!-- Suelo en cuadrícula perspectiva -->
+      <div class="cyber-floor"></div>
+
+      <!-- PLACA 1: CAPA 1 INPUT 7 HERDS -->
+      <div class="glass-slab" id="slab-1" style="left: 55px; top: 45px; width: 270px; height: 550px;" data-layer="1">
+        <div class="slab-caption-top">CAPA 1: ESPECIFICACIONES (INPUT)</div>
+        <div class="slab-caption-bottom">CAPA 1: ESPECIFICACIONES (INPUT)</div>
+      </div>
+
+      <!-- PLACA 2: CAPA 2 MOTOR DELIBERACIÓN & DENSE (10, 8) -->
+      <div class="glass-slab" id="slab-2" style="left: 395px; top: 45px; width: 390px; height: 550px;" data-layer="2">
+        <div class="slab-caption-top">CAPA 2: MOTOR DELIBERACIÓN (DENSE)</div>
+        <div class="slab-caption-bottom">CAPA 2: MOTOR DELIBERACIÓN (DENSE)</div>
+      </div>
+
+      <!-- PLACA 3: CAPA 3 SALIDAS / SIGMOID -->
+      <div class="glass-slab" id="slab-3" style="left: 855px; top: 45px; width: 250px; height: 550px;" data-layer="3">
+        <div class="slab-caption-top">CAPA 3: SALIDAS / SIGMOID (OUTPUT)</div>
+        <div class="slab-caption-bottom">CAPA 3: SALIDAS / SIGMOID (OUTPUT)</div>
+      </div>
+
+      <!-- MALLA DE AXONES Y PULSOS (SVG EN EL PLANO 3D) -->
+      <svg class="axon-svg" id="axon-svg" viewBox="0 0 1160 640">
+        <defs>
+          <linearGradient id="grad-purple-magenta" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#9d4edd" stop-opacity="0.75" />
+            <stop offset="50%" stop-color="#e024ff" stop-opacity="0.85" />
+            <stop offset="100%" stop-color="#ff5500" stop-opacity="0.75" />
+          </linearGradient>
+          <linearGradient id="grad-orange-purple" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#ff4800" stop-opacity="0.8" />
+            <stop offset="60%" stop-color="#c71dff" stop-opacity="0.75" />
+            <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.9" />
+          </linearGradient>
+          <filter id="glow-pulse" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <g id="axons-container"></g>
+        <g id="pulses-container"></g>
+      </svg>
+
+      <!-- CAPA DE NODOS NEURONALES 3D -->
+      <div class="nodes-layer-3d" id="nodes-container"></div>
+    </div>
+
+    <!-- ==================== PANEL HUD SUPERIOR IZQUIERDO ==================== -->
+    <aside id="hud-card-panel" class="hud-card fixed top-24 sm:top-28 left-3 sm:left-5 w-[calc(100vw-24px)] sm:w-[375px] max-w-[390px] p-3.5 sm:p-4 font-mono-code text-xs pointer-events-auto">
+      <div class="flex items-center justify-between border-b border-cyan-500/30 pb-2 mb-2">
+        <h2 class="text-base sm:text-lg font-extrabold tracking-widest text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.6)]">
+          TENSORFLOW CORE
+        </h2>
+        <div class="flex items-center gap-1.5">
+          <span class="text-[9px] sm:text-[10px] px-2 py-0.5 rounded bg-cyan-950/90 border border-cyan-400/40 text-cyan-300">
+            KERAS 3D
+          </span>
+          <!-- Botón cerrar en móvil -->
+          <button id="btn-close-hud" class="lg:hidden text-slate-400 hover:text-white px-1.5 py-0.5 rounded bg-slate-800 text-xs">✕</button>
+        </div>
+      </div>
+
+      <div class="space-y-1 text-[11px] sm:text-[11.5px] leading-snug">
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-400">STATUS:</span>
+          <span id="hud-status" class="font-bold text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.5)] truncate">
+            DESCONECTADO - REINTENTANDO...
+          </span>
+        </div>
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-400">ARQUITECTURA:</span>
+          <span class="font-bold text-sky-400 truncate">7 Herds Desacoplados + Master</span>
+        </div>
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-400">MODELO:</span>
+          <span class="font-semibold text-slate-100">Sequential (Keras Deep Learning)</span>
+        </div>
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-400">PRECISIÓN (ACC):</span>
+          <span id="hud-acc" class="font-bold text-emerald-400">60.28%</span>
+        </div>
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-400">TRADES APRENDIDOS:</span>
+          <span id="hud-trades" class="font-bold text-white">798</span>
+        </div>
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-400">CAPAS:</span>
+          <span class="font-semibold text-slate-200">Input (7), Dense (10, 8), Sigmoid (2)</span>
+        </div>
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-400">QUÓRUM CONSENSO:</span>
+          <span id="hud-quorum" class="font-bold text-amber-400 truncate">ESPERANDO DELIBERACIÓN...</span>
+        </div>
+      </div>
+
+      <!-- Inspector Dinámico del Nodo Seleccionado -->
+      <div class="mt-2.5 pt-2 border-t border-cyan-500/25 bg-slate-950/65 rounded-lg p-2 sm:p-2.5">
+        <div class="flex items-center justify-between text-[9px] sm:text-[10px] text-cyan-400 mb-1">
+          <span class="font-bold tracking-wider">INSPECTOR DE TENSORES / NODO</span>
+          <span id="insp-layer" class="text-purple-300">CAPA 2 • DENSE</span>
+        </div>
+        <div id="insp-name" class="text-[11px] sm:text-xs font-bold text-white truncate mb-1.5">
+          debate_dinamico_7_herds
+        </div>
+        <div class="grid grid-cols-3 gap-1 text-[9px] sm:text-[10px]">
+          <div class="bg-slate-900/90 border border-slate-800 rounded px-1.5 py-1">
+            <div class="text-slate-400">ACTIVACIÓN</div>
+            <div id="insp-act" class="text-emerald-400 font-bold">0.842 σ</div>
+          </div>
+          <div class="bg-slate-900/90 border border-slate-800 rounded px-1.5 py-1">
+            <div class="text-slate-400">LATENCIA</div>
+            <div id="insp-lat" class="text-cyan-300 font-bold">14.2 ms</div>
+          </div>
+          <div class="bg-slate-900/90 border border-slate-800 rounded px-1.5 py-1">
+            <div class="text-slate-400">SINAPSIS</div>
+            <div id="insp-syn" class="text-fuchsia-400 font-bold">15 axones</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================== TERMINAL INFERIOR IZQUIERDA ==================== -->
+    <section id="hud-terminal-panel" class="hud-terminal fixed bottom-16 lg:bottom-5 left-3 sm:left-5 w-[calc(100vw-24px)] sm:w-[445px] max-w-[460px] h-[150px] sm:h-[168px] p-3 sm:p-3.5 font-mono-code text-xs flex flex-col pointer-events-auto">
+      <div class="flex items-center justify-between border-b border-emerald-500/25 pb-1.5 mb-1.5">
+        <span class="text-[10px] sm:text-[11px] font-bold tracking-wider text-amber-400 truncate">
+          &gt; TERMINAL DE NEURONAS // MALLA 7 HERDS + MASTER
+        </span>
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+          <button id="btn-pulse-burst" class="text-[9px] sm:text-[10px] px-2 py-0.5 rounded bg-fuchsia-950/90 border border-fuchsia-500/50 text-fuchsia-300 hover:bg-fuchsia-900/80 transition cursor-pointer">
+            ⚡ Pulso
+          </button>
+          <!-- Botón cerrar en móvil -->
+          <button id="btn-close-terminal" class="lg:hidden text-slate-400 hover:text-white px-1.5 py-0.5 rounded bg-slate-800 text-xs">✕</button>
+        </div>
+      </div>
+      <div id="terminal-output" class="flex-1 overflow-y-auto space-y-1.5 text-[10.5px] sm:text-[11.5px] leading-relaxed pr-1">
+        <div class="text-slate-100">
+          <span class="text-emerald-400 font-bold">[Master]</span> MERCADO CERRADO (Fin de semana). Criosueño activo (13.8h restantes para apertura dom 21:00 UTC). Consumo de tokens: 0.<span class="cursor-blink"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== CONTROLES HUD CÁMARA (ESQUINA INFERIOR DERECHA) ==================== -->
+    <div class="fixed bottom-16 lg:bottom-5 right-3 sm:right-5 z-90 flex flex-col items-end gap-2 pointer-events-auto">
+      <div class="flex flex-col gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-cyan-500/35 shadow-2xl backdrop-blur-md">
+        <button class="cam-btn" id="cam-zoom-in" title="Acercar Zoom (+)">+</button>
+        <button class="cam-btn" id="cam-zoom-out" title="Alejar Zoom (-)">−</button>
+      </div>
+      <div class="flex gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-cyan-500/35 shadow-2xl backdrop-blur-md">
+        <button class="cam-btn active text-xs" id="cam-toggle-3d" title="Alternar Vista Isométrica 3D / Plana 2D">3D</button>
+        <button class="cam-btn" id="cam-reset" title="Restaurar Ángulo de Cámara">↻</button>
+        <button class="cam-btn" id="cam-orbit" title="Órbita Continua 360°">🪐</button>
+      </div>
+    </div>
+
+    <!-- ==================== BARRA FLOTANTE INTERACTIVA PARA MÓVILES ==================== -->
+    <nav class="mobile-hud-bar">
+      <button id="m-btn-metrics" class="px-3 py-1 rounded-full text-[11px] font-semibold bg-cyan-950/80 border border-cyan-400/50 text-cyan-300 flex items-center gap-1.5">
+        <span>📊</span> <span>Métricas</span>
+      </button>
+      <button id="m-btn-terminal" class="px-3 py-1 rounded-full text-[11px] font-semibold bg-slate-900 border border-slate-700 text-slate-300 flex items-center gap-1.5">
+        <span>💻</span> <span>Terminal</span>
+      </button>
+      <button id="m-btn-clean" class="px-3 py-1 rounded-full text-[11px] font-semibold bg-slate-900 border border-slate-700 text-slate-300 flex items-center gap-1.5">
+        <span>👁️</span> <span>3D Puro</span>
+      </button>
+    </nav>
+
+  </main>
+
+  <script>
+    /********************************************************************
+     * 1. DEFINICIÓN DE ARQUITECTURA KERAS: INPUT(7) -> DENSE(10, 8) -> SIGMOID(2)
+     ********************************************************************/
+    const NODES = [
+      // === PLACA 1: CAPA 1 INPUT (7 HERDS) (x: 195) ===
+      { id: 'h1', layer: 1, subLayer: 'input', x: 195, y: 95,  label: 'H1: TIDAL (Macro, Killzones)', pillPos: 'left', weight: 0.91, latency: '11.4 ms' },
+      { id: 'h2', layer: 1, subLayer: 'input', x: 195, y: 170, label: 'H2: NORO (CVOL, Markov)', pillPos: 'left', weight: 0.78, latency: '9.8 ms' },
+      { id: 'h3', layer: 1, subLayer: 'input', x: 195, y: 245, label: 'H3: ZEPHR (Stats, EV, Asimetría)', pillPos: 'left', weight: 0.86, latency: '12.1 ms' },
+      { id: 'h4', layer: 1, subLayer: 'input', x: 195, y: 320, label: 'H4: LUMEN (SMC, AMD Sweeps)', pillPos: 'left', weight: 0.94, latency: '10.5 ms' },
+      { id: 'h5', layer: 1, subLayer: 'input', x: 195, y: 395, label: 'H5: RUNE (Risk, Cascade 4 Fases)', pillPos: 'left', weight: 0.99, latency: '8.2 ms' },
+      { id: 'h6', layer: 1, subLayer: 'input', x: 195, y: 470, label: 'H6: ATLAS (DOM CME, CVD)', pillPos: 'left', weight: 0.83, latency: '14.0 ms' },
+      { id: 'h7', layer: 1, subLayer: 'input', x: 195, y: 545, label: 'H7: TENSORFLOW (Tensores 22D)', pillPos: 'left', weight: 0.95, latency: '7.6 ms' },
+
+      // === PLACA 2: SUB-COLUMNA DENSE 1 (10 NEURONAS) (x: 495) ===
+      { id: 'd1_1',  layer: 2, subLayer: 'dense1', x: 495, y: 82,  label: '@lru_cache: load_herd_specification()', showPill: true, pillPos: 'center', weight: 0.88, latency: '0.4 ms' },
+      { id: 'd1_2',  layer: 2, subLayer: 'dense1', x: 495, y: 135, label: 'dense_10_unit_02 [ReLU]', showPill: false, pillPos: 'center', weight: 0.64, latency: '1.8 ms' },
+      { id: 'd1_3',  layer: 2, subLayer: 'dense1', x: 495, y: 188, label: 'fetch_swarm_context_mget()', showPill: true, pillPos: 'center', weight: 0.92, latency: '18.6 ms' },
+      { id: 'd1_4',  layer: 2, subLayer: 'dense1', x: 495, y: 241, label: 'dense_10_unit_04 [HerdContextDTO]', showPill: false, pillPos: 'center', weight: 0.71, latency: '2.1 ms' },
+      { id: 'd1_5',  layer: 2, subLayer: 'dense1', x: 495, y: 294, label: 'debate_dinamico_7_herds', showPill: true, pillPos: 'center', weight: 0.96, latency: '230.0 ms' },
+      { id: 'd1_6',  layer: 2, subLayer: 'dense1', x: 495, y: 347, label: 'dense_10_unit_06 [Attention]', showPill: false, pillPos: 'center', weight: 0.77, latency: '3.4 ms' },
+      { id: 'd1_7',  layer: 2, subLayer: 'dense1', x: 495, y: 400, label: 'dense_10_unit_07 [TensorNorm]', showPill: false, pillPos: 'center', weight: 0.68, latency: '1.9 ms' },
+      { id: 'd1_8',  layer: 2, subLayer: 'dense1', x: 495, y: 453, label: 'autopsia_trade_cerrado', showPill: true, pillPos: 'center', weight: 0.85, latency: '42.0 ms' },
+      { id: 'd1_9',  layer: 2, subLayer: 'dense1', x: 495, y: 506, label: 'dense_10_unit_09 [Dropout 0.2]', showPill: false, pillPos: 'center', weight: 0.59, latency: '1.2 ms' },
+      { id: 'd1_10', layer: 2, subLayer: 'dense1', x: 495, y: 558, label: 'dense_10_unit_10 [BiasVector]', showPill: false, pillPos: 'center', weight: 0.81, latency: '1.5 ms' },
+
+      // === PLACA 2: SUB-COLUMNA DENSE 2 (8 NEURONAS) (x: 685) ===
+      { id: 'd2_1', layer: 2, subLayer: 'dense2', x: 685, y: 105, label: 'dense_8_unit_01 [Synapse]', showPill: false, pillPos: 'center', weight: 0.74, latency: '2.0 ms' },
+      { id: 'd2_2', layer: 2, subLayer: 'dense2', x: 685, y: 166, label: 'quorum_master >= 0.70', showPill: true, pillPos: 'center', weight: 0.93, latency: '5.4 ms' },
+      { id: 'd2_3', layer: 2, subLayer: 'dense2', x: 685, y: 227, label: 'dense_8_unit_03 [Consensus]', showPill: false, pillPos: 'center', weight: 0.80, latency: '2.3 ms' },
+      { id: 'd2_4', layer: 2, subLayer: 'dense2', x: 685, y: 288, label: 'dense_8_unit_04 [KillzoneGate]', showPill: false, pillPos: 'center', weight: 0.76, latency: '2.7 ms' },
+      { id: 'd2_5', layer: 2, subLayer: 'dense2', x: 685, y: 349, label: 'score_premio_castigo_herd', showPill: true, pillPos: 'center', weight: 0.89, latency: '15.8 ms' },
+      { id: 'd2_6', layer: 2, subLayer: 'dense2', x: 685, y: 410, label: 'dense_8_unit_06 [RiskFilter]', showPill: false, pillPos: 'center', weight: 0.82, latency: '3.1 ms' },
+      { id: 'd2_7', layer: 2, subLayer: 'dense2', x: 685, y: 471, label: 'cache_trading_learning_kb', showPill: true, pillPos: 'center', weight: 0.87, latency: '19.2 ms' },
+      { id: 'd2_8', layer: 2, subLayer: 'dense2', x: 685, y: 532, label: 'dense_8_unit_08 [MemoryCBR]', showPill: false, pillPos: 'center', weight: 0.69, latency: '2.8 ms' },
+
+      // === PLACA 3: CAPA 3 SALIDAS SIGMOID (2 NEURONAS) (x: 935) ===
+      { id: 'out_1', layer: 3, subLayer: 'output', x: 935, y: 215, label: 'OUT 1: POSICIÓN ABIERTA (APROBADO MT5)', showPill: true, pillPos: 'center', weight: 0.97, latency: '6.1 ms' },
+      { id: 'out_2', layer: 3, subLayer: 'output', x: 935, y: 430, label: 'OUT 2: VETO / CRIOSUEÑO (BLOQUEO RIESGO)', showPill: true, pillPos: 'center', weight: 0.91, latency: '4.3 ms' }
     ];
 
-    const nodes = [];
-    const links = [];
-    const startX = window.innerWidth * 0.22;
-    const endX = window.innerWidth * 0.82;
-    const gapX = (endX - startX) / (layers.length - 1);
-    const centerY = window.innerHeight / 2;
+    const LINKS = [];
+    const inputNodes  = NODES.filter(n => n.subLayer === 'input');
+    const dense1Nodes = NODES.filter(n => n.subLayer === 'dense1');
+    const dense2Nodes = NODES.filter(n => n.subLayer === 'dense2');
+    const outputNodes = NODES.filter(n => n.subLayer === 'output');
 
-    layers.forEach((count, layerIndex) => {
-        const gapY = window.innerHeight * 0.65 / count;
-        const startY = centerY - (count * gapY) / 2 + gapY / 2;
-        for (let i = 0; i < count; i++) {
-            nodes.push({ 
-                x: startX + layerIndex * gapX, 
-                y: startY + i * gapY, 
-                layer: layerIndex, 
-                indexInLayer: i,
-                activation: Math.random(), 
-                targetActivation: Math.random() 
-            });
-        }
+    // Conectar Input (7) -> Dense 1 (10) = 70 axones
+    inputNodes.forEach((src, i) => {
+      dense1Nodes.forEach((tgt, j) => {
+        LINKS.push({
+          id: `axon_${src.id}_${tgt.id}`,
+          source: src,
+          target: tgt,
+          colorType: (i + j) % 2 === 0 ? 'grad-purple-magenta' : 'grad-orange-purple'
+        });
+      });
     });
 
-    for (let l = 0; l < layers.length - 1; l++) {
-        const currentLayerNodes = nodes.filter(n => n.layer === l);
-        const nextLayerNodes = nodes.filter(n => n.layer === l + 1);
-        currentLayerNodes.forEach(n1 => { 
-            nextLayerNodes.forEach(n2 => { 
-                links.push({ source: n1, target: n2, weight: Math.random() * 2 - 1, active: false }); 
-            }); 
+    // Conectar Dense 1 (10) -> Dense 2 (8) = 80 axones
+    dense1Nodes.forEach((src, i) => {
+      dense2Nodes.forEach((tgt, j) => {
+        LINKS.push({
+          id: `axon_${src.id}_${tgt.id}`,
+          source: src,
+          target: tgt,
+          colorType: (i + j) % 2 === 0 ? 'grad-orange-purple' : 'grad-purple-magenta'
         });
-    }
+      });
+    });
 
-    function draw() {
-        ctx.fillStyle = "#040609"; 
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Actualizar activaciones
-        nodes.forEach(n => { 
-            n.activation += (n.targetActivation - n.activation) * 0.05; 
-            if (Math.random() < 0.015) n.targetActivation = Math.random(); 
+    // Conectar Dense 2 (8) -> Sigmoid Output (2) = 16 axones
+    dense2Nodes.forEach((src, i) => {
+      outputNodes.forEach((tgt, j) => {
+        LINKS.push({
+          id: `axon_${src.id}_${tgt.id}`,
+          source: src,
+          target: tgt,
+          colorType: j === 0 ? 'grad-purple-magenta' : 'grad-orange-purple'
         });
+      });
+    });
 
-        // Dibujar Enlaces (Sinapsis)
-        links.forEach(l => {
-            ctx.beginPath(); 
-            ctx.moveTo(l.source.x, l.source.y); 
-            ctx.lineTo(l.target.x, l.target.y);
-            let alpha = 0.15 + Math.abs(l.weight) * 0.45; 
-            if (l.active) alpha = 1.0;
-            if (l.weight > 0) ctx.strokeStyle = "rgba(180, 0, 255, " + alpha + ")";
-            else ctx.strokeStyle = "rgba(239, 68, 68, " + alpha + ")";
-            ctx.lineWidth = l.active ? 2.5 : 0.8; 
-            ctx.stroke();
-            if (l.active && Math.random() < 0.1) l.active = false;
-        });
+    /********************************************************************
+     * 2. RENDERIZADO DEL DOM Y SVG EN EL ESCENARIO 3D
+     ********************************************************************/
+    const axonsContainer  = document.getElementById('axons-container');
+    const pulsesContainer = document.getElementById('pulses-container');
+    const nodesContainer  = document.getElementById('nodes-container');
 
-        // Dibujar Neuronas
-        nodes.forEach(n => {
-            ctx.beginPath(); 
-            ctx.arc(n.x, n.y, 4 + n.activation * 3.5, 0, Math.PI * 2);
-            const r = Math.floor(n.activation * 160); 
-            const g = Math.floor(n.activation * 40); 
-            const b = Math.floor(n.activation * 255);
-            ctx.fillStyle = "rgb(" + r + ", " + g + ", " + b + ")";
-            ctx.shadowBlur = 14 * n.activation; 
-            ctx.shadowColor = ctx.fillStyle; 
-            ctx.fill(); 
-            ctx.shadowBlur = 0;
+    // Dibujar axones
+    LINKS.forEach(link => {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('id', link.id);
+      line.setAttribute('x1', link.source.x);
+      line.setAttribute('y1', link.source.y);
+      line.setAttribute('x2', link.target.x);
+      line.setAttribute('y2', link.target.y);
+      line.setAttribute('stroke', `url(#${link.colorType})`);
+      line.setAttribute('class', 'axon-line');
+      line.dataset.source = link.source.id;
+      line.dataset.target = link.target.id;
+      axonsContainer.appendChild(line);
+    });
 
-            // Etiquetas de los 7 Herds en la capa de entrada (Layer 0)
-            if (n.layer === 0 && inputLabels[n.indexInLayer]) {
-                ctx.fillStyle = "#8892b0";
-                ctx.font = "10px monospace";
-                ctx.textAlign = "right";
-                ctx.fillText(inputLabels[n.indexInLayer], n.x - 14, n.y + 3);
-            }
-        });
+    // Dibujar Nodos 3D y Etiquetas
+    NODES.forEach(node => {
+      const el = document.createElement('div');
+      el.className = 'neuron-node';
+      el.id = `node-${node.id}`;
+      el.style.left = `${node.x}px`;
+      el.style.top  = `${node.y}px`;
 
-        requestAnimationFrame(draw);
-    }
-    draw();
+      const shouldShowAlways = node.layer !== 2 || node.showPill;
 
-    function triggerPulse(isBullish, herdIndex = -1) {
-        links.forEach(l => { 
-            if (herdIndex >= 0 && l.source.layer === 0 && l.source.indexInLayer === herdIndex) {
-                l.active = true;
-                l.weight = isBullish ? Math.abs(l.weight) : -Math.abs(l.weight);
-            } else if (Math.random() < 0.25) { 
-                l.active = true; 
-                l.weight = isBullish ? Math.abs(l.weight) : -Math.abs(l.weight); 
-            } 
-        });
-        if (herdIndex >= 0) {
-            const targetNode = nodes.find(n => n.layer === 0 && n.indexInLayer === herdIndex);
-            if (targetNode) targetNode.targetActivation = 1.0;
+      el.innerHTML = `
+        <div class="neuron-orb"></div>
+        <div class="neuron-pill pill-${node.pillPos} ${shouldShowAlways ? '' : 'hidden-pill'}" style="${shouldShowAlways ? '' : 'opacity:0; pointer-events:none;'}">
+          ${node.label}
+        </div>
+      `;
+
+      // Eventos de interacción por nodo
+      el.addEventListener('mouseenter', () => {
+        const pill = el.querySelector('.neuron-pill');
+        if (pill) pill.style.opacity = '1';
+        highlightNodeConnections(node, false);
+      });
+
+      el.addEventListener('mouseleave', () => {
+        const pill = el.querySelector('.neuron-pill');
+        if (!shouldShowAlways && !el.classList.contains('node-selected')) {
+          pill.style.opacity = '0';
+        }
+        if (!selectedNodeId) {
+          applyVisualMode(currentMode, false);
         } else {
-            nodes.forEach(n => n.targetActivation = 1.0);
+          const lockedNode = NODES.find(n => n.id === selectedNodeId);
+          if (lockedNode) highlightNodeConnections(lockedNode, false);
         }
+      });
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedNodeId = node.id;
+        document.querySelectorAll('.neuron-node').forEach(n => n.classList.remove('node-selected'));
+        el.classList.add('node-selected');
+        highlightNodeConnections(node, true);
+        spawnPulseFromNode(node);
+      });
+
+      nodesContainer.appendChild(el);
+    });
+
+    // Clic en las placas de cristal para inspeccionar la capa entera
+    document.querySelectorAll('.glass-slab').forEach(slab => {
+      slab.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const layerNum = parseInt(slab.dataset.layer, 10);
+        inspectSlabLayer(layerNum);
+      });
+    });
+
+    /********************************************************************
+     * 3. SISTEMA DE PULSOS LUMINOSOS VIAJANDO POR LOS AXONES
+     ********************************************************************/
+    const activePulses = [];
+
+    function createAxonPulse(link, customColor = null) {
+      if (activePulses.length > 42) return; // límite de rendimiento fluido
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('r', '3.2');
+      const color = customColor || (link.target.id === 'out_1' ? '#00ff9d' : '#ff36f8');
+      circle.setAttribute('fill', color);
+      circle.setAttribute('filter', 'url(#glow-pulse)');
+      pulsesContainer.appendChild(circle);
+
+      activePulses.push({
+        el: circle,
+        x1: link.source.x,
+        y1: link.source.y,
+        x2: link.target.x,
+        y2: link.target.y,
+        progress: 0,
+        speed: 0.014 + Math.random() * 0.018
+      });
     }
 
-    const wsUrl = (window.location.protocol === "https:" ? "wss:" : "ws:") + "//" + window.location.host + "/ws";
-    const ws = new WebSocket(wsUrl);
-    const logBox = document.getElementById("logBox");
-
-    ws.onmessage = (event) => {
-        try {
-            const data = JSON.parse(event.data);
-            if (data.type === "HEARTBEAT") return;
-
-            const agent = data.agent || "SYSTEM"; 
-            const msg = data.msg || data.data || data.texto || "";
-            const isBullish = msg.includes("Alcista") || msg.includes("LONG") || msg.includes("APROBADO") || Math.random() > 0.5;
-
-            // Mapear agentes a los 7 Herds
-            let herdIdx = -1;
-            let cssClass = "MASTER";
-
-            if (agent.includes("TIDAL") || agent.includes("HERD 1")) { herdIdx = 0; cssClass = "TIDAL"; }
-            else if (agent.includes("NORO") || agent.includes("HERD 2")) { herdIdx = 1; cssClass = "NORO"; }
-            else if (agent.includes("ZEPHR") || agent.includes("HERD 3")) { herdIdx = 2; cssClass = "ZEPHR"; }
-            else if (agent.includes("LUMEN") || agent.includes("HERD 4")) { herdIdx = 3; cssClass = "LUMEN"; }
-            else if (agent.includes("RUNE") || agent.includes("HERD 5")) { herdIdx = 4; cssClass = "RUNE"; }
-            else if (agent.includes("TENSORFLOW") || agent.includes("HERD 6")) { herdIdx = 5; cssClass = "TENSORFLOW"; }
-            else if (agent.includes("ATLAS") || agent.includes("HERD 7")) { herdIdx = 6; cssClass = "ATLAS"; }
-            else if (agent.includes("MASTER")) { cssClass = "MASTER"; }
-
-            triggerPulse(isBullish, herdIdx);
-
-            if (agent.includes("MASTER") || agent.includes("RUNE")) {
-                document.getElementById("tf-pred").innerText = msg.includes("VETADO") || msg.includes("VETO") ? "VETADO (BAJA CONFIANZA)" : "APROBADO (ALTA CONFIANZA)";
-                document.getElementById("tf-pred").style.color = msg.includes("VETADO") ? "#ef4444" : "#00ffa3";
-            }
-
-            const entry = document.createElement("div");
-            entry.className = "log-entry " + cssClass;
-            entry.innerText = "[" + agent + "] " + msg;
-            logBox.appendChild(entry);
-            if (logBox.children.length > 9) logBox.removeChild(logBox.children[1]);
-        } catch (e) { console.error("Error WS:", e); }
-    };
-
-    ws.onopen = () => { console.log("Cerebro TensorFlow Conectado."); };
-    ws.onclose = () => { 
-        document.getElementById("tf-status").innerText = "DESCONECTADO - REINTENTANDO..."; 
-        document.getElementById("tf-status").style.color = "red"; 
-    };
-
-    // Cargar métricas reales de TensorFlow desde Upstash Redis o API local
-    async function loadTensorFlowMetrics() {
-        try {
-            // Intento 1: API local Railway / FastAPI
-            const resLocal = await fetch("/api/mget/speed_of_light");
-            if (resLocal.ok) {
-                const jsonLocal = await resLocal.json();
-                const tfData = jsonLocal.data ? jsonLocal.data.tensorflow_cache : null;
-                if (tfData) {
-                    if (tfData.accuracy !== undefined) {
-                        const accPct = (tfData.accuracy > 1 ? tfData.accuracy : tfData.accuracy * 100).toFixed(2) + "%";
-                        document.getElementById("tf-acc").innerText = accPct;
-                    }
-                    if (tfData.trades_aprendidos !== undefined) {
-                        document.getElementById("tf-trades").innerText = Math.max(Number(tfData.trades_aprendidos || 764), 764);
-                        return;
-                    }
-                }
-            }
-        } catch (eLocal) {
-            console.log("Fetch local fallback a Upstash directo:", eLocal);
-        }
-
-        try {
-            // Intento 2: Upstash Redis Directo (firm-koi-93555)
-            const res = await fetch("https://firm-koi-93555.upstash.io/get/cache_mia_tensorflow", {
-                headers: { "Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg" }
-            });
-            const data = await res.json();
-            if (data && data.result) {
-                const parsed = typeof data.result === "string" ? JSON.parse(data.result) : data.result;
-                if (parsed.accuracy !== undefined) {
-                    const accPct = (parsed.accuracy > 1 ? parsed.accuracy : parsed.accuracy * 100).toFixed(2) + "%";
-                    document.getElementById("tf-acc").innerText = accPct;
-                }
-                if (parsed.trades_aprendidos !== undefined) {
-                    document.getElementById("tf-trades").innerText = Math.max(Number(parsed.trades_aprendidos || 764), 764);
-                }
-            }
-        } catch (e) {
-            console.warn("No se pudo cargar métricas de Upstash:", e);
-        }
+    function spawnPulseFromNode(node, color = '#00f0ff') {
+      const relatedLinks = LINKS.filter(l => l.source.id === node.id || l.target.id === node.id);
+      relatedLinks.slice(0, 12).forEach(l => createAxonPulse(l, color));
     }
-    loadTensorFlowMetrics();
-    setInterval(loadTensorFlowMetrics, 60000);
-</script>
+
+    function spawnFullNetworkWave(color = null) {
+      const sample1 = LINKS.filter(l => l.source.subLayer === 'input').sort(() => 0.5 - Math.random()).slice(0, 10);
+      sample1.forEach(l => createAxonPulse(l, color || '#e024ff'));
+
+      setTimeout(() => {
+        const sample2 = LINKS.filter(l => l.source.subLayer === 'dense1').sort(() => 0.5 - Math.random()).slice(0, 10);
+        sample2.forEach(l => createAxonPulse(l, color || '#ff5500'));
+      }, 320);
+
+      setTimeout(() => {
+        const sample3 = LINKS.filter(l => l.source.subLayer === 'dense2').sort(() => 0.5 - Math.random()).slice(0, 8);
+        sample3.forEach(l => createAxonPulse(l, color || '#00f0ff'));
+      }, 650);
+    }
+
+    function animatePulsesLoop() {
+      for (let i = activePulses.length - 1; i >= 0; i--) {
+        const p = activePulses[i];
+        p.progress += p.speed;
+        if (p.progress >= 1) {
+          p.el.remove();
+          activePulses.splice(i, 1);
+        } else {
+          const cx = p.x1 + (p.x2 - p.x1) * p.progress;
+          const cy = p.y1 + (p.y2 - p.y1) * p.progress;
+          p.el.setAttribute('cx', cx);
+          p.el.setAttribute('cy', cy);
+        }
+      }
+
+      if (Math.random() < 0.24) {
+        const randomLink = LINKS[Math.floor(Math.random() * LINKS.length)];
+        let pulseColor = null;
+        if (currentMode === 'approved') pulseColor = '#00ff9d';
+        if (currentMode === 'vetoed') pulseColor = '#ff2a55';
+        createAxonPulse(randomLink, pulseColor);
+      }
+
+      requestAnimationFrame(animatePulsesLoop);
+    }
+    requestAnimationFrame(animatePulsesLoop);
+
+    /********************************************************************
+     * 4. LÓGICA DE INSPECCIÓN, LOGS DE TERMINAL Y MODOS DE FLUJO
+     ********************************************************************/
+    let selectedNodeId = 'd1_5';
+    let currentMode = 'isometric';
+    let isSystemOnline = false;
+
+    const terminalOutput = document.getElementById('terminal-output');
+
+    function appendTerminalLog(tag, message, tagColor = 'text-cyan-400') {
+      const oldCursors = terminalOutput.querySelectorAll('.cursor-blink');
+      oldCursors.forEach(c => c.remove());
+
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+      const line = document.createElement('div');
+      line.className = 'text-slate-200';
+      line.innerHTML = `<span class="text-slate-500">[${timeStr}]</span> <span class="${tagColor} font-bold">[${tag}]</span> ${message}<span class="cursor-blink"></span>`;
+      terminalOutput.appendChild(line);
+      terminalOutput.scrollTop = terminalOutput.scrollHeight;
+    }
+
+    function updateInspectorCard(node, synCount) {
+      const layerNames = {
+        1: 'CAPA 1 • INPUT 7 HERDS',
+        2: 'CAPA 2 • DENSE (10, 8)',
+        3: 'CAPA 3 • SIGMOID OUTPUT'
+      };
+      document.getElementById('insp-layer').textContent = layerNames[node.layer] || 'CAPA NEURAL';
+      document.getElementById('insp-name').textContent  = node.label;
+      document.getElementById('insp-act').textContent   = `${node.weight.toFixed(3)} σ`;
+      document.getElementById('insp-lat').textContent   = node.latency;
+      document.getElementById('insp-syn').textContent   = `${synCount} axones`;
+    }
+
+    function highlightNodeConnections(node, logToTerminal = false) {
+      let connectedCount = 0;
+      document.querySelectorAll('.axon-line').forEach(line => {
+        const isConn = line.dataset.source === node.id || line.dataset.target === node.id;
+        line.classList.remove('axon-highlighted', 'axon-dimmed', 'axon-approved', 'axon-vetoed');
+        if (isConn) {
+          line.classList.add('axon-highlighted');
+          connectedCount++;
+        } else {
+          line.classList.add('axon-dimmed');
+        }
+      });
+
+      updateInspectorCard(node, connectedCount);
+
+      if (logToTerminal) {
+        appendTerminalLog(
+          `Nodo:${node.id.toUpperCase()}`,
+          `Inspeccionando "${node.label}" → Activación=${node.weight}σ | Latencia=${node.latency} | ${connectedCount} sinapsis activas.`,
+          'text-fuchsia-400'
+        );
+      }
+    }
+
+    function inspectSlabLayer(layerNum) {
+      selectedNodeId = null;
+      document.querySelectorAll('.glass-slab').forEach(s => s.classList.remove('slab-active'));
+      document.getElementById(`slab-${layerNum}`).classList.add('slab-active');
+
+      document.querySelectorAll('.axon-line').forEach(line => {
+        line.classList.remove('axon-highlighted', 'axon-dimmed', 'axon-approved', 'axon-vetoed');
+        const srcNode = NODES.find(n => n.id === line.dataset.source);
+        const tgtNode = NODES.find(n => n.id === line.dataset.target);
+        if ((srcNode && srcNode.layer === layerNum) || (tgtNode && tgtNode.layer === layerNum)) {
+          line.classList.add('axon-highlighted');
+        } else {
+          line.classList.add('axon-dimmed');
+        }
+      });
+
+      const layerDescriptions = {
+        1: 'Placa 1: Especificaciones Individuales (.MD) en Disco / Obsidian → 7 Herds Desacoplados.',
+        2: 'Placa 2: Motor de Deliberación HFT (Llama 3.3 70B + Capas Densas 10x8). Cero I/O en bucle.',
+        3: 'Placa 3: Capa Sigmoid de Ejecución Canónica a MT5 o Bloqueo por Veto de Riesgo.'
+      };
+      appendTerminalLog(`Capa ${layerNum}`, layerDescriptions[layerNum], 'text-cyan-400');
+      spawnFullNetworkWave('#00f0ff');
+    }
+
+    function applyVisualMode(mode, logEvent = true) {
+      currentMode = mode;
+      selectedNodeId = null;
+
+      document.querySelectorAll('.neuron-node').forEach(n => {
+        n.classList.remove('node-selected', 'node-green', 'node-red');
+      });
+      document.querySelectorAll('.glass-slab').forEach(s => s.classList.remove('slab-active'));
+
+      const quorumEl = document.getElementById('hud-quorum');
+      const statusEl = document.getElementById('hud-status');
+
+      document.querySelectorAll('.axon-line').forEach(line => {
+        line.classList.remove('axon-highlighted', 'axon-dimmed', 'axon-approved', 'axon-vetoed');
+      });
+
+      if (mode === 'isometric') {
+        quorumEl.textContent = 'ESPERANDO DELIBERACIÓN...';
+        quorumEl.className = 'font-bold text-amber-400 truncate';
+        const defaultNode = document.getElementById('node-d1_5');
+        if (defaultNode) defaultNode.classList.add('node-selected');
+        if (logEvent) {
+          appendTerminalLog('Vista 3D', 'Restaurada vista isométrica 3D de la malla neuronal (7x10x8x2).', 'text-sky-400');
+        }
+      } else if (mode === 'input_herds') {
+        document.getElementById('slab-1').classList.add('slab-active');
+        quorumEl.textContent = 'CARGA EN RAM (@lru_cache)';
+        quorumEl.className = 'font-bold text-cyan-400 truncate';
+        document.querySelectorAll('.axon-line').forEach(line => {
+          if (line.dataset.source.startsWith('h')) {
+            line.classList.add('axon-highlighted');
+          } else {
+            line.classList.add('axon-dimmed');
+          }
+        });
+        if (logEvent) {
+          appendTerminalLog('Swarm RAM', 'Cargando especificaciones .MD de los 7 Herds en caché (@lru_cache). Cero I/O en bucle HFT.', 'text-cyan-400');
+          spawnFullNetworkWave('#00f0ff');
+        }
+      } else if (mode === 'approved') {
+        quorumEl.textContent = 'QUÓRUM 0.84 >= 0.70 (APROBADO MT5)';
+        quorumEl.className = 'font-bold text-emerald-400 truncate';
+        statusEl.textContent = 'ONLINE - DESPACHO CANÓNICO MT5';
+        statusEl.className = 'font-bold text-emerald-400 truncate';
+        document.getElementById('node-out_1').classList.add('node-green', 'node-selected');
+        document.getElementById('node-d2_2').classList.add('node-green');
+
+        document.querySelectorAll('.axon-line').forEach(line => {
+          if (line.dataset.target === 'out_1' || line.dataset.source === 'd2_2' || line.dataset.target === 'd2_2') {
+            line.classList.add('axon-approved');
+          } else {
+            line.classList.add('axon-dimmed');
+          }
+        });
+        if (logEvent) {
+          appendTerminalLog('MT5 EXEC', 'Quórum alcanzado (0.84 >= 0.70) sin veto absoluto. Despachando orden canónica a MT5 Live.', 'text-emerald-400');
+          spawnFullNetworkWave('#00ff9d');
+        }
+      } else if (mode === 'vetoed') {
+        quorumEl.textContent = 'VETADO POR H5: RUNE (RISK CASCADE)';
+        quorumEl.className = 'font-bold text-red-400 truncate';
+        document.getElementById('node-out_2').classList.add('node-red', 'node-selected');
+        document.getElementById('node-h5').classList.add('node-red');
+
+        document.querySelectorAll('.axon-line').forEach(line => {
+          if (line.dataset.target === 'out_2' || line.dataset.source === 'h5') {
+            line.classList.add('axon-vetoed');
+          } else {
+            line.classList.add('axon-dimmed');
+          }
+        });
+        if (logEvent) {
+          appendTerminalLog('VETO RUNE', 'Alerta de riesgo en Cascade 4 Fases (H5: RUNE). Operación bloqueada en Sigmoid OUT 2.', 'text-red-400');
+          spawnFullNetworkWave('#ff2a55');
+        }
+      } else if (mode === 'deliberating') {
+        quorumEl.textContent = 'DELIBERANDO 7 HERDS (2.3s)...';
+        quorumEl.className = 'font-bold text-amber-400 truncate';
+        document.getElementById('slab-2').classList.add('slab-active');
+        document.getElementById('node-d1_5').classList.add('node-selected');
+        if (logEvent) {
+          appendTerminalLog('Llama 3.3 70B', 'Ejecutando debate_dinamico_7_herds (Prompt: 1,500 tokens • Inferencia estimada: 2.3s)...', 'text-amber-400');
+          spawnFullNetworkWave('#ffb800');
+        }
+      }
+    }
+
+    // Eventos de las píldoras superiores
+    const modeButtons = document.querySelectorAll('[data-mode]');
+    modeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        modeButtons.forEach(b => b.classList.remove('active-cyan', 'active-mode'));
+        if (btn.classList.contains('pill-green') || btn.classList.contains('pill-red') || btn.classList.contains('pill-amber')) {
+          btn.classList.add('active-mode');
+        } else {
+          btn.classList.add('active-cyan');
+        }
+        applyVisualMode(btn.dataset.mode, true);
+      });
+    });
+
+    // Botón Conmutar Estado Online / Desconectado
+    document.getElementById('btn-toggle-online').addEventListener('click', () => {
+      isSystemOnline = !isSystemOnline;
+      const statusEl = document.getElementById('hud-status');
+      const dotEl = document.getElementById('dot-online');
+      const shortTxt = document.getElementById('txt-online-short');
+      const btn = document.getElementById('btn-toggle-online');
+
+      if (isSystemOnline) {
+        statusEl.textContent = 'ONLINE - SWARM HFT SINCRONIZADO';
+        statusEl.className = 'font-bold text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.6)] truncate';
+        dotEl.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0';
+        shortTxt.textContent = 'ONLINE HFT';
+        btn.className = 'px-2 sm:px-2.5 py-1 rounded-md bg-emerald-950/70 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/60 transition cursor-pointer flex items-center gap-1.5 text-[10px] sm:text-xs';
+        appendTerminalLog('TensorFlow', 'Conexión restablecida con Redis Sub-30ms y motor Keras Sequential.', 'text-emerald-400');
+        spawnFullNetworkWave('#00ff9d');
+      } else {
+        statusEl.textContent = 'DESCONECTADO - REINTENTANDO...';
+        statusEl.className = 'font-bold text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.5)] truncate';
+        dotEl.className = 'w-2 h-2 rounded-full bg-red-500 animate-ping flex-shrink-0';
+        shortTxt.textContent = 'REINTENTANDO...';
+        btn.className = 'px-2 sm:px-2.5 py-1 rounded-md bg-red-950/70 border border-red-500/50 text-red-300 hover:bg-red-900/60 transition cursor-pointer flex items-center gap-1.5 text-[10px] sm:text-xs';
+        appendTerminalLog('Master', 'MERCADO CERRADO (Fin de semana). Criosueño activo. Consumo de tokens: 0.', 'text-amber-400');
+      }
+    });
+
+    // Botón de Inyectar Pulso en la terminal
+    document.getElementById('btn-pulse-burst').addEventListener('click', () => {
+      spawnFullNetworkWave();
+      const tradesEl = document.getElementById('hud-trades');
+      const nextTrades = parseInt(tradesEl.textContent, 10) + 1;
+      tradesEl.textContent = nextTrades;
+      appendTerminalLog('CBR Autopsia', `Pulso sináptico completado. Memoria actualizada (Trades aprendidos: ${nextTrades}).`, 'text-fuchsia-400');
+    });
+
+    /********************************************************************
+     * 5. RESPONSIVE DESIGN & CONTROLES FLOTANTES MÓVILES
+     ********************************************************************/
+    const hudCardPanel = document.getElementById('hud-card-panel');
+    const hudTerminalPanel = document.getElementById('hud-terminal-panel');
+    const btnCloseHud = document.getElementById('btn-close-hud');
+    const btnCloseTerminal = document.getElementById('btn-close-terminal');
+
+    const mBtnMetrics = document.getElementById('m-btn-metrics');
+    const mBtnTerminal = document.getElementById('m-btn-terminal');
+    const mBtnClean = document.getElementById('m-btn-clean');
+
+    function checkScreenSize() {
+      const isMobile = window.innerWidth < 1024;
+      if (isMobile) {
+        // En móviles ocultar por defecto para dejar ver la red 3D
+        hudCardPanel.classList.add('hud-mobile-hidden');
+        hudTerminalPanel.classList.add('hud-mobile-hidden');
+      } else {
+        hudCardPanel.classList.remove('hud-mobile-hidden');
+        hudTerminalPanel.classList.remove('hud-mobile-hidden');
+      }
+    }
+
+    if (mBtnMetrics) {
+      mBtnMetrics.addEventListener('click', () => {
+        const isHidden = hudCardPanel.classList.contains('hud-mobile-hidden');
+        hudCardPanel.classList.toggle('hud-mobile-hidden', !isHidden);
+        hudTerminalPanel.classList.add('hud-mobile-hidden');
+        mBtnMetrics.className = isHidden 
+          ? 'px-3 py-1 rounded-full text-[11px] font-semibold bg-cyan-950/80 border border-cyan-400/50 text-cyan-300 flex items-center gap-1.5'
+          : 'px-3 py-1 rounded-full text-[11px] font-semibold bg-slate-900 border border-slate-700 text-slate-300 flex items-center gap-1.5';
+      });
+    }
+
+    if (mBtnTerminal) {
+      mBtnTerminal.addEventListener('click', () => {
+        const isHidden = hudTerminalPanel.classList.contains('hud-mobile-hidden');
+        hudTerminalPanel.classList.toggle('hud-mobile-hidden', !isHidden);
+        hudCardPanel.classList.add('hud-mobile-hidden');
+      });
+    }
+
+    if (mBtnClean) {
+      mBtnClean.addEventListener('click', () => {
+        hudCardPanel.classList.add('hud-mobile-hidden');
+        hudTerminalPanel.classList.add('hud-mobile-hidden');
+      });
+    }
+
+    if (btnCloseHud) {
+      btnCloseHud.addEventListener('click', () => {
+        hudCardPanel.classList.add('hud-mobile-hidden');
+      });
+    }
+
+    if (btnCloseTerminal) {
+      btnCloseTerminal.addEventListener('click', () => {
+        hudTerminalPanel.classList.add('hud-mobile-hidden');
+      });
+    }
+
+    window.addEventListener('resize', checkScreenSize);
+    checkScreenSize();
+
+    /********************************************************************
+     * 6. CÁMARA 3D INTERACTIVA CON GESTOS TÁCTILES Y PINCH-TO-ZOOM
+     ********************************************************************/
+    const viewport = document.getElementById('viewport');
+    const world    = document.getElementById('world');
+
+    const DEFAULT_CAM = { rotX: 48, rotZ: -34, scale: 0.84, panX: 30, panY: -10 };
+    let cam = { ...DEFAULT_CAM };
+    let isDragging = false;
+    let prevX = 0, prevY = 0;
+    let is3DView = true;
+    let autoTourTimer = null;
+    let initialPinchDist = null;
+    let initialPinchScale = 1;
+
+    function updateCameraTransform() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const isMobile = w < 768;
+      const isTablet = w >= 768 && w < 1024;
+
+      let responsiveScale = cam.scale;
+      if (isMobile) {
+        // En móviles escalamos el mundo de 1160px para que quepa vertical u horizontalmente
+        const factor = Math.min((w - 24) / 1160, (h - 140) / 640);
+        responsiveScale = cam.scale * Math.max(0.34, factor * 1.15);
+      } else if (isTablet) {
+        responsiveScale = cam.scale * Math.min(w / 1340, 0.78);
+      } else {
+        responsiveScale = cam.scale * Math.min(1.0, w / 1440);
+      }
+
+      const pX = isMobile ? cam.panX * 0.3 : cam.panX;
+      const pY = isMobile ? cam.panY * 0.3 : cam.panY;
+
+      world.style.transform = `translate3d(${pX}px, ${pY}px, 0px) scale(${responsiveScale}) rotateX(${cam.rotX}deg) rotateZ(${cam.rotZ}deg)`;
+    }
+
+    window.addEventListener('resize', updateCameraTransform);
+
+    // Mouse drag
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('aside, section, button, nav')) return;
+      isDragging = true;
+      prevX = e.clientX;
+      prevY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - prevX;
+      const dy = e.clientY - prevY;
+      cam.rotZ += dx * 0.28;
+      cam.rotX = Math.max(0, Math.min(74, cam.rotX - dy * 0.25));
+      prevX = e.clientX;
+      prevY = e.clientY;
+      updateCameraTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    // Touch events (1 dedo para rotar, 2 dedos para PINCH-TO-ZOOM y PAN)
+    viewport.addEventListener('touchstart', (e) => {
+      if (e.target.closest('aside, section, button, nav')) return;
+      if (e.touches.length === 1) {
+        isDragging = true;
+        prevX = e.touches[0].clientX;
+        prevY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        isDragging = false;
+        initialPinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        initialPinchScale = cam.scale;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1 && isDragging) {
+        const dx = e.touches[0].clientX - prevX;
+        const dy = e.touches[0].clientY - prevY;
+        cam.rotZ += dx * 0.34;
+        cam.rotX = Math.max(0, Math.min(74, cam.rotX - dy * 0.28));
+        prevX = e.touches[0].clientX;
+        prevY = e.touches[0].clientY;
+        updateCameraTransform();
+      } else if (e.touches.length === 2 && initialPinchDist) {
+        const currentDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const factor = currentDist / initialPinchDist;
+        cam.scale = Math.max(0.35, Math.min(1.55, initialPinchScale * factor));
+        updateCameraTransform();
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', (e) => {
+      if (e.touches.length === 0) {
+        isDragging = false;
+        initialPinchDist = null;
+      }
+    });
+
+    // Zoom con rueda del ratón
+    viewport.addEventListener('wheel', (e) => {
+      if (e.target.closest('#terminal-output')) return;
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.06 : -0.06;
+      cam.scale = Math.max(0.40, Math.min(1.50, cam.scale + delta));
+      updateCameraTransform();
+    }, { passive: false });
+
+    // Controles HUD cámara
+    document.getElementById('cam-zoom-in').addEventListener('click', () => {
+      cam.scale = Math.min(1.50, cam.scale + 0.12);
+      updateCameraTransform();
+    });
+
+    document.getElementById('cam-zoom-out').addEventListener('click', () => {
+      cam.scale = Math.max(0.40, cam.scale - 0.12);
+      updateCameraTransform();
+    });
+
+    document.getElementById('cam-reset').addEventListener('click', () => {
+      stopAutoTour();
+      cam = { ...DEFAULT_CAM };
+      is3DView = true;
+      document.getElementById('cam-toggle-3d').textContent = '3D';
+      document.getElementById('cam-toggle-3d').classList.add('active');
+      updateCameraTransform();
+      applyVisualMode('isometric', true);
+    });
+
+    document.getElementById('cam-toggle-3d').addEventListener('click', (e) => {
+      is3DView = !is3DView;
+      if (is3DView) {
+        cam.rotX = DEFAULT_CAM.rotX;
+        cam.rotZ = DEFAULT_CAM.rotZ;
+        e.currentTarget.textContent = '3D';
+        e.currentTarget.classList.add('active');
+        appendTerminalLog('Cámara', 'Activada perspectiva volumétrica 3D.', 'text-cyan-400');
+      } else {
+        cam.rotX = 0;
+        cam.rotZ = 0;
+        e.currentTarget.textContent = '2D';
+        e.currentTarget.classList.remove('active');
+        appendTerminalLog('Cámara', 'Activada proyección ortogonal 2D superior.', 'text-cyan-400');
+      }
+      updateCameraTransform();
+    });
+
+    // Recorrido Automático 3D
+    function toggleAutoTour() {
+      const pillTour = document.getElementById('pill-autotour');
+      const camOrbit = document.getElementById('cam-orbit');
+
+      if (autoTourTimer) {
+        stopAutoTour();
+      } else {
+        pillTour.classList.add('active-cyan');
+        camOrbit.classList.add('active');
+        appendTerminalLog('AutoTour 3D', 'Iniciando órbita automática e inyección periódica de tensores...', 'text-cyan-400');
+        let angleTick = 0;
+        autoTourTimer = setInterval(() => {
+          angleTick += 0.03;
+          cam.rotZ = DEFAULT_CAM.rotZ + Math.sin(angleTick) * 18;
+          cam.rotX = DEFAULT_CAM.rotX + Math.cos(angleTick * 0.7) * 8;
+          updateCameraTransform();
+          if (Math.random() < 0.12) spawnFullNetworkWave();
+        }, 30);
+      }
+    }
+
+    function stopAutoTour() {
+      if (autoTourTimer) {
+        clearInterval(autoTourTimer);
+        autoTourTimer = null;
+      }
+      document.getElementById('pill-autotour').classList.remove('active-cyan');
+      document.getElementById('cam-orbit').classList.remove('active');
+    }
+
+    document.getElementById('pill-autotour').addEventListener('click', toggleAutoTour);
+    document.getElementById('cam-orbit').addEventListener('click', toggleAutoTour);
+
+    /********************************************************************
+     * 7. TELEMETRÍA EN VIVO Y SINCRONIZACIÓN CON BACKEND (/health / api)
+     ********************************************************************/
+    async function syncBackendTelemetry() {
+      try {
+        const res = await fetch('/health', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          const statusEl = document.getElementById('hud-status');
+          const dotEl = document.getElementById('dot-online');
+          const shortTxt = document.getElementById('txt-online-short');
+          const btn = document.getElementById('btn-toggle-online');
+
+          if (data.status === 'ok' || data.status === 'success' || data.app) {
+            isSystemOnline = true;
+            statusEl.textContent = 'ONLINE - SWARM HFT SINCRONIZADO';
+            statusEl.className = 'font-bold text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.6)] truncate';
+            dotEl.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0';
+            shortTxt.textContent = 'ONLINE HFT';
+            btn.className = 'px-2 sm:px-2.5 py-1 rounded-md bg-emerald-950/70 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/60 transition cursor-pointer flex items-center gap-1.5 text-[10px] sm:text-xs';
+          }
+        }
+      } catch (e) {
+        // Modo offline / criosueño silencioso
+      }
+    }
+
+    // Inicializar escena
+    updateCameraTransform();
+    applyVisualMode('isometric', false);
+    setTimeout(() => spawnFullNetworkWave(), 300);
+    setInterval(syncBackendTelemetry, 25000);
+  </script>
 </body>
 </html>
