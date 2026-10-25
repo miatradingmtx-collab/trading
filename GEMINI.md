@@ -128,3 +128,17 @@ Toda mejora o corrección sobre los parámetros del bot DEBE ser enviada como un
    - **Fase 4 (Front-Run TP):** Cierre del 100% de la posición remanente al **95%** de la distancia proyectada para erradicar pérdidas por retrocesos violentos a milímetros del objetivo.
 2. **Límite Canasta USD:** Máximo 2 operaciones simultáneas en pares que contengan USD (`EURUSD`, `GBPUSD`, `AUDUSD`, `XAUUSD`) para prevenir sobreexposición al dólar estadounidense.
 3. **Filtro Anti-Caza All-Time High en Oro (XAUUSD):** Prohibido abrir compras en Oro si el precio se ubica dentro del 0.5% del All-Time High sin un retroceso interbancario previo de al menos 30 a 50 pips.
+
+# 🔡 REGLA DE ORO DE ACTUALIZACIÓN, HOMOLOGACIÓN Y DEPURACIÓN PERPETUA DE DOCUMENTACIÓN CORE (ANTI-DISCREPANCIAS Y ANTI-ALUCINACIÓN)
+**MANDATO PERPETUO PARA TODOS LOS AGENTES LLM (POST-MORTEM, QUANT, WATCHDOG T1-T10, 7 HERDS) Y DESARROLLADORES:**
+1. **Mandato Obligatorio Ante Cada Modificación:**
+   Cada vez que se realice cualquier modificación de código, arquitectura, parámetros, fórmulas matemáticas, slots en Upstash Redis, colecciones en Firebase Firestore, o actualización de telemetría MT5, TODO agente o LLM tiene la obligación estricta de barrer y homologar todos los documentos centrales:
+   - `DOCS_OPS_CORE.md` y `DOCS_TRADING_CORE.md` (Blueprints Maestros)
+   - `GEMINI.md`, `GEMINI_OPS.md`, `GEMINI_TRADING.md` y `.agents/AGENTS.md` (Constitución de Agentes)
+   - Bóveda de Obsidian (`D:\obsidiana\Proyectos\Mia_Trading\`)
+2. **Depuración Radical Obligatoria (Prohibición de Coexistencia de Datos Obsoletos):**
+   Queda **TERMINANTEMENTE PROHIBIDO** dejar datos viejos, métricas históricas desactualizadas, indicadores descartados o saldos superados conviviendo con la información nueva. No basta con poner un aviso o nota de advertencia arriba: **toda cifra obsoleta o sección contradictoria DEBE ser eliminada o sobrescrita de raíz** para garantizar una única fuente de la verdad.
+3. **Blindaje Cognitivo Anti-Alucinación ("Lost in the Middle"):**
+   Si los agentes LLMs (Gemini Pro, Llama 3.3 70B, DeepSeek) o los 7 Herds del Swarm leen documentos donde coexisten datos en conflicto (ejemplo: un Top 3 antiguo de septiembre con 94% WR junto al Top 3 validado con $\ge 50$ trades, o balances desfasados de $4,325 junto a $3,688), el agente sufre degradación de atención ("Lost in the Middle"), alucina, pierde precisión en el razonamiento probabilístico o revierte a parámetros erróneos ya superados. Mantener la documentación limpia, homologada y unívoca es una **condición crítica de seguridad operativa**.
+4. **Protocolo de Cierre Obligatorio (Definition of Done):**
+   Ningún agente puede reportar una tarea como terminada al usuario, ni realizar commit/push hacia Railway, sin antes haber verificado la ausencia total de discrepancias entre los archivos de documentación y las especificaciones activas.

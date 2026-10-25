@@ -14,6 +14,12 @@ A partir de la actualización de Octubre 2026, la base de conocimiento se desaco
    - [`MASTER_ORCHESTRATOR.md`](specs/herds/MASTER_ORCHESTRATOR.md): Gatekeeper Supremo, Quórum Ponderado (Score $\ge 0.70$) y Veto Absoluto Dominante.
    - [`CBR_POST_MORTEM_QUANT.md`](specs/herds/CBR_POST_MORTEM_QUANT.md): Autopsia Gemini Pro, Score de Premio ($+R$) y Castigo ($-R$) RL ligado a Ticket MT5 + Case ID.
 
+> [!IMPORTANT]
+> **REGLA DE ORO DE ACTUALIZACIÓN, HOMOLOGACIÓN, HOMOLOGACIÓN Y DEPURACIÓN RADICAL (ANTI-ALUCINACIÓN):**
+> Todo cambio en estrategias, pesos, confirmaciones de la Regla de 3, parámetros de Cascada RUNE o balances de cuenta MT5 exige actualizar y homologar de inmediato este documento maestro, las 9 micro-especificaciones en `specs/herds/`, las reglas constitucionales (`GEMINI.md`, `GEMINI_TRADING.md`, `GEMINI_OPS.md`, `.agents/AGENTS.md`) y la bóveda de Obsidian.
+> **Prohibición Terminante de Coexistencia de Datos Obsoletos:** Cualquier métrica, balance o indicador superado debe ser eliminado o corregido de raíz en el texto para asegurar que los 7 Herds y el Agente Post-Mortem lean una única verdad unívoca sin alucinaciones ni reversión a parámetros deprecados.
+
+
 ---
 
 #  DOCUMENTACION CORE DE MIA TRADING AI
@@ -283,7 +289,8 @@ ound_floats: se fija en 5 decimales mnimos para precios, Stop Loss, Take Profit 
 
 - **Modelado Matematico y Simulacin:**
 
-  - Se ejecut el backtest cuantitativo sobre los 43 trades auditados de la semana (21-25 Sep 2026), aplicando la inferencia no lineal de TensorFlow Keras ($ec{X} \in \mathbb{R}^6$), el consenso bayesiano de ZEPHR, el filtro de veto de RUNE y la nueva gestin de riesgo con Trailing Profit +15% en el POC.
+  - Se ejecut el backtest cuantitativo sobre los 43 trades auditados de la semana (21-25 Sep 2026), aplicando la inferencia no lineal de TensorFlow Keras ($
+ec{X} \in \mathbb{R}^6$), el consenso bayesiano de ZEPHR, el filtro de veto de RUNE y la nueva gestin de riesgo con Trailing Profit +15% en el POC.
 
   - *Resultados Cuantitativos Proyectados:*
 

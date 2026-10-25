@@ -57,3 +57,17 @@ Está terminantemente prohibido que `trading_matrix`, memorias RAM (`FIREBASE VI
 ## Regla de Verdad Financiera Base $5,000 USD y Asimetría Matemática (Ley D / (1 - D))
 1. **Capital Base Inicial:** La cuenta partió de $5,000.00 USD. Queda estrictamente prohibido reportar o calificar la cuenta como "saludable" u "óptima" mientras el balance sea < $5,000.00 USD.
 2. **Asimetría de Recuperación:** Las pérdidas se recuperan de forma asimétrica ($R = \frac{d}{1-d} \times 100$). Toda propuesta y gestión debe orientarse a sanar el drawdown estructural hacia la base de $5,000 USD y el High-Water Mark.
+
+## Regla de Oro de Actualización, Homologación y Depuración Perpetua de Documentación Core (Anti-Discrepancias y Anti-Alucinación)
+1. **Mandato Obligatorio Ante Cada Modificación:**
+   Cada vez que se realice cualquier modificación de código, arquitectura, parámetros, fórmulas matemáticas, slots en Upstash Redis, colecciones en Firebase Firestore, o actualización de datos contables MT5, TODO agente LLM, desarrollador o script TIENE LA OBLIGACIÓN ESTRICTA de barrer y homologar todos los documentos centrales:
+   - `DOCS_OPS_CORE.md` y `DOCS_TRADING_CORE.md` (Blueprints Maestros)
+   - `GEMINI.md`, `GEMINI_OPS.md`, `GEMINI_TRADING.md` y `.agents/AGENTS.md` (Reglas del Sistema)
+   - Las 9 micro-especificaciones en `specs/herds/`
+   - Bóveda de Obsidian (`D:\obsidiana\Proyectos\Mia_Trading\`)
+2. **Depuración Radical Obligatoria (Prohibición de Coexistencia de Datos Obsoletos):**
+   Queda **TERMINANTEMENTE PROHIBIDO** dejar datos viejos, métricas históricas desactualizadas, indicadores descartados o saldos superados conviviendo con la información nueva. No basta con poner un aviso o nota de advertencia arriba: **toda cifra obsoleta o sección contradictoria DEBE ser eliminada o sobrescrita de raíz** para garantizar una única fuente de la verdad inquebrantable.
+3. **Blindaje Cognitivo Anti-Alucinación ("Lost in the Middle"):**
+   Si los agentes LLMs (Gemini Pro, Llama 3.3 70B, DeepSeek) o los 7 Herds del Swarm leen documentos donde coexisten datos en conflicto (ejemplo: un Top 3 antiguo de septiembre con 94% WR junto al Top 3 validado con $\ge 50$ trades, o balances desfasados de $4,325 junto a $3,688), el agente sufre degradación de atención ("Lost in the Middle"), alucina, pierde precisión en el razonamiento probabilístico o revierte a parámetros erróneos ya superados. Mantener la documentación limpia, homologada y unívoca es una **condición crítica de seguridad operativa**.
+4. **Protocolo de Cierre Obligatorio (Definition of Done):**
+   Ningún agente puede reportar una tarea como completada ni hacer commit/push hacia Railway sin antes haber verificado la ausencia total de discrepancias entre los archivos de documentación y las especificaciones activas, habiendo asentado el hito con fecha exacta en `Historial_Cambios_Trading.md`.

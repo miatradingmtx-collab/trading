@@ -56,6 +56,13 @@ $$R_{trade} = \begin{cases}
 +0.15 \times \text{Buffer Spread} & \text{si es BREAK-EVEN (BE) [Respiro neutral]}
 \end{cases}$$
 
+
+### 6. Mandato Perpetuo de Actualización, Homologación y Depuración Radical (Anti-Alucinación)
+> [!IMPORTANT]
+> **REGLA DE ORO DE ACTUALIZACIÓN DOCUMENTAL PERPETUA:**
+> Toda modificación en la infraestructura técnica, microservicios en Railway, slots en Upstash Redis (`firm-koi-93555.upstash.io`), colecciones en Firebase Firestore o parámetros del bot obliga a ejecutar de forma inmediata un barrido exhaustivo en este documento, en `DOCS_TRADING_CORE.md`, en las reglas de agentes (`GEMINI*.md`, `.agents/AGENTS.md`) y en la bóveda de Obsidian (`D:\obsidiana\Proyectos\Mia_Trading\`).
+> **Queda terminantemente prohibido dejar convivir datos obsoletos, balances antiguos o indicadores superados con los vigentes.** Todo dato contradictorio debe ser depurado o sobrescrito de raíz para evitar la degradación cognitiva y alucinación ("Lost in the Middle") en los agentes LLM y Herds de trading e infraestructura.
+
 ---
 
 ## 4. Arquitectura de Optimizacin de Base de Datos (Memoria Cach RAM)
@@ -1228,8 +1235,10 @@ trigger: always_on
 # ?? REGLA: SEPARACIN STRICTA SHADOW MODE Y FILTRO DE NOTICIAS
 1. **Contaminacin Cero a Produccin:** Queda ESTRICTAMENTE PROHIBIDO que el Agente Supervisor o cualquier script automtico inyecte pesos, mtricas o indicadores provenientes de TensorFlow, ATLAS o Enjambres HFT (Herds) hacia las tablas de produccin (ej. mia_kb/regla_de_3) mientras se encuentren en periodo de "Shadow Mode" o calibracin.
 2. **Tablas Aisladas:** El aprendizaje en la sombra debe escribirse EXCLUSIVAMENTE en sus colecciones y cachs dedicadas (cache_mia_atlas, cache_mia_tensorflow, cache_shadow_trades, cache_herd_debate_latest).
-3. **Filtro de Noticias Trampa:** El nodo iltro_trampa_noticias (que rige los 15 minutos previos y 5 posteriores a una noticia) es una regla estructural y esttica de seguridad. **NO debe ser alterada dinmicamente por Machine Learning**. Si los Enjambres desean probar diferentes tiempos de bloqueo pre-noticia, lo harn simulando en sus propias tablas, sin afectar la produccin.
-4. **Consulta Anti-429 Integral:** El iltro_trampa_noticias y la 
+3. **Filtro de Noticias Trampa:** El nodo 
+iltro_trampa_noticias (que rige los 15 minutos previos y 5 posteriores a una noticia) es una regla estructural y esttica de seguridad. **NO debe ser alterada dinmicamente por Machine Learning**. Si los Enjambres desean probar diferentes tiempos de bloqueo pre-noticia, lo harn simulando en sus propias tablas, sin afectar la produccin.
+4. **Consulta Anti-429 Integral:** El 
+iltro_trampa_noticias y la 
 egla_de_3 deben ser consultados 100% mediante Upstash Redis (cache_regla_de_3). Cero consultas directas a Firebase Firestore al momento de ejecutar un trade.
 ### [Update 2026-09-30] - Auditoría en Vivo de Watchdog Supervisor y Herds T1 a T6 en CLI
 - **Validación del Enjambre de Operaciones (`mia_system_ops_swarm.py`):**

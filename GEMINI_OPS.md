@@ -434,3 +434,24 @@ trigger: always_on
    - Canal exclusivo de Infraestructura: `#back-office-y-backend` (`C0C4ZMFCMJ8`).
    - Motor asignado: Llama 3.3 70B vía OpenRouter Ops.
    - Cero intervención en SL/TP, velas o estrategias de trading. Mandato exclusivo de estabilidad técnica, Docker, Uvicorn, FastAPI y finanzas cloud.
+
+---
+name: actualizacion_homologacion_depuracion_perpetua_ops
+description: Regla de oro de actualizacion, homologacion y depuracion perpetua de documentacion core para evitar alucinaciones y errores de lectura en agentes LLM y Herds.
+trigger: always_on
+---
+
+# 🔡 REGLA DE ORO DE ACTUALIZACIÓN, HOMOLOGACIÓN Y DEPURACIÓN PERPETUA DE DOCUMENTACIÓN CORE (ANTI-DISCREPANCIAS Y ANTI-ALUCINACIÓN)
+**MANDATO PARA HERDS T1-T10, SUPERVISOR WATCHDOG Y AGENTES BACKEND:**
+1. **Mandato Obligatorio Ante Cada Cambio Técnico:**
+   Cada vez que se modifiquen microservicios, variables de entorno, slots en Upstash Redis (`firm-koi-93555.upstash.io`), estructuras en Firebase Firestore o dependencias en Railway, los agentes tienen la obligación estricta de actualizar y homologar:
+   - `DOCS_OPS_CORE.md` (Blueprint de Infraestructura)
+   - `DOCS_TRADING_CORE.md` (Blueprint de Trading)
+   - `GEMINI.md`, `GEMINI_OPS.md` y `.agents/AGENTS.md`
+   - Bóveda de Obsidian (`D:\obsidiana\Proyectos\Mia_Trading\`)
+2. **Depuración Radical de Parámetros y Cifras Superadas:**
+   Queda terminantemente prohibido permitir que la documentación técnica conserve URLs obsoletas (ej. `certain-gnat`), balances viejos o listas de slots desfasadas conviviendo con las nuevas. Las secciones desactualizadas deben eliminarse o sobrescribirse completamente.
+3. **Blindaje Cognitivo del Enjambre:**
+   Evitar que los modelos LLM (Llama 3.3 70B, DeepSeek) sufran fragmentación de contexto ("Lost in the Middle") al procesar historiales con especificaciones técnicas contradictorias.
+4. **Condición de Entrega (Definition of Done):**
+   Ninguna tarea de backend o infraestructura se considera terminada sin haber sincronizado la documentación técnica y registrado el hito en `Historial_Cambios_Trading.md`.

@@ -229,3 +229,24 @@ trigger: always_on
 3. **Memoria CBR de Trading (Aprendizaje Perpetuo para Autonomía Futura):**
    - Cada autopsia de trade (Win, Loss, Breakeven) y cada divergencia institucional se archiva en la memoria viva `cache_trading_learning_kb` (Upstash) y memoria histórica `mia_trading_learning_history` (Firebase).
    - Los 7 Herds, TensorFlow y el Agente Post-Mortem consultan obligatoriamente esta base de conocimiento antes de operar para aprender de los patrones pasados y no repetir errores, preparando al sistema para la transición hacia el Modo Autónomo tras superar la Prueba de Confianza.
+
+---
+name: actualizacion_homologacion_depuracion_perpetua_trading
+description: Regla de oro de actualizacion, homologacion y depuracion perpetua de documentacion core para evitar alucinaciones y errores de lectura en los 7 Herds del Swarm, TensorFlow, ATLAS y Master Orchestrator.
+trigger: always_on
+---
+
+# 🔡 REGLA DE ORO DE ACTUALIZACIÓN, HOMOLOGACIÓN Y DEPURACIÓN PERPETUA DE DOCUMENTACIÓN CORE (ANTI-DISCREPANCIAS Y ANTI-ALUCINACIÓN)
+**MANDATO CUANTITATIVO PARA LOS 7 HERDS, TENSORFLOW, ATLAS, MASTER ORCHESTRATOR Y AGENTE POST-MORTEM:**
+1. **Mandato Obligatorio Ante Cada Ajuste de Trading o Estrategia:**
+   Cada vez que se modifiquen pesos de confirmaciones, reglas SMC/ICT, la Regla de 3, parámetros de la Cascada RUNE, tensores o telemetría de balance MT5, es OBLIGATORIO actualizar y homologar:
+   - `DOCS_TRADING_CORE.md` y `DOCS_OPS_CORE.md`
+   - Las 9 micro-especificaciones en `specs/herds/`
+   - `GEMINI.md`, `GEMINI_TRADING.md` y `.agents/AGENTS.md`
+   - Bóveda de Obsidian (`D:\obsidiana\Proyectos\Mia_Trading\`)
+2. **Depuración Radical Anti-Discrepancias (Cero Coexistencia de Datos Obsoletos):**
+   Está terminantemente prohibido dejar tablas preliminares con indicadores descartados (ej. `lux_algo_ob_8h 94%`) o balances desfasados (ej. $4,325.09 USD) en ninguna parte del documento. Toda métrica obsoleta debe eliminarse o reemplazarse de inmediato por el dato canónico vigente.
+3. **Blindaje Cognitivo Contra Alucinaciones ("Lost in the Middle"):**
+   Si los 7 Herds o el Agente Post-Mortem leen archivos con cifras en conflicto, el modelo LLM entra en disonancia cognitiva, asigna probabilidades sobre supuestos falsos o aplica parámetros deprecados. Mantener una única verdad matemática es mandatorio para la estabilidad cuantitativa.
+4. **Validación HITL y Cierre de Tarea:**
+   Toda actualización debe reflejarse en los contratos DTO (`swarm_data_contracts.py`), en el registro en RAM (`swarm_specs_registry.py`), y asentarse en la bitácora de Obsidian antes de finalizar.
