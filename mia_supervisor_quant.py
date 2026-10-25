@@ -186,7 +186,7 @@ class MiaQuantSupervisor:
             for target_model_name in ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"]:
                 try:
                     genai.configure(api_key=gemini_api_key)
-                    model = genai.GenerativeModel(target_model_name, generation_config={"temperature": 0.2, "max_output_tokens": 2500})
+                    model = genai.GenerativeModel(target_model_name, generation_config={"temperature": 0.2, "max_output_tokens": 2500, "response_mime_type": "application/json"})
                     resp = model.generate_content(prompt)
                     texto = resp.text
                     if texto:
@@ -198,7 +198,7 @@ class MiaQuantSupervisor:
             for m in ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"]:
                 try:
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={gemini_api_key}"
-                    r = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2500}}, timeout=15)
+                    r = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2500, "responseMimeType": "application/json"}}, timeout=15)
                     if r.status_code == 200:
                         cand = r.json().get("candidates", [])
                         if cand:
@@ -221,6 +221,7 @@ class MiaQuantSupervisor:
                             {"role": "system", "content": "Eres MIA Quant Supervisor (Failover Groq). Analiza el trade y devuelve estrictamente un objeto JSON con diagnostico, sugerencia_7_herds_trading, y nota_infraestructura_t1_t10."},
                             {"role": "user", "content": prompt}
                         ],
+                        "response_format": {"type": "json_object"},
                         "temperature": 0.2,
                         "max_tokens": 2000
                     }
@@ -245,6 +246,7 @@ class MiaQuantSupervisor:
                         {"role": "system", "content": "Eres MIA Quant Supervisor (Gemini Pro). Devuelve estrictamente un objeto JSON completo y cerrado."},
                         {"role": "user", "content": prompt}
                     ],
+                    "response_format": {"type": "json_object"},
                     "temperature": 0.2,
                     "max_tokens": 2500
                 }
@@ -278,27 +280,130 @@ class MiaQuantSupervisor:
                 parsed["sugerencia_7_herds_trading"] = parsed["sugerencia"]
             if "nota_infraestructura_t1_t10" not in parsed:
                 parsed["nota_infraestructura_t1_t10"] = "Infraestructura backend nominal."
+            # Sanitizar proactivamente cualquier campo extraído
+            parsed["diagnostico"] = self._sanitize_slack_prose(parsed.get("diagnostico", ""))
+            parsed["sugerencia_7_herds_trading"] = self._sanitize_slack_prose(parsed.get("sugerencia_7_herds_trading", ""))
             return parsed
 
+        # Fallback limpio sin volcar sintaxis JSON a la vista del usuario
+        diag_clean = self._sanitize_slack_prose(texto) if texto else "Diagnóstico cuantitativo completado."
         return {
-            "diagnostico": texto[:400] if texto else "Diagnóstico no disponible.",
+            "diagnostico": diag_clean,
             "sugerencia_7_herds_trading": "Ajustar parámetros según confluencia de los 7 Herds.",
             "nota_infraestructura_t1_t10": "Infraestructura backend nominal."
         }
 
+    def _sanitize_slack_prose(self, text: Any) -> str:
+        """
+        Sanitiza cualquier texto antes de renderizarlo en Slack o guardarlo en la memoria CBR.
+        Erradica completamente bloques ```json, llaves {, comillas o estructuras JSON crudas.
+        """
+        if not text:
+            return "Diagnóstico no disponible."
+        if isinstance(text, dict):
+            return "\n".join([f"• *{k}:* {self._sanitize_slack_prose(v)}" for k, v in text.items()])
+        if isinstance(text, list):
+            return "\n".join([f"• {self._sanitize_slack_prose(item)}" for item in text])
+            
+        t = str(text).strip()
+        # 1. Eliminar fences de markdown code block ```json o ```
+        t = re.sub(r'```(?:json)?', '', t).replace('```', '').strip()
+        
+        # 2. Si contiene sintaxis JSON cruda {"diagnostico": "..."}
+        m = re.search(r'"(?:diagnostico|sugerencia_7_herds_trading|solucion_aprendida)"\s*:\s*"((?:[^"\\]|\\.)*)"', t, re.DOTALL)
+        if m:
+            try:
+                t = m.group(1).encode().decode('unicode_escape', errors='ignore')
+            except Exception:
+                t = m.group(1)
+        elif '"diagnostico"' in t:
+            sub = re.search(r'"diagnostico"\s*:\s*"([^"\r\n]*)', t)
+            if sub:
+                t = sub.group(1)
+                
+        # 3. Limpiar caracteres de apertura/cierre JSON residuales
+        t = re.sub(r'^[\s\{\[\"\'\:]+', '', t)
+        t = re.sub(r'[\s\}\]\"\'\:]+$', '', t)
+        t = t.replace('\\"', '"').replace('\\n', '\n').strip()
+        
+        # 4. Asegurar puntuación final limpia
+        if t and not t.endswith(('.', '!', '?', ':')):
+            t += "..."
+            
+        return t if t else "Evaluación cuantitativa completada."
+
     def _extract_json(self, text: str) -> Optional[Dict[str, Any]]:
+        """
+        Extracción ultra-resiliente de JSON para inferencia de LLMs.
+        Soporta JSON directo, strict=False, bloques markdown, y regex campo por campo ante truncamiento.
+        """
+        if not text:
+            return None
+        text = str(text).strip()
+        
+        # 1. Intento directo con strict=False (permite caracteres de control como \n no escapados)
+        try:
+            return json.loads(text, strict=False)
+        except Exception:
+            pass
+
+        # 2. Intento dentro de bloques de código ```json ... ```
         try:
             m = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', text)
             if m:
-                return json.loads(m.group(1))
+                return json.loads(m.group(1), strict=False)
+        except Exception:
+            pass
+
+        # 3. Intento entre primer '{' y último '}'
+        try:
             s = text.find('{')
             e = text.rfind('}')
             if s != -1 and e != -1 and e > s:
-                return json.loads(text[s:e+1])
-            limpio = text.replace('```json', '').replace('```', '').strip()
-            return json.loads(limpio)
+                return json.loads(text[s:e+1], strict=False)
         except Exception:
             pass
+
+        # 4. Intento con texto limpio de markdown
+        try:
+            limpio = re.sub(r'```(?:json)?', '', text).replace('```', '').strip()
+            return json.loads(limpio, strict=False)
+        except Exception:
+            pass
+
+        # 5. Extracción resiliente campo por campo en caso de respuesta truncada por tokens
+        try:
+            extracted = {}
+            m_diag = re.search(r'"diagnostico"\s*:\s*"((?:[^"\\]|\\.)*)"', text, re.DOTALL)
+            if m_diag:
+                try:
+                    extracted["diagnostico"] = m_diag.group(1).encode().decode('unicode_escape', errors='ignore')
+                except Exception:
+                    extracted["diagnostico"] = m_diag.group(1)
+            elif '"diagnostico"' in text:
+                sub = re.search(r'"diagnostico"\s*:\s*"([^"\r\n]*)', text)
+                if sub:
+                    extracted["diagnostico"] = sub.group(1)
+
+            m_sug = re.search(r'"(?:sugerencia_7_herds_trading|sugerencia)"\s*:\s*"((?:[^"\\]|\\.)*)"', text, re.DOTALL)
+            if m_sug:
+                try:
+                    extracted["sugerencia_7_herds_trading"] = m_sug.group(1).encode().decode('unicode_escape', errors='ignore')
+                except Exception:
+                    extracted["sugerencia_7_herds_trading"] = m_sug.group(1)
+
+            m_nota = re.search(r'"nota_infraestructura_t1_t10"\s*:\s*"((?:[^"\\]|\\.)*)"', text, re.DOTALL)
+            if m_nota:
+                try:
+                    extracted["nota_infraestructura_t1_t10"] = m_nota.group(1).encode().decode('unicode_escape', errors='ignore')
+                except Exception:
+                    extracted["nota_infraestructura_t1_t10"] = m_nota.group(1)
+
+            if extracted and "diagnostico" in extracted:
+                return extracted
+        except Exception:
+            pass
+
         return None
 
     def process_trade_post_mortem(self, trade: Dict[str, Any]) -> Dict[str, Any]:
@@ -321,18 +426,10 @@ class MiaQuantSupervisor:
         gemini_analysis = self._llm_gemini_inference(trade, cbr_history)
 
         sugerencia_raw = gemini_analysis.get("sugerencia_7_herds_trading") or gemini_analysis.get("sugerencia", "Sin sugerencia de trading.")
-        if isinstance(sugerencia_raw, dict):
-            sugerencia_trading = "\n".join([f"• *{k}:* {v}" for k, v in sugerencia_raw.items()])
-        elif isinstance(sugerencia_raw, list):
-            sugerencia_trading = "\n".join([f"• {item}" for item in sugerencia_raw])
-        else:
-            sugerencia_trading = str(sugerencia_raw)
+        sugerencia_trading = self._sanitize_slack_prose(sugerencia_raw)
 
         diagnostico_raw = gemini_analysis.get("diagnostico", "Diagnóstico no disponible.")
-        if isinstance(diagnostico_raw, dict):
-            diagnostico = "\n".join([f"• *{k}:* {v}" for k, v in diagnostico_raw.items()])
-        else:
-            diagnostico = str(diagnostico_raw)
+        diagnostico = self._sanitize_slack_prose(diagnostico_raw)
 
         nota_infra = str(gemini_analysis.get("nota_infraestructura_t1_t10", "Infraestructura backend nominal."))
 
