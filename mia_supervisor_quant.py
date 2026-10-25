@@ -510,17 +510,14 @@ class MiaQuantSupervisor:
                     "total_casos": len(cbr_top_50),
                     "casos": cbr_top_50,
                     "slot_redis_principal": "cache_trading_learning_kb",
-                    "slot_redis_alias": "cache_cbr",
                     "ultima_actualizacion": datetime.datetime.now().isoformat()
                 }
                 self.db.collection("mia_trading_learning_history").document("latest").set(latest_cbr_doc)
-                self.db.collection("mia_trading_learning_history").document("latest_cbr").set(latest_cbr_doc)
             except Exception as e_fb:
                 print(f"| QUANT SUPERVISOR WARN | Error guardando CBR en Firestore: {e_fb}")
 
         try:
             requests.post(f"{self.UPSTASH_URL}/set/cache_trading_learning_kb", headers=self.UPSTASH_HEADERS, json=cbr_top_50, timeout=5)
-            requests.post(f"{self.UPSTASH_URL}/set/cache_cbr", headers=self.UPSTASH_HEADERS, json=cbr_top_50, timeout=5)
         except Exception as e_up:
             print(f"| QUANT SUPERVISOR WARN | Error guardando CBR en Upstash: {e_up}")
 
