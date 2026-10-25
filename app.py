@@ -3879,6 +3879,7 @@ async def render_cme_tape_dashboard():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo cargar el dashboard CME FX Tape+: {e}")
 
+@app.get("/agentes", response_class=HTMLResponse)
 @app.get("/enjambres", response_class=HTMLResponse)
 @app.get("/swarm_architecture", response_class=HTMLResponse)
 async def render_swarm_architecture_dashboard():

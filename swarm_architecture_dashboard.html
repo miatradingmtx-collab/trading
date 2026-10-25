@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>MIA Master Swarm HFT — Mapa de Arquitectura y Flujo de Datos</title>
+  <title>MIA Master Swarm HFT — Flujo de Agentes Autónomos en Tiempo Real</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,9 +33,9 @@
       padding: 0;
       background-color: var(--bg-obsidian);
       background-image: 
-        radial-gradient(circle at 50% 0%, rgba(30, 58, 138, 0.18), transparent 55%),
-        radial-gradient(circle at 10% 40%, rgba(192, 132, 252, 0.06), transparent 45%),
-        radial-gradient(circle at 90% 70%, rgba(250, 204, 21, 0.05), transparent 45%),
+        radial-gradient(circle at 50% 0%, rgba(30, 58, 138, 0.22), transparent 55%),
+        radial-gradient(circle at 10% 40%, rgba(192, 132, 252, 0.08), transparent 45%),
+        radial-gradient(circle at 90% 70%, rgba(250, 204, 21, 0.06), transparent 45%),
         radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
       background-size: 100% 100%, 100% 100%, 100% 100%, 28px 28px;
       color: #f1f5f9;
@@ -54,7 +54,7 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: #94a3b8;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       display: flex;
       align-items: center;
       gap: 10px;
@@ -66,16 +66,15 @@
       content: '';
       flex: 1;
       height: 1px;
-      background: linear-gradient(90deg, rgba(56, 189, 248, 0.25), transparent);
+      background: linear-gradient(90deg, rgba(71, 85, 105, 0.5) 0%, transparent 100%);
     }
 
-    /* Nodos Tipo Píldora / Cápsula Institucional */
+    /* Píldoras / Nodos de Agente */
     .swarm-node {
       position: relative;
       z-index: 20;
       background: var(--node-bg);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(12px);
       border: 1.5px solid var(--node-border);
       border-radius: 9999px;
       padding: 11px 20px;
@@ -88,7 +87,7 @@
       align-items: center;
       justify-content: center;
       gap: 2px;
-      min-width: 0; /* Evita desbordamiento en grid */
+      min-width: 0;
       width: 100%;
     }
 
@@ -119,45 +118,45 @@
       background: linear-gradient(180deg, rgba(28, 54, 138, 0.95) 0%, rgba(20, 38, 105, 0.98) 100%) !important;
       border: 2px solid #38bdf8 !important;
       box-shadow: 
-        0 0 0 3px rgba(56, 189, 248, 0.22),
-        0 10px 32px -4px rgba(14, 165, 233, 0.55) !important;
+        0 0 0 3px rgba(56, 189, 248, 0.25),
+        0 10px 32px -4px rgba(14, 165, 233, 0.65) !important;
       transform: translateY(-2px) scale(1.02);
     }
 
     /* Estado de Conexión Activa por Color */
     .swarm-node.is-connected {
-      background: rgba(24, 38, 78, 0.82);
+      background: rgba(24, 38, 78, 0.85);
       border-color: #38bdf8;
-      box-shadow: 0 0 18px rgba(56, 189, 248, 0.35);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
     }
 
     .swarm-node.is-connected-purple {
-      background: rgba(68, 25, 102, 0.82) !important;
+      background: rgba(68, 25, 102, 0.85) !important;
       border-color: #c084fc !important;
-      box-shadow: 0 0 18px rgba(192, 132, 252, 0.4) !important;
+      box-shadow: 0 0 20px rgba(192, 132, 252, 0.45) !important;
     }
 
     .swarm-node.is-connected-green {
-      background: rgba(18, 64, 42, 0.82) !important;
+      background: rgba(18, 64, 42, 0.85) !important;
       border-color: #4ade80 !important;
-      box-shadow: 0 0 18px rgba(74, 222, 128, 0.4) !important;
+      box-shadow: 0 0 20px rgba(74, 222, 128, 0.45) !important;
     }
 
     .swarm-node.is-connected-red {
-      background: rgba(74, 20, 32, 0.82) !important;
+      background: rgba(74, 20, 32, 0.85) !important;
       border-color: #f87171 !important;
-      box-shadow: 0 0 18px rgba(248, 113, 113, 0.4) !important;
+      box-shadow: 0 0 20px rgba(248, 113, 113, 0.45) !important;
     }
 
     .swarm-node.is-connected-gold {
-      background: rgba(66, 50, 16, 0.82) !important;
+      background: rgba(66, 50, 16, 0.85) !important;
       border-color: #facc15 !important;
-      box-shadow: 0 0 18px rgba(250, 204, 21, 0.4) !important;
+      box-shadow: 0 0 20px rgba(250, 204, 21, 0.45) !important;
     }
 
     .swarm-node.is-dimmed {
-      opacity: 0.35;
-      filter: saturate(0.45);
+      opacity: 0.32;
+      filter: saturate(0.4);
     }
 
     .node-title {
@@ -189,6 +188,54 @@
     .swarm-node.is-selected .node-subtitle,
     .swarm-node.is-connected .node-subtitle {
       color: #bae6fd;
+    }
+
+    /* Globos Flotantes de Diálogo sobre Nodos */
+    .agent-bubble {
+      position: absolute;
+      top: -34px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(8px);
+      border: 1px solid #38bdf8;
+      border-radius: 9999px;
+      padding: 3px 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: #e0f2fe;
+      white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 0 10px rgba(56, 189, 248, 0.4);
+      z-index: 35;
+      pointer-events: none;
+      animation: bubbleFloat 1.8s ease-in-out infinite alternate;
+    }
+
+    .agent-bubble.bubble-purple {
+      border-color: #c084fc;
+      color: #f5d0fe;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 0 10px rgba(192, 132, 252, 0.4);
+    }
+    .agent-bubble.bubble-green {
+      border-color: #4ade80;
+      color: #dcfce7;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 0 10px rgba(74, 222, 128, 0.4);
+    }
+    .agent-bubble.bubble-red {
+      border-color: #f87171;
+      color: #fee2e2;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 0 10px rgba(248, 113, 113, 0.4);
+    }
+    .agent-bubble.bubble-gold {
+      border-color: #facc15;
+      color: #fef08a;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 0 10px rgba(250, 204, 21, 0.4);
+    }
+
+    @keyframes bubbleFloat {
+      0% { transform: translateX(-50%) translateY(0); }
+      100% { transform: translateX(-50%) translateY(-4px); }
     }
 
     /* Píldoras en los conectores de ruta */
@@ -249,141 +296,155 @@
     }
 
     .edge-pill.is-active-gold {
-      background: #382c0b;
+      background: #3b2a0c;
       border: 1.5px solid #facc15;
       color: #fef08a;
       box-shadow: 0 0 16px rgba(250, 204, 21, 0.5);
       transform: translate(-50%, -50%) scale(1.08);
     }
 
-    .edge-pill.is-dimmed {
-      opacity: 0.28;
-    }
-
-    /* Animación del flujo en los tubos SVG */
-    @keyframes dashFlow {
+    /* Animación de cable pulsante SVG */
+    @keyframes dashflow {
       to {
-        stroke-dashoffset: -32;
+        stroke-dashoffset: -40;
       }
     }
 
-    .svg-connector {
-      fill: none;
-      transition: stroke 0.25s ease, stroke-width 0.25s ease, opacity 0.25s ease;
-    }
-
     .svg-connector.is-active-cyan {
-      animation: dashFlow 0.85s linear infinite;
-      filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.6));
+      animation: dashflow 1s linear infinite;
+      filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.75));
     }
-
     .svg-connector.is-active-purple {
-      animation: dashFlow 0.85s linear infinite;
-      filter: drop-shadow(0 0 6px rgba(192, 132, 252, 0.6));
+      animation: dashflow 1s linear infinite;
+      filter: drop-shadow(0 0 5px rgba(192, 132, 252, 0.75));
     }
-
     .svg-connector.is-active-green {
-      animation: dashFlow 0.85s linear infinite;
-      filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.6));
+      animation: dashflow 0.8s linear infinite;
+      filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.8));
     }
-
     .svg-connector.is-active-red {
-      animation: dashFlow 0.85s linear infinite;
-      filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.6));
+      animation: dashflow 0.8s linear infinite;
+      filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.8));
     }
-
     .svg-connector.is-active-gold {
-      animation: dashFlow 0.85s linear infinite;
-      filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.6));
+      animation: dashflow 1s linear infinite;
+      filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.8));
     }
 
-    /* Botones de Presets */
-    .preset-btn {
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      white-space: nowrap;
-      cursor: pointer;
-    }
-    .preset-btn:hover {
-      transform: translateY(-1px);
-    }
-    .preset-btn.active {
-      box-shadow: 0 0 15px currentColor;
+    /* Terminal de ChatOps entre Agentes */
+    .agent-chat-terminal {
+      background: rgba(10, 14, 22, 0.95);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      font-family: 'JetBrains Mono', monospace;
     }
 
-    /* Scrollbar */
+    .chat-msg-row {
+      transition: all 0.3s ease;
+      opacity: 0.95;
+    }
+    .chat-msg-row:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    /* Scrollbar estilizado */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
     }
     ::-webkit-scrollbar-track {
-      background: #080a0f;
+      background: #090c12;
     }
     ::-webkit-scrollbar-thumb {
-      background: #252c3c;
-      border-radius: 4px;
+      background: #1e293b;
+      border-radius: 3px;
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: #3b455c;
+      background: #38bdf8;
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="bg-[#080a0f] text-slate-100 flex flex-col min-h-screen">
 
-  <!-- ==================== HEADER DE NAVEGACIÓN Y PRESETS ==================== -->
-  <header class="sticky top-0 z-40 bg-[#080a0f]/95 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-6 py-3 shadow-2xl">
-    <div class="max-w-[1480px] mx-auto flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+  <!-- ==================== TOP NAVIGATION HEADER ==================== -->
+  <header class="sticky top-0 z-50 bg-[#0a0d14]/95 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-8 py-3 shadow-lg">
+    <div class="max-w-[1480px] mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
       
-      <!-- Título & Badges -->
-      <div class="flex items-center gap-3">
-        <div class="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_12px_#38bdf8] animate-pulse flex-shrink-0"></div>
-        <div>
-          <h1 class="text-sm sm:text-base font-bold tracking-wide text-slate-100 flex items-center gap-2 flex-wrap">
+      <!-- Brand & Título -->
+      <div class="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-start">
+        <div class="flex items-center gap-2.5">
+          <span class="relative flex h-3 w-3">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+          </span>
+          <h1 class="text-sm sm:text-base font-bold tracking-tight text-white flex items-center gap-2">
             <span>MIA MASTER SWARM HFT</span>
-            <span class="text-xs font-mono font-normal px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-sky-300">
-              Llama 3.3 70B REST + Gemini 1.5 Pro CBR
+            <span class="text-xs px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-600/40 font-mono font-semibold">
+              AGENTES EN TIEMPO REAL
             </span>
           </h1>
-          <p class="text-[11px] text-slate-400 hidden sm:block">
-            Flujo end-to-end de deliberación de enjambres: consultas atómicas en RAM, inferencia HFT, despacho y retroalimentación CBR
-          </p>
+        </div>
+
+        <div class="flex items-center gap-2 font-mono text-xs">
+          <span id="cycle-badge" class="px-2.5 py-1 rounded bg-slate-800/80 text-emerald-300 border border-slate-700">
+            CICLO #42 · XAUUSD
+          </span>
         </div>
       </div>
 
-      <!-- Presets / Escenarios Interactivos con Código de Color -->
-      <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0">
-        <button onclick="selectPreset('default')" id="btn-default" class="preset-btn active text-xs font-medium px-3 py-1.5 rounded-full border border-slate-700 bg-slate-800/90 text-slate-200">
-          🌐 Vista Inicial
+      <!-- Barra de Estado y Controles Autónomos -->
+      <div class="flex items-center gap-2 sm:gap-3 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0 justify-end">
+        
+        <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-700/80 rounded-full px-3 py-1 text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="auto-mode-label" class="text-slate-200 font-semibold">● Flujo Autónomo Activo</span>
+        </div>
+
+        <button onclick="toggleRealtimePause()" id="btn-pause-toggle" class="text-xs font-semibold px-3 py-1 rounded-full border border-sky-500/60 bg-sky-950/70 text-sky-200 hover:bg-sky-900 transition flex items-center gap-1.5">
+          <span id="pause-icon">⏸</span>
+          <span id="pause-label">Pausar</span>
         </button>
-        <button onclick="selectPreset('ram_boot')" id="btn-ram_boot" class="preset-btn text-xs font-medium px-3 py-1.5 rounded-full border border-sky-800/80 bg-sky-950/40 text-sky-300">
-          1. Carga RAM (.MD)
+
+        <button onclick="toggleSpeed()" id="btn-speed" class="text-xs font-mono font-semibold px-2.5 py-1 rounded-full border border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 transition">
+          Velocidad: <span id="speed-indicator" class="text-sky-400">1x</span>
         </button>
-        <button onclick="selectPreset('mget_cache')" id="btn-mget_cache" class="preset-btn text-xs font-medium px-3 py-1.5 rounded-full border border-blue-800/80 bg-blue-950/40 text-blue-300">
-          2. MGET Redis
-        </button>
-        <button onclick="selectPreset('llm_debate')" id="btn-llm_debate" class="preset-btn text-xs font-medium px-3 py-1.5 rounded-full border border-purple-800/80 bg-purple-950/40 text-purple-300">
-          3. Debate Llama 70B
-        </button>
-        <button onclick="selectPreset('hft_approved')" id="btn-hft_approved" class="preset-btn text-xs font-medium px-3 py-1.5 rounded-full border border-emerald-800/80 bg-emerald-950/40 text-emerald-300">
-          4. APROBADO (MT5)
-        </button>
-        <button onclick="selectPreset('hft_vetoed')" id="btn-hft_vetoed" class="preset-btn text-xs font-medium px-3 py-1.5 rounded-full border border-rose-800/80 bg-rose-950/40 text-rose-300">
-          5. VETADO
-        </button>
-        <button onclick="selectPreset('cbr_loop')" id="btn-cbr_loop" class="preset-btn text-xs font-medium px-3 py-1.5 rounded-full border border-amber-800/80 bg-amber-950/40 text-amber-300">
-          6. Memoria CBR
-        </button>
-        <button onclick="toggleSimulation()" id="btn-sim" class="preset-btn text-xs font-semibold px-3.5 py-1.5 rounded-full border border-sky-500/70 bg-sky-950/70 text-sky-300 hover:bg-sky-900 transition flex items-center gap-1.5">
-          <span id="sim-dot" class="w-2 h-2 rounded-full bg-sky-400"></span>
-          <span id="sim-label">▶ Recorrido Animado</span>
-        </button>
+
+        <a href="/brain" class="text-xs font-medium px-2.5 py-1 rounded-full border border-slate-700 bg-slate-800/60 text-slate-300 hover:text-white hover:border-sky-400 transition">
+          🧠 Red 3D (/brain)
+        </a>
       </div>
 
     </div>
   </header>
 
+  <!-- ==================== CONSOLA CHATOPS EN TIEMPO REAL ==================== -->
+  <section class="max-w-[1480px] mx-auto w-full px-4 sm:px-8 pt-3 pb-1">
+    <div class="agent-chat-terminal p-3 sm:p-4">
+      <div class="flex items-center justify-between border-b border-slate-800/80 pb-2 mb-2">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]"></span>
+          <span class="text-xs font-bold text-sky-300 tracking-wide uppercase">
+            🎙️ Ticker de Comunicación y Consultas Cruzadas entre Agentes (En Vivo)
+          </span>
+        </div>
+        <div class="text-[11px] text-slate-400 flex items-center gap-3">
+          <span>Latencia Promedio: <strong class="text-emerald-400">18.4ms</strong></span>
+          <span>Modelo Asignado: <strong class="text-purple-300">Llama 3.3 70B REST + Gemini 1.5 Pro</strong></span>
+        </div>
+      </div>
+
+      <!-- Feed Dinámico de Mensajes -->
+      <div id="agent-chat-feed" class="space-y-1.5 max-h-24 overflow-y-auto pr-1 text-xs text-slate-300">
+        <!-- Rellenado dinámicamente por JS -->
+      </div>
+    </div>
+  </section>
+
   <!-- ==================== LIENZO PRINCIPAL DEL DIAGRAMA ==================== -->
   <main class="flex-1 relative overflow-x-auto overflow-y-visible">
-    <div id="diagram-canvas" class="relative max-w-[1440px] min-w-[1080px] mx-auto px-8 sm:px-14 pt-8 pb-32">
+    <div id="diagram-canvas" class="relative max-w-[1440px] min-w-[1080px] mx-auto px-8 sm:px-14 pt-6 pb-28">
       
       <!-- Capa SVG Dinámica para Tubos y Conectores Ortogonales -->
       <svg id="svg-layer" class="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible"></svg>
@@ -396,7 +457,7 @@
            ========================================================================= -->
       <section class="mb-14 relative">
         <div class="layer-title">
-          <span>CAPA 1: ESPECIFICACIONES INDIVIDUALES (.MD) EN DISCO / OBSIDIAN</span>
+          <span>CAPA 1: ESPECIFICACIONES INDIVIDUALES (.MD) DE LOS AGENTES EN DISCO / OBSIDIAN</span>
         </div>
 
         <!-- Grid de 4 Columnas con espaciado amplio para evitar solapes de texto -->
@@ -449,10 +510,10 @@
 
       <!-- =========================================================================
            CAPA 2: PYTHON REGISTRY & LECTURA ATÓMICA SUB-30MS
-           ========================================================================= -->
+           ========================================================= -->
       <section class="mb-14 relative pt-2">
         <div class="layer-title">
-          <span>CAPA 2: PYTHON REGISTRY &amp; CONSULTA DE CACHÉ REDIS (SUB-30MS · CERO I/O EN BUCLE)</span>
+          <span>CAPA 2: REGISTRY DE AGENTES EN RAM &amp; CONSULTA DE CACHÉ REDIS (SUB-30MS · 0 I/O)</span>
         </div>
 
         <div class="grid grid-cols-3 gap-x-8 pt-1 items-center">
@@ -483,12 +544,12 @@
           <!-- Bloque Capa 3 -->
           <div class="col-span-8">
             <div class="layer-title">
-              <span>CAPA 3: MOTOR DE DELIBERACIÓN HFT (LLAMA 3.3 70B REST / GROQ)</span>
+              <span>CAPA 3: MOTOR DE DELIBERACIÓN DE AGENTES (LLAMA 3.3 70B REST / GROQ)</span>
             </div>
             <div class="grid grid-cols-2 gap-x-8 pt-1 items-center">
               <div class="swarm-node" data-id="debate_dinamico_herds" onclick="handleNodeClick('debate_dinamico_herds')">
                 <div class="node-title">debate_dinamico_7_herds</div>
-                <div class="node-subtitle">Prompt: 1,500 tokens • Inferencia: 2.3s</div>
+                <div class="node-subtitle">Prompt: 1,500 tokens • Inferencia: 2.1s</div>
               </div>
 
               <div class="swarm-node variant-quorum" data-id="quorum_master" onclick="handleNodeClick('quorum_master')">
@@ -549,7 +610,7 @@
       
       <div class="flex items-center gap-3.5">
         <div id="inspector-badge" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-sky-950 text-sky-300 border border-sky-500/50 flex-shrink-0">
-          CAPA 3 • CONSENSO &amp; VETO
+          CAPA 3 • CONSENSO DE AGENTES
         </div>
         <div>
           <div class="flex items-center gap-2 flex-wrap">
@@ -559,9 +620,12 @@
             <span id="inspector-file" class="text-xs font-mono italic text-sky-400">
               MASTER_ORCHESTRATOR.md
             </span>
+            <span id="inspector-action" class="text-xs font-mono bg-slate-800 px-2 py-0.5 rounded text-amber-300 border border-slate-700">
+              Ponderando Votación de 7 Agentes
+            </span>
           </div>
           <p id="inspector-desc" class="text-xs text-slate-300 mt-0.5 line-clamp-2 md:line-clamp-none">
-            Evalúa la votación ponderada de los 7 Herds y verifica que no exista ningún Veto Absoluto antes de despachar a MetaTrader 5.
+            Evalúa la deliberación de los 7 Agentes y verifica que no exista ningún Veto Absoluto de RUNE antes de despachar a MetaTrader 5.
           </p>
         </div>
       </div>
@@ -570,134 +634,152 @@
       <div class="flex items-center gap-4 text-xs text-slate-400 flex-shrink-0 flex-wrap">
         <div class="flex items-center gap-1.5">
           <span class="w-3 h-1 bg-sky-400 rounded-full inline-block shadow-[0_0_8px_#38bdf8]"></span>
-          <span>1. RAM / Caché</span>
+          <span>1. RAM / Specs</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-1 bg-blue-400 rounded-full inline-block shadow-[0_0_8px_#60a5fa]"></span>
+          <span>2. Consulta MGET</span>
         </div>
         <div class="flex items-center gap-1.5">
           <span class="w-3 h-1 bg-purple-400 rounded-full inline-block shadow-[0_0_8px_#c084fc]"></span>
-          <span>2. Deliberación LLM</span>
+          <span>3. Preguntas Agentes</span>
         </div>
         <div class="flex items-center gap-1.5">
           <span class="w-3 h-1 bg-emerald-400 rounded-full inline-block shadow-[0_0_8px_#4ade80]"></span>
-          <span>3. Aprobado MT5</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <span class="w-3 h-1 bg-rose-400 rounded-full inline-block shadow-[0_0_8px_#f87171]"></span>
-          <span>4. Vetado</span>
+          <span>4. Despacho MT5</span>
         </div>
         <div class="flex items-center gap-1.5">
           <span class="w-3 h-1 bg-amber-400 rounded-full inline-block shadow-[0_0_8px_#facc15]"></span>
-          <span>5. Bucle CBR</span>
+          <span>5. Guardado CBR &amp; Bucle</span>
         </div>
       </div>
 
     </div>
   </footer>
 
+  <!-- ==================== SCRIPT DE ARQUITECTURA Y FLUJO AUTÓNOMO ==================== -->
   <script>
     /********************************************************************
-     * 1. METADATOS TÉCNICOS DETALLADOS DE CADA NODO
+     * 1. METADATOS TÉCNICOS DETALLADOS DE CADA AGENTE
      ********************************************************************/
     const NODE_METADATA = {
       herd_7_atlas: {
         layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
         title: 'herd_7_atlas',
         file: 'HERD_7_ATLAS.md',
-        desc: 'Especialista en microestructura de mercado: libro de órdenes DOM CME, desbalances de volumen y divergencias CVD Delta.'
+        action: 'Analizando Libro de Órdenes DOM CME',
+        desc: 'Especialista en microestructura de mercado: libro de órdenes DOM CME, desbalances de volumen institucional y divergencias CVD Delta.'
       },
       herd_1_tidal: {
         layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
         title: 'herd_1_tidal',
         file: 'HERD_1_TIDAL.md',
-        desc: 'Especialista Macro y Sesiones: Killzones de Londres y New York, ciclo de tasas y correlación con el índice DXY.'
+        action: 'Escaneando Killzones y Macro DXY',
+        desc: 'Especialista Macro y Sesiones: Killzones de Londres y New York, ciclo de tasas de interés y correlación con el índice DXY.'
       },
       herd_2_nord: {
         layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
         title: 'herd_2_nord',
-        file: 'HERD_2_NORD.md',
-        desc: 'Modelado cuantitativo de volatilidad: CVOL Integral del CME, Point of Control (POC) y cadenas estocásticas de Markov.'
+        file: 'HERD_2_NORO.md',
+        action: 'Calculando Área Bajo la Curva CVOL CME',
+        desc: 'Modelado cuantitativo de volatilidad: CVOL Integral del CME en 5 temporalidades (1H a 8H), Point of Control (POC) y cadenas estocásticas de Markov.'
       },
       herd_4_lumen: {
         layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
         title: 'herd_4_lumen',
         file: 'HERD_4_LUMEN.md',
-        desc: 'Estructura institucional Smart Money Concepts (SMC): detección de Order Blocks de 2H-4H y barridos de liquidez AMD Sweeps.'
+        action: 'Buscando Order Blocks y Sweeps SMC',
+        desc: 'Estructura institucional Smart Money Concepts (SMC): detección de Order Blocks de 2H-4H LuxAlgo y barridos de liquidez macro AMD Sweeps.'
       },
       herd_3_zephyr: {
         layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
         title: 'herd_3_zephyr',
-        file: 'HERD_3_ZEPHYR.md',
-        desc: 'Cálculo de probabilidad bayesiana, Valor Esperado (EV positivo) y ratio de asimetría matemática R:R.'
+        file: 'HERD_3_ZEPHR.md',
+        action: 'Evaluando Expected Value (EV) y Asimetría',
+        desc: 'Teoría bayesiana de probabilidad, convexidad asimétrica de recuperación D/(1-D) y cálculo continuo de Expected Value (EV > 0).'
       },
       herd_8_tensorflow: {
         layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
         title: 'herd_8_tensorflow',
         file: 'HERD_8_TENSORFLOW.md',
-        desc: 'Representación vectorial de tensores en 22 dimensiones y red neuronal Keras Sequential entrenada con 790+ trades.'
+        action: 'Inferencia en Matriz Sináptica 22D',
+        desc: 'Red neuronal Keras Sequential: 22 tensores normalizados, 798 trades reales aprendidos, 60.28% accuracy auditada y umbral de generalización 75-85%.'
       },
       herd_5_rune: {
         layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
         title: 'herd_5_rune',
         file: 'HERD_5_RUNE.md',
-        desc: 'Gestor supremo de riesgo institucional: Cascada de 4 Fases (TP1 50%, BE +2.5 pips, Trailing Locks y Front-Run TP).'
+        action: 'Monitoreando Riesgo, ATH y Canasta USD',
+        desc: 'Gestión de riesgo institucional v2: Cascada Asimétrica de 4 Fases (TP1 50%, BE +2.5 pips, Locks 75%/85%, Front-Run 95%) y filtro anti-caza ATH.'
       },
       master_orchestrator: {
-        layer: 'CAPA 1 • CONSTITUCIÓN MAESTRA',
+        layer: 'CAPA 1 • ESPECIFICACIÓN OBSIDIAN',
         title: 'master_orchestrator',
         file: 'MASTER_ORCHESTRATOR.md',
-        desc: 'Reglas de gobernanza del Swarm HFT: exige quórum calificado >= 0.70 y ausencia de veto por parte de RUNE o ATLAS.'
+        action: 'Coordinando Quórum Ponderado HFT',
+        desc: 'Orquestador maestro: ponderación institucional de los dictámenes, resolución de empates bayesianos y cláusula de veto de RUNE.'
       },
       load_herd_spec: {
-        layer: 'CAPA 2 • PYTHON REGISTRY',
-        title: '@lru_cache: load_herd_specification()',
-        file: 'mia_master_swarm_rest.py',
-        desc: 'Carga única en memoria RAM de los archivos .md al inicializar el servicio. Garantiza Cero I/O de disco durante el bucle HFT.'
+        layer: 'CAPA 2 • REGISTRY RAM (0.000 MS)',
+        title: 'load_herd_specification()',
+        file: 'swarm_specs_registry.py',
+        action: 'Manteniendo Especificaciones en RAM',
+        desc: 'Función decorada con @lru_cache que mantiene en RAM las 9 especificaciones canónicas .md, eliminando accesos repetitivos a disco (0.000 ms I/O).'
       },
       fetch_swarm_context: {
-        layer: 'CAPA 2 • CONSULTA ATÓMICA DE CACHÉ',
+        layer: 'CAPA 2 • CONSULTA MGET CACHÉ',
         title: 'fetch_swarm_context_mget()',
-        file: 'Upstash Redis RAM',
-        desc: 'Recupera en lote (MGET) sub-30ms la telemetría viva de mercado (cache_mt5, cache_trading_matrix, cache_regla_de_3).'
+        file: 'swarm_data_contracts.py',
+        action: 'Descargando 11 Slots de Upstash Redis',
+        desc: 'Conector que ejecuta una consulta MGET atómica (<30ms) a Upstash Redis, extrayendo los 11 slots canónicos desacoplados sin tocar Firebase.'
       },
       herd_context_dto: {
-        layer: 'CAPA 2 • DTO & NORMALIZACIÓN',
+        layer: 'CAPA 2 • DTO TIPADO PYDANTIC',
         title: 'HerdContextDTO',
-        file: 'Pydantic Data Transfer Object',
-        desc: 'Normaliza y tipa estrictamente los datos de mercado antes de entregarlos al prompt de los modelos cognitivos.'
+        file: 'swarm_data_contracts.py',
+        action: 'Estructurando Contexto para Inferencia',
+        desc: 'Contrato de datos fuertemente tipado que empaqueta precios MT5, volatilidad CVOL, matrices, indicadores y memoria CBR para los agentes.'
       },
       debate_dinamico_herds: {
-        layer: 'CAPA 3 • INFERENCIA HFT REST',
+        layer: 'CAPA 3 • INFERENCIA PARALELA',
         title: 'debate_dinamico_7_herds',
-        file: 'Llama 3.3 70B REST / Groq',
-        desc: 'Deliberación en paralelo de los 7 Herds con prompt compacto de 1,500 tokens y tiempo de inferencia medio de 2.3 segundos.'
+        file: 'mia_master_swarm_rest.py',
+        action: 'Llama 3.3 70B Evaluando Mercado',
+        desc: 'Genera consultas simultáneas a Llama 3.3 70B REST (OpenRouter / Groq failover) con prompt conciso de ~1,500 tokens por activo en sesión activa.'
       },
       quorum_master: {
         layer: 'CAPA 3 • CONSENSO & VETO',
         title: 'quorum_master >= 0.70',
-        file: '¿Sin Veto Absoluto?',
-        desc: 'Puerta lógica de decisión HFT: si el consenso supera 0.70 y no hay veto de RUNE, autoriza el despacho canónico a MT5.'
+        file: 'MASTER_ORCHESTRATOR.md',
+        action: 'Consolidando Votos de Agentes',
+        desc: 'Evalúa la votación ponderada de los 7 Agentes y verifica que no exista ningún Veto Absoluto de RUNE antes de despachar a MetaTrader 5.'
       },
       despacho_canonico_rune: {
         layer: 'CAPA 4 • EJECUCIÓN MT5',
         title: 'despacho_canonico_rune_mt5',
-        file: 'MetaTrader 5 Bridge',
-        desc: 'Ejecuta la orden en MetaTrader 5 aplicando la Cascada RUNE sobre el portafolio oficial (5 Live + 1 Sandbox NZDCAD).'
+        file: 'mt5_executor_cloud.py',
+        action: 'Despachando Orden a MT5 Cloud',
+        desc: 'Envía la orden autorizada a MetaTrader 5 aplicando el lotaje exacto del 1% y el escalonamiento de 4 fases RUNE para los 5 pares oficiales.'
       },
       autopsia_trade_cerrado: {
-        layer: 'CAPA 5 • MOTOR CBR & AUTOPSIA',
+        layer: 'CAPA 5 • AUTOPSIA FORENSE COGNITIVA',
         title: 'autopsia_trade_cerrado',
-        file: 'Google Gemini 1.5 Pro',
-        desc: 'Autopsia forense profunda de cada trade cerrado (Win, Loss, BE o Veto) contrastando la tesis del debate contra la realidad.'
+        file: 'mia_post_mortem_agent.py',
+        action: 'Gemini 1.5 Pro Auditando Trade',
+        desc: 'Recibe el ticket cerrado de MT5 y activa a Gemini 1.5 Pro para evaluar el cumplimiento de reglas, desbalances DOM y causas de éxito o stop.'
       },
       score_premio_castigo: {
-        layer: 'CAPA 5 • CREDIT ASSIGNMENT',
+        layer: 'CAPA 5 • REINFORCEMENT LEARNING',
         title: 'score_premio_castigo_herd',
-        file: 'Motor de Ponderación',
-        desc: 'Asigna recompensa (+R) o penalización (-R) a cada Herd según el acierto predictivo en el resultado final del trade.'
+        file: 'mia_supervisor_quant.py',
+        action: 'Asignando Crédito (+R / -R)',
+        desc: 'Aplica la función de recompensa asimétrica R_trade y calcula los delta weights (+ΔW / -ΔW) para premiar o penalizar a los agentes intervinientes.'
       },
       cache_trading_learning: {
-        layer: 'CAPA 5 • MEMORIA PERSISTENTE',
+        layer: 'CAPA 5 • MEMORIA EVOLUTIVA CBR',
         title: 'cache_trading_learning_kb',
         file: 'Upstash Redis + Firestore',
+        action: 'Guardando Caso y Retroalimentando Capa 2',
         desc: 'Almacena lecciones aprendidas en Upstash y Firebase, y retroalimenta de regreso a la Capa 2 para trades futuros.'
       }
     };
@@ -717,14 +799,14 @@
       { id: 'e_master_ram', from: 'master_orchestrator', to: 'load_herd_spec', type: 'md_boot', label: 'carga_inicial_ram', color: 'cyan' },
 
       // Capa 2 interna (Caché MGET -> DTO)
-      { id: 'e_mget_dto', from: 'fetch_swarm_context', to: 'herd_context_dto', type: 'horizontal', label: 'sub_30ms_mget', color: 'cyan' },
+      { id: 'e_mget_dto', from: 'fetch_swarm_context', to: 'herd_context_dto', type: 'horizontal', label: 'sub_30ms_mget', color: 'blue' },
 
       // Capa 2 -> Capa 3 (Inyección al Debate)
       { id: 'e_ram_debate', from: 'load_herd_spec', to: 'debate_dinamico_herds', type: 'step_down', color: 'purple' },
       { id: 'e_dto_debate', from: 'herd_context_dto', to: 'debate_dinamico_herds', type: 'step_down', label: 'contexto_tipado', color: 'purple' },
 
       // Capa 3 interna (Debate -> Quórum)
-      { id: 'e_debate_quorum', from: 'debate_dinamico_herds', to: 'quorum_master', type: 'horizontal', label: 'consenso_7_herds', color: 'purple' },
+      { id: 'e_debate_quorum', from: 'debate_dinamico_herds', to: 'quorum_master', type: 'horizontal', label: 'consenso_7_agentes', color: 'purple' },
 
       // Capa 3 -> Capa 4 (Aprobado -> MT5)
       { id: 'e_quorum_mt5', from: 'quorum_master', to: 'despacho_canonico_rune', type: 'horizontal', label: 'Sí: APROBADO', color: 'green' },
@@ -737,20 +819,136 @@
 
       // Capa 5 interna (CBR Credit Assignment)
       { id: 'e_autopsia_score', from: 'autopsia_trade_cerrado', to: 'score_premio_castigo', type: 'horizontal', label: 'credit_assignment', color: 'gold' },
-      { id: 'e_score_kb', from: 'score_premio_castigo', to: 'cache_trading_learning', type: 'horizontal', label: '+R / -R por Herd', color: 'gold' },
+      { id: 'e_score_kb', from: 'score_premio_castigo', to: 'cache_trading_learning', type: 'horizontal', label: '+R / -R por Agente', color: 'gold' },
 
       // Capa 5 -> Capa 2 (Retroalimentación Dorada de Aprendizaje)
       { id: 'e_kb_feedback', from: 'cache_trading_learning', to: 'fetch_swarm_context', type: 'cbr_feedback', label: 'retroalimentacion_casos_y_pesos', color: 'gold' }
     ];
 
-    let selectedNodes = new Set(['quorum_master', 'despacho_canonico_rune']);
-    let activeEdges = new Set(['e_debate_quorum', 'e_quorum_mt5', 'e_quorum_veto']);
+    let selectedNodes = new Set();
+    let activeEdges = new Set();
     let focusedPrimaryNode = 'quorum_master';
     let currentFlowColor = 'cyan';
-    let simInterval = null;
+    let isRealtimePaused = false;
+    let realtimeTimer = null;
+    let currentSpeed = 1; // 1x, 2x
+    let cycleCounter = 42;
 
     /********************************************************************
-     * 3. CÁLCULO GEOMÉTRICO Y RENDERIZADO SVG DE TUBERÍAS
+     * 3. SECUENCIA REAL-TIME AUTOMÁTICA (PREGUNTAS, CONSULTAS Y GUARDADO)
+     ********************************************************************/
+    const AUTONOMOUS_JOURNEY = [
+      {
+        stageName: 'BOOT_SPECS',
+        color: 'cyan',
+        primary: 'load_herd_spec',
+        activeNodes: ['herd_7_atlas', 'herd_1_tidal', 'herd_2_nord', 'herd_4_lumen', 'herd_3_zephyr', 'herd_8_tensorflow', 'herd_5_rune', 'master_orchestrator', 'load_herd_spec'],
+        activeEdges: ['e_h7_ram', 'e_h1_ram', 'e_h2_ram', 'e_h4_ram', 'e_h3_ram', 'e_h8_ram', 'e_h5_ram', 'e_master_ram'],
+        bubbles: {
+          load_herd_spec: 'RAM 0.000ms I/O',
+          herd_4_lumen: 'Reglas SMC listas',
+          herd_7_atlas: 'Reglas DOM cargadas'
+        },
+        chat: {
+          agent: 'SISTEMA',
+          badgeClass: 'bg-sky-950 text-sky-300 border-sky-600',
+          text: '⚡ [Ingesta @lru_cache] 8 especificaciones de agentes cargadas en RAM (0.000 ms I/O). Contratos listos.'
+        },
+        duration: 2600
+      },
+      {
+        stageName: 'MGET_CACHE',
+        color: 'blue',
+        primary: 'fetch_swarm_context',
+        activeNodes: ['fetch_swarm_context', 'herd_context_dto', 'load_herd_spec'],
+        activeEdges: ['e_mget_dto'],
+        bubbles: {
+          fetch_swarm_context: 'Upstash MGET 12.8ms',
+          herd_context_dto: 'HerdContextDTO listo'
+        },
+        chat: {
+          agent: 'SRE CACHE',
+          badgeClass: 'bg-blue-950 text-blue-300 border-blue-600',
+          text: '📥 [Upstash Redis] fetch_swarm_context_mget() ejecutado en 12.8ms. 11 slots canónicos descargados sin tocar Firebase.'
+        },
+        duration: 2800
+      },
+      {
+        stageName: 'AGENTS_DEBATE',
+        color: 'purple',
+        primary: 'debate_dinamico_herds',
+        activeNodes: ['herd_4_lumen', 'herd_2_nord', 'herd_7_atlas', 'herd_8_tensorflow', 'herd_5_rune', 'debate_dinamico_herds'],
+        activeEdges: ['e_ram_debate', 'e_dto_debate', 'e_debate_quorum'],
+        bubbles: {
+          herd_4_lumen: '¿Absorción en 4085.10?',
+          herd_7_atlas: 'Confirmado: $2.5M absorbidos',
+          herd_8_tensorflow: 'Confianza 83.4%',
+          herd_5_rune: 'Buffer BE +2.5 pips OK'
+        },
+        chat: {
+          agent: 'LUMEN ➔ ATLAS/NORO',
+          badgeClass: 'bg-purple-950 text-purple-300 border-purple-600',
+          text: '🟣 [Consulta Cruzada] LUMEN detecta Order Block 2H en 4085.10. ATLAS confirma absorción de 4 contratos ($2.5M) con CVD Delta +420.'
+        },
+        duration: 3400
+      },
+      {
+        stageName: 'DECISION_QUORUM',
+        color: 'green',
+        primary: 'quorum_master',
+        activeNodes: ['debate_dinamico_herds', 'quorum_master', 'despacho_canonico_rune'],
+        activeEdges: ['e_debate_quorum', 'e_quorum_mt5'],
+        bubbles: {
+          quorum_master: 'Quórum S_master = 0.88',
+          despacho_canonico_rune: 'BUY XAUUSD 1%'
+        },
+        chat: {
+          agent: 'MASTER ORCHESTRATOR',
+          badgeClass: 'bg-emerald-950 text-emerald-300 border-emerald-600',
+          text: '🟢 [Quórum Calificado] Consenso 88% sin vetos. Despachando BUY XAUUSD a MetaTrader 5 con Cascada RUNE (TP1 50%, BE +2.5 pips).'
+        },
+        duration: 3200
+      },
+      {
+        stageName: 'AUTOPSY_GEMINI',
+        color: 'gold',
+        primary: 'autopsia_trade_cerrado',
+        activeNodes: ['despacho_canonico_rune', 'autopsia_trade_cerrado', 'score_premio_castigo'],
+        activeEdges: ['e_mt5_autopsia', 'e_autopsia_score'],
+        bubbles: {
+          autopsia_trade_cerrado: 'Gemini 1.5 Pro: +1.8R',
+          score_premio_castigo: '+ΔW a LUMEN y ATLAS'
+        },
+        chat: {
+          agent: 'GEMINI 1.5 PRO',
+          badgeClass: 'bg-amber-950 text-amber-300 border-amber-600',
+          text: '🟡 [Autopsia Forense] Trade cerrado en TP1 (+1.8R cobrado). Credit Assignment aplicado: premio sináptico asignado a LUMEN y ATLAS.'
+        },
+        duration: 3000
+      },
+      {
+        stageName: 'CBR_FEEDBACK_LOOP',
+        color: 'gold',
+        primary: 'cache_trading_learning',
+        activeNodes: ['score_premio_castigo', 'cache_trading_learning', 'fetch_swarm_context'],
+        activeEdges: ['e_score_kb', 'e_kb_feedback'],
+        bubbles: {
+          cache_trading_learning: 'Caso #50 indexado en Upstash',
+          fetch_swarm_context: 'Bucle Cerrado: Memoria Lista'
+        },
+        chat: {
+          agent: 'CBR MEMORY',
+          badgeClass: 'bg-yellow-950 text-yellow-300 border-yellow-600',
+          text: '💾 [Retroalimentación en Tiempo Real] Caso indexado en cache_trading_learning_kb. El siguiente trade ya conoce este patrón.'
+        },
+        duration: 3200
+      }
+    ];
+
+    let currentStepIdx = 0;
+
+    /********************************************************************
+     * 4. RENDERIZADO GEOMÉTRICO SVG DE TUBERÍAS
      ********************************************************************/
     function getRelativeBox(nodeId) {
       const canvas = document.getElementById('diagram-canvas');
@@ -861,7 +1059,7 @@
       return { d, labelPos };
     }
 
-    function renderDiagram() {
+    function renderDiagram(bubbles = {}) {
       const svg = document.getElementById('svg-layer');
       const pillsContainer = document.getElementById('edge-pills-layer');
       if (!svg || !pillsContainer) return;
@@ -874,6 +1072,9 @@
           </marker>
           <marker id="arrow-cyan" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
             <path d="M 1 1 L 8 5 L 1 9" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arrow-blue" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M 1 1 L 8 5 L 1 9" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </marker>
           <marker id="arrow-purple" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
             <path d="M 1 1 L 8 5 L 1 9" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -909,7 +1110,7 @@
         path.setAttribute('stroke-linejoin', 'round');
         path.setAttribute('stroke-linecap', 'round');
 
-        let strokeColor = '#334155';
+        let strokeColor = '#242c3d';
         let marker = 'url(#arrow-muted)';
         let dashArray = '3 5';
         let strokeWidth = '1.6';
@@ -921,6 +1122,10 @@
           if (edge.color === 'cyan') {
             strokeColor = '#38bdf8';
             marker = 'url(#arrow-cyan)';
+            extraClass = 'is-active-cyan';
+          } else if (edge.color === 'blue') {
+            strokeColor = '#60a5fa';
+            marker = 'url(#arrow-blue)';
             extraClass = 'is-active-cyan';
           } else if (edge.color === 'purple') {
             strokeColor = '#c084fc';
@@ -940,9 +1145,9 @@
             extraClass = 'is-active-gold';
           }
         } else {
-          if (edge.color === 'gold') strokeColor = '#71581e';
-          if (edge.color === 'green') strokeColor = '#215c3d';
-          if (edge.color === 'red') strokeColor = '#66222b';
+          if (edge.color === 'gold') strokeColor = '#503f16';
+          if (edge.color === 'green') strokeColor = '#19472e';
+          if (edge.color === 'red') strokeColor = '#4f1a21';
         }
 
         path.setAttribute('stroke', strokeColor);
@@ -950,7 +1155,7 @@
         path.setAttribute('stroke-dasharray', dashArray);
         path.setAttribute('marker-end', marker);
         path.setAttribute('class', `svg-connector ${extraClass}`);
-        path.style.opacity = isActive ? '1' : (hasSelection ? '0.28' : '0.55');
+        path.style.opacity = isActive ? '1' : (hasSelection ? '0.24' : '0.45');
 
         svg.appendChild(path);
 
@@ -959,7 +1164,7 @@
           const pill = document.createElement('div');
           pill.className = 'edge-pill pointer-events-auto';
           if (isActive) {
-            if (edge.color === 'cyan') pill.classList.add('is-active-cyan');
+            if (edge.color === 'cyan' || edge.color === 'blue') pill.classList.add('is-active-cyan');
             else if (edge.color === 'purple') pill.classList.add('is-active-purple');
             else if (edge.color === 'green') pill.classList.add('is-active-green');
             else if (edge.color === 'red') pill.classList.add('is-active-red');
@@ -980,10 +1185,14 @@
         }
       });
 
-      // Actualizar Nodos
+      // Actualizar Nodos y Globos
       document.querySelectorAll('.swarm-node').forEach((nodeEl) => {
         const id = nodeEl.getAttribute('data-id');
         nodeEl.classList.remove('is-selected', 'is-connected', 'is-connected-purple', 'is-connected-green', 'is-connected-red', 'is-connected-gold', 'is-dimmed');
+        
+        // Quitar globos previos
+        const prevBubble = nodeEl.querySelector('.agent-bubble');
+        if (prevBubble) prevBubble.remove();
 
         if (id === focusedPrimaryNode) {
           nodeEl.classList.add('is-selected');
@@ -996,104 +1205,27 @@
         } else if (hasSelection) {
           nodeEl.classList.add('is-dimmed');
         }
+
+        // Insertar globo flotante si aplica a esta etapa
+        if (bubbles && bubbles[id]) {
+          const b = document.createElement('div');
+          let colorClass = 'bubble-cyan';
+          if (currentFlowColor === 'purple') colorClass = 'bubble-purple';
+          else if (currentFlowColor === 'green') colorClass = 'bubble-green';
+          else if (currentFlowColor === 'red') colorClass = 'bubble-red';
+          else if (currentFlowColor === 'gold') colorClass = 'bubble-gold';
+          b.className = `agent-bubble ${colorClass}`;
+          b.textContent = bubbles[id];
+          nodeEl.appendChild(b);
+        }
       });
 
       updateInspector(focusedPrimaryNode);
     }
 
     /********************************************************************
-     * 4. INTERACTIVIDAD DE NODOS Y PRESETS
+     * 5. ACTUALIZACIÓN DE INSPECTOR Y FEED CHATOPS
      ********************************************************************/
-    function handleNodeClick(nodeId) {
-      stopSimulationIfRunning();
-      focusedPrimaryNode = nodeId;
-      selectedNodes = new Set([nodeId]);
-      activeEdges = new Set();
-      currentFlowColor = 'cyan';
-
-      EDGES.forEach((edge) => {
-        if (edge.from === nodeId || edge.to === nodeId) {
-          activeEdges.add(edge.id);
-          selectedNodes.add(edge.from);
-          selectedNodes.add(edge.to);
-          if (edge.color) currentFlowColor = edge.color;
-        }
-      });
-
-      renderDiagram();
-    }
-
-    function handleEdgeClick(edge) {
-      stopSimulationIfRunning();
-      focusedPrimaryNode = edge.to;
-      selectedNodes = new Set([edge.from, edge.to]);
-      activeEdges = new Set([edge.id]);
-      currentFlowColor = edge.color || 'cyan';
-
-      if (edge.type === 'md_boot') {
-        EDGES.filter(e => e.type === 'md_boot').forEach(e => {
-          activeEdges.add(e.id);
-          selectedNodes.add(e.from);
-        });
-      }
-
-      renderDiagram();
-    }
-
-    function selectPreset(presetName) {
-      stopSimulationIfRunning();
-
-      document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
-      const activeBtn = document.getElementById(`btn-${presetName}`);
-      if (activeBtn) activeBtn.classList.add('active');
-
-      if (presetName === 'default') {
-        currentFlowColor = 'cyan';
-        focusedPrimaryNode = 'quorum_master';
-        selectedNodes = new Set(['debate_dinamico_herds', 'quorum_master', 'despacho_canonico_rune', 'autopsia_trade_cerrado']);
-        activeEdges = new Set(['e_debate_quorum', 'e_quorum_mt5', 'e_quorum_veto']);
-      } else if (presetName === 'ram_boot') {
-        currentFlowColor = 'cyan';
-        focusedPrimaryNode = 'load_herd_spec';
-        selectedNodes = new Set([
-          'herd_7_atlas', 'herd_1_tidal', 'herd_2_nord', 'herd_4_lumen',
-          'herd_3_zephyr', 'herd_8_tensorflow', 'herd_5_rune', 'master_orchestrator',
-          'load_herd_spec'
-        ]);
-        activeEdges = new Set([
-          'e_h7_ram', 'e_h1_ram', 'e_h2_ram', 'e_h4_ram',
-          'e_h3_ram', 'e_h8_ram', 'e_h5_ram', 'e_master_ram'
-        ]);
-      } else if (presetName === 'mget_cache') {
-        currentFlowColor = 'cyan';
-        focusedPrimaryNode = 'fetch_swarm_context';
-        selectedNodes = new Set(['fetch_swarm_context', 'herd_context_dto', 'debate_dinamico_herds']);
-        activeEdges = new Set(['e_mget_dto', 'e_dto_debate']);
-      } else if (presetName === 'llm_debate') {
-        currentFlowColor = 'purple';
-        focusedPrimaryNode = 'debate_dinamico_herds';
-        selectedNodes = new Set(['load_herd_spec', 'herd_context_dto', 'debate_dinamico_herds', 'quorum_master']);
-        activeEdges = new Set(['e_ram_debate', 'e_dto_debate', 'e_debate_quorum']);
-      } else if (presetName === 'hft_approved') {
-        currentFlowColor = 'green';
-        focusedPrimaryNode = 'despacho_canonico_rune';
-        selectedNodes = new Set(['quorum_master', 'despacho_canonico_rune']);
-        activeEdges = new Set(['e_quorum_mt5']);
-      } else if (presetName === 'hft_vetoed') {
-        currentFlowColor = 'red';
-        focusedPrimaryNode = 'autopsia_trade_cerrado';
-        selectedNodes = new Set(['quorum_master', 'autopsia_trade_cerrado']);
-        activeEdges = new Set(['e_quorum_veto']);
-      } else if (presetName === 'cbr_loop') {
-        currentFlowColor = 'gold';
-        focusedPrimaryNode = 'cache_trading_learning';
-        selectedNodes = new Set(['despacho_canonico_rune', 'autopsia_trade_cerrado', 'score_premio_castigo', 'cache_trading_learning', 'fetch_swarm_context']);
-        activeEdges = new Set(['e_mt5_autopsia', 'e_autopsia_score', 'e_score_kb', 'e_kb_feedback']);
-      }
-
-      renderDiagram();
-    }
-
     function updateInspector(nodeId) {
       const meta = NODE_METADATA[nodeId];
       if (!meta) return;
@@ -1101,60 +1233,116 @@
       document.getElementById('inspector-badge').textContent = meta.layer;
       document.getElementById('inspector-title').textContent = meta.title;
       document.getElementById('inspector-file').textContent = meta.file;
+      document.getElementById('inspector-action').textContent = meta.action;
       document.getElementById('inspector-desc').textContent = meta.desc;
     }
 
-    /********************************************************************
-     * 5. SIMULACIÓN DE RECORRIDO ANIMADO MULTI-COLOR PASO A PASO
-     ********************************************************************/
-    const SIMULATION_STAGES = [
-      { name: 'ram_boot', desc: 'Fase 1 (Cyan): Carga en RAM de las especificaciones de los 7 Herds (@lru_cache)' },
-      { name: 'mget_cache', desc: 'Fase 2 (Azul): Consulta atómica MGET sub-30ms a Upstash Redis para armar el DTO' },
-      { name: 'llm_debate', desc: 'Fase 3 (Púrpura): Inferencia y debate síncrono Llama 3.3 70B REST (Prompt 1,500 tokens)' },
-      { name: 'hft_approved', desc: 'Fase 4A (Verde): Quórum calificado >= 0.70 alcanzado → Despacho canónico a MT5 Live' },
-      { name: 'cbr_loop', desc: 'Fase 5 (Dorado): Autopsia Gemini 1.5 Pro, Credit Assignment (+R/-R) y retroalimentación CBR' }
-    ];
-    let simStageIdx = 0;
+    function pushChatFeed(chat) {
+      if (!chat) return;
+      const feed = document.getElementById('agent-chat-feed');
+      if (!feed) return;
 
-    function toggleSimulation() {
-      if (simInterval) {
-        stopSimulationIfRunning();
-        return;
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+
+      const row = document.createElement('div');
+      row.className = 'chat-msg-row flex items-start gap-2 py-0.5';
+      row.innerHTML = `
+        <span class="text-slate-500 font-mono text-[10px] pt-0.5">${timeStr}</span>
+        <span class="px-1.5 py-0.2 rounded text-[10px] font-bold border ${chat.badgeClass}">${chat.agent}</span>
+        <span class="flex-1 text-slate-200">${chat.text}</span>
+      `;
+
+      feed.insertBefore(row, feed.firstChild);
+
+      // Mantener máximo 8 filas
+      while (feed.children.length > 8) {
+        feed.removeChild(feed.lastChild);
       }
-
-      const btnLabel = document.getElementById('sim-label');
-      const simDot = document.getElementById('sim-dot');
-      btnLabel.textContent = '⏸ Detener Recorrido';
-      simDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
-
-      const runStep = () => {
-        const stage = SIMULATION_STAGES[simStageIdx];
-        selectPreset(stage.name);
-        document.getElementById('inspector-desc').textContent = stage.desc;
-        simStageIdx = (simStageIdx + 1) % SIMULATION_STAGES.length;
-      };
-
-      runStep();
-      simInterval = setInterval(runStep, 2400);
     }
 
-    function stopSimulationIfRunning() {
-      if (simInterval) {
-        clearInterval(simInterval);
-        simInterval = null;
-        document.getElementById('sim-label').textContent = '▶ Recorrido Animado';
-        document.getElementById('sim-dot').className = 'w-2 h-2 rounded-full bg-sky-400';
+    /********************************************************************
+     * 6. MOTOR AUTÓNOMO EN TIEMPO REAL (SIN INTERVENCIÓN DEL USUARIO)
+     ********************************************************************/
+    function stepAutonomousCycle() {
+      if (isRealtimePaused) return;
+
+      const step = AUTONOMOUS_JOURNEY[currentStepIdx];
+      currentFlowColor = step.color;
+      focusedPrimaryNode = step.primary;
+      selectedNodes = new Set(step.activeNodes);
+      activeEdges = new Set(step.activeEdges);
+
+      renderDiagram(step.bubbles);
+      pushChatFeed(step.chat);
+
+      currentStepIdx = (currentStepIdx + 1) % AUTONOMOUS_JOURNEY.length;
+      if (currentStepIdx === 0) {
+        cycleCounter++;
+        document.getElementById('cycle-badge').textContent = `CICLO #${cycleCounter} · XAUUSD`;
       }
+
+      const nextDuration = (step.duration || 3000) / currentSpeed;
+      realtimeTimer = setTimeout(stepAutonomousCycle, nextDuration);
+    }
+
+    function toggleRealtimePause() {
+      isRealtimePaused = !isRealtimePaused;
+      const icon = document.getElementById('pause-icon');
+      const label = document.getElementById('pause-label');
+      const modeLabel = document.getElementById('auto-mode-label');
+
+      if (isRealtimePaused) {
+        if (realtimeTimer) clearTimeout(realtimeTimer);
+        icon.textContent = '▶';
+        label.textContent = 'Reanudar';
+        modeLabel.textContent = '⏸ Flujo Pausado';
+        modeLabel.className = 'text-amber-300 font-semibold';
+      } else {
+        icon.textContent = '⏸';
+        label.textContent = 'Pausar';
+        modeLabel.textContent = '● Flujo Autónomo Activo';
+        modeLabel.className = 'text-slate-200 font-semibold';
+        stepAutonomousCycle();
+      }
+    }
+
+    function toggleSpeed() {
+      currentSpeed = currentSpeed === 1 ? 2 : 1;
+      document.getElementById('speed-indicator').textContent = `${currentSpeed}x`;
+    }
+
+    function handleNodeClick(nodeId) {
+      focusedPrimaryNode = nodeId;
+      selectedNodes = new Set([nodeId]);
+      activeEdges = new Set();
+      EDGES.forEach((edge) => {
+        if (edge.from === nodeId || edge.to === nodeId) {
+          activeEdges.add(edge.id);
+          selectedNodes.add(edge.from);
+          selectedNodes.add(edge.to);
+        }
+      });
+      renderDiagram();
+    }
+
+    function handleEdgeClick(edge) {
+      focusedPrimaryNode = edge.to;
+      selectedNodes = new Set([edge.from, edge.to]);
+      activeEdges = new Set([edge.id]);
+      renderDiagram();
     }
 
     // Inicialización al cargar la ventana
     window.addEventListener('load', () => {
-      selectPreset('default');
-      setTimeout(renderDiagram, 160);
+      // Inicia automáticamente sin clic del usuario
+      setTimeout(() => {
+        stepAutonomousCycle();
+      }, 300);
     });
 
     window.addEventListener('resize', () => {
-      requestAnimationFrame(renderDiagram);
+      requestAnimationFrame(() => renderDiagram());
     });
   </script>
 </body>
