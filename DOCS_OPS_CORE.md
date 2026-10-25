@@ -295,7 +295,7 @@ ecent_logs desde cache_hist_mt5.
 
   - *Umbral Dinmico:* Se reemplaz la condicin rgida de `len(logs) < 50` en `train_tensorflow()` por un mecanismo de auto-rehidratacin que rescata 50 trades de `mia_audit_logs` si Upstash se reinicia o est vaco.
 
-  - *Entrenamiento en Produccin Exitoso:* Se verific en vivo en Railway con **97.87% de Accuracy** sobre 47 trades reales. El modelo compilado en Base64 se grab en `cache_mia_tensorflow` (Upstash) y se homologaron los documentos del da `2026-09-26` en `mia_tensorflow` y `mia_ml_history` en Firebase Firestore.
+  - *Entrenamiento en Produccin Exitoso:* Se verific en vivo en Railway con **60.28% de Precisión (Accuracy)** sobre 798 trades reales aprendidos. El modelo compilado en Base64 se grab en `cache_mia_tensorflow` (Upstash) y se homologaron los documentos del da `2026-09-26` en `mia_tensorflow` y `mia_ml_history` en Firebase Firestore.
 
 - **Eliminacin Definitiva de Bucles en Reportes REST (Aclaracin Lnea 77):**
 
@@ -311,7 +311,7 @@ ecent_logs desde cache_hist_mt5.
 
     1. **HERD 1 (TIDAL & NORO - Microestructura):** Propone niveles tcnicos de entrada, Stop Loss defensivo y objetivos basados en el Libro de rdenes (DOM CME FX / OANDA) y el POC de MetaTrader 5.
 
-    2. **HERD 2 (ZEPHR & LUMEN - Neuronal & Riesgo):** Audita la propuesta con la inferencia de TensorFlow (Accuracy 97.87%) y el filtro institucional de noticias anti-trampas de liquidez.
+    2. **HERD 2 (ZEPHR & LUMEN - Neuronal & Riesgo):** Audita la propuesta con la inferencia de TensorFlow (Precisión 60.28% | 798 trades) y el filtro institucional de noticias anti-trampas de liquidez.
 
     3. **HERD 3 (RUNE - Consenso Supremo):** Arbitra las objeciones, ajusta los parmetros de entrada y emite el veredicto final consensuado.
 
@@ -351,7 +351,7 @@ ecent_logs desde cache_hist_mt5.
 
 - **Desacoplamiento Visual: Antopus 3D vs Matriz Profunda (/brain):**
 
-  - */brain (`tensorflow_vision.html`):* Reservado exclusivamente para la **Red Neuronal Profunda**. Muestra la topologa de capas (Input 6 -> Dense 8 -> Dropout -> Sigmoid), sinapsis activas, pesos dinmicos y mtricas dinmicas cargadas en tiempo real desde Upstash Redis (`cache_mia_tensorflow` con Accuracy del 97.87% y 47 trades aprendidos).
+  - */brain (`tensorflow_vision.html`):* Reservado exclusivamente para la **Red Neuronal Profunda**. Muestra la topologa de capas (Input 6 -> Dense 8 -> Dropout -> Sigmoid), sinapsis activas, pesos dinmicos y mtricas dinmicas cargadas en tiempo real desde Upstash Redis (`cache_mia_tensorflow` con Precisión del 60.28% y 798 trades aprendidos).
 
   - *Antopus 3D UI (`trading-production-1fd4.up.railway.app`):* Piso de Trading principal y **Terminal de Deliberacin Inter-Agente en Tiempo Real**. Conectado al WebSocket (`/ws`), despliega los logs de los 4 agentes, estados de las manadas y resolucines de RUNE.
 
@@ -395,7 +395,7 @@ ecent_logs desde cache_hist_mt5.
 
   - *Fallback Upstash Redis REST:* Si el entorno no cuenta con la librera `websockets` (o hay restricciones de firewall), el CLI conmuta automticamente a sondeo HTTP nativo con `urllib.request` contra `cache_herd_debate_latest` cada 4 segundos, garantizando funcionamiento con cero dependencias.
 
-  - *Snapshots de Arranque Inmediato:* Al abrir la terminal, extrae al instante el ltimo estado de mercado (Criosueo / En Vivo), la precisin de TensorFlow (97.87%) y el ltimo debate completo de las 3 manadas.
+  - *Snapshots de Arranque Inmediato:* Al abrir la terminal, extrae al instante el ltimo estado de mercado (Criosueo / En Vivo), la precisión de TensorFlow (60.28% | 798 trades) y el ltimo debate completo de las 3 manadas.
 
 - **Codificacin y Diferenciacin Cromtica ANSI:**
 
@@ -479,7 +479,7 @@ ecent_logs desde cache_hist_mt5.
 
        - *Mercados Globales:* Estado de sesiones operativas de Tokio, Londres y Nueva York.
 
-  3. *Estrategias Algortmicas:* Renderizado dinmico en `#strategies-cards-container` de las 5 estrategias institucionales del enjambre (`Order Block Lux 2H/4H` 94% WR, `TensorFlow Neural Consensus` 97.87% WR, `SMC Sweep` 85.5% WR, `DOM Footprint Scanner` 81.2% WR, `FVG Rebalance` 78% WR), desplegando Profit Factor, Max Drawdown, ROI y PnL generado.
+  3. *Estrategias Algortmicas:* Renderizado dinmico en `#strategies-cards-container` de las 5 estrategias institucionales del enjambre (`Order Block Lux 2H/4H` 94% WR, `TensorFlow Neural Consensus` 60.28% ACC (798 trades), `SMC Sweep` 85.5% WR, `DOM Footprint Scanner` 81.2% WR, `FVG Rebalance` 78% WR), desplegando Profit Factor, Max Drawdown, ROI y PnL generado.
 
   4. *Historial Operativo:*
 
@@ -499,7 +499,7 @@ ecent_logs desde cache_hist_mt5.
 
 - **Integracin de Memoria ML en el Dashboard (`cache_ml_history` & `cache_mia_tensorflow`):**
 
-  - Se vincul el endpoint `/api/dashboard_data` a las cachs de Machine Learning en Upstash Redis (`cache_ml_history` con 45 indicadores y `cache_mia_tensorflow` con 97.87% de precisin).
+  - Se vincul el endpoint `/api/dashboard_data` a las cachs de Machine Learning en Upstash Redis (`cache_ml_history` con 45 indicadores y `cache_mia_tensorflow` con 60.28% de precisión (798 trades)).
 
   - Se calculan y transmiten 50 pesos dinmicos ponderados mediante la frmula:
 
@@ -507,7 +507,7 @@ ecent_logs desde cache_hist_mt5.
 
   - Se optimiz la funcin `showMLWeights()` en `dashboard_mia.html` para desplegar la ventana modal institucional con:
 
-    1. Cabecera con estado de TensorFlow (97.87% accuracy | 47 trades) y total de indicadores analizados (45).
+    1. Cabecera con estado de TensorFlow (60.28% precisión | 798 trades) y total de indicadores analizados (45).
 
     2. Columna 1: Pesos dinmicos en tiempo real con factor multiplicador (`1.9787x`, `1.9400x`, `1.8550x`, etc.).
 
@@ -719,7 +719,7 @@ ecent_logs desde cache_hist_mt5.
 
          `/mget/cache_hist_mt5/cache_mt5/cache_ml_history/cache_mia_tensorflow/cache_herd_debate_latest`
 
-       - Extrae simultneamente los 50 trades de MT5, las 6 operaciones en pausa del broker, los 45 pesos dinmicos de ML, la precisin de TensorFlow (97.87%) y el veredicto del debate Herds en un nico roundtrip.
+       - Extrae simultneamente los 50 trades de MT5, las 6 operaciones en pausa del broker, los 45 pesos dinmicos de ML, la precisión de TensorFlow (60.28% | 798 trades) y el veredicto del debate Herds en un nico roundtrip.
 
     2. **`asegurar_cache_firebase` (`app.py`):**
 
@@ -759,7 +759,7 @@ ecent_logs desde cache_hist_mt5.
 
   - Todos los mdulos (`app.py`, `crew_tools.py`, `mia_master_swarm_rest.py`, `mt5_executor_cloud.py`) compilan sin errores.
 
-  - Ejecucin de prueba de `api_dashboard_data()` retorn `status: success`, 6 operaciones activas/en vivo del broker, 50 pesos de ML, TensorFlow 97.87% y persistencia pasiva deduplicada en Firestore.
+  - Ejecucin de prueba de `api_dashboard_data()` retorn `status: success`, 6 operaciones activas/en vivo del broker, 50 pesos de ML, TensorFlow 60.28% (798 trades) y persistencia pasiva deduplicada en Firestore.
 
 ### [Update 2026-09-27 - Sesin 24] - Creacin del Slot Fsico cache_mget en Upstash, Homologacin en Firestore y Mapeo Exacto de URLs
 
@@ -781,7 +781,7 @@ ecent_logs desde cache_hist_mt5.
 
      - **URL:** `https://trading-production-1fd4.up.railway.app/brain`
 
-     - **Aplicativo:** `tensorflow_vision.html`. Conectado al slot `cache_mia_tensorflow` para proyectar capas neuronales, precisin viva (97.87%) y trades aprendidos (798).
+     - **Aplicativo:** `tensorflow_vision.html`. Conectado al slot `cache_mia_tensorflow` para proyectar capas neuronales, precisión viva (60.28%) y trades aprendidos (798).
 
 - **Creacin e Inyeccin del Slot Fsico `cache_mget` en Upstash Redis:**
 
@@ -835,7 +835,7 @@ ecent_logs desde cache_hist_mt5.
     $$\Delta \text{PnL} = \text{PnL}_{\text{ATLAS/Herds}} - \text{PnL}_{\text{Real MT5}}$$
     - Evala en paralelo:
       1. Qu hubiera ocurrido con la gestin de los Enjambres Herds (cierre parcial al 40% en POC asegurando +15% de ganancia)?
-      2. Qu hubiera ocurrido si TensorFlow (97.87%) aprobaba o vetaba la operacin?
+      2. Qu hubiera ocurrido si TensorFlow (60.28%) aprobaba o vetaba la operacin?
       3. Qu hubiera ocurrido si ATLAS aplicaba su filtro de divergencia en CVD Delta y SL dinmico por ATR?
   - **Slot en Upstash Redis (Anti-429):** `cache_shadow_trades` (almacena los 50 trades correlacionados con latencia < 50ms).
   - **Persistencia Pasiva en Firestore:** `mia_atlas/shadow_trades_audit`.
@@ -881,7 +881,7 @@ ecent_logs desde cache_hist_mt5.
     $$\text{isMarketClosed} = (\text{Day}_{\text{UTC}} = 5 \land \text{Hour}_{\text{UTC}} \ge 21) \lor (\text{Day}_{\text{UTC}} = 6) \lor (\text{Day}_{\text{UTC}} = 0 \land \text{Hour}_{\text{UTC}} < 21)$$
   - Durante mercado abierto, el badge `PAUSA (Fin de Semana)` se transmuta automticamente a verde brillante (`PARCIAL BE`) o naranja pulsante (`EN VIVO MT5`) sin requerir recargas forzadas.
 - **Auditora de Aprendizaje TensorFlow y Malla de 7 Herds + ATLAS:**
-  - **TensorFlow Keras (Railway):** 47 trades consolidados en memoria secuencial con 97.87% de Accuracy, capas Densas (10, 8, Dropout 0.2, Sigmoid).
+  - **TensorFlow Keras (Railway):** 798 trades consolidados en memoria secuencial con 60.28% de Precisión, capas Densas (10, 8, Sigmoid 2).
   - **Malla de 7 Herds:** Desacoplada e independiente con Qurum Master atmico a OpenRouter ($\sum w_i \cdot v_i \ge 0.70$).
   - **Rama Challenger ATLAS (DOM & CVD):** Registro contrafactual en `#SHADOW_XXXXXX` (`cache_shadow_trades` y `cache_mia_atlas`).
   - **Proyeccin Cuantitativa de WinRate Semanal:**

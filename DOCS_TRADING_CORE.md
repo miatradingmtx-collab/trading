@@ -345,7 +345,7 @@ ec{X} \in \mathbb{R}^6$), el consenso bayesiano de ZEPHR, el filtro de veto de R
     $$\text{Pipeline Herds} \colon \text{HERD 0 (ATLAS)} \longrightarrow \text{HERD 1 (TIDAL/NORO)} \longrightarrow \text{HERD 2 (ZEPHR/LUMEN)} \longrightarrow \text{HERD 3 (RUNE)}$$
     - **HERD 0 - ATLAS (El Investigador):** Inyecta el *Researcher Brief* con CVD Delta, rgimen de ATR, trampas DOM y estrategias adaptativas probadas.
     - **HERD 1 - TIDAL & NORO:** Formula niveles tcnicos de entrada, POC y SL/TP adaptativos segn el rgimen de volatilidad sugerido por ATLAS.
-    - **HERD 2 - ZEPHR & LUMEN:** Audita probabilsticamente con la Red Neuronal TensorFlow (97.87%) y filtra trampas de liquidez y noticias advertidas por ATLAS.
+    - **HERD 2 - ZEPHR & LUMEN:** Audita probabilísticamente con la Red Neuronal TensorFlow (60.28% ACC | 798 trades) y filtra trampas de liquidez y noticias advertidas por ATLAS.
     - **HERD 3 - RUNE:** Emite el veredicto final consensuado [APROBADO o VETADO] con parmetros de ejecucin institucional.
 
 - **Modelados Matemticos Integrados:**
@@ -406,7 +406,7 @@ ec{X} \in \mathbb{R}^6$), el consenso bayesiano de ZEPHR, el filtro de veto de R
     3. **HERD 3 (ZEPHR):** Probabilidad bayesiana continua, Expected Value ($EV = P_w \cdot W - P_l \cdot L$) y ratio Sharpe/Sortino adaptativo.
     4. **HERD 4 (LUMEN):** Smart Money Concepts (SMC), Order Blocks LuxAlgo, Fair Value Gaps (FVG) y deteccin de trampas de liquidez.
     5. **HERD 5 (RUNE):** Gestin de riesgo estricto, tamao de lote defensivo, trailing stop y ratio R:R mnimo de 1:2.
-    6. **HERD 6 (TENSORFLOW):** Inferencia de red neuronal profunda en Railway (accuracy continuo 97.87%).
+    6. **HERD 6 (TENSORFLOW):** Inferencia de red neuronal profunda en Railway (Precisión auditada 60.28% sobre 798 trades aprendidos).
     7. **HERD 7 (ATLAS):** Microestructura de libro de rdenes DOM CME/OANDA, Cumulative Volume Delta (CVD) y herramientas MCP.
     - **MASTER ORCHESTRATOR:** Gatekeeper de Qurum Calificado Ponderado con umbral de decisin:
       $$\text{Consensus Score} = \sum_{i=1}^{7} w_i \cdot \text{Voto}_i \ge 0.70 \implies \text{APROBADO} \quad (\text{sino VETADO})$$
