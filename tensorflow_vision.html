@@ -638,6 +638,11 @@
             <div id="insp-syn" class="text-fuchsia-400 font-bold">10 axones</div>
           </div>
         </div>
+        <div class="mt-2 flex items-center justify-between gap-1.5">
+          <button id="btn-toggle-node" class="w-full text-[9px] font-semibold py-1 rounded bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 hover:bg-cyan-900/80 hover:text-white transition cursor-pointer">
+            ⚡ Test Real-Time: Alternar Valor del Tensor (1.0 ⇄ 0.0)
+          </button>
+        </div>
       </div>
     </aside>
 
@@ -680,62 +685,110 @@
      ********************************************************************/
     const NODES = [
       // ==================== PLACA 1: EJE X (TEMPORALIDAD Y SESIÓN - 4D) ====================
-      { id: 'x0', layer: 1, group: 'x', x: 95,  y: 110, label: 'Pos X0: ASIA (Tokio/Sidney)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 1.0, isContinuous: false },
-      { id: 'x1', layer: 1, group: 'x', x: 95,  y: 200, label: 'Pos X1: LONDRES (Apertura)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
-      { id: 'x2', layer: 1, group: 'x', x: 95,  y: 290, label: 'Pos X2: NUEVA YORK (Expansión)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
-      { id: 'x3', layer: 1, group: 'x', x: 95,  y: 380, label: 'Pos X3: OVERLAP (Londres-NY)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'x0', layer: 1, group: 'x', x: 95,  y: 110, baseLabel: 'Pos X0: ASIA (Tokio/Sidney)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 1.0, isContinuous: false },
+      { id: 'x1', layer: 1, group: 'x', x: 95,  y: 200, baseLabel: 'Pos X1: LONDRES (Apertura)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'x2', layer: 1, group: 'x', x: 95,  y: 290, baseLabel: 'Pos X2: NUEVA YORK (Expansión)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'x3', layer: 1, group: 'x', x: 95,  y: 380, baseLabel: 'Pos X3: OVERLAP (Londres-NY)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
 
       // ==================== PLACA 1: EJE Y (RÉGIMEN Y SMC - 13D) ====================
-      { id: 'y0', layer: 1, group: 'y', x: 205, y: 58,  label: 'Reg Y0: Tendencial Alcista', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 0.0, isContinuous: false },
-      { id: 'y1', layer: 1, group: 'y', x: 205, y: 99,  label: 'Reg Y1: Tendencial Bajista', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 1.0, isContinuous: false },
-      { id: 'y2', layer: 1, group: 'y', x: 205, y: 140, label: 'Reg Y2: Rango Lateral', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 0.0, isContinuous: false },
-      { id: 'y3', layer: 1, group: 'y', x: 205, y: 181, label: 'Reg Y3: Alta Volatilidad / Expansión', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 1.0, isContinuous: false },
-      { id: 'y4', layer: 1, group: 'y', x: 205, y: 222, label: 'SMC Y04: Order Block Lux 2H', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
-      { id: 'y5', layer: 1, group: 'y', x: 205, y: 263, label: 'SMC Y05: Fair Value Gap (FVG)', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
-      { id: 'y6', layer: 1, group: 'y', x: 205, y: 304, label: 'SMC Y06: Liquidity Pool Sweep', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
-      { id: 'y7', layer: 1, group: 'y', x: 205, y: 345, label: 'SMC Y07: Breaker Block 4H', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
-      { id: 'y8', layer: 1, group: 'y', x: 205, y: 386, label: 'SMC Y08: Mitigation Zone', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
-      { id: 'y9', layer: 1, group: 'y', x: 205, y: 427, label: 'SMC Y09: Volume POC Price', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
-      { id: 'y10', layer: 1, group: 'y', x: 205, y: 468, label: 'SMC Y10: SMC Sweep CME', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
-      { id: 'y11', layer: 1, group: 'y', x: 205, y: 509, label: 'SMC Y11: DOM Imbalance Filter', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
-      { id: 'y12', layer: 1, group: 'y', x: 205, y: 550, label: 'SMC Y12: CVOL Energy Area', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y0', layer: 1, group: 'y', x: 205, y: 58,  baseLabel: 'Reg Y0: Tendencial Alcista', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'y1', layer: 1, group: 'y', x: 205, y: 99,  baseLabel: 'Reg Y1: Tendencial Bajista', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 1.0, isContinuous: false },
+      { id: 'y2', layer: 1, group: 'y', x: 205, y: 140, baseLabel: 'Reg Y2: Rango Lateral', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'y3', layer: 1, group: 'y', x: 205, y: 181, baseLabel: 'Reg Y3: Alta Volatilidad / Expansión', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 1.0, isContinuous: false },
+      { id: 'y4', layer: 1, group: 'y', x: 205, y: 222, baseLabel: 'SMC Y04: Order Block Lux 2H', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y5', layer: 1, group: 'y', x: 205, y: 263, baseLabel: 'SMC Y05: Fair Value Gap (FVG)', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y6', layer: 1, group: 'y', x: 205, y: 304, baseLabel: 'SMC Y06: Liquidity Pool Sweep', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
+      { id: 'y7', layer: 1, group: 'y', x: 205, y: 345, baseLabel: 'SMC Y07: Breaker Block 4H', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y8', layer: 1, group: 'y', x: 205, y: 386, baseLabel: 'SMC Y08: Mitigation Zone', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
+      { id: 'y9', layer: 1, group: 'y', x: 205, y: 427, baseLabel: 'SMC Y09: Volume POC Price', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
+      { id: 'y10', layer: 1, group: 'y', x: 205, y: 468, baseLabel: 'SMC Y10: SMC Sweep CME', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y11', layer: 1, group: 'y', x: 205, y: 509, baseLabel: 'SMC Y11: DOM Imbalance Filter', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y12', layer: 1, group: 'y', x: 205, y: 550, baseLabel: 'SMC Y12: CVOL Energy Area', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
 
       // ==================== PLACA 1: EJE Z (MÉTRICAS CONTINUAS - 5D) ====================
-      { id: 'z0', layer: 1, group: 'z', x: 310, y: 110, label: 'Met Z0: ATR Dinámico Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.50, isContinuous: true },
-      { id: 'z1', layer: 1, group: 'z', x: 310, y: 195, label: 'Met Z1: RSI Extremo Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.30, isContinuous: true },
-      { id: 'z2', layer: 1, group: 'z', x: 310, y: 280, label: 'Met Z2: Spread Broker Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.23, isContinuous: true },
-      { id: 'z3', layer: 1, group: 'z', x: 310, y: 365, label: 'Met Z3: DXY SMT Correlation Ratio', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.65, isContinuous: true },
-      { id: 'z4', layer: 1, group: 'z', x: 310, y: 450, label: 'Met Z4: TensorFlow Neural Confidence', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.60, isContinuous: true },
+      { id: 'z0', layer: 1, group: 'z', x: 310, y: 110, baseLabel: 'Met Z0: ATR Dinámico Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.50, isContinuous: true },
+      { id: 'z1', layer: 1, group: 'z', x: 310, y: 195, baseLabel: 'Met Z1: RSI Extremo Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.30, isContinuous: true },
+      { id: 'z2', layer: 1, group: 'z', x: 310, y: 280, baseLabel: 'Met Z2: Spread Broker Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.23, isContinuous: true },
+      { id: 'z3', layer: 1, group: 'z', x: 310, y: 365, baseLabel: 'Met Z3: DXY SMT Correlation Ratio', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.65, isContinuous: true },
+      { id: 'z4', layer: 1, group: 'z', x: 310, y: 450, baseLabel: 'Met Z4: TensorFlow Neural Confidence', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.60, isContinuous: true },
 
       // ==================== PLACA 2: DENSE 1 (10 NEURONAS ReLU) ====================
-      { id: 'd1_0', layer: 2, subLayer: 'dense1', x: 495, y: 82,  label: 'Dense 10_01 [Sesión + Volatilidad]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.88, isContinuous: true },
-      { id: 'd1_1', layer: 2, subLayer: 'dense1', x: 495, y: 135, label: 'Dense 10_02 [Régimen + Macro DXY]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.74, isContinuous: true },
-      { id: 'd1_2', layer: 2, subLayer: 'dense1', x: 495, y: 188, label: 'Dense 10_03 [Order Block 2H + POC]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.92, isContinuous: true },
-      { id: 'd1_3', layer: 2, subLayer: 'dense1', x: 495, y: 241, label: 'Dense 10_04 [FVG + Liquidity Sweep]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.81, isContinuous: true },
-      { id: 'd1_4', layer: 2, subLayer: 'dense1', x: 495, y: 294, label: 'Dense 10_05 [CME Tape DOM Imbalance]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.95, isContinuous: true },
-      { id: 'd1_5', layer: 2, subLayer: 'dense1', x: 495, y: 347, label: 'Dense 10_06 [CVOL Energy Area Integral]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.77, isContinuous: true },
-      { id: 'd1_6', layer: 2, subLayer: 'dense1', x: 495, y: 400, label: 'Dense 10_07 [RSI Extremo + Spread Filter]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.68, isContinuous: true },
-      { id: 'd1_7', layer: 2, subLayer: 'dense1', x: 495, y: 453, label: 'Dense 10_08 [Cross-Asset SMT Confluence]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.85, isContinuous: true },
-      { id: 'd1_8', layer: 2, subLayer: 'dense1', x: 495, y: 506, label: 'Dense 10_09 [Dropout 0.2 Regularization]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.59, isContinuous: true },
-      { id: 'd1_9', layer: 2, subLayer: 'dense1', x: 495, y: 558, label: 'Dense 10_10 [Non-Linear Tensor Activation]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.81, isContinuous: true },
+      { id: 'd1_0', layer: 2, subLayer: 'dense1', x: 495, y: 82,  baseLabel: 'Dense 10_01 [Sesión + Volatilidad]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.85, isContinuous: true },
+      { id: 'd1_1', layer: 2, subLayer: 'dense1', x: 495, y: 135, baseLabel: 'Dense 10_02 [Régimen + Macro DXY]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.86, isContinuous: true },
+      { id: 'd1_2', layer: 2, subLayer: 'dense1', x: 495, y: 188, baseLabel: 'Dense 10_03 [Order Block 2H + POC]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.65, isContinuous: true },
+      { id: 'd1_3', layer: 2, subLayer: 'dense1', x: 495, y: 241, baseLabel: 'Dense 10_04 [FVG + Liquidity Sweep]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.50, isContinuous: true },
+      { id: 'd1_4', layer: 2, subLayer: 'dense1', x: 495, y: 294, baseLabel: 'Dense 10_05 [CME Tape DOM Imbalance]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 1.00, isContinuous: true },
+      { id: 'd1_5', layer: 2, subLayer: 'dense1', x: 495, y: 347, baseLabel: 'Dense 10_06 [CVOL Energy Area Integral]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.78, isContinuous: true },
+      { id: 'd1_6', layer: 2, subLayer: 'dense1', x: 495, y: 400, baseLabel: 'Dense 10_07 [RSI Extremo + Spread Filter]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.91, isContinuous: true },
+      { id: 'd1_7', layer: 2, subLayer: 'dense1', x: 495, y: 453, baseLabel: 'Dense 10_08 [Cross-Asset SMT Confluence]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.82, isContinuous: true },
+      { id: 'd1_8', layer: 2, subLayer: 'dense1', x: 495, y: 506, baseLabel: 'Dense 10_09 [Dropout 0.2 Regularization]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.63, isContinuous: true },
+      { id: 'd1_9', layer: 2, subLayer: 'dense1', x: 495, y: 558, baseLabel: 'Dense 10_10 [Non-Linear Tensor Activation]', dim: 'CAPA 2 • DENSE 10', type: 'ReLU Feature', val: 0.90, isContinuous: true },
 
       // ==================== PLACA 2: DENSE 2 (8 NEURONAS CONSOLIDACIÓN) ====================
-      { id: 'd2_0', layer: 2, subLayer: 'dense2', x: 685, y: 105, label: 'Dense 8_01 [Synaptic Weight Consolidator]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.79, isContinuous: true },
-      { id: 'd2_1', layer: 2, subLayer: 'dense2', x: 685, y: 166, label: 'Dense 8_02 [Quórum Neural Gate ≥ 0.70]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.93, isContinuous: true },
-      { id: 'd2_2', layer: 2, subLayer: 'dense2', x: 685, y: 227, label: 'Dense 8_03 [Probability Normalizer]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.80, isContinuous: true },
-      { id: 'd2_3', layer: 2, subLayer: 'dense2', x: 685, y: 288, label: 'Dense 8_04 [Risk/Reward Evaluator]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.76, isContinuous: true },
-      { id: 'd2_4', layer: 2, subLayer: 'dense2', x: 685, y: 349, label: 'Dense 8_05 [Institutional Bias Extractor]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.89, isContinuous: true },
-      { id: 'd2_5', layer: 2, subLayer: 'dense2', x: 685, y: 410, label: 'Dense 8_06 [Confluence Threshold Filter]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.82, isContinuous: true },
-      { id: 'd2_6', layer: 2, subLayer: 'dense2', x: 685, y: 471, label: 'Dense 8_07 [Historical Memory Weight]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.87, isContinuous: true },
-      { id: 'd2_7', layer: 2, subLayer: 'dense2', x: 685, y: 532, label: 'Dense 8_08 [Sigmoid Pre-Activation]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.75, isContinuous: true },
+      { id: 'd2_0', layer: 2, subLayer: 'dense2', x: 685, y: 105, baseLabel: 'Dense 8_01 [Synaptic Weight Consolidator]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.79, isContinuous: true },
+      { id: 'd2_1', layer: 2, subLayer: 'dense2', x: 685, y: 166, baseLabel: 'Dense 8_02 [Quórum Neural Gate ≥ 0.70]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.78, isContinuous: true },
+      { id: 'd2_2', layer: 2, subLayer: 'dense2', x: 685, y: 227, baseLabel: 'Dense 8_03 [Probability Normalizer]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.78, isContinuous: true },
+      { id: 'd2_3', layer: 2, subLayer: 'dense2', x: 685, y: 288, baseLabel: 'Dense 8_04 [Risk/Reward Evaluator]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.84, isContinuous: true },
+      { id: 'd2_4', layer: 2, subLayer: 'dense2', x: 685, y: 349, baseLabel: 'Dense 8_05 [Institutional Bias Extractor]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.84, isContinuous: true },
+      { id: 'd2_5', layer: 2, subLayer: 'dense2', x: 685, y: 410, baseLabel: 'Dense 8_06 [Confluence Threshold Filter]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.74, isContinuous: true },
+      { id: 'd2_6', layer: 2, subLayer: 'dense2', x: 685, y: 471, baseLabel: 'Dense 8_07 [Historical Memory Weight]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.67, isContinuous: true },
+      { id: 'd2_7', layer: 2, subLayer: 'dense2', x: 685, y: 532, baseLabel: 'Dense 8_08 [Sigmoid Pre-Activation]', dim: 'CAPA 2 • DENSE 8', type: 'Dense Unit', val: 0.87, isContinuous: true },
 
       // ==================== PLACA 3: CAPA 3 OUTPUT (2 NEURONAS SIGMOID) ====================
-      { id: 'out_1', layer: 3, subLayer: 'output', x: 940, y: 215, label: 'OUT 1: POSICIÓN ABIERTA (APROBADO MT5)', dim: 'CAPA 3 • OUTPUT', type: 'Sigmoid Probability', val: 0.842, isContinuous: true },
-      { id: 'out_2', layer: 3, subLayer: 'output', x: 940, y: 430, label: 'OUT 2: VETO / CRIOSUEÑO (BLOQUEO RIESGO)', dim: 'CAPA 3 • OUTPUT', type: 'Sigmoid Probability', val: 0.158, isContinuous: true }
+      { id: 'out_1', layer: 3, subLayer: 'output', x: 940, y: 215, baseLabel: 'OUT 1: POSICIÓN ABIERTA (APROBADO MT5)', dim: 'CAPA 3 • OUTPUT', type: 'Sigmoid Probability', val: 0.873, isContinuous: true },
+      { id: 'out_2', layer: 3, subLayer: 'output', x: 940, y: 430, baseLabel: 'OUT 2: VETO / CRIOSUEÑO (BLOQUEO RIESGO)', dim: 'CAPA 3 • OUTPUT', type: 'Sigmoid Probability', val: 0.127, isContinuous: true }
     ];
 
     /********************************************************************
-     * 2. GENERACIÓN DE AXONES Y CONEXIONES (INPUT 22 ➔ D1 10 ➔ D2 8 ➔ OUT 2)
+     * 2. MOTOR MATEMÁTICO CLIENT-SIDE: FORWARD PASS 22D REAL-TIME
+     ********************************************************************/
+    function computeForwardPass(vec) {
+      if (!Array.isArray(vec) || vec.length < 22) {
+        vec = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.5, 0.3, 0.23, 0.65, 0.6];
+      }
+
+      // 1. Capa Densa 1 (10 unidades ReLU)
+      const d1 = new Array(10).fill(0);
+      const ses_act = Math.max(vec[0], vec[1], vec[2], vec[3]);
+      d1[0] = Math.max(0, +(0.4 * ses_act + 0.3 * vec[7] + 0.3 * vec[17]).toFixed(2));
+      d1[1] = Math.max(0, +(0.3 * vec[5] + 0.3 * (1.0 - vec[6]) + 0.4 * vec[20]).toFixed(2));
+      d1[2] = Math.max(0, +(0.65 * vec[8] + 0.35 * vec[13]).toFixed(2));
+      d1[3] = Math.max(0, +(0.5 * vec[9] + 0.5 * vec[10]).toFixed(2));
+      d1[4] = Math.max(0, +(0.5 * vec[14] + 0.5 * vec[15]).toFixed(2));
+      d1[5] = Math.max(0, +(0.55 * vec[16] + 0.45 * vec[17]).toFixed(2));
+
+      const spread_score = Math.max(0, 1.0 - vec[19]);
+      const rsi_score = (vec[18] <= 0.30 || vec[18] >= 0.70) ? 1.0 : Math.max(0.1, 1.0 - Math.abs(vec[18] - 0.5) * 2);
+      d1[6] = Math.max(0, +(0.6 * rsi_score + 0.4 * spread_score).toFixed(2));
+      d1[7] = Math.max(0, +(0.5 * vec[11] + 0.5 * vec[20]).toFixed(2));
+      const avg_d1_sub = d1.slice(0, 7).reduce((a, b) => a + b, 0) / 7.0;
+      d1[8] = Math.max(0, +(0.8 * avg_d1_sub).toFixed(2));
+      const top1_top2 = 0.5 * rsi_score + 0.5 * vec[8];
+      d1[9] = Math.max(0, +(top1_top2 * 0.9).toFixed(2));
+
+      // 2. Capa Densa 2 (8 unidades ReLU)
+      const d2 = new Array(8).fill(0);
+      d2[0] = Math.max(0, +(0.3 * d1[0] + 0.4 * d1[2] + 0.3 * d1[6]).toFixed(2));
+      d2[1] = Math.max(0, +(0.5 * d1[2] + 0.5 * d1[9]).toFixed(2));
+      d2[2] = Math.max(0, +(0.25 * d1[1] + 0.25 * d1[3] + 0.25 * d1[4] + 0.25 * d1[5]).toFixed(2));
+      d2[3] = Math.max(0, +(0.5 * d1[6] + 0.5 * (1.0 - vec[19])).toFixed(2));
+      d2[4] = Math.max(0, +(0.4 * d1[1] + 0.6 * d1[7]).toFixed(2));
+      d2[5] = Math.max(0, +(0.35 * d2[0] + 0.35 * d2[1] + 0.3 * d1[8]).toFixed(2));
+      d2[6] = Math.max(0, +(0.6 * vec[21] + 0.4 * d2[1]).toFixed(2));
+
+      const logit = 1.8 * d2[1] + 1.2 * d2[0] + 0.8 * d2[3] + 0.6 * d2[4] - 1.6;
+      const sigmoid_val = 1.0 / (1.0 + Math.exp(-logit));
+      d2[7] = Math.max(0, +sigmoid_val.toFixed(2));
+
+      const prob_aprobado = +sigmoid_val.toFixed(3);
+      const prob_vetado = +(1.0 - prob_aprobado).toFixed(3);
+      const veredicto = prob_aprobado >= 0.70 ? "APROBADO MT5" : "VETO / CRIOSUEÑO (BLOQUEO RIESGO)";
+
+      return { d1, d2, prob_aprobado, prob_vetado, veredicto };
+    }
+
+    /********************************************************************
+     * 3. GENERACIÓN DE AXONES Y CONEXIONES (INPUT 22 ➔ D1 10 ➔ D2 8 ➔ OUT 2)
      ********************************************************************/
     const LINKS = [];
     const inputNodes = NODES.filter(n => n.layer === 1);
@@ -782,15 +835,20 @@
     });
 
     /********************************************************************
-     * 3. RENDERIZADO VISUAL EN EL ESCENARIO 3D
+     * 4. RENDERIZADO VISUAL EN EL ESCENARIO 3D CON ESTADOS REAL-TIME
      ********************************************************************/
+    let selectedNode = NODES[4]; // Default OB Lux 2H
+
     function renderNetworkElements() {
       const axonLayer = document.getElementById('axon-layer');
       const neuronsLayer = document.getElementById('neurons-layer');
       axonLayer.innerHTML = '';
       neuronsLayer.innerHTML = '';
 
-      // Renderizar Axones SVG
+      const out1Node = NODES.find(n => n.id === 'out_1');
+      const isApproved = (out1Node ? out1Node.val : 0.84) >= 0.70;
+
+      // Renderizar Axones SVG con intensidad dinámica
       LINKS.forEach(link => {
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         const sx = link.source.x, sy = link.source.y;
@@ -806,15 +864,42 @@
         path.setAttribute('id', link.id);
         
         let strokeColor = '#38bdf8';
-        if (link.colorType === 'green') strokeColor = '#00ff9d';
-        else if (link.colorType === 'red') strokeColor = '#ff2a55';
-        else if (link.colorType === 'purple') strokeColor = '#c084fc';
+        let strokeWidth = '1.2';
+        let strokeOpacity = '0.65';
+
+        if (link.target.id === 'out_1') {
+          if (isApproved) {
+            strokeColor = '#00ff9d';
+            strokeWidth = '2.4';
+            strokeOpacity = '0.95';
+            path.setAttribute('filter', 'url(#glow-pulse)');
+          } else {
+            strokeColor = 'rgba(0, 255, 157, 0.2)';
+            strokeWidth = '0.8';
+            strokeOpacity = '0.25';
+          }
+        } else if (link.target.id === 'out_2') {
+          if (!isApproved) {
+            strokeColor = '#ff2a55';
+            strokeWidth = '2.4';
+            strokeOpacity = '0.95';
+            path.setAttribute('filter', 'url(#glow-pulse)');
+          } else {
+            strokeColor = 'rgba(255, 42, 85, 0.2)';
+            strokeWidth = '0.8';
+            strokeOpacity = '0.25';
+          }
+        } else if (link.colorType === 'purple') {
+          strokeColor = '#c084fc';
+        }
+
         path.setAttribute('stroke', strokeColor);
-        path.setAttribute('stroke-width', '1.2');
+        path.setAttribute('stroke-width', strokeWidth);
+        path.setAttribute('stroke-opacity', strokeOpacity);
         axonLayer.appendChild(path);
       });
 
-      // Renderizar Neuronas
+      // Renderizar Neuronas con Valores Live
       NODES.forEach(node => {
         const el = document.createElement('div');
         el.className = 'neuron-node';
@@ -822,20 +907,31 @@
         el.style.left = `${node.x}px`;
         el.style.top = `${node.y}px`;
 
-        // Coloración según valor del tensor
+        // Coloración viva según el tensor
         if (node.layer === 1) {
           if (!node.isContinuous) {
-            if (node.val === 1.0) el.classList.add('node-green');
-            else el.classList.add('node-off');
+            if (node.val >= 0.5) {
+              el.classList.add('node-green');
+            } else {
+              el.classList.add('node-off');
+            }
           } else {
             el.classList.add('node-amber');
           }
         } else if (node.layer === 2) {
           el.classList.add('node-purple');
         } else if (node.id === 'out_1') {
-          el.classList.add('node-green');
-        } else {
-          el.classList.add('node-red');
+          if (isApproved) {
+            el.classList.add('node-green');
+          } else {
+            el.classList.add('node-off');
+          }
+        } else if (node.id === 'out_2') {
+          if (!isApproved) {
+            el.classList.add('node-red');
+          } else {
+            el.classList.add('node-off');
+          }
         }
 
         // Píldora de etiqueta flotante
@@ -846,8 +942,8 @@
         else if (node.layer === 3) pill.classList.add('pos-right');
         else pill.classList.add('pos-center');
 
-        const valText = node.isContinuous ? `${node.val.toFixed(2)}` : (node.val === 1.0 ? '1.0' : '0.0');
-        pill.textContent = `${node.label} [${valText}]`;
+        const valText = node.isContinuous ? `${node.val.toFixed(2)}` : (node.val >= 0.5 ? '1.0' : '0.0');
+        pill.textContent = `${node.baseLabel} [${valText}]`;
         pill.onclick = (e) => {
           e.stopPropagation();
           inspectNode(node);
@@ -857,17 +953,21 @@
         el.onclick = () => inspectNode(node);
         neuronsLayer.appendChild(el);
       });
+
+      // Re-inspeccionar nodo actual para refrescar panel HUD
+      if (selectedNode) inspectNode(selectedNode);
     }
 
     function inspectNode(node) {
+      selectedNode = node;
       document.getElementById('insp-layer').textContent = node.dim;
-      document.getElementById('insp-name').textContent = node.label;
+      document.getElementById('insp-name').textContent = node.baseLabel;
       document.getElementById('insp-type').textContent = node.type;
-      const valStr = node.isContinuous ? `${node.val.toFixed(3)} σ` : (node.val === 1.0 ? '1.0 [ACTIVO]' : '0.0 [INACTIVO]');
+      const valStr = node.isContinuous ? `${node.val.toFixed(3)} σ` : (node.val >= 0.5 ? '1.0 [ACTIVO]' : '0.0 [INACTIVO]');
       document.getElementById('insp-val').textContent = valStr;
 
       // Resaltar axones conectados
-      document.querySelectorAll('.axon-path').forEach(p => p.classList.remove('axon-active', 'axon-green', 'axon-red', 'axon-purple'));
+      document.querySelectorAll('.axon-path').forEach(p => p.classList.remove('axon-active'));
       LINKS.filter(l => l.source.id === node.id || l.target.id === node.id).forEach(l => {
         const p = document.getElementById(l.id);
         if (p) p.classList.add('axon-active');
@@ -875,7 +975,7 @@
     }
 
     /********************************************************************
-     * 4. CONTROL DE CÁMARA 3D, ROTACIÓN Y ZOOM
+     * 5. CONTROL DE CÁMARA 3D, ROTACIÓN Y ZOOM
      ********************************************************************/
     let camRotX = 22;
     let camRotY = -24;
@@ -963,24 +1063,94 @@
       document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active-cyan', 'active-mode'));
       document.getElementById('pill-deliberating').classList.add('active-mode');
       document.querySelectorAll('.axon-path').forEach(p => {
-        p.classList.remove('axon-green', 'axon-red');
+        p.classList.remove('axon-active', 'axon-green', 'axon-red');
         p.classList.add('axon-purple');
       });
-      inspectNode(NODES.find(n => n.id === 'd1_2'));
+      inspectNode(NODES.find(n => n.id === 'd1_0'));
     };
 
-    // Arrastre con el mouse / touch
+    // Test de Inferencia Manual: Alternar valor del nodo seleccionado y recalcular en tiempo real
+    const btnToggleNode = document.getElementById('btn-toggle-node');
+    if (btnToggleNode) {
+      btnToggleNode.onclick = () => {
+        if (!selectedNode) return;
+        if (selectedNode.layer === 1) {
+          if (!selectedNode.isContinuous) {
+            selectedNode.val = (selectedNode.val >= 0.5 ? 0.0 : 1.0);
+          } else {
+            selectedNode.val = +(selectedNode.val >= 0.75 ? 0.20 : selectedNode.val + 0.25).toFixed(2);
+          }
+        } else {
+          selectedNode.val = +(selectedNode.val >= 0.8 ? 0.35 : selectedNode.val + 0.2).toFixed(2);
+        }
+
+        // Extraer los 22 tensores actuales
+        const currentVec = [];
+        for (let i = 0; i < 4; i++) currentVec.push((NODES.find(n => n.id === `x${i}`) || {}).val || 0.0);
+        for (let i = 0; i < 13; i++) currentVec.push((NODES.find(n => n.id === `y${i}`) || {}).val || 0.0);
+        for (let i = 0; i < 5; i++) currentVec.push((NODES.find(n => n.id === `z${i}`) || {}).val || 0.0);
+
+        // Recalcular forward pass en vivo
+        const calc = computeForwardPass(currentVec);
+        for (let i = 0; i < 10; i++) {
+          const n = NODES.find(node => node.id === `d1_${i}`);
+          if (n) n.val = calc.d1[i];
+        }
+        for (let i = 0; i < 8; i++) {
+          const n = NODES.find(node => node.id === `d2_${i}`);
+          if (n) n.val = calc.d2[i];
+        }
+        const n_out1 = NODES.find(node => node.id === 'out_1');
+        const n_out2 = NODES.find(node => node.id === 'out_2');
+        if (n_out1) n_out1.val = calc.prob_aprobado;
+        if (n_out2) n_out2.val = calc.prob_vetado;
+
+        // Actualizar HUD
+        const hudCons = document.getElementById('hud-consensus');
+        if (calc.prob_aprobado >= 0.70) {
+          hudCons.className = "font-bold text-emerald-400";
+          hudCons.innerHTML = `QUÓRUM ${calc.prob_aprobado.toFixed(2)} ≥ 0.70 (APROBADO MT5)`;
+        } else {
+          hudCons.className = "font-bold text-rose-400";
+          hudCons.innerHTML = `QUÓRUM ${calc.prob_aprobado.toFixed(2)} &lt; 0.70 (VETO / BLOQUEO RIESGO)`;
+        }
+
+        renderNetworkElements();
+
+        // Terminal Log
+        const term = document.getElementById('terminal-output');
+        const now = new Date().toTimeString().split(' ')[0];
+        const row = document.createElement('div');
+        const colorClass = calc.prob_aprobado >= 0.70 ? 'text-emerald-400' : 'text-rose-400';
+        row.innerHTML = `<span class="text-cyan-400">[${now}]</span> <span class="text-amber-400 font-bold">[TEST MANUAL 22D]</span> ${selectedNode.baseLabel} = ${selectedNode.val} ➔ Sigmoid P(Aprobado)=${calc.prob_aprobado.toFixed(3)} ➔ <span class="${colorClass} font-bold">${calc.veredicto}</span>`;
+        term.insertBefore(row, term.firstChild);
+        while (term.children.length > 6) term.removeChild(term.lastChild);
+      };
+    }
+
+    // Pulso Sináptico Dinámico
+    document.getElementById('btn-pulse-burst').onclick = () => {
+      document.querySelectorAll('.axon-path').forEach(p => {
+        p.classList.add('axon-active');
+        setTimeout(() => p.classList.remove('axon-active'), 1200);
+      });
+    };
+
+    // Drag para Orbitar en Escritorio
     let isDragging = false;
     let lastX = 0, lastY = 0;
-    const vp = document.getElementById('viewport');
+    const stage = document.getElementById('stage-canvas');
 
-    vp.addEventListener('mousedown', (e) => {
+    stage.addEventListener('mousedown', (e) => {
       isDragging = true;
       lastX = e.clientX;
       lastY = e.clientY;
+      if (isAutoTour) toggleAutoTour();
     });
-    window.addEventListener('mouseup', () => isDragging = false);
-    window.addEventListener('mousemove', (e) => {
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    stage.addEventListener('mousemove', (e) => {
       if (!isDragging) return;
       const dx = e.clientX - lastX;
       const dy = e.clientY - lastY;
@@ -992,7 +1162,7 @@
     });
 
     /********************************************************************
-     * 5. SINCRONIZACIÓN EN VIVO CON EL BACKEND (/api/tensor_vector_data)
+     * 6. SINCRONIZACIÓN EN VIVO CON INFERENCIA MATEMÁTICA REAL (/api/tensor_vector_data)
      ********************************************************************/
     async function syncTensorTelemetry() {
       try {
@@ -1002,7 +1172,8 @@
         if (data.status !== 'success' || !data.tensor_1d) return;
 
         const vec = data.tensor_1d;
-        // Mapear los 22 valores
+
+        // 1. Mapear los 22 valores en los Nodos de Entrada
         if (vec.length >= 22) {
           // Eje X: 0..3
           for (let i = 0; i < 4; i++) {
@@ -1021,21 +1192,68 @@
           }
         }
 
-        // Actualizar HUD
+        // 2. Realizar o Sincronizar Inferencia de Capas Ocultas (Dense 10 & Dense 8)
+        let d1_vals = data.dense1;
+        let d2_vals = data.dense2;
+        let p_app = data.prob_aprobado;
+        let p_vet = data.prob_vetado;
+        let veredicto = data.veredicto;
+
+        if (!d1_vals || !d2_vals || p_app === undefined) {
+          const calc = computeForwardPass(vec);
+          d1_vals = calc.d1;
+          d2_vals = calc.d2;
+          p_app = calc.prob_aprobado;
+          p_vet = calc.prob_vetado;
+          veredicto = calc.veredicto;
+        }
+
+        // Mapear Dense 1 (10 nodos)
+        for (let i = 0; i < 10; i++) {
+          const n = NODES.find(node => node.id === `d1_${i}`);
+          if (n && d1_vals[i] !== undefined) n.val = d1_vals[i];
+        }
+
+        // Mapear Dense 2 (8 nodos)
+        for (let i = 0; i < 8; i++) {
+          const n = NODES.find(node => node.id === `d2_${i}`);
+          if (n && d2_vals[i] !== undefined) n.val = d2_vals[i];
+        }
+
+        // Mapear Salidas Sigmoide
+        const n_out1 = NODES.find(node => node.id === 'out_1');
+        const n_out2 = NODES.find(node => node.id === 'out_2');
+        if (n_out1) n_out1.val = p_app;
+        if (n_out2) n_out2.val = p_vet;
+
+        // 3. Actualizar HUD Izquierdo
         if (data.accuracy) document.getElementById('hud-acc').textContent = `${(data.accuracy * 100).toFixed(2)}%`;
         if (data.trades_aprendidos) document.getElementById('hud-trades').textContent = `${data.trades_aprendidos}`;
         if (data.activo) document.getElementById('hud-status').textContent = `ONLINE · ${data.activo} EN VIVO`;
 
-        // Refrescar Nodos
+        const hudCons = document.getElementById('hud-consensus');
+        if (p_app >= 0.70) {
+          hudCons.className = "font-bold text-emerald-400";
+          hudCons.innerHTML = `QUÓRUM ${p_app.toFixed(2)} ≥ 0.70 (APROBADO MT5)`;
+        } else {
+          hudCons.className = "font-bold text-rose-400";
+          hudCons.innerHTML = `QUÓRUM ${p_app.toFixed(2)} &lt; 0.70 (VETO / BLOQUEO RIESGO)`;
+        }
+
+        // 4. Refrescar Todo el Grafo 3D con los valores reales
         renderNetworkElements();
 
-        // Enviar a la terminal de tensores
+        // 5. Enviar Telemetría Viva a la Terminal
         const term = document.getElementById('terminal-output');
         const now = new Date().toTimeString().split(' ')[0];
         const row = document.createElement('div');
-        row.innerHTML = `<span class="text-cyan-400">[${now}]</span> <span class="text-emerald-400 font-bold">[22D Ingest]</span> Vector inyectado (${data.activo}) • Sesión: Asia(${vec[0]}), SMC OB(${vec[8]}), Conf(${vec[21] || 0.6})`;
+        const colorClass = p_app >= 0.70 ? 'text-emerald-400' : 'text-rose-400';
+        const d1_mean = (d1_vals.reduce((a, b) => a + b, 0) / d1_vals.length).toFixed(2);
+        const d2_mean = (d2_vals.reduce((a, b) => a + b, 0) / d2_vals.length).toFixed(2);
+
+        row.innerHTML = `<span class="text-cyan-400">[${now}]</span> <span class="text-fuchsia-400 font-bold">[22D FORWARD PASS]</span> ${data.activo} • OB 2H: ${vec[8]} • RSI: ${vec[18]} • D1(act): ${d1_mean} • D2: ${d2_mean} ➔ <span class="${colorClass} font-bold">${p_app >= 0.70 ? 'APROBADO MT5' : 'VETO RIESGO'} [${p_app.toFixed(3)}]</span>`;
         term.insertBefore(row, term.firstChild);
-        while (term.children.length > 5) term.removeChild(term.lastChild);
+        while (term.children.length > 6) term.removeChild(term.lastChild);
 
       } catch (err) {
         // Fail-safe silencioso
@@ -1046,7 +1264,7 @@
     window.addEventListener('load', () => {
       renderNetworkElements();
       updateCameraTransform();
-      inspectNode(NODES[8]); // Inspeccionar OB Lux 2H por defecto
+      inspectNode(NODES[4]); // Inspeccionar OB Lux 2H por defecto
       syncTensorTelemetry();
       setInterval(syncTensorTelemetry, 3500);
     });
