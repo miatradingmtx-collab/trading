@@ -250,7 +250,11 @@ ound_floats: se fija en 5 decimales mnimos para precios, Stop Loss, Take Profit 
 
   - Causa detectada: La falta de toma de parciales en el POC antes de la apertura de Nueva York provocaba que retrocesos institucionales cerraran posiciones en BE (.00), desperdiciando tramos ganadores de Londres.
 
-- **Estado de Pesos Machine Learning (mia_ml_history):**
+> [!NOTE]
+> **REGISTRO HISTÓRICO TEMPRANO (SEMANA 21-25 SEPTIEMBRE 2026 - SUPERADO):**
+> La siguiente lista de pesos refleja una etapa preliminar sobre muestras no representativas (12 a 16 trades). En octubre de 2026, tras auditar 687+ operaciones, se consagró la **Regla de Oro: Filtro Anti-Suerte Institucional (>= 50 trades)**, descartando `lux_algo_ob_8h` y `lux_algo_ob_4h` y fijando el Top 3 Canónico: 1. `rsi_sobrecompra_sobreventa` (67 trades | 83.58% WR | +$466.47), 2. `order_block_zona_2h` (158 trades | 80.38% WR), 3. `lux_algo_ob_2h` (106 trades | 61.32% WR).
+
+- **Estado de Pesos Machine Learning (mia_ml_history - Histórico Septiembre):**
 
   - order_block_zona_2h: WinRate 100.0% (12 ganados, 0 perdidos, PnL +.88).
 

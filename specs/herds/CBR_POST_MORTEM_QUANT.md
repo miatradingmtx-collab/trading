@@ -64,13 +64,18 @@ $$\text{ID:} \quad \mathbf{TRADE\_CASE\_<ticket\_mt5>\_<timestamp>}$$
 ---
 
 ## 3. FÓRMULA MATEMÁTICA DE PREMIO Y CASTIGO (REINFORCEMENT LEARNING)
-El Score de Recompensa Neta ($R_{trade}$) se calcula con asimetría cuantitativa:
+El Score de Recompensa Neta ($R_{trade}$) se calcula con asimetría cuantitativa y **PARTE OBLIGATORIAMENTE DE UNA BASE CANÓNICA DE $\pm 1.0R$**:
 
 $$R_{trade} = \begin{cases} 
-+1.0 \times \left(\frac{\text{PnL Real}}{\text{Riesgo Inicial}}\right) + 0.20 \times \left(\frac{\text{MFE}}{\text{Riesgo}}\right) & \text{si es GANADOR (Win)} \\
--1.5 \times \left(\frac{|\text{PnL Real}|}{\text{Riesgo Inicial}}\right) \times \left(1 + \frac{d}{1 - d}\right) & \text{si es PERDEDOR (Loss)} \\
-+0.15 \times \text{Buffer Spread} & \text{si es BREAK-EVEN (BE)}
++\max\left(1.0, \frac{\text{PnL Real}}{\text{Riesgo Inicial}}\right) \times 1.0 + 0.20 \times \left(\frac{\text{MFE}}{\text{Riesgo}}\right) & \text{si es GANADOR (Win) [Base mínima: }+1.0R\text{]} \\
+-\max\left(1.0, \frac{|\text{PnL Real}|}{\text{Riesgo Inicial}}\right) \times 1.5 \times \left(1 + \frac{d}{1 - d}\right) & \text{si es PERDEDOR (Loss) [Base mínima: }-1.5R \text{ a } -2.03R\text{]} \\
++0.15 \times \text{Buffer Spread} & \text{si es BREAK-EVEN (BE) [Respiro neutral]}
 \end{cases}$$
+
+> [!IMPORTANT]
+> **Fundamento Cuantitativo de la Base 1.0R:**
+> 1. **Premio Base $+1.0R$:** Ninguna victoria formal validada por los Herds recibe un premio fraccional débil; parte de $+1.0R$ para asegurar que el aprendizaje premie la confluencia institucional completa.
+> 2. **Castigo Base $-1.0R$ Amplificado:** Todo stop loss o pérdida parte de la penalización de $-1.0R$ base y se multiplica por $1.5 \times \left(1 + \frac{d}{1-d}\right)$. Bajo el drawdown actual ($-26.22\%$), el castigo real mínimo es de $\mathbf{-2.03R}$, penalizando severamente a los modelos que aprobaron operaciones en contra de la tendencia o en trampas de liquidez.
 
 ### Asignación de Crédito por Herd ($\Delta W_i$):
 - **Premio a la Confluencia Válida ($\text{Win}$):**

@@ -119,8 +119,21 @@ def fetch_swarm_context_mget(upstash_url: str, upstash_headers: dict, precios_sp
     tf_acc = float(tf_data.get("accuracy", 0.845) or 0.845)
     tf_trades = int(tf_data.get("trades_aprendidos", tf_data.get("trades_learned", 798)) or 798)
 
-    # 5. Parseo slot 4: Regla de 3
+    # 5. Parseo slot 4: Regla de 3 (Normalización de alias de campos)
     r3_data = _parse_slot(4, {})
+    if isinstance(r3_data, dict):
+        for k in ["top_1", "top_2", "top_3"]:
+            item = r3_data.get(k)
+            if isinstance(item, dict):
+                ind = item.get("indicador") or item.get("nombre")
+                wr = item.get("win_rate_asociado") or item.get("win_rate_pct")
+                tr = item.get("trades_muestra") or item.get("total_trades")
+                item["indicador"] = ind
+                item["nombre"] = ind
+                item["win_rate_asociado"] = wr
+                item["win_rate_pct"] = wr
+                item["trades_muestra"] = tr
+                item["total_trades"] = tr
 
     # 6. Parseo slot 5: CBR Precedentes
     cbr_raw = _parse_slot(5, [])

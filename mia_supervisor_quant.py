@@ -351,7 +351,9 @@ class MiaQuantSupervisor:
         factor_asimetria = round(1.0 / (1.0 - d_frac), 2) if d_frac < 1.0 else 1.0
 
         if profit > 0:
-            recompensa_neta = round((profit / riesgo_base_usd) * 1.0, 2)
+            # Mandato Canónico: Todo WIN parte de como mínimo +1.0R (o ratio superior si superó 1:1)
+            r_win_base = max(1.0, round(profit / riesgo_base_usd, 2) if riesgo_base_usd > 0 else 1.0)
+            recompensa_neta = round(r_win_base * 1.0, 2)
             delta_weights = {
                 "herd_1_tidal": 0.05,
                 "herd_2_noro": 0.08,
@@ -363,7 +365,9 @@ class MiaQuantSupervisor:
             }
             tipo_resultado = "PREMIO_GANADOR"
         elif profit < 0:
-            recompensa_neta = round((-abs(profit) / riesgo_base_usd) * 1.5 * factor_asimetria, 2)
+            # Mandato Canónico: Todo LOSS parte de como mínimo -1.0R base, amplificado por asimetría D/(1-D)
+            r_loss_base = max(1.0, round(abs(profit) / riesgo_base_usd, 2) if riesgo_base_usd > 0 else 1.0)
+            recompensa_neta = round(-1.0 * r_loss_base * 1.5 * factor_asimetria, 2)
             delta_weights = {
                 "herd_1_tidal": -0.05,
                 "herd_2_noro": -0.05,

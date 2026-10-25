@@ -1,19 +1,60 @@
 # DOCUMENTACION CORE - BACK-OFFICE INFRAESTRUCTURA
+
+---
+tags:
+  - arquitectura
+  - documentacion-core
+  - hft
+  - ops-infraestructura
+  - upstash-redis
+  - firebase-cbr
+fecha_actualizacion_maestra: 2026-10-25
 ---
 
-tags:
+# 🏛️ CONSTITUCIÓN CANÓNICA VIGENTE Y HOMOLOGADA (25 DE OCTUBRE DE 2026)
 
-  - arquitectura
+> [!IMPORTANT]
+> **ESTADO OFICIAL DE LA BASE DE CONOCIMIENTO (OCTUBRE 2026):**
+> Toda la infraestructura técnica de Mia, microservicios en Railway, slots en Upstash Redis y colecciones en Firebase se rigen de forma obligatoria por los siguientes parámetros constitucionales validados:
 
-  - documentacion-core
+### 1. Regla de 3 Canónica Vigente (Filtro Anti-Suerte Institucional >= 50 Trades)
+- **Top 1:** `rsi_sobrecompra_sobreventa` (67 trades | 83.58% Win Rate | +$466.47 PnL | **Peso 35**)
+- **Top 2:** `order_block_zona_2h` (158 trades | 80.38% Win Rate | -$39.22 PnL | **Peso 30**)
+- **Top 3:** `lux_algo_ob_2h` (106 trades | 61.32% Win Rate | +$113.76 PnL | **Peso 25**)
+- **Cláusula de Descarte de Racha Temprana:** Indicadores como `lux_algo_ob_8h` y `lux_algo_ob_4h` que aparecían en registros tempranos de septiembre con 94% u 86% de WinRate fueron descartados formalmente por contar con muestras no representativas (< 20 trades). La Regla de 3 sólo admite confluencias con significancia estadística comprobada ($\ge 50$ trades reales auditados).
 
-  - hft
+### 2. Telemetría Financiera Real y Verdad Contable MT5 (Saldo Base $5,000 USD)
+- **Capital Inicial Base Original:** `$5,000.00 USD`
+- **Balance Actual Auditado MT5:** `$3,688.80 USD` | **Equity Actual:** `$3,696.78 USD`
+- **Drawdown Base Acumulado:** `-$1,311.20 USD` (**-26.22%** vs Base $5,000 USD)
+- **Recuperación Asimétrica Requerida (Ley D / (1 - D)):**
+  $$R_{recup} = \frac{d}{1 - d} \times 100 = \frac{1,311.20}{3,688.80} \times 100 = \mathbf{+35.55\%}$$
+- **Factor de Asimetría Contable:** `1.3558x`
+- **Estado Oficial de la Cuenta:** `ESTADO DE LA CUENTA: EN RECUPERACIÓN / BAJO DRAWDOWN SEVERO ACUMULADO (-$1,311.20 USD / -26.22% vs Base $5,000)`
 
-  - webhook
+### 3. Portafolio Oficial Hermético (5 Live MT5 + 1 Sandbox NZDCAD)
+- **5 Pares Oficiales en Vivo MT5:** `EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`.
+- **1 Par Oficial en Sandbox (Shadow Mode):** `NZDCAD` (modo experimental y entrenamiento continuo; estrictamente 0 ejecuciones al broker real).
 
-  - multi-agentes
+### 4. Catálogo Homologado de los 11 Slots Canónicos en Upstash Redis
+1. `cache_mt5`: Telemetría contable en vivo, balance, equity, drawdown base $5,000, factor de asimetría $D/(1-D)$.
+2. `cache_trading_matrix`: Matriz multiactivo con los 6 pares oficiales autorizados.
+3. `cache_cvol_latest`: Matriz de Energía Integral CVOL $\int [F_A - F_B]dx + C(t)$ en 5 temporalidades (1H a 8H).
+4. `cache_dxy_smt_latest`: Sensor macro DXY, divergencias institucionales SMT y flag de veto de TIDAL.
+5. `cache_vector_indicadores`: Matriz tensorial sináptica 22D homologada en tiempo real para TensorFlow.
+6. `cache_trading_learning_kb`: Memoria CBR en RAM con los 50 casos precedentes para consulta sub-35ms.
+7. `cache_herd_debate_latest`: Veredicto, quórum calificado ($S_{master} \ge 0.70$) y votos de los 7 Herds.
+8. `cache_mia_swarm_rest_latest`: Resumen unificado de deliberación HFT para transmisión WebSocket y ChatOps.
+9. `cache_regla_de_3`: Configuración estricta del Top 3 validado con filtro anti-suerte $\ge 50$ trades.
+10. `cache_mia_tensorflow`: Precisión neuronal continua (60.3%), 798 trades aprendidos y pesos en base64.
+11. `cache_mia_atlas`: Microestructura CME Tape+ (6E, 6B, 6J, GC), CVD Delta direccional y mapa de resting liquidity.
 
-fecha: 2026-08-25
+### 5. Fórmula Canónica de Premio (+R) y Castigo (-R) RL (Parte Obligatoriamente de $\pm 1.0R$)
+$$R_{trade} = \begin{cases} 
++\max\left(1.0, \frac{\text{PnL Real}}{\text{Riesgo Inicial}}\right) \times 1.0 & \text{si es GANADOR (Win) [Base mínima: }+1.0R\text{]} \\
+-\max\left(1.0, \frac{|\text{PnL Real}|}{\text{Riesgo Inicial}}\right) \times 1.5 \times \left(1 + \frac{d}{1 - d}\right) & \text{si es PERDEDOR (Loss) [Base mínima: }-1.5R \text{ a } -2.03R\text{]} \\
++0.15 \times \text{Buffer Spread} & \text{si es BREAK-EVEN (BE) [Respiro neutral]}
+\end{cases}$$
 
 ---
 
@@ -167,7 +208,10 @@ ailway_cache_tool. Esta compresin redujo el peso del JSON de 54,000 a ~5,000 car
 
 - **Optimizaciones:** Freno de mano removido. Reduccin de latencia de Criosueo de 60s a 15s. Esto eleva la frecuencia del algoritmo a 4 RPM, operando en "tiempo real" sin sobrepasar el lmite de 429 Too Many Requests de OpenRouter. Sincronizacin estricta de Criosueo con el cierre del mercado Forex (Viernes 17:00 EST a Domingo 17:00 EST).
 
-### [Update 2026-09-25 - Sesin 5] - Homologacin de Regla de 3 y Auditora de Trades del Broker
+### [Histórico Sesión 5 - 2026-09-25 (SUPERADO)] - Homologación de Regla de 3 Temprana (Previa al Filtro Anti-Suerte)
+
+> [!WARNING]
+> **REGISTRO HISTÓRICO OBSOLETO / SUPERADO:** Los valores listados a continuación (`order_block_zona_2h 100%`, `lux_algo_ob_8h 94%`, `lux_algo_ob_4h 86%` y balance `$4,325.09`) corresponden a una calibración temprana de septiembre de 2026 sobre muestras pequeñas (< 20 trades). Esta configuración fue formalmente REVOCADA y REEMPLAZADA en octubre de 2026 por el **Filtro Anti-Suerte Institucional (>= 50 trades)**. Consultar la sección constitucional en la cabecera de este documento para los pesos y métricas vigentes.
 
 - **Resolucin de Discrepancia en mia_kb/regla_de_3:**
 
