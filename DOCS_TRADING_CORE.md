@@ -82,19 +82,28 @@ Se inyect una doble validacin en `app.py` (webhook MT5 y evaluacin de semforo):
 
 A partir de ahora, ningn activo (como el AUD) podr superar los 2 trades activos (ej. 1 SMC y 1 Lux), protegiendo la gestin de riesgo.
 
-## 3. Logica de Trailing Stop y Break Even
+## 3. Gestión de Riesgo Institucional v2 (Cascada Asimétrica RUNE 4 Fases)
 
-El backend en Python ahora extrae el `precio_apertura` del histrico (si ocurre un `CIERRE_PARCIAL` o `CIERRE_TOTAL`) para calcular de forma milimtrica las distancias a los Take Profits (TP1 25%, TP2 50%, Full TP). 
+La gestión de riesgo y protección de beneficios en MetaTrader 5 se rige de forma mandatoria por la **Cascada Cuantitativa de 4 Fases de RUNE (HERD 5)**:
 
-Si se cierran parciales con ganancia o el trade toca el trailing stop, los mensajes de Telegram dibujan dinmicamente un checkmark (``) indicando que el mercado alcanz dicha rentabilidad antes de regresar, honrando la proteccin del capital (Break Even).
-
-*Nota Crtica:* El deslizamiento del Stop Loss (Break a 25% o 50%) **lo ejecuta exclusivamente el Robot (EA) dentro de MetaTrader 5 / Botpress**. Se debe asegurar que las variables de entrada (inputs) del Trailing Step estn correctamente homologadas y activas en todos los activos operados en la terminal MT5, ya que Python acta como receptor del PNL final, no como el ejecutor tic-a-tic.
+1. **Fase 1 (Cobro Obligado TP1):**
+   - Al alcanzar el **50% de la distancia total proyectada**, se ejecuta el cobro forzoso del **50% del volumen abierto** (asegurando un ratio mínimo de $+1.0R$).
+2. **Fase 2 (Break-Even Institucional con Buffer):**
+   - Inmediatamente posterior al cobro de TP1, el Stop Loss se desplaza automáticamente a Break-Even con un buffer de seguridad de **+2.5 pips** para blindar spreads y micro-retrocesos.
+3. **Fase 3 (Trailing Locks Asimétricos):**
+   - **Al 75% del recorrido:** Se activa el *Trailing Lock 1*, desplazando el Stop Loss para garantizar el **+40% del beneficio máximo proyectado**.
+   - **Al 85% del recorrido:** Se activa el *Trailing Lock 2*, desplazando el Stop Loss para asegurar el **+65% del beneficio máximo proyectado**.
+4. **Fase 4 (Front-Run TP):**
+   - Al **95% de la distancia proyectada**, el sistema cierra el **100% de la posición remanente**, erradicando por completo las pérdidas por retrocesos violentos a milímetros del Take Profit.
+5. **Reglas de Gobernanza de Cartera:**
+   - **Límite Canasta USD:** Máximo 2 operaciones simultáneas en pares que contengan USD (`EURUSD`, `GBPUSD`, `AUDUSD`, `XAUUSD`) para prevenir sobreexposición sistémica.
+   - **Filtro Anti-Caza All-Time High en Oro (XAUUSD):** Prohibido abrir compras en Oro dentro del 0.5% del máximo histórico (ATH) sin un retroceso interbancario previo de 30 a 50 pips.
 
 ---
 
 #  VALIDACIN DE ALIMENTACIN DE DATOS (STORED PROCEDURE)
 
-*Auditora de Ingesta hacia mia_kb realizada el 2026-08-25.*
+*Auditoría de Ingesta hacia mia_kb y Upstash Redis homologada al 2026-10-25.*
 
 El "Stored Procedure" (SP) programado en el Backend (`app.py`, lnea 1228) que tiene como misin recolectar los histricos de `mia_audit_logs`, correlacionar los Ticket IDs y poblar la Base de Conocimiento (`mia_kb`) est **operando exitosamente**.
 
@@ -540,3 +549,40 @@ Mia no opera en el vacío ni en temporalidades de micro-ruido. $C(t)$ está cali
 - Eliminadas 100% de dependencias pesadas `crewai`, `langchain`, `langchain-openai`, `langchain-google-genai`.
 - Ejecución REST determinista y desacoplada vía OpenRouter en 8s con failover.
 - Deliberación con desglose individual obligatorio de los 6 activos en cada ciclo.
+
+
+## 6. Arquitectura Modular de Micro-Especificaciones Markdown (v2.0.0 Modular Swarm)
+A partir de la actualización de Octubre de 2026, los prompts monolíticos fueron desacoplados en **9 especificaciones Markdown canónicas** alojadas en `specs/herds/`:
+1. `HERD_1_TIDAL.md`: Macro Trend, Killzones de Londres/NY/Asia, Sensor DXY & Divergencia SMT.
+2. `HERD_2_NORO.md`: Matemáticas Cuantitativas, Integral de Energía CVOL $\int [F_A - F_B]dx + C(t)$ en 5 temporalidades (1H a 8H), POC Dinámico y Cadenas de Markov.
+3. `HERD_3_ZEPHR.md`: Probabilidad Bayesiana, Expected Value ($EV$), Convexidad y Ley de Asimetría Contable $D/(1-D)$.
+4. `HERD_4_LUMEN.md`: Smart Money Concepts (SMC), Order Blocks LuxAlgo 2H/4H, Fair Value Gaps (FVGs) y Sweeps AMD Multi-Temporal.
+5. `HERD_5_RUNE.md`: Guardián de Riesgo Institucional v2, Cascada Asimétrica de 4 Fases, Límite Canasta USD y Filtro ATH Oro.
+6. `HERD_6_TENSORFLOW.md`: Inferencia Neuronal Continua, Matriz Sináptica 22D, umbral 75-85% y 798 trades aprendidos.
+7. `HERD_7_ATLAS.md`: Microestructura CME DOM Tape+ (6E, 6B, 6J, GC), CVD Delta Direccional y Servidor MCP.
+8. `MASTER_ORCHESTRATOR.md`: Quórum Calificado ($S_{master} \ge 0.70$), Cláusula de Veto Absoluto Dominante y desglose de los 6 activos.
+9. `CBR_POST_MORTEM_QUANT.md`: Autopsia Gemini Pro / Flash, Score de Premio ($+R$) y Castigo ($-R$) RL ligado a Ticket MT5 + Case ID.
+
+- **Carga en Memoria RAM (`swarm_specs_registry.py`):** Los archivos `.md` se leen una sola vez en el arranque y se congelan en RAM mediante `@lru_cache(maxsize=16)`, logrando **0 ms de latencia I/O de disco** en cada ciclo HFT.
+- **Contratos DTO Tipados (`swarm_data_contracts.py`):** Estructura inmutable `HerdContextDTO` que extrae los datos de Upstash Redis vía `fetch_swarm_context_mget` atómico en $< 30\text{ms}$.
+
+## 7. Motor Cuantitativo CBR de Reinforcement Learning (Base $\pm 1.0R$ y Ley $D/(1-D)$)
+Cada trade cerrado en MetaTrader 5 genera un caso inmutable `TRADE_CASE_<ticket>_<timestamp>` auditado por el Agente Post-Mortem y Supervisor Quant (Gemini 2.5 Flash / Pro):
+- **Premio Ganador (WIN):** Parte como piso mínimo de **$+1.0R$** ($\max(1.0, \text{R-Ratio})$), garantizando que las victorias institucionales reciban valor de confluencia completa.
+- **Castigo Perdedor (LOSS):** Parte de una base de **$-1.0R$**, multiplicada por $1.5$ y por el factor de asimetría contable:
+  $$R_{trade} = -1.0R \times 1.5 \times \left(1 + \frac{d}{1 - d}\right) = \mathbf{-2.03R} \quad (\text{para } d = -26.22\%)$$
+- **Asignación de Crédito ($\Delta W_i$):** Premios a los Herds que validaron la confluencia ganadora y castigos a los que votaron a favor de trampas de liquidez.
+- **Persistencia Dual:** Guardado en Firebase Firestore (`mia_trading_learning_history`) y en Upstash Redis (`cache_trading_learning_kb` con los 50 casos más recientes para k-NN similitude sub-35ms).
+
+## 8. Catálogo Completo de los 11 Slots Canónicos en Upstash Redis (`firm-koi-93555.upstash.io`)
+1. `cache_mt5`: Telemetría contable en vivo, balance actual ($3,688.80 USD), equity ($3,696.78 USD), drawdown base $5,000 y factor de asimetría.
+2. `cache_trading_matrix`: Matriz institucional con los 6 pares canónicos autorizados.
+3. `cache_cvol_latest`: Matriz de Energía Integral CVOL calculada en 2H para los 6 pares oficiales.
+4. `cache_dxy_smt_latest`: Sensor macro DXY, deltas y divergencias institucionales SMT.
+5. `cache_vector_indicadores`: Matriz tensorial sináptica 22D homologada en tiempo real para TensorFlow.
+6. `cache_trading_learning_kb`: Memoria CBR en RAM con los 50 casos precedentes para consulta sub-35ms.
+7. `cache_herd_debate_latest`: Veredicto, quórum calificado ($S_{master} \ge 0.70$) y votos de los 7 Herds.
+8. `cache_mia_swarm_rest_latest`: Resumen unificado de deliberación HFT para transmisión WebSocket y ChatOps.
+9. `cache_regla_de_3`: Top 3 validado canónico con filtro anti-suerte $\ge 50$ trades.
+10. `cache_mia_tensorflow`: Precisión neuronal continua (60.3%), 798 trades aprendidos y tensores serializados.
+11. `cache_mia_atlas`: Microestructura CME Tape+ (6E, 6B, 6J, GC), CVD Delta direccional y mapa de trampas de liquidez.

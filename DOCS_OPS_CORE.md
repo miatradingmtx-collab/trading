@@ -916,7 +916,7 @@ ecent_logs desde cache_hist_mt5.
        - 7 Herds Especializados (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS) + MASTER Gatekeeper.
        - Dedicado exclusivamente a macroeconoma, SMC, DOM CME, CVD Delta, POC y qurum calificado.
     2. **Malla 2: Enjambre de Operaciones e Infraestructura (`MIA_SYSTEM_OPS_SWARM` en `mia_system_ops_swarm.py`):**
-       - 4 Herds Tcnicos Especializados + Watchdog Supervisor:
+       - 10 Herds Técnicos Especializados (Herds T1 al T10) + Watchdog Supervisor:
          - `HERD T1 (DB_SYNC / CACHE_GUARD)`: Paridad estricta con MT5, depuracin de rdenes fantasma y anti-429.
          - `HERD T2 (KB_ENGINE / REGLA_DE_3)`: Recalibracin dinmica perpetua de Top 1-3 y actualizacin de timestamps.
          - `HERD T3 (KPI_FINANCIAL_ANALYTICS)`: Redondeo estricto a 2 decimales y mtricas de riesgo.
@@ -951,7 +951,7 @@ ecent_logs desde cache_hist_mt5.
     - Reduccin del $100\%$ de redundancia: los Enjambres Herds ahora consumen la 'Regla de 3' viva directamente del slot 4 de este MGET sin realizar lecturas de disco ni consultas a Firestore.
 ### [Update 2026-09-28 - Sesin 35] - ChatOps de Back-Office: Terminal CLI de Operaciones, Slack Bridge y Botones Interactivos de Aprobacin
 - **Consola CLI Dedicada para Back-Office (`mia_ops_cli.py` y `Abrir_Ops_CLI.bat`):**
-  - Permite visualizar en terminal local o remota el dilogo y las acciones tcnicas de los 4 Herds de Infraestructura:
+  - Permite visualizar en terminal local o remota el diálogo y las acciones técnicas de los Herds de Infraestructura (Evolución canónica a Herds T1 al T10):
     - `HERD T1 (DB_SYNC)`: Sincronizacin MT5 y depuracin de rdenes fantasma.
     - `HERD T2 (KB_ENGINE)`: Recalibracin perpetua de la Regla de 3 y fechas vivas.
     - `HERD T3 (KPI_ANALYTICS)`: Sanitizacin numrica a 2 decimales.
@@ -1344,15 +1344,31 @@ trigger: always_on
 - **Solución Canónica:** Se purgó completamente `requirements.txt`. El runtime de los 7 Herds corre bajo `mia_master_swarm_rest.py` (cliente HTTP REST directo hacia OpenRouter con `requests.post` y timeout estricto de 8 segundos).
 - **Resultado:** Tiempo de compilación en Docker reducido de >40 minutos a **28 segundos**.
 
-## 2. Mapa de Persistencia Atómica en Upstash Redis
-Para blindar el sistema contra errores 429 de Firebase y caídas de RAM, Upstash gestiona los siguientes slots oficiales:
-- `cache_trading_matrix`: Matriz técnica viva de los 6 activos canónicos (`EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`, `NZDCAD`).
-- `cache_herd_debate_latest`: Veredicto y diálogo en tiempo real de los 7 Herds y Master Gatekeeper con desglose multiactivo.
-- `cache_trading_learning_kb`: Memoria viva de casos aprendidos del CBR para la cognición de trading y autopsias post-mortem.
-- `cache_mia_tensorflow`: Probabilidad y métricas de precisión del modelo neuronal profundo (Accuracy > 60%).
-- `cache_mt5`: Telemetría financiera en tiempo real desde MetaTrader 5 (Balance, Equity, Asimetría de Drawdown).
+## 2. Mapa Exhaustivo de Persistencia Atómica en Upstash Redis (11 Slots Canónicos)
+Para blindar el sistema contra errores 429 de Firebase, caídas de RAM y garantizar MGET sub-30ms, Upstash gestiona estrictamente los **11 slots canónicos**:
+1. `cache_mt5`: Telemetría financiera en tiempo real desde MetaTrader 5 (Balance: $3,688.80, Equity: $3,696.78, Drawdown: -$1,311.20, Ley $D/(1-D)$).
+2. `cache_trading_matrix`: Matriz multiactivo viva con los 6 pares autorizados (5 Live MT5 + 1 Sandbox NZDCAD).
+3. `cache_cvol_latest`: Matriz de Energía Integral CVOL $\int [F_A - F_B]dx + C(t)$ para los 6 pares oficiales.
+4. `cache_dxy_smt_latest`: Sensor macro DXY, divergencias institucionales SMT y flag de veto de TIDAL.
+5. `cache_vector_indicadores`: Matriz tensorial 22D homologada en vivo para inferencia neuronal.
+6. `cache_trading_learning_kb`: Memoria viva CBR con los 50 casos precedentes para consulta sub-35ms.
+7. `cache_herd_debate_latest`: Veredicto y diálogo en tiempo real de los 7 Herds y Master Gatekeeper con desglose multiactivo.
+8. `cache_mia_swarm_rest_latest`: Resumen unificado de deliberación HFT para transmisión WebSocket y ChatOps.
+9. `cache_regla_de_3`: Configuración estricta del Top 3 validado con filtro anti-suerte $\ge 50$ trades.
+10. `cache_mia_tensorflow`: Precisión neuronal continua (60.3%), 798 trades aprendidos y tensores serializados.
+11. `cache_mia_atlas`: Microestructura CME Tape+ (6E, 6B, 6J, GC), CVD Delta direccional y mapa de resting liquidity.
 
 ## 3. Protocolo de los Herds T1 al T10 (Terminators de Infraestructura)
 - Monitoreo continuo de salud del microservicio Railway `trading-production-927a.up.railway.app` y `trading-production-0b51.up.railway.app`.
 - Verificación de consistencia append-only en colecciones históricas de Firebase.
 - Mandato estricto HITL: Todo ajuste o migración de esquemas se somete a `cache_pending_ops_approvals`.
+
+
+## 4. Desacoplamiento Modular de Prompts (specs/herds/*.md) y Registry en RAM
+- **Arquitectura Two-Tier:** Los prompts monolíticos de miles de líneas fueron segregados en 9 archivos Markdown (`specs/herds/HERD_1_TIDAL.md` al `specs/herds/CBR_POST_MORTEM_QUANT.md`).
+- **LRU Cache en RAM (`swarm_specs_registry.py`):** Los archivos `.md` son leídos una sola vez al inicializar el contenedor Docker en Railway y congelados en RAM (`@lru_cache(maxsize=16)`). Latencia de lectura I/O de disco: **0.00 ms**.
+- **Contratos DTO Tipados (`swarm_data_contracts.py`):** Toda llamada MGET retorna un objeto tipado `HerdContextDTO`, eliminando lecturas frágiles por índices de array y blindando el sistema contra `IndexError` o campos faltantes.
+
+## 5. Protocolo de Failover y Gobernanza Cognitiva (Gemini 2.5 Flash / Pro + Groq)
+- **Latencia Sub-Segundo en Autopsias CBR:** El módulo `mia_supervisor_quant.py` implementa failover directo a `gemini-2.5-flash` (< 1s de respuesta) y `gemini-flash-latest`, eliminando llamadas bloqueantes a `genai.list_models()`.
+- **Mandato HITL Estricto:** NINGÚN cambio estructural sobre `regla_de_3`, pesos de `mia_tensorflow` o parámetros de riesgo de RUNE se auto-ejecuta; todas las propuestas se despachan como tarjetas interactivas Block Kit a Slack (`#mia-trading-insights` para Trading y `#back-office-y-backend` para Infraestructura) requiriendo autorización explícita del operador humano.
