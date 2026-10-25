@@ -181,31 +181,21 @@ class MiaQuantSupervisor:
 
         texto = None
 
-        # Intento 1: SDK oficial Google Generative AI
+        # Intento 1: SDK oficial Google Generative AI (Failover agil sin bloqueo list_models)
         if genai and gemini_api_key:
-            try:
-                genai.configure(api_key=gemini_api_key)
-                target_model_name = 'gemini-1.5-pro'
+            for target_model_name in ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"]:
                 try:
-                    models_available = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                    if 'models/gemini-1.5-pro' in models_available:
-                        target_model_name = 'gemini-1.5-pro'
-                    elif 'models/gemini-flash-latest' in models_available:
-                        target_model_name = 'gemini-flash-latest'
-                    elif 'models/gemini-flash-lite-latest' in models_available:
-                        target_model_name = 'gemini-flash-lite-latest'
-                except Exception:
-                    target_model_name = 'gemini-1.5-pro'
-
-                model = genai.GenerativeModel(target_model_name, generation_config={"temperature": 0.2, "max_output_tokens": 2500})
-                resp = model.generate_content(prompt)
-                texto = resp.text
-            except Exception as e_sdk:
-                print(f"| QUANT SUPERVISOR | SDK Gemini error: {e_sdk}, probando REST...")
-
+                    genai.configure(api_key=gemini_api_key)
+                    model = genai.GenerativeModel(target_model_name, generation_config={"temperature": 0.2, "max_output_tokens": 2500})
+                    resp = model.generate_content(prompt)
+                    texto = resp.text
+                    if texto:
+                        break
+                except Exception as e_sdk:
+                    print(f"| QUANT SUPERVISOR | SDK Gemini ({target_model_name}) error: {e_sdk}")
         # Intento 2: REST Gemini Directo
         if not texto and gemini_api_key:
-            for m in ["gemini-1.5-pro", "gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.5-flash"]:
+            for m in ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"]:
                 try:
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={gemini_api_key}"
                     r = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2500}}, timeout=15)
