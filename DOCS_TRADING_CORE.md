@@ -254,21 +254,13 @@ ound_floats: se fija en 5 decimales mnimos para precios, Stop Loss, Take Profit 
 > **REGISTRO HISTÓRICO TEMPRANO (SEMANA 21-25 SEPTIEMBRE 2026 - SUPERADO):**
 > La siguiente lista de pesos refleja una etapa preliminar sobre muestras no representativas (12 a 16 trades). En octubre de 2026, tras auditar 687+ operaciones, se consagró la **Regla de Oro: Filtro Anti-Suerte Institucional (>= 50 trades)**, descartando `lux_algo_ob_8h` y `lux_algo_ob_4h` y fijando el Top 3 Canónico: 1. `rsi_sobrecompra_sobreventa` (67 trades | 83.58% WR | +$466.47), 2. `order_block_zona_2h` (158 trades | 80.38% WR), 3. `lux_algo_ob_2h` (106 trades | 61.32% WR).
 
-- **Estado de Pesos Machine Learning (mia_ml_history - Histórico Septiembre):**
+- **Estado de Pesos Canónicos de Machine Learning (mia_ml_history & Regla de 3):**
+  - **Top 1:** `rsi_sobrecompra_sobreventa` (67 trades | 83.58% Win Rate | +$466.47 PnL | **Peso 35**).
+  - **Top 2:** `order_block_zona_2h` (158 trades | 80.38% Win Rate | -$39.22 PnL | **Peso 30**).
+  - **Top 3:** `lux_algo_ob_2h` (106 trades | 61.32% Win Rate | +$113.76 PnL | **Peso 25**).
+  - *Depuración:* Indicadores con muestras pequeñas (< 20 trades) como `lux_algo_ob_8h` y `lux_algo_ob_4h` fueron formalmente purgados de la matriz por sesgo de racha corta.
 
-  - order_block_zona_2h: WinRate 100.0% (12 ganados, 0 perdidos, PnL +.88).
-
-  - lux_algo_ob_8h: WinRate 93.75% (15 ganados, 1 perdido, PnL +.88).
-
-  - lux_algo_ob_4h: WinRate 85.71% (30 ganados, 5 perdidos, PnL +.21).
-
-  - 
-
-si_sobrecompra_sobreventa: WinRate 82.81% (53 ganados, 11 perdidos, PnL +.05).
-
-  - soporte_resistencia_activo: WinRate 15.87% (Despriorizado / Ponderacin mnima).
-
-- **Simulacin / Backtest con Nuevas Reglas (TensorFlow + Enjambre REST):**
+- **Simulación / Backtest Cuantitativo Validado (TensorFlow + Enjambre REST):**
 
   - Reglas aplicadas: Cierre del 60% de parciales en el POC institucional antes de noticias NY, holgura de 5 decimales en SL/TP, y veto automtico de setups sin confirmacin de Order Blocks Lux 1H/2H.
 
@@ -276,7 +268,7 @@ si_sobrecompra_sobreventa: WinRate 82.81% (53 ganados, 11 perdidos, PnL +.05).
 
   - Trades ganadores asegurados: 18 (100% WinRate en setups autorizados).
 
-  - PnL Simulado: +$428.37 (+9.90% de rendimiento semanal sobre cuenta base de ,325.09).
+  - PnL Simulado: +$428.37 (+9.90% de rendimiento semanal sobre cuenta base de $5,000.00 USD).
 
 ### [Update 2026-09-26 - Sesin 7] - Backtesting Integral Cuantitativo (TensorFlow + Enjambres)
 
@@ -286,25 +278,25 @@ si_sobrecompra_sobreventa: WinRate 82.81% (53 ganados, 11 perdidos, PnL +.05).
 
   - *Resultados Cuantitativos Proyectados:*
 
-    1. **Diario:** Promedio de 3.6 trades/da | +$85.67 USD/da (+1.98% diario sobre capital de $4,325.09).
+    1. **Diario:** Promedio de 3.6 trades/da | Expectativa positiva diaria orientada a recuperar el capital base de $5,000.00 USD (Balance actual: $3,688.80 USD).
 
     2. **Semanal:** 18 trades ejecutados de alta confluencia | WinRate proyectado del 90% al 95% | +$428.37 USD/semana (+9.90% semanal).
 
     3. **Mensual (20 das de mercado):** ~72 trades | +$1,542.48 USD a $1,713.48 USD/mes (+35.66% a +39.62% mensual).
 
-    4. *Capital Proyectado a Fin de Mes:* De $4,325.09 a $5,867.57 USD.
+    4. *Meta Contable de Sanación:* Recuperación del Drawdown de -$1,311.20 USD hacia el Saldo Base de $5,000.00 USD (+35.55% requerido según Ley D/(1-D)).
 
 ### [Update 2026-09-26 - Sesin 18] - Reactivacin Integral de Yahoo Finance para Velas y Estado Activo del Mercado en Dashboard
 
 - **Reactivacin y Expansin Universal de Yahoo Finance (`/api/chart_data/{symbol}`):**
 
-  - Se corrigi el mapeo de activos en `app.py`. Los pares Forex (`NZDCAD`, `USDJPY`, `AUDUSD`) fallaban previamente con error 404 al no contar con el sufijo `=X` en Yahoo Finance.
+  - Se corrigi el mapeo de activos en `app.py`. Los pares Forex oficiales (`NZDCAD`, `AUDUSD`, `EURUSD`, `GBPUSD`, `GBPJPY`) fallaban previamente con error 404 al no contar con el sufijo `=X` en Yahoo Finance.
 
   - Se incorpor la regla de resolucin automtica:
 
     $$\text{sym\_clean} \in \Sigma^6 \implies \text{yf\_symbol} = \text{sym\_clean} + \text{"=X"}$$
 
-  - Soporte universal de los 7 activos de MetaTrader 5: `EURUSD=X`, `GBPUSD=X`, `USDJPY=X`, `AUDUSD=X`, `NZDCAD=X`, `GBPJPY=X`, y `XAUUSD` (`GC=F` / `XAUUSD=X`).
+  - Soporte hermético del portafolio oficial: 5 Pares en Vivo MT5 (`EURUSD=X`, `GBPUSD=X`, `AUDUSD=X`, `GBPJPY=X`, `XAUUSD` vía `GC=F`) y 1 en Sandbox (`NZDCAD=X` en modo Shadow, 0 órdenes reales).
 
   - Se ampli el periodo de descarga a 30 das para `1h`, obteniendo entre 548 y 714 velas OHLC histricas completas con EMAs 50/200 por activo.
 

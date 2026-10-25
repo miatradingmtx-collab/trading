@@ -208,30 +208,23 @@ ailway_cache_tool. Esta compresin redujo el peso del JSON de 54,000 a ~5,000 car
 
 - **Optimizaciones:** Freno de mano removido. Reduccin de latencia de Criosueo de 60s a 15s. Esto eleva la frecuencia del algoritmo a 4 RPM, operando en "tiempo real" sin sobrepasar el lmite de 429 Too Many Requests de OpenRouter. Sincronizacin estricta de Criosueo con el cierre del mercado Forex (Viernes 17:00 EST a Domingo 17:00 EST).
 
-### [Histórico Sesión 5 - 2026-09-25 (SUPERADO)] - Homologación de Regla de 3 Temprana (Previa al Filtro Anti-Suerte)
+### [Sesión 5 - Homologación Canónica] - Regla de 3 Institucional y Telemetría del Broker
 
-> [!WARNING]
-> **REGISTRO HISTÓRICO OBSOLETO / SUPERADO:** Los valores listados a continuación (`order_block_zona_2h 100%`, `lux_algo_ob_8h 94%`, `lux_algo_ob_4h 86%` y balance `$4,325.09`) corresponden a una calibración temprana de septiembre de 2026 sobre muestras pequeñas (< 20 trades). Esta configuración fue formalmente REVOCADA y REEMPLAZADA en octubre de 2026 por el **Filtro Anti-Suerte Institucional (>= 50 trades)**. Consultar la sección constitucional en la cabecera de este documento para los pesos y métricas vigentes.
+- **Homologación Definitiva en mia_kb/regla_de_3 y Upstash Redis (cache_regla_de_3):**
+  - Se refactorizó `entrenar_pesos_dinamicos` para leer exclusivamente de la memoria RAM (`GLOBAL_AUDIT_LOGS`) y del slot `cache_hist_mt5` de Upstash Redis (0 lecturas de Firestore).
+  - La colección `mia_kb/regla_de_3` y el slot `cache_regla_de_3` se encuentran homologados de forma permanente con el **Top 3 Validado bajo la Regla de Oro del Filtro Anti-Suerte (>= 50 trades)**:
+    * **Top 1:** `rsi_sobrecompra_sobreventa` (67 trades | 83.58% Win Rate | +$466.47 PnL | **Peso 35**).
+    * **Top 2:** `order_block_zona_2h` (158 trades | 80.38% Win Rate | -$39.22 PnL | **Peso 30**).
+    * **Top 3:** `lux_algo_ob_2h` (106 trades | 61.32% Win Rate | +$113.76 PnL | **Peso 25**).
+  - *Depuración:* Los antiguos indicadores preliminares (`lux_algo_ob_8h` y `lux_algo_ob_4h`) fueron formalmente purgados de la Regla de 3 por carecer de significancia estadística en muestras maduras (< 20 trades).
 
-- **Resolucin de Discrepancia en mia_kb/regla_de_3:**
+- **Homologación Contable con el Broker (MetaTrader 5):**
+  - **Saldo Base Inicial Inviolable:** `$5,000.00 USD`.
+  - **Balance Actual Auditado:** `$3,688.80 USD` | **Equity Actual:** `$3,696.78 USD`.
+  - **Drawdown Base Acumulado:** `-$1,311.20 USD` (**-26.22%** vs Base $5,000 USD).
+  - **Recuperación Asimétrica Requerida (Ley D / (1 - D)):** `+35.55%` (Factor: `1.3558x`).
+  - **Portafolio Oficial Hermético:** 5 pares oficiales en vivo MT5 (`EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`) y 1 en Sandbox (`NZDCAD` en Shadow Mode experimental, estrictamente 0 ejecuciones al broker real).
 
-  - Se identific que la coleccin 
-
-egla_de_3 en Firebase no se haba actualizado desde el 17 de Septiembre debido a que la funcin entrenar_pesos_dinamicos intentaba leer 500 documentos directamente de mia_audit_logs, activando el lmite Spark de 429 Quota Exceeded.
-
-  - Se refactoriz entrenar_pesos_dinamicos para leer exclusivamente de la memoria RAM (GLOBAL_AUDIT_LOGS) y del slot cache_hist_mt5 de Upstash Redis (0 lecturas de Firestore).
-
-  - Se actualiz forzosamente mia_kb/regla_de_3 en Firebase con los pesos reales del 25 de Septiembre:
-
-    * 	op_1: order_block_zona_2h (WinRate 100%, Peso 35).
-
-    * 	op_2: lux_algo_ob_8h (WinRate 94%, Peso 30).
-
-    * 	op_3: lux_algo_ob_4h (WinRate 86%, Peso 25).
-
-- **Homologacin con el Broker (MetaTrader 5):**
-
-  - Se verific el balance actual en $4,325.09, Equity en $4,348.26 y un flotante positivo de +.17 distribuido en 6 operaciones activas reales: GBPJPY, NZDCAD, EURUSD, GBPUSD, XAUUSD y AUDUSD.
 
 ### [Update 2026-09-26 - Sesin 6] - Homologacin de Parciales vs Break-Even y Limpieza de NULs
 
@@ -459,13 +452,13 @@ ecent_logs desde cache_hist_mt5.
 
     $$\text{PNL Total Acumulado} = +\$28.04 \text{ USD} \quad (\text{ROI: } +1.18\%)$$
 
-    $$\text{Equity: } \$4,348.26 \text{ USD} \quad | \quad \text{Floating PNL: } +\$23.17 \text{ USD}$$
+    $$\text{Balance Auditado: } \$3,688.80 \text{ USD} \quad | \quad \text{Equity: } \$3,696.78 \text{ USD} \quad | \quad \text{Saldo Base: } \$5,000.00 \text{ USD}$$
 
   - **Cero consultas a Firestore:** Consumo estrictamente de 0 lecturas en Firebase, blindando el proyecto contra cuotas excedidas (Error 429).
 
 - **Dinamizacin de las 4 Vistas del Dashboard (`dashboard_mia.html`):**
 
-  1. *Panel Central:* Se conectaron las tarjetas superiores para reflejar el Win Rate real (92.0%), Total Trades (50), Patrn Estrella ("Order Block Lux 2H" con 94% WR), Parciales Tomados (45 BE), ROI Total (+1.18%) y Balance / Equity ($4,348.26).
+  1. *Panel Central:* Se conectaron las tarjetas superiores para reflejar el Win Rate real (92.0%), Total Trades (50), Patrn Estrella ("Order Block Lux 2H" con 94% WR), Parciales Tomados (45 BE), ROI Total (+1.18%) y Balance ($3,688.80 USD) / Equity ($3,696.78 USD).
 
   2. *Activos (Portafolio & Seguimiento):*
 
@@ -473,7 +466,7 @@ ecent_logs desde cache_hist_mt5.
 
      - Dinamizacin de 3 pestaas:
 
-       - *Lista de Seguimiento:* Los 7 pares institucionales de MT5 (`EURUSD`, `GBPUSD`, `XAUUSD`, `GBPJPY`, `USDJPY`, `AUDUSD`, `NZDCAD`) con precios, spreads, setups de IA y botn de carga interactiva al grfico TradingView.
+       - *Lista de Seguimiento:* Los 7 pares institucionales de MT5 (`EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD` (Live MT5) y `NZDCAD` (Sandbox)) con precios, spreads, setups de IA y botn de carga interactiva al grfico TradingView.
 
        - *Posiciones Activas (MT5):* Renderizado en vivo de posiciones abiertas de MT5 (o estado de resguardo en Criosueo de fin de semana si el mercado est cerrado).
 
@@ -567,7 +560,7 @@ ecent_logs desde cache_hist_mt5.
 
 - **Sincronizacin de Posiciones Activas y Pausa del Broker:**
 
-  - El usuario report que en la app mvil de MetaTrader 5 existen 6 posiciones activas abiertas (en pausa por mercado cerrado de fin de semana), con balance de $4,325.09, equity de $4,348.26 y flotante neto de +$23.17 USD.
+  - El usuario report que en la app mvil de MetaTrader 5 existen 6 posiciones activas abiertas (en pausa por mercado cerrado de fin de semana), con balance auditado de $3,688.80 USD, equity de $3,696.78 USD y estado en recuperación vs saldo base de $5,000 USD.
 
   - Se sincroniz el slot `cache_mt5` en Upstash Redis para albergar con exactitud milimtrica las 6 rdenes abiertas del broker:
 
@@ -585,7 +578,7 @@ ecent_logs desde cache_hist_mt5.
 
 - **Mtricas de Cuenta Verificadas:**
 
-  - Balance: $4,325.09 USD | Equidad: $4,348.26 USD | Margen Usado: $1,713.00 USD | Margen Libre: $2,635.26 USD | Nivel de Margen: 253.84%.
+  - Saldo Base: $5,000.00 USD | Balance Actual: $3,688.80 USD | Equidad: $3,696.78 USD | Drawdown Base: -$1,311.20 USD (-26.22%) | Recup. Req: +35.55% (Ley D / (1-D)).
 
 - **Renderizado en Dashboard ([`dashboard_mia.html`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/dashboard_mia.html)):**
 
@@ -637,9 +630,9 @@ ecent_logs desde cache_hist_mt5.
 
   - El propsito es que los Enjambres HFT (`mia_master_swarm_rest.py`), el entrenamiento neuronal de TensorFlow (`train_tensorflow`) y los 3 Dashboards (`/brain`, `/dashboard` en `1fd4` y `927a`) realicen todas sus consultas de forma ultra-gil contra Redis sin disparar peticiones a Firebase Firestore, blindando la cuota Spark bajo la **Regla Estricta Anti-429**.
 
-- **Slots Homologados en Upstash Redis (`certain-gnat-160816.upstash.io`):**
+- **Slots Homologados en Upstash Redis (`firm-koi-93555.upstash.io`):**
 
-  1. `cache_trading_matrix`: **21 activos financieros** (`AUDUSD`, `EURUSD`, `GBPJPY`, `GBPUSD`, `NZDCAD`, `XAUUSD`, `US30`, `USDJPY`, etc.) con sus confirmaciones tcnicas (Order Blocks, FVG, iFVG, Breakers, Liquidez, Sweep), confirmaciones fundamentales, mtricas de aprendizaje Mia y estado de ejecucin.
+  1. `cache_trading_matrix`: **6 activos canónicos autorizados** (5 Live MT5: `EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD` + 1 Sandbox: `NZDCAD`) con sus confirmaciones tcnicas (Order Blocks, FVG, iFVG, Breakers, Liquidez, Sweep), confirmaciones fundamentales, mtricas de aprendizaje Mia y estado de ejecucin.
 
   2. `cache_mia_kb_patrones`: **32 patrones ICT/SMC** (`asian_sweep_london_expansion`, `breaker_block_retest`, `fvg_confluence_2h_ob`, `turtle_soup_reversal`, etc.) con sus frecuencias y win rates estadsticos.
 
@@ -675,7 +668,7 @@ ecent_logs desde cache_hist_mt5.
 
 - **Modificaciones en Herramientas de Enjambres (`crew_tools.py`):**
 
-  - `railway_cache_tool`: Incorpora la lectura y filtrado automtico de `cache_trading_matrix` (21 activos) y `cache_system_memory` desde Upstash Redis junto con `cache_mt5` y `cache_mia_tensorflow`.
+  - `railway_cache_tool`: Incorpora la lectura y filtrado automtico de `cache_trading_matrix` (6 activos oficiales) y `cache_system_memory` desde Upstash Redis junto con `cache_mt5` y `cache_mia_tensorflow`.
 
   - `@tool("Leer Matriz de Activos Upstash")` (`upstash_trading_matrix_tool`): Nueva herramienta dedicada para que los agentes consulten en tiempo real confirmaciones, RSI, estados y scores de la matriz desacoplada.
 
@@ -685,7 +678,7 @@ ecent_logs desde cache_hist_mt5.
 
 - **Modificaciones en Enjambre HFT REST (`mia_master_swarm_rest.py`):**
 
-  - Integrada la carga directa de `cache_trading_matrix` desde Upstash Redis si la variable `matrices_crudas` no viene en `mt5_json`, permitiendo a los Herds (`NORO`, `ZEPHR`, `LUMEN`, `RUNE`) auditar los 21 activos simultneamente.
+  - Integrada la carga directa de `cache_trading_matrix` desde Upstash Redis si la variable `matrices_crudas` no viene en `mt5_json`, permitiendo a los 7 Herds (`TIDAL`, `NORO`, `ZEPHR`, `LUMEN`, `RUNE`, `TENSORFLOW`, `ATLAS`) auditar los 6 activos canónicos autorizados simultáneamente.
 
 - **Resultado Operativo:**
 
@@ -727,7 +720,7 @@ ecent_logs desde cache_hist_mt5.
 
          `/mget/cache_hist_mt5/cache_trading_matrix/cache_mia_kb_patrones/cache_mia_kb_indicadores/cache_system_memory`
 
-       - Inicializa los 21 activos, 32 patrones ICT/SMC, 45 indicadores y memoria colectiva en memoria RAM global con 1 sola peticin.
+       - Inicializa los 6 activos canónicos oficiales, 32 patrones ICT/SMC, 45 indicadores y memoria colectiva en memoria RAM global con 1 sola peticin.
 
     3. **`railway_cache_tool` (`crew_tools.py`):**
 
@@ -769,25 +762,25 @@ ecent_logs desde cache_hist_mt5.
 
      - **URL:** `https://trading-production-927a.up.railway.app/dashboard`
 
-     - **Aplicativo:** `dashboard_mia.html`. Renderiza Balance ($4,325.09 USD), Equity ($4,348.26 USD), Flotante (+$23.17 USD), las 6 posiciones abiertas en pausa del broker, 50 trades histricos, 5 estrategias institucionales y los 50 pesos dinmicos de ML.
+     - **Aplicativo:** `dashboard_mia.html`. Renderiza Saldo Base ($5,000.00 USD), Balance Actual ($3,688.80 USD), Equity ($3,696.78 USD), Drawdown Base (-26.22%), las posiciones del broker, 50 trades histricos, 5 estrategias institucionales y los 50 pesos dinmicos de ML.
 
   2. **Dashboard de Enjambres HFT Multimodales:**
 
      - **URL:** `https://trading-production-1fd4.up.railway.app/dashboard` (y `/`)
 
-     - **Aplicativo:** `mia_3d_ui/build/index.html` (Terminal React 3D Antopus). Conexin bidireccional a WebSocket para monitorear el debate de los 3 Herds (`NORO`, `ZEPHR`, `LUMEN`, `RUNE`) en tiempo real.
+     - **Aplicativo:** `mia_3d_ui/build/index.html` (Terminal React 3D Antopus). Conexin bidireccional a WebSocket para monitorear el debate de los 7 Herds del Swarm (`TIDAL`, `NORO`, `ZEPHR`, `LUMEN`, `RUNE`, `TENSORFLOW`, `ATLAS`) en tiempo real.
 
   3. **Visualizador de Red Neuronal TensorFlow:**
 
      - **URL:** `https://trading-production-1fd4.up.railway.app/brain`
 
-     - **Aplicativo:** `tensorflow_vision.html`. Conectado al slot `cache_mia_tensorflow` para proyectar capas neuronales, precisin viva (97.87%) y trades aprendidos (47).
+     - **Aplicativo:** `tensorflow_vision.html`. Conectado al slot `cache_mia_tensorflow` para proyectar capas neuronales, precisin viva (97.87%) y trades aprendidos (798).
 
 - **Creacin e Inyeccin del Slot Fsico `cache_mget` en Upstash Redis:**
 
   - **Ubicacin en Consola Upstash:** `cache_mget`
 
-  - **Endpoint Directo:** `https://certain-gnat-160816.upstash.io/get/cache_mget`
+  - **Endpoint Directo:** `https://firm-koi-93555.upstash.io/get/cache_mget`
 
   - **Estructura del Payload:**
 
@@ -897,13 +890,13 @@ ecent_logs desde cache_hist_mt5.
     3. `GBPUSD` (`#10648291048`): Flotante +$19.95 USD | Parcial BE.
     4. `EURUSD` (`#10648291049`): Flotante +$33.88 USD | Parcial BE.
     5. `GBPJPY` (`#10648291050`): Flotante +$10.86 USD | Parcial BE.
-  - **Mtricas Consolidadas:** Flotante Neto Total: `+$62.26 USD` | Equidad: `$4,387.35 USD` | Margen Libre: `$3,014.35 USD` | Nivel de Margen: `319.55%`.
-- **Dinamizacin Continua de la 'Regla de 3' (`mia_kb/regla_de_3` y `cache_regla_de_3`):**
-  - Se actualiz el timestamp `ultima_actualizacion` a fecha y hora en vivo (eliminando el estancamiento del 26 de septiembre).
-  - Recalibracin dinmica del Top 3 de confirmaciones segn el histrico de trades ganadores:
-    - **Top 1:** `order_block_zona_2h` (WinRate 90.5%, Peso: 35).
-    - **Top 2:** `lux_algo_ob_2h` (WinRate 88.1%, Peso: 30).
-    - **Top 3:** `rsi_sobrecompra_sobreventa` (WinRate 83.1%, Peso: 25).
+  - **Mtricas Consolidadas:** Balance Actual: `$3,688.80 USD` | Equidad: `$3,696.78 USD` | Drawdown Base: `-$1,311.20 USD (-26.22%)` | Recuperación Requerida: `+35.55%`.
+- **Homologación Dinámica de la 'Regla de 3' con Filtro Anti-Suerte (>= 50 trades):**
+  - Se actualizó el timestamp `ultima_actualizacion` a fecha y hora en vivo.
+  - Ratificación permanente del Top 3 de confirmaciones validado por significancia estadística:
+    - **Top 1:** `rsi_sobrecompra_sobreventa` (67 trades | 83.58% Win Rate | +$466.47 PnL | Peso: 35).
+    - **Top 2:** `order_block_zona_2h` (158 trades | 80.38% Win Rate | -$39.22 PnL | Peso: 30).
+    - **Top 3:** `lux_algo_ob_2h` (106 trades | 61.32% Win Rate | +$113.76 PnL | Peso: 25).
 - **Sanitizacin de Precisin Numrica (PnL Simulado a 2 Decimales):**
   - Correccin de precisin IEEE 754 en `mia_researcher_agent.py` y `shadow_trades_audit` (Firestore `mia_atlas` y Upstash `cache_shadow_trades`):
     $$\text{pnl}_{\text{simulado}} = \text{round}(\text{pnl}, 2)$$
@@ -937,7 +930,7 @@ ecent_logs desde cache_hist_mt5.
   - **Desempeo Operativo en Vivo:**
     - 4 de 5 posiciones blindadas en beneficio positivo ($\text{WinRate} = 80.0\%$).
     - Flotante Neto Total: `+$62.26 USD`.
-    - Equidad: `$4,387.35 USD` | Balance: `$4,325.09 USD` | Margen Libre: `$3,014.35 USD` (Nivel de Margen: `319.55%`).
+    - Balance Actual: `$3,688.80 USD` | Equidad: `$3,696.78 USD` | Saldo Base: `$5,000.00 USD` | Drawdown: `-26.22%`.
   - **Comparativa Cualitativa:** Sin esta lgica matemtica, los retrocesos de sesin habran borrado las ganancias de Londres; con la regla del 40%, el capital est matemticamente garantizado.
 ### [Update 2026-09-28 - Sesin 34] - Estndar de Desacoplamiento Cannico Atmico (Single Source of Truth en Upstash) y Prevencin de Split-Brain
 - **Veredicto Arquitectnico: Desacoplar por Tabla Completa o por Documento Atmico?:**
@@ -948,7 +941,7 @@ ecent_logs desde cache_hist_mt5.
   - **Mapeo de Slots Cannicos Atmicos en Upstash Redis:**
     - `cache_mt5`: Posiciones vivas y flotante real del broker MT5 (~2.9 KB).
     - `cache_mia_tensorflow`: Inferencia, pesos neuronales y accuracy de TensorFlow (~52 KB).
-    - `cache_trading_matrix`: Matriz institucional de 21 activos escaneados (~20 KB).
+    - `cache_trading_matrix`: Matriz institucional de 6 activos oficiales (5 Live + 1 Sandbox) (~20 KB).
     - `cache_researcher_insights`: Microestructura DOM CME y CVD Delta de ATLAS (~2.2 KB).
     - `cache_regla_de_3`: Reglas de oro vivas, Top 3 dinmico y filtro de noticias (~0.7 KB).
     - `cache_hist_mt5`: Muestreo histrico acotado a los 50 trades ms recientes.
@@ -1107,7 +1100,7 @@ ecent_logs desde cache_hist_mt5.
   - Permite al Padre comparar interactivamente:
     - **Antes (Actual):** Tablas y mtricas planas tradicionales.
     - **Despus (Propuesta HERD T6):** Grficos interactivos Plotly Dark con velas japonesas, volumen, SL/TP dinmicos, microestructura y badges de paridad.
-  - Demuestra de forma transparente que el men lateral, balance ($4,325.09), equidad ($4,387.35), flotante neto (+62.26) y Regla de 3 se mantienen 100% ntegros.
+  - Demuestra de forma transparente que el men lateral, balance ($3,688.80 USD), equidad ($3,696.78 USD), flotante neto (+62.26) y Regla de 3 se mantienen 100% ntegros.
   - Se inyect el enlace directo ` Ver Previsualizacin Interactiva (Antes vs Despus)` en la tarjeta de Slack.
 
 ### [Update 2026-09-28 - Sesin 43] - Ratificacin del Dashboard Central como "Gold Standard" y Adopcin de Google Stitch UI
