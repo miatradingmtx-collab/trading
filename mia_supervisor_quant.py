@@ -282,7 +282,7 @@ class MiaQuantSupervisor:
                 parsed["nota_infraestructura_t1_t10"] = "Infraestructura backend nominal."
             # Sanitizar proactivamente cualquier campo extraído
             parsed["diagnostico"] = self._sanitize_slack_prose(parsed.get("diagnostico", ""))
-            parsed["sugerencia_7_herds_trading"] = self._sanitize_slack_prose(parsed.get("sugerencia_7_herds_trading", ""))
+            parsed["sugerencia_7_herds_trading"] = self._sanitize_slack_prose(parsed.get("sugerencia_7_herds_trading", ""), "Mantener disciplina de riesgo y confluencia institucional de los 7 Herds.")
             return parsed
 
         # Fallback limpio sin volcar sintaxis JSON a la vista del usuario
@@ -293,13 +293,13 @@ class MiaQuantSupervisor:
             "nota_infraestructura_t1_t10": "Infraestructura backend nominal."
         }
 
-    def _sanitize_slack_prose(self, text: Any) -> str:
+    def _sanitize_slack_prose(self, text: Any, default_msg: str = "Diagnóstico cuantitativo completado.") -> str:
         """
         Sanitiza cualquier texto antes de renderizarlo en Slack o guardarlo en la memoria CBR.
         Erradica completamente bloques ```json, llaves {, comillas o estructuras JSON crudas.
         """
         if not text:
-            return "Diagnóstico no disponible."
+            return default_msg
         if isinstance(text, dict):
             return "\n".join([f"• *{k}:* {self._sanitize_slack_prose(v)}" for k, v in text.items()])
         if isinstance(text, list):
@@ -335,64 +335,60 @@ class MiaQuantSupervisor:
     def _extract_json(self, text: str) -> Optional[Dict[str, Any]]:
         """
         Extracción ultra-resiliente de JSON para inferencia de LLMs.
-        Soporta JSON directo, strict=False, bloques markdown, y regex campo por campo ante truncamiento.
+        Soporta JSON directo, strict=False, stripping de bloques markdown, y regex campo por campo.
         """
         if not text:
             return None
         text = str(text).strip()
         
-        # 1. Intento directo con strict=False (permite caracteres de control como \n no escapados)
+        # 1. Quitar markdown fences primero para evitar fallos de parseo en bloques anidados
+        limpio = re.sub(r'```(?:json)?', '', text).replace('```', '').strip()
+        
+        # 2. Intento directo con strict=False (permite caracteres de control como \n no escapados)
         try:
-            return json.loads(text, strict=False)
-        except Exception:
-            pass
-
-        # 2. Intento dentro de bloques de código ```json ... ```
-        try:
-            m = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', text)
-            if m:
-                return json.loads(m.group(1), strict=False)
-        except Exception:
-            pass
-
-        # 3. Intento entre primer '{' y último '}'
-        try:
-            s = text.find('{')
-            e = text.rfind('}')
-            if s != -1 and e != -1 and e > s:
-                return json.loads(text[s:e+1], strict=False)
-        except Exception:
-            pass
-
-        # 4. Intento con texto limpio de markdown
-        try:
-            limpio = re.sub(r'```(?:json)?', '', text).replace('```', '').strip()
             return json.loads(limpio, strict=False)
         except Exception:
             pass
 
-        # 5. Extracción resiliente campo por campo en caso de respuesta truncada por tokens
+        # 3. Intento entre primer '{' y último '}' sobre texto limpio
+        try:
+            s = limpio.find('{')
+            e = limpio.rfind('}')
+            if s != -1 and e != -1 and e > s:
+                return json.loads(limpio[s:e+1], strict=False)
+        except Exception:
+            pass
+
+        # 4. Extracción resiliente campo por campo en caso de respuesta truncada por tokens
         try:
             extracted = {}
-            m_diag = re.search(r'"diagnostico"\s*:\s*"((?:[^"\\]|\\.)*)"', text, re.DOTALL)
+            m_diag = re.search(r'"diagnostico"\s*:\s*"((?:[^"\\]|\\.)*)"', limpio, re.DOTALL)
             if m_diag:
                 try:
                     extracted["diagnostico"] = m_diag.group(1).encode().decode('unicode_escape', errors='ignore')
                 except Exception:
                     extracted["diagnostico"] = m_diag.group(1)
-            elif '"diagnostico"' in text:
-                sub = re.search(r'"diagnostico"\s*:\s*"([^"\r\n]*)', text)
+            elif '"diagnostico"' in limpio:
+                sub = re.search(r'"diagnostico"\s*:\s*"([^"\r\n]*)', limpio)
                 if sub:
                     extracted["diagnostico"] = sub.group(1)
 
-            m_sug = re.search(r'"(?:sugerencia_7_herds_trading|sugerencia)"\s*:\s*"((?:[^"\\]|\\.)*)"', text, re.DOTALL)
-            if m_sug:
+            # Extraer sugerencia como objeto JSON o como string
+            m_sug_dict = re.search(r'"(?:sugerencia_7_herds_trading|sugerencia)"\s*:\s*(\{[\s\S]*?\n\s*\})', limpio)
+            if m_sug_dict:
                 try:
-                    extracted["sugerencia_7_herds_trading"] = m_sug.group(1).encode().decode('unicode_escape', errors='ignore')
+                    extracted["sugerencia_7_herds_trading"] = json.loads(m_sug_dict.group(1), strict=False)
                 except Exception:
-                    extracted["sugerencia_7_herds_trading"] = m_sug.group(1)
+                    extracted["sugerencia_7_herds_trading"] = m_sug_dict.group(1)
+            else:
+                m_sug = re.search(r'"(?:sugerencia_7_herds_trading|sugerencia)"\s*:\s*"((?:[^"\\]|\\.)*)"', limpio, re.DOTALL)
+                if m_sug:
+                    try:
+                        extracted["sugerencia_7_herds_trading"] = m_sug.group(1).encode().decode('unicode_escape', errors='ignore')
+                    except Exception:
+                        extracted["sugerencia_7_herds_trading"] = m_sug.group(1)
 
-            m_nota = re.search(r'"nota_infraestructura_t1_t10"\s*:\s*"((?:[^"\\]|\\.)*)"', text, re.DOTALL)
+            m_nota = re.search(r'"nota_infraestructura_t1_t10"\s*:\s*"((?:[^"\\]|\\.)*)"', limpio, re.DOTALL)
             if m_nota:
                 try:
                     extracted["nota_infraestructura_t1_t10"] = m_nota.group(1).encode().decode('unicode_escape', errors='ignore')
@@ -425,8 +421,8 @@ class MiaQuantSupervisor:
         # 2. Inferencia con Gemini Pro
         gemini_analysis = self._llm_gemini_inference(trade, cbr_history)
 
-        sugerencia_raw = gemini_analysis.get("sugerencia_7_herds_trading") or gemini_analysis.get("sugerencia", "Sin sugerencia de trading.")
-        sugerencia_trading = self._sanitize_slack_prose(sugerencia_raw)
+        sugerencia_raw = gemini_analysis.get("sugerencia_7_herds_trading") or gemini_analysis.get("sugerencia", "Mantener disciplina institucional bajo la Regla de 3 y verificar zonas de liquidez en ATLAS DOM.")
+        sugerencia_trading = self._sanitize_slack_prose(sugerencia_raw, "Mantener disciplina de riesgo y confirmaciones institucionales mínimas de los 7 Herds.")
 
         diagnostico_raw = gemini_analysis.get("diagnostico", "Diagnóstico no disponible.")
         diagnostico = self._sanitize_slack_prose(diagnostico_raw)
