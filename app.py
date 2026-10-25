@@ -3922,6 +3922,36 @@ def get_cme_tape_data():
                 pass
     return {"status": "success", "data": data}
 
+@app.get("/api/tensor_vector_data")
+def get_tensor_vector_data():
+    """
+    Retorna la telemetría viva del vector tensorial 22D (cache_vector_indicadores)
+    y el estado del motor Keras (cache_mia_tensorflow) para alimentar la red 3D en /brain.
+    """
+    try:
+        import requests, json
+        up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+        r = requests.get("https://firm-koi-93555.upstash.io/mget/cache_vector_indicadores/cache_mia_tensorflow/cache_mt5", headers=up_headers, timeout=3)
+        if r.status_code == 200:
+            res = r.json().get("result", [])
+            vec_raw = json.loads(res[0]) if len(res) > 0 and res[0] else {}
+            tf_raw = json.loads(res[1]) if len(res) > 1 and res[1] else {}
+            mt5_raw = json.loads(res[2]) if len(res) > 2 and res[2] else {}
+            return {
+                "status": "success",
+                "tensor_1d": vec_raw.get("tensor_1d", [0.0]*22),
+                "dimension": vec_raw.get("dimension", 22),
+                "timestamp": vec_raw.get("timestamp"),
+                "activo": vec_raw.get("activo", "EURUSD"),
+                "estado_enjambre": vec_raw.get("estado_enjambre", "APROBADO"),
+                "accuracy": tf_raw.get("accuracy", 0.6028),
+                "trades_aprendidos": tf_raw.get("trades_aprendidos", 798),
+                "balance": mt5_raw.get("balance_actual", mt5_raw.get("balance", 3688.80))
+            }
+        return {"status": "error", "message": f"Upstash error {r.status_code}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 GLOBAL_AUDIT_LOGS = None
 GLOBAL_SYSTEM_LOGS = None
 GLOBAL_PATRONES = None

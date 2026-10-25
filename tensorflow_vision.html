@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>MIA MASTER SWARM HFT / TENSORFLOW CORE 3D v1.5</title>
+  <title>MIA TENSORFLOW CORE 3D — RED NEURONAL 22D KERAS v2.0</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts -->
@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-void: #04070d;
+      --bg-void: #03060c;
       --cyan-glow: #00f0ff;
       --blue-neon: #0088ff;
       --magenta-neon: #e024ff;
@@ -34,13 +34,13 @@
     body {
       background-color: var(--bg-void);
       background-image: 
-        radial-gradient(circle at 60% 45%, rgba(0, 140, 255, 0.12) 0%, transparent 55%),
-        radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.08) 0%, transparent 65%);
+        radial-gradient(circle at 50% 45%, rgba(0, 140, 255, 0.14) 0%, transparent 60%),
+        radial-gradient(circle at 20% 20%, rgba(168, 85, 247, 0.08) 0%, transparent 55%),
+        radial-gradient(circle at 80% 80%, rgba(0, 255, 157, 0.06) 0%, transparent 55%);
       color: #e2e8f0;
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
       overflow: hidden;
       height: 100vh;
-      height: 100dvh;
       width: 100vw;
       display: flex;
       flex-direction: column;
@@ -50,34 +50,25 @@
       font-family: 'JetBrains Mono', monospace;
     }
 
-    /* Scrollbars invisibles o estilizadas */
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    .no-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-
     /* ================= HEADER & PILLS ================= */
     .header-glass {
-      background: linear-gradient(180deg, rgba(6, 12, 24, 0.96) 0%, rgba(5, 9, 18, 0.88) 100%);
+      background: linear-gradient(180deg, rgba(6, 12, 24, 0.96) 0%, rgba(4, 8, 18, 0.88) 100%);
       border-bottom: 1px solid rgba(0, 240, 255, 0.22);
-      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.75), 0 1px 0 rgba(0, 240, 255, 0.1) inset;
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(0, 240, 255, 0.12) inset;
       z-index: 100;
     }
 
     .cyber-title {
       color: #00f0ff;
       text-shadow: 0 0 12px rgba(0, 240, 255, 0.65), 0 0 24px rgba(0, 136, 255, 0.35);
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
     }
 
     .pill-btn {
       background: rgba(12, 22, 42, 0.75);
       border: 1px solid rgba(56, 189, 248, 0.3);
       color: #cbd5e1;
-      padding: 6px 14px;
+      padding: 5px 12px;
       border-radius: 9999px;
       font-size: 11px;
       font-weight: 600;
@@ -89,14 +80,6 @@
       gap: 6px;
       backdrop-filter: blur(8px);
       white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    @media (max-width: 640px) {
-      .pill-btn {
-        padding: 5px 10px;
-        font-size: 10px;
-      }
     }
 
     .pill-btn:hover {
@@ -150,466 +133,356 @@
     .viewport-3d {
       flex: 1;
       position: relative;
-      perspective: 1450px;
+      perspective: 1200px;
+      perspective-origin: 50% 50%;
       overflow: hidden;
-      cursor: grab;
       touch-action: none;
-    }
-
-    .viewport-3d:active {
-      cursor: grabbing;
     }
 
     .world-3d {
       position: absolute;
+      width: 1220px;
+      height: 680px;
       top: 50%;
-      left: 56%;
-      width: 1160px;
-      height: 640px;
-      margin-left: -580px;
-      margin-top: -320px;
+      left: 50%;
+      margin-left: -610px;
+      margin-top: -340px;
       transform-style: preserve-3d;
-      transition: transform 0.08s ease-out;
+      transition: transform 0.1s cubic-bezier(0.1, 0.9, 0.2, 1);
       will-change: transform;
     }
 
-    @media (max-width: 1024px) {
-      .world-3d {
-        left: 50%;
-      }
-    }
-
-    /* Suelo cyber grid */
+    /* Suelo Perspectiva */
     .cyber-floor {
       position: absolute;
-      width: 2600px;
-      height: 2000px;
-      left: -720px;
-      top: -680px;
-      background-image:
-        linear-gradient(rgba(0, 210, 255, 0.09) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 210, 255, 0.09) 1px, transparent 1px),
-        linear-gradient(rgba(0, 140, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 140, 255, 0.03) 1px, transparent 1px);
-      background-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px;
-      transform: translateZ(-55px);
-      mask-image: radial-gradient(ellipse at center, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 72%);
-      -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 72%);
+      width: 1800px;
+      height: 1800px;
+      left: -290px;
+      top: -360px;
+      background-image: 
+        linear-gradient(to right, rgba(0, 240, 255, 0.08) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 240, 255, 0.08) 1px, transparent 1px);
+      background-size: 50px 50px;
+      transform: rotateX(90deg) translateZ(-340px);
       pointer-events: none;
+      opacity: 0.65;
+      mask-image: radial-gradient(circle at 50% 50%, black 25%, transparent 75%);
     }
 
-    /* Placas de cristal translúcido en 3D con grosor */
+    /* ================= PLACAS ACRÍLICAS ACRYLIC GLASS SLABS ================= */
     .glass-slab {
       position: absolute;
-      border-radius: 22px;
-      background: linear-gradient(
-        135deg,
-        rgba(0, 195, 255, 0.14) 0%,
-        rgba(8, 28, 58, 0.45) 50%,
-        rgba(0, 240, 255, 0.1) 100%
-      );
-      border: 1.5px solid rgba(0, 240, 255, 0.55);
-      box-shadow:
-        0 0 32px rgba(0, 210, 255, 0.22),
-        inset 0 0 28px rgba(0, 240, 255, 0.18);
+      background: linear-gradient(135deg, rgba(8, 20, 44, 0.45) 0%, rgba(5, 12, 28, 0.7) 100%);
+      border: 1.5px solid rgba(0, 240, 255, 0.35);
+      border-radius: 20px;
+      backdrop-filter: blur(12px);
+      box-shadow: 
+        0 20px 50px rgba(0, 0, 0, 0.7),
+        0 0 35px rgba(0, 240, 255, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        inset 0 0 20px rgba(0, 136, 255, 0.1);
       transform-style: preserve-3d;
-      transition: all 0.35s ease;
-      cursor: pointer;
-    }
-
-    /* Base inferior del cristal para simular bloque acrílico 3D */
-    .glass-slab::before {
-      content: '';
-      position: absolute;
-      inset: -1.5px;
-      border-radius: 22px;
-      border: 1.5px solid rgba(0, 210, 255, 0.45);
-      background: rgba(0, 80, 140, 0.14);
-      transform: translateZ(-22px);
-      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.85), 0 0 25px rgba(0, 180, 255, 0.25);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
       pointer-events: none;
     }
 
-    /* Reflejo diagonal cristalino */
-    .glass-slab::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: 22px;
-      background: linear-gradient(115deg, rgba(255,255,255,0.12) 0%, transparent 38%, transparent 65%, rgba(0, 240, 255, 0.08) 100%);
-      pointer-events: none;
+    .glass-slab.slab-active {
+      border-color: rgba(0, 240, 255, 0.85);
+      box-shadow: 
+        0 25px 60px rgba(0, 0, 0, 0.8),
+        0 0 50px rgba(0, 240, 255, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 0 25px rgba(0, 240, 255, 0.2);
     }
 
-    .glass-slab:hover, .glass-slab.slab-active {
-      border-color: #5efaff;
-      box-shadow:
-        0 0 45px rgba(0, 240, 255, 0.42),
-        inset 0 0 36px rgba(0, 240, 255, 0.28);
-    }
-
-    .slab-caption-top {
+    .slab-caption-top, .slab-caption-bottom {
       position: absolute;
-      top: -26px;
-      left: 14px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
       font-size: 10px;
       font-weight: 700;
-      letter-spacing: 0.14em;
-      color: #7dd3fc;
-      text-shadow: 0 0 8px rgba(0, 240, 255, 0.55);
-      white-space: nowrap;
-      pointer-events: none;
-      transform: translateZ(8px);
+      letter-spacing: 0.12em;
+      color: rgba(56, 189, 248, 0.95);
+      text-transform: uppercase;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+      pointer-events: auto;
     }
+    .slab-caption-top { top: -28px; }
+    .slab-caption-bottom { bottom: -28px; }
 
-    .slab-caption-bottom {
-      position: absolute;
-      bottom: -28px;
-      left: 14px;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      color: #93c5fd;
-      text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
-      white-space: nowrap;
-      pointer-events: none;
-      transform: translateZ(-10px);
-    }
-
-    /* ================= SVG AXON LAYER ================= */
+    /* ================= SVG AXONS (CANVAS DE LÍNEAS 3D) ================= */
     .axon-svg {
       position: absolute;
       top: 0;
       left: 0;
-      width: 1160px;
-      height: 640px;
-      transform: translateZ(16px);
+      width: 100%;
+      height: 100%;
       pointer-events: none;
       overflow: visible;
-    }
-
-    .axon-line {
-      stroke-width: 1.05px;
-      opacity: 0.34;
-      transition: opacity 0.25s ease, stroke-width 0.25s ease, filter 0.25s ease;
-    }
-
-    .axon-line.axon-highlighted {
-      opacity: 0.95 !important;
-      stroke-width: 2.4px !important;
-      filter: drop-shadow(0 0 6px #ff36f8);
-    }
-
-    .axon-line.axon-approved {
-      stroke: #00ff9d !important;
-      opacity: 0.75;
-      stroke-width: 1.8px;
-    }
-
-    .axon-line.axon-vetoed {
-      stroke: #ff2a55 !important;
-      opacity: 0.75;
-      stroke-width: 1.8px;
-    }
-
-    .axon-line.axon-dimmed {
-      opacity: 0.06;
-    }
-
-    /* ================= NEURAL NODES (3D ORBS & TAGS) ================= */
-    .nodes-layer-3d {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 1160px;
-      height: 640px;
-      transform: translateZ(20px);
       transform-style: preserve-3d;
-      pointer-events: none;
     }
 
+    .axon-path {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: stroke 0.3s ease, stroke-width 0.3s ease, opacity 0.3s ease;
+      opacity: 0.38;
+    }
+
+    .axon-path.axon-active {
+      opacity: 0.95;
+      stroke-width: 2.2px;
+      filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.8));
+    }
+    .axon-path.axon-green {
+      stroke: var(--green-neon) !important;
+      opacity: 0.95;
+      stroke-width: 2.4px;
+      filter: drop-shadow(0 0 8px rgba(0, 255, 157, 0.9));
+    }
+    .axon-path.axon-red {
+      stroke: var(--red-neon) !important;
+      opacity: 0.95;
+      stroke-width: 2.4px;
+      filter: drop-shadow(0 0 8px rgba(255, 42, 85, 0.9));
+    }
+
+    /* Partículas Sinápticas */
+    .synaptic-particle {
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 12px #00f0ff, 0 0 20px #0088ff;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 45;
+    }
+
+    /* ================= NEURONAS 3D (NODOS ESFÉRICOS) ================= */
     .neuron-node {
       position: absolute;
       width: 22px;
       height: 22px;
       margin-left: -11px;
       margin-top: -11px;
-      transform-style: preserve-3d;
-      pointer-events: auto;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #ffffff 0%, #00d4ff 45%, #0044aa 100%);
+      box-shadow: 
+        0 0 16px rgba(0, 240, 255, 0.7),
+        0 0 30px rgba(0, 136, 255, 0.45),
+        inset 0 0 6px rgba(255, 255, 255, 0.8);
       cursor: pointer;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 50;
+      transform-style: preserve-3d;
     }
 
-    .neuron-orb {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 32% 30%, #ffffff 0%, #ff55ff 32%, #9d00ff 70%, #3b0078 100%);
-      box-shadow:
-        0 0 14px #e024ff,
-        0 0 28px rgba(224, 36, 255, 0.65);
-      transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
-      position: relative;
+    .neuron-node:hover {
+      transform: scale(1.35) translateZ(10px);
+      box-shadow: 0 0 24px #00f0ff, 0 0 45px #0088ff, inset 0 0 8px #ffffff;
     }
 
-    .neuron-orb::after {
-      content: '';
+    /* Variantes por Estado de Activación */
+    .neuron-node.node-off {
+      background: radial-gradient(circle at 35% 35%, #64748b 0%, #334155 50%, #0f172a 100%);
+      box-shadow: 0 0 6px rgba(51, 65, 85, 0.5);
+      opacity: 0.45;
+    }
+
+    .neuron-node.node-green {
+      background: radial-gradient(circle at 35% 35%, #ffffff 0%, #00ff9d 45%, #057a4a 100%) !important;
+      box-shadow: 0 0 20px rgba(0, 255, 157, 0.9), 0 0 35px rgba(0, 255, 157, 0.5) !important;
+    }
+
+    .neuron-node.node-red {
+      background: radial-gradient(circle at 35% 35%, #ffffff 0%, #ff2a55 45%, #880520 100%) !important;
+      box-shadow: 0 0 20px rgba(255, 42, 85, 0.9), 0 0 35px rgba(255, 42, 85, 0.5) !important;
+    }
+
+    .neuron-node.node-amber {
+      background: radial-gradient(circle at 35% 35%, #ffffff 0%, #ffb800 45%, #945200 100%) !important;
+      box-shadow: 0 0 20px rgba(255, 184, 0, 0.9), 0 0 35px rgba(255, 184, 0, 0.5) !important;
+    }
+
+    .neuron-node.node-purple {
+      background: radial-gradient(circle at 35% 35%, #ffffff 0%, #c084fc 45%, #6b21a8 100%) !important;
+      box-shadow: 0 0 20px rgba(192, 132, 252, 0.9), 0 0 35px rgba(192, 132, 252, 0.5) !important;
+    }
+
+    /* Píldora de Texto Flotante en Neurona */
+    .neuron-label {
       position: absolute;
-      inset: -6px;
-      border-radius: 50%;
-      border: 1px solid rgba(240, 100, 255, 0.45);
-      animation: orb-pulse 2.4s infinite ease-out;
-    }
-
-    .neuron-node:hover .neuron-orb,
-    .neuron-node.node-selected .neuron-orb {
-      transform: scale(1.38) translateZ(8px);
-      box-shadow:
-        0 0 20px #ffffff,
-        0 0 35px #ff24f0,
-        0 0 55px #00f0ff;
-    }
-
-    .neuron-node.node-green .neuron-orb {
-      background: radial-gradient(circle at 32% 30%, #ffffff 0%, #4dffb8 35%, #00c46b 75%, #004d29 100%);
-      box-shadow: 0 0 18px #00ff9d, 0 0 34px rgba(0, 255, 157, 0.7);
-    }
-
-    .neuron-node.node-red .neuron-orb {
-      background: radial-gradient(circle at 32% 30%, #ffffff 0%, #ff6b8b 35%, #ff003c 75%, #590015 100%);
-      box-shadow: 0 0 18px #ff2a55, 0 0 34px rgba(255, 42, 85, 0.7);
-    }
-
-    @keyframes orb-pulse {
-      0% { transform: scale(0.75); opacity: 0.85; }
-      100% { transform: scale(1.65); opacity: 0; }
-    }
-
-    /* Etiqueta flotante tipo píldora sobre los nodos */
-    .neuron-pill {
-      position: absolute;
-      white-space: nowrap;
-      background: rgba(7, 15, 30, 0.92);
-      border: 1px solid rgba(0, 210, 255, 0.45);
-      color: #e2e8f0;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 10.5px;
-      font-weight: 600;
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.75), 0 0 10px rgba(0, 195, 255, 0.2);
-      transform: translateZ(16px);
-      transition: all 0.2s ease;
-      pointer-events: auto;
-    }
-
-    .neuron-node:hover .neuron-pill,
-    .neuron-node.node-selected .neuron-pill {
-      background: rgba(0, 40, 75, 0.96);
-      border-color: #00f0ff;
-      color: #ffffff;
-      box-shadow: 0 0 18px rgba(0, 240, 255, 0.65);
-      transform: translateZ(26px) scale(1.06);
-      z-index: 40;
-    }
-
-    /* Posiciones de etiquetas según la columna */
-    .pill-left {
-      right: 28px;
-      top: 50%;
-      transform: translateY(-50%) translateZ(14px);
-    }
-    .neuron-node:hover .pill-left,
-    .neuron-node.node-selected .pill-left {
-      transform: translateY(-50%) translateZ(24px) scale(1.05);
-    }
-
-    .pill-center {
-      left: 50%;
-      bottom: 26px;
-      transform: translateX(-50%) translateZ(18px);
+      background: rgba(8, 14, 28, 0.92);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 9999px;
+      padding: 3px 9px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 9.5px;
-      background: rgba(8, 16, 34, 0.92);
-      border-color: rgba(168, 85, 247, 0.55);
-    }
-    .neuron-node:hover .pill-center,
-    .neuron-node.node-selected .pill-center {
-      transform: translateX(-50%) translateZ(28px) scale(1.07);
+      font-size: 10px;
+      font-weight: 600;
+      color: #e2e8f0;
+      white-space: nowrap;
+      pointer-events: auto;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.8);
+      transition: all 0.2s ease;
+      z-index: 55;
     }
 
-    .pill-right {
-      left: 28px;
+    .neuron-label:hover {
+      border-color: var(--cyan-glow);
+      color: #ffffff;
+      transform: scale(1.05);
+    }
+
+    .neuron-label.pos-left {
+      right: 18px;
       top: 50%;
-      transform: translateY(-50%) translateZ(16px);
-    }
-    .neuron-node:hover .pill-right,
-    .neuron-node.node-selected .pill-right {
-      transform: translateY(-50%) translateZ(26px) scale(1.06);
+      transform: translateY(-50%);
     }
 
-    /* ================= HUD PANELS (OVERLAYS) ================= */
+    .neuron-label.pos-right {
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .neuron-label.pos-center {
+      left: 50%;
+      top: -24px;
+      transform: translateX(-50%);
+    }
+
+    /* ================= HUD FLOTANTE SUPERIOR / LATERAL ================= */
     .hud-card {
-      background: linear-gradient(160deg, rgba(8, 16, 30, 0.90) 0%, rgba(5, 10, 20, 0.96) 100%);
-      border: 1.5px solid rgba(0, 240, 255, 0.5);
-      box-shadow:
-        0 0 26px rgba(0, 240, 255, 0.22),
-        0 16px 40px rgba(0, 0, 0, 0.8),
-        inset 0 0 18px rgba(0, 240, 255, 0.08);
+      background: linear-gradient(135deg, rgba(8, 16, 34, 0.92) 0%, rgba(4, 9, 20, 0.96) 100%);
+      border: 1px solid rgba(0, 240, 255, 0.28);
       border-radius: 14px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      z-index: 80;
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
     }
 
     .hud-terminal {
-      background: linear-gradient(180deg, rgba(6, 12, 22, 0.92) 0%, rgba(4, 8, 15, 0.96) 100%);
-      border: 1px solid rgba(0, 200, 180, 0.38);
-      box-shadow:
-        0 0 22px rgba(0, 240, 255, 0.14),
-        0 16px 40px rgba(0, 0, 0, 0.85);
-      border-radius: 12px;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      z-index: 80;
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-    }
-
-    /* Estados móviles para ocultar/mostrar HUD */
-    @media (max-width: 1023px) {
-      .hud-mobile-hidden {
-        transform: translateY(120%) scale(0.95);
-        opacity: 0;
-        pointer-events: none !important;
-      }
-      .hud-mobile-visible {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-        pointer-events: auto !important;
-      }
-    }
-
-    .cursor-blink {
-      display: inline-block;
-      width: 7px;
-      height: 13px;
-      background-color: #e2e8f0;
-      vertical-align: middle;
-      margin-left: 4px;
-      animation: blink 1s step-end infinite;
-    }
-
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
-    }
-
-    /* Botones de cámara derecha */
-    .cam-btn {
-      width: 38px;
-      height: 38px;
+      background: rgba(3, 7, 16, 0.95);
+      border: 1px solid rgba(0, 255, 157, 0.35);
       border-radius: 10px;
-      background: rgba(9, 19, 38, 0.88);
-      border: 1px solid rgba(0, 210, 255, 0.4);
-      color: #7dd3fc;
-      font-weight: 700;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.85), inset 0 0 15px rgba(0, 255, 157, 0.05);
+    }
+
+    /* Controles de Cámara HUD */
+    .cam-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(12, 22, 42, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #94a3b8;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 13px;
       cursor: pointer;
       transition: all 0.2s ease;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
     }
-
-    @media (max-width: 640px) {
-      .cam-btn {
-        width: 34px;
-        height: 34px;
-        font-size: 13px;
-      }
-    }
-
-    .cam-btn:hover, .cam-btn.active {
-      background: rgba(0, 160, 255, 0.28);
-      border-color: #00f0ff;
+    .cam-btn:hover {
+      border-color: var(--cyan-glow);
       color: #ffffff;
-      box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+    }
+    .cam-btn.active {
+      background: rgba(0, 140, 255, 0.35);
+      border-color: var(--cyan-glow);
+      color: #ffffff;
     }
 
-    /* Barra flotante inferior para móviles */
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.3); border-radius: 2px; }
+
+    /* Barra móvil */
     .mobile-hud-bar {
       display: none;
     }
-    @media (max-width: 1023px) {
+    @media (max-width: 1024px) {
       .mobile-hud-bar {
         display: flex;
         position: fixed;
-        bottom: 12px;
-        left: 50%;
-        transform: translateX(-50%);
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 48px;
+        background: rgba(5, 10, 22, 0.96);
+        border-top: 1px solid rgba(0, 240, 255, 0.25);
         z-index: 95;
-        background: rgba(6, 14, 28, 0.88);
-        border: 1px solid rgba(0, 240, 255, 0.4);
-        border-radius: 9999px;
-        padding: 4px 8px;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.85), 0 0 15px rgba(0, 240, 255, 0.2);
-        backdrop-filter: blur(12px);
-        gap: 6px;
+        align-items: center;
+        justify-content: space-around;
+        padding: 0 12px;
       }
     }
   </style>
 </head>
 <body>
 
-  <!-- ==================== CABECERA SUPERIOR ==================== -->
-  <header class="header-glass px-3 sm:px-5 py-2.5 flex flex-col gap-2">
-    <div class="flex items-center justify-between gap-2">
+  <!-- ==================== HEADER CYBERPUNK EN TIEMPO REAL ==================== -->
+  <header class="header-glass px-3 sm:px-6 py-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5">
+    
+    <!-- Título y Estado -->
+    <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
       <div class="flex items-center gap-2.5">
-        <div class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_12px_#00f0ff] animate-pulse flex-shrink-0"></div>
+        <span class="relative flex h-3 w-3">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
+        </span>
         <div>
-          <h1 class="text-sm sm:text-base md:text-xl font-extrabold tracking-wider flex items-center gap-1.5 flex-wrap leading-tight">
-            <span class="cyber-title">MIA MASTER SWARM HFT</span>
-            <span class="text-slate-500 font-light hidden sm:inline">/</span>
-            <span class="text-slate-100 font-bold tracking-wide">TENSORFLOW CORE 3D</span>
-            <span class="text-[10px] sm:text-xs font-mono-code px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">v1.5</span>
+          <h1 class="text-xs sm:text-sm font-bold tracking-tight text-white flex items-center gap-2">
+            <span class="cyber-title">MIA TENSORFLOW CORE 3D</span>
+            <span class="text-[10px] font-mono-code px-1.5 py-0.2 rounded bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">v2.0 · 22D TENSOR</span>
           </h1>
-          <p class="text-[10px] sm:text-[11px] text-slate-400 hidden sm:block">
-            Haz clic en cualquier nodo, capa o etiqueta de flujo para inspeccionar sus rutas activas y tensores en tiempo real
+          <p class="text-[10px] text-slate-400 hidden sm:block">
+            Visualizador Volumétrico de la Red Neuronal Profunda Keras (Vector Tensorial 22D)
           </p>
         </div>
       </div>
 
-      <!-- Indicadores rápidos superiores derecha -->
-      <div class="flex items-center gap-2 text-xs font-mono-code flex-shrink-0">
-        <span class="hidden md:flex px-2.5 py-1 rounded-md bg-slate-900/90 border border-slate-700/80 text-slate-300 items-center gap-1.5 text-[11px]">
-          <span class="w-2 h-2 rounded-full bg-purple-400"></span> Llama 3.3 70B + Gemini 1.5 Pro CBR
-        </span>
-        <button id="btn-toggle-online" class="px-2 sm:px-2.5 py-1 rounded-md bg-red-950/70 border border-red-500/50 text-red-300 hover:bg-red-900/60 transition cursor-pointer flex items-center gap-1.5 text-[10px] sm:text-xs" title="Conmutar Estado Online / Criosueño">
-          <span id="dot-online" class="w-2 h-2 rounded-full bg-red-500 animate-ping flex-shrink-0"></span>
-          <span id="txt-online-short">REINTENTANDO...</span>
-        </button>
+      <div class="flex items-center gap-2 md:hidden">
+        <a href="/agentes" class="text-[11px] font-mono-code px-2 py-0.5 rounded bg-slate-800 text-sky-300 border border-slate-700">
+          🐝 Swarm
+        </a>
       </div>
     </div>
 
-    <!-- Barra de Píldoras Interactivas (Scroll horizontal suave en móviles) -->
-    <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1">
+    <!-- Píldoras de Modo e Inferencia -->
+    <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 justify-start md:justify-end">
       <button class="pill-btn active-cyan" data-mode="isometric" id="pill-iso">
-        <span>🌐</span> <span>Vista 3D</span>
+        <span>🌐 Vista 3D</span>
       </button>
-      <button class="pill-btn" data-mode="input_herds" id="pill-herds">
-        <span>1.</span> <span>7 Herds (.MD)</span>
+      <button class="pill-btn" data-mode="filter_x" id="pill-x">
+        <span>📊 Eje X (Sesión 4D)</span>
       </button>
-      <button class="pill-btn pill-green" data-mode="approved" id="pill-approved">
-        <span>2.</span> <span>Flujo Sí: APROBADO</span>
+      <button class="pill-btn" data-mode="filter_y" id="pill-y">
+        <span>📈 Eje Y (SMC 13D)</span>
       </button>
-      <button class="pill-btn pill-red" data-mode="vetoed" id="pill-vetoed">
-        <span>3.</span> <span>Flujo No: VETADO</span>
+      <button class="pill-btn" data-mode="filter_z" id="pill-z">
+        <span>📉 Eje Z (Métricas 5D)</span>
       </button>
-      <button class="pill-btn pill-amber" data-mode="deliberating" id="pill-delib">
-        <span>4.</span> <span>Deliberando</span>
+      <button class="pill-btn pill-green" data-mode="signal_buy" id="pill-buy">
+        <span>🟢 Señal BUY</span>
       </button>
-      <button class="pill-btn" id="pill-autotour">
-        <span>🔄</span> <span>AutoTour 3D</span>
+      <button class="pill-btn pill-red" data-mode="signal_sell" id="pill-sell">
+        <span>🔴 Señal SELL</span>
       </button>
+      <button class="pill-btn" data-mode="autotour" id="pill-tour">
+        <span>🪐 AutoTour</span>
+      </button>
+      <a href="/agentes" class="pill-btn hidden md:inline-flex text-slate-300 hover:text-white">
+        <span>🐝 Swarm Hub (/agentes)</span>
+      </a>
     </div>
+
   </header>
 
   <!-- ==================== ESCENARIO CENTRAL 3D ==================== -->
@@ -620,34 +493,34 @@
       <!-- Suelo en cuadrícula perspectiva -->
       <div class="cyber-floor"></div>
 
-      <!-- PLACA 1: CAPA 1 INPUT 7 HERDS -->
-      <div class="glass-slab" id="slab-1" style="left: 55px; top: 45px; width: 270px; height: 550px;" data-layer="1">
-        <div class="slab-caption-top">CAPA 1: ESPECIFICACIONES (INPUT)</div>
-        <div class="slab-caption-bottom">CAPA 1: ESPECIFICACIONES (INPUT)</div>
+      <!-- PLACA 1: CAPA 1 VECTOR TENSORIAL 22D (INPUT) -->
+      <div class="glass-slab" id="slab-1" style="left: 35px; top: 35px; width: 370px; height: 610px;" data-layer="1">
+        <div class="slab-caption-top">CAPA 1: MATRIZ TENSORIAL 22D (INPUT)</div>
+        <div class="slab-caption-bottom">EJE X (4D) • EJE Y (13D) • EJE Z (5D)</div>
       </div>
 
-      <!-- PLACA 2: CAPA 2 MOTOR DELIBERACIÓN & DENSE (10, 8) -->
-      <div class="glass-slab" id="slab-2" style="left: 395px; top: 45px; width: 390px; height: 550px;" data-layer="2">
-        <div class="slab-caption-top">CAPA 2: MOTOR DELIBERACIÓN (DENSE)</div>
-        <div class="slab-caption-bottom">CAPA 2: MOTOR DELIBERACIÓN (DENSE)</div>
+      <!-- PLACA 2: CAPA 2 CAPAS DENSAS PROFUNDAS (16, 8) -->
+      <div class="glass-slab" id="slab-2" style="left: 445px; top: 35px; width: 340px; height: 610px;" data-layer="2">
+        <div class="slab-caption-top">CAPA 2: EXTRACCIÓN NO LINEAL (DENSE 16, 8 ReLU)</div>
+        <div class="slab-caption-bottom">DENSE 1 (16) ➔ DENSE 2 (8) CONEXIONES SINÁPTICAS</div>
       </div>
 
       <!-- PLACA 3: CAPA 3 SALIDAS / SIGMOID -->
-      <div class="glass-slab" id="slab-3" style="left: 855px; top: 45px; width: 250px; height: 550px;" data-layer="3">
+      <div class="glass-slab" id="slab-3" style="left: 835px; top: 35px; width: 280px; height: 610px;" data-layer="3">
         <div class="slab-caption-top">CAPA 3: SALIDAS / SIGMOID (OUTPUT)</div>
-        <div class="slab-caption-bottom">CAPA 3: SALIDAS / SIGMOID (OUTPUT)</div>
+        <div class="slab-caption-bottom">PROBABILIDAD COMPRA / VENTA · CONSENSO KERAS</div>
       </div>
 
       <!-- MALLA DE AXONES Y PULSOS (SVG EN EL PLANO 3D) -->
-      <svg class="axon-svg" id="axon-svg" viewBox="0 0 1160 640">
+      <svg class="axon-svg" id="axon-svg" viewBox="0 0 1220 680">
         <defs>
-          <linearGradient id="grad-purple-magenta" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#9d4edd" stop-opacity="0.75" />
-            <stop offset="50%" stop-color="#e024ff" stop-opacity="0.85" />
-            <stop offset="100%" stop-color="#ff5500" stop-opacity="0.75" />
+          <linearGradient id="grad-purple-cyan" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.85" />
+            <stop offset="50%" stop-color="#c084fc" stop-opacity="0.75" />
+            <stop offset="100%" stop-color="#00ff9d" stop-opacity="0.85" />
           </linearGradient>
           <linearGradient id="grad-orange-purple" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#ff4800" stop-opacity="0.8" />
+            <stop offset="0%" stop-color="#ff7b00" stop-opacity="0.8" />
             <stop offset="60%" stop-color="#c71dff" stop-opacity="0.75" />
             <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.9" />
           </linearGradient>
@@ -659,903 +532,443 @@
             </feMerge>
           </filter>
         </defs>
-        <g id="axons-container"></g>
-        <g id="pulses-container"></g>
+        <!-- Rutas SVG generadas dinámicamente -->
+        <g id="axon-layer"></g>
       </svg>
 
-      <!-- CAPA DE NODOS NEURONALES 3D -->
-      <div class="nodes-layer-3d" id="nodes-container"></div>
+      <!-- Capa de Neuronas HTML (Nodos Esféricos en 3D) -->
+      <div id="neurons-layer" class="absolute inset-0 pointer-events-none"></div>
+
+      <!-- Capa de Partículas Sinápticas Dinámicas -->
+      <div id="particles-layer" class="absolute inset-0 pointer-events-none"></div>
     </div>
 
-    <!-- ==================== PANEL HUD SUPERIOR IZQUIERDO ==================== -->
-    <aside id="hud-card-panel" class="hud-card fixed top-24 sm:top-28 left-3 sm:left-5 w-[calc(100vw-24px)] sm:w-[375px] max-w-[390px] p-3.5 sm:p-4 font-mono-code text-xs pointer-events-auto">
-      <div class="flex items-center justify-between border-b border-cyan-500/30 pb-2 mb-2">
-        <h2 class="text-base sm:text-lg font-extrabold tracking-widest text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.6)]">
-          TENSORFLOW CORE
+    <!-- ==================== HUD LATERAL IZQUIERDO ==================== -->
+    <aside id="hud-metrics-panel" class="hud-card fixed top-16 left-3 sm:left-5 w-[285px] sm:w-[325px] p-3 sm:p-4 text-xs font-mono-code flex flex-col gap-2.5 z-40 pointer-events-auto">
+      <div class="flex items-center justify-between border-b border-cyan-500/30 pb-2">
+        <h2 class="text-xs sm:text-sm font-bold tracking-wider text-cyan-300">
+          TENSORFLOW CORE 22D
         </h2>
-        <div class="flex items-center gap-1.5">
-          <span class="text-[9px] sm:text-[10px] px-2 py-0.5 rounded bg-cyan-950/90 border border-cyan-400/40 text-cyan-300">
-            KERAS 3D
-          </span>
-          <!-- Botón cerrar en móvil -->
-          <button id="btn-close-hud" class="lg:hidden text-slate-400 hover:text-white px-1.5 py-0.5 rounded bg-slate-800 text-xs">✕</button>
-        </div>
+        <span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950/90 border border-cyan-400/40 text-cyan-300">
+          KERAS 3D
+        </span>
       </div>
 
-      <div class="space-y-1 text-[11px] sm:text-[11.5px] leading-snug">
+      <div class="space-y-1.5 text-[11px] leading-tight text-slate-300">
         <div class="flex justify-between gap-2">
-          <span class="text-slate-400">STATUS:</span>
-          <span id="hud-status" class="font-bold text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.5)] truncate">
-            DESCONECTADO - REINTENTANDO...
-          </span>
+          <span class="text-slate-400">ESTADO MODELO:</span>
+          <span id="hud-status" class="font-bold text-emerald-400 truncate">ONLINE · INFERENCIA EN VIVO</span>
         </div>
         <div class="flex justify-between gap-2">
           <span class="text-slate-400">ARQUITECTURA:</span>
-          <span class="font-bold text-sky-400 truncate">7 Herds Desacoplados + Master</span>
-        </div>
-        <div class="flex justify-between gap-2">
-          <span class="text-slate-400">MODELO:</span>
-          <span class="font-semibold text-slate-100">Sequential (Keras Deep Learning)</span>
+          <span class="font-semibold text-slate-200">22D ➔ Dense(16, 8) ➔ 2</span>
         </div>
         <div class="flex justify-between gap-2">
           <span class="text-slate-400">PRECISIÓN (ACC):</span>
-          <span id="hud-acc" class="font-bold text-emerald-400">60.28%</span>
+          <span id="hud-acc" class="font-bold text-cyan-300">60.28%</span>
         </div>
         <div class="flex justify-between gap-2">
           <span class="text-slate-400">TRADES APRENDIDOS:</span>
-          <span id="hud-trades" class="font-bold text-white">798</span>
+          <span id="hud-trades" class="font-bold text-emerald-300">798 Trades</span>
         </div>
         <div class="flex justify-between gap-2">
-          <span class="text-slate-400">CAPAS:</span>
-          <span class="font-semibold text-slate-200">Input (7), Dense (10, 8), Sigmoid (2)</span>
+          <span class="text-slate-400">DIMENSIÓN TENSORIAL:</span>
+          <span class="font-semibold text-amber-300">22 Features (4X + 13Y + 5Z)</span>
         </div>
         <div class="flex justify-between gap-2">
-          <span class="text-slate-400">QUÓRUM CONSENSO:</span>
-          <span id="hud-quorum" class="font-bold text-amber-400 truncate">ESPERANDO DELIBERACIÓN...</span>
+          <span class="text-slate-400">CONSENSO NEURAL:</span>
+          <span id="hud-consensus" class="font-bold text-emerald-400">83.4% [QUÓRUM BUY]</span>
         </div>
       </div>
 
-      <!-- Inspector Dinámico del Nodo Seleccionado -->
-      <div class="mt-2.5 pt-2 border-t border-cyan-500/25 bg-slate-950/65 rounded-lg p-2 sm:p-2.5">
-        <div class="flex items-center justify-between text-[9px] sm:text-[10px] text-cyan-400 mb-1">
-          <span class="font-bold tracking-wider">INSPECTOR DE TENSORES / NODO</span>
-          <span id="insp-layer" class="text-purple-300">CAPA 2 • DENSE</span>
+      <!-- Inspector Dinámico de Neurona -->
+      <div class="mt-1 pt-2 border-t border-cyan-500/25 bg-slate-950/65 rounded-lg p-2">
+        <div class="flex items-center justify-between text-[9px] text-cyan-400 mb-1">
+          <span class="font-bold tracking-wider">INSPECTOR DE TENSOR SELECCIONADO</span>
+          <span id="insp-dim" class="text-purple-300">EJE Y • SMC 13D</span>
         </div>
-        <div id="insp-name" class="text-[11px] sm:text-xs font-bold text-white truncate mb-1.5">
-          debate_dinamico_7_herds
+        <div id="insp-name" class="text-[11px] font-bold text-white truncate mb-1">
+          SMC Y04 [Order Block Lux 2H]
         </div>
-        <div class="grid grid-cols-3 gap-1 text-[9px] sm:text-[10px]">
+        <div class="grid grid-cols-3 gap-1 text-[9px]">
           <div class="bg-slate-900/90 border border-slate-800 rounded px-1.5 py-1">
-            <div class="text-slate-400">ACTIVACIÓN</div>
-            <div id="insp-act" class="text-emerald-400 font-bold">0.842 σ</div>
+            <div class="text-slate-400">VALOR</div>
+            <div id="insp-val" class="text-emerald-400 font-bold">1.0 [ACTIVO]</div>
           </div>
           <div class="bg-slate-900/90 border border-slate-800 rounded px-1.5 py-1">
-            <div class="text-slate-400">LATENCIA</div>
-            <div id="insp-lat" class="text-cyan-300 font-bold">14.2 ms</div>
+            <div class="text-slate-400">TIPO</div>
+            <div id="insp-type" class="text-cyan-300 font-bold">Multi-Hot</div>
           </div>
           <div class="bg-slate-900/90 border border-slate-800 rounded px-1.5 py-1">
             <div class="text-slate-400">SINAPSIS</div>
-            <div id="insp-syn" class="text-fuchsia-400 font-bold">15 axones</div>
+            <div id="insp-syn" class="text-fuchsia-400 font-bold">16 axones</div>
           </div>
         </div>
       </div>
     </aside>
 
     <!-- ==================== TERMINAL INFERIOR IZQUIERDA ==================== -->
-    <section id="hud-terminal-panel" class="hud-terminal fixed bottom-16 lg:bottom-5 left-3 sm:left-5 w-[calc(100vw-24px)] sm:w-[445px] max-w-[460px] h-[150px] sm:h-[168px] p-3 sm:p-3.5 font-mono-code text-xs flex flex-col pointer-events-auto">
-      <div class="flex items-center justify-between border-b border-emerald-500/25 pb-1.5 mb-1.5">
-        <span class="text-[10px] sm:text-[11px] font-bold tracking-wider text-amber-400 truncate">
-          &gt; TERMINAL DE NEURONAS // MALLA 7 HERDS + MASTER
+    <section id="hud-terminal-panel" class="hud-terminal fixed bottom-16 lg:bottom-4 left-3 sm:left-5 w-[calc(100vw-24px)] sm:w-[460px] h-[140px] sm:h-[155px] p-3 font-mono-code text-xs flex flex-col pointer-events-auto z-40">
+      <div class="flex items-center justify-between border-b border-emerald-500/25 pb-1 mb-1">
+        <span class="text-[10px] font-bold tracking-wider text-amber-400 truncate">
+          &gt; TERMINAL DE TENSORES // KERAS SEQUENTIAL 22D
         </span>
         <div class="flex items-center gap-1.5 flex-shrink-0">
-          <button id="btn-pulse-burst" class="text-[9px] sm:text-[10px] px-2 py-0.5 rounded bg-fuchsia-950/90 border border-fuchsia-500/50 text-fuchsia-300 hover:bg-fuchsia-900/80 transition cursor-pointer">
-            ⚡ Pulso
+          <button id="btn-pulse-burst" class="text-[9px] px-2 py-0.5 rounded bg-fuchsia-950/90 border border-fuchsia-500/50 text-fuchsia-300 hover:bg-fuchsia-900/80 transition cursor-pointer">
+            ⚡ Pulso Neural
           </button>
-          <!-- Botón cerrar en móvil -->
-          <button id="btn-close-terminal" class="lg:hidden text-slate-400 hover:text-white px-1.5 py-0.5 rounded bg-slate-800 text-xs">✕</button>
         </div>
       </div>
-      <div id="terminal-output" class="flex-1 overflow-y-auto space-y-1.5 text-[10.5px] sm:text-[11.5px] leading-relaxed pr-1">
-        <div class="text-slate-100">
-          <span class="text-emerald-400 font-bold">[Master]</span> MERCADO CERRADO (Fin de semana). Criosueño activo (13.8h restantes para apertura dom 21:00 UTC). Consumo de tokens: 0.<span class="cursor-blink"></span>
-        </div>
+      <div id="terminal-output" class="flex-1 overflow-y-auto space-y-1 text-[10.5px] leading-relaxed pr-1 text-slate-200">
+        <!-- Rellenado dinámicamente con telemetría viva -->
       </div>
     </section>
 
-    <!-- ==================== CONTROLES HUD CÁMARA (ESQUINA INFERIOR DERECHA) ==================== -->
-    <div class="fixed bottom-16 lg:bottom-5 right-3 sm:right-5 z-90 flex flex-col items-end gap-2 pointer-events-auto">
+    <!-- ==================== CONTROLES DE CÁMARA ==================== -->
+    <div class="fixed bottom-16 lg:bottom-5 right-3 sm:right-5 z-40 flex flex-col items-end gap-2 pointer-events-auto">
       <div class="flex flex-col gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-cyan-500/35 shadow-2xl backdrop-blur-md">
         <button class="cam-btn" id="cam-zoom-in" title="Acercar Zoom (+)">+</button>
         <button class="cam-btn" id="cam-zoom-out" title="Alejar Zoom (-)">−</button>
       </div>
       <div class="flex gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-cyan-500/35 shadow-2xl backdrop-blur-md">
-        <button class="cam-btn active text-xs" id="cam-toggle-3d" title="Alternar Vista Isométrica 3D / Plana 2D">3D</button>
-        <button class="cam-btn" id="cam-reset" title="Restaurar Ángulo de Cámara">↻</button>
-        <button class="cam-btn" id="cam-orbit" title="Órbita Continua 360°">🪐</button>
+        <button class="cam-btn active text-xs font-bold" id="cam-toggle-3d" title="Alternar 3D / 2D">3D</button>
+        <button class="cam-btn" id="cam-reset" title="Restaurar Ángulo">↻</button>
+        <button class="cam-btn" id="cam-orbit" title="Órbita Continua">🪐</button>
       </div>
     </div>
 
-    <!-- ==================== BARRA FLOTANTE INTERACTIVA PARA MÓVILES ==================== -->
-    <nav class="mobile-hud-bar">
-      <button id="m-btn-metrics" class="px-3 py-1 rounded-full text-[11px] font-semibold bg-cyan-950/80 border border-cyan-400/50 text-cyan-300 flex items-center gap-1.5">
-        <span>📊</span> <span>Métricas</span>
-      </button>
-      <button id="m-btn-terminal" class="px-3 py-1 rounded-full text-[11px] font-semibold bg-slate-900 border border-slate-700 text-slate-300 flex items-center gap-1.5">
-        <span>💻</span> <span>Terminal</span>
-      </button>
-      <button id="m-btn-clean" class="px-3 py-1 rounded-full text-[11px] font-semibold bg-slate-900 border border-slate-700 text-slate-300 flex items-center gap-1.5">
-        <span>👁️</span> <span>3D Puro</span>
-      </button>
-    </nav>
-
   </main>
 
+  <!-- ==================== SCRIPT DE MOTOR 3D Y TELEMETRÍA 22D ==================== -->
   <script>
     /********************************************************************
-     * 1. DEFINICIÓN DE ARQUITECTURA KERAS: INPUT(7) -> DENSE(10, 8) -> SIGMOID(2)
+     * 1. DEFINICIÓN EXACTA DE LAS 22 NEURONAS DE ENTRADA (VECTOR 22D)
      ********************************************************************/
     const NODES = [
-      // === PLACA 1: CAPA 1 INPUT (7 HERDS) (x: 195) ===
-      { id: 'h1', layer: 1, subLayer: 'input', x: 195, y: 95,  label: 'H1: TIDAL (Macro, Killzones)', pillPos: 'left', weight: 0.91, latency: '11.4 ms' },
-      { id: 'h2', layer: 1, subLayer: 'input', x: 195, y: 170, label: 'H2: NORO (CVOL, Markov)', pillPos: 'left', weight: 0.78, latency: '9.8 ms' },
-      { id: 'h3', layer: 1, subLayer: 'input', x: 195, y: 245, label: 'H3: ZEPHR (Stats, EV, Asimetría)', pillPos: 'left', weight: 0.86, latency: '12.1 ms' },
-      { id: 'h4', layer: 1, subLayer: 'input', x: 195, y: 320, label: 'H4: LUMEN (SMC, AMD Sweeps)', pillPos: 'left', weight: 0.94, latency: '10.5 ms' },
-      { id: 'h5', layer: 1, subLayer: 'input', x: 195, y: 395, label: 'H5: RUNE (Risk, Cascade 4 Fases)', pillPos: 'left', weight: 0.99, latency: '8.2 ms' },
-      { id: 'h6', layer: 1, subLayer: 'input', x: 195, y: 470, label: 'H6: ATLAS (DOM CME, CVD)', pillPos: 'left', weight: 0.83, latency: '14.0 ms' },
-      { id: 'h7', layer: 1, subLayer: 'input', x: 195, y: 545, label: 'H7: TENSORFLOW (Tensores 22D)', pillPos: 'left', weight: 0.95, latency: '7.6 ms' },
+      // ==================== PLACA 1: EJE X (TEMPORALIDAD Y SESIÓN - 4D) ====================
+      { id: 'x0', layer: 1, group: 'x', x: 80,  y: 110, label: 'X0: ASIA (Tokio/Sidney)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 1.0, isContinuous: false },
+      { id: 'x1', layer: 1, group: 'x', x: 80,  y: 195, label: 'X1: LONDRES (Apertura)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'x2', layer: 1, group: 'x', x: 80,  y: 280, label: 'X2: NUEVA YORK (Expansión)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'x3', layer: 1, group: 'x', x: 80,  y: 365, label: 'X3: OVERLAP (Londres-NY)', dim: 'EJE X • SESIÓN', type: 'One-Hot', val: 0.0, isContinuous: false },
 
-      // === PLACA 2: SUB-COLUMNA DENSE 1 (10 NEURONAS) (x: 495) ===
-      { id: 'd1_1',  layer: 2, subLayer: 'dense1', x: 495, y: 82,  label: '@lru_cache: load_herd_specification()', showPill: true, pillPos: 'center', weight: 0.88, latency: '0.4 ms' },
-      { id: 'd1_2',  layer: 2, subLayer: 'dense1', x: 495, y: 135, label: 'dense_10_unit_02 [ReLU]', showPill: false, pillPos: 'center', weight: 0.64, latency: '1.8 ms' },
-      { id: 'd1_3',  layer: 2, subLayer: 'dense1', x: 495, y: 188, label: 'fetch_swarm_context_mget()', showPill: true, pillPos: 'center', weight: 0.92, latency: '18.6 ms' },
-      { id: 'd1_4',  layer: 2, subLayer: 'dense1', x: 495, y: 241, label: 'dense_10_unit_04 [HerdContextDTO]', showPill: false, pillPos: 'center', weight: 0.71, latency: '2.1 ms' },
-      { id: 'd1_5',  layer: 2, subLayer: 'dense1', x: 495, y: 294, label: 'debate_dinamico_7_herds', showPill: true, pillPos: 'center', weight: 0.96, latency: '230.0 ms' },
-      { id: 'd1_6',  layer: 2, subLayer: 'dense1', x: 495, y: 347, label: 'dense_10_unit_06 [Attention]', showPill: false, pillPos: 'center', weight: 0.77, latency: '3.4 ms' },
-      { id: 'd1_7',  layer: 2, subLayer: 'dense1', x: 495, y: 400, label: 'dense_10_unit_07 [TensorNorm]', showPill: false, pillPos: 'center', weight: 0.68, latency: '1.9 ms' },
-      { id: 'd1_8',  layer: 2, subLayer: 'dense1', x: 495, y: 453, label: 'autopsia_trade_cerrado', showPill: true, pillPos: 'center', weight: 0.85, latency: '42.0 ms' },
-      { id: 'd1_9',  layer: 2, subLayer: 'dense1', x: 495, y: 506, label: 'dense_10_unit_09 [Dropout 0.2]', showPill: false, pillPos: 'center', weight: 0.59, latency: '1.2 ms' },
-      { id: 'd1_10', layer: 2, subLayer: 'dense1', x: 495, y: 558, label: 'dense_10_unit_10 [BiasVector]', showPill: false, pillPos: 'center', weight: 0.81, latency: '1.5 ms' },
+      // ==================== PLACA 1: EJE Y (RÉGIMEN Y SMC - 13D) ====================
+      { id: 'y0', layer: 1, group: 'y', x: 200, y: 55,  label: 'Y0: Tendencial Alcista', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'y1', layer: 1, group: 'y', x: 200, y: 98,  label: 'Y1: Tendencial Bajista', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 1.0, isContinuous: false },
+      { id: 'y2', layer: 1, group: 'y', x: 200, y: 141, label: 'Y2: Rango Lateral', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 0.0, isContinuous: false },
+      { id: 'y3', layer: 1, group: 'y', x: 200, y: 184, label: 'Y3: Alta Volatilidad / Expansión', dim: 'EJE Y • RÉGIMEN', type: 'One-Hot', val: 1.0, isContinuous: false },
+      { id: 'y4', layer: 1, group: 'y', x: 200, y: 227, label: 'Y4: Order Block Lux 2H', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y5', layer: 1, group: 'y', x: 200, y: 270, label: 'Y5: Fair Value Gap (FVG)', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y6', layer: 1, group: 'y', x: 200, y: 313, label: 'Y6: Liquidity Pool Sweep', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
+      { id: 'y7', layer: 1, group: 'y', x: 200, y: 356, label: 'Y7: Breaker Block 4H', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y8', layer: 1, group: 'y', x: 200, y: 399, label: 'Y8: Mitigation Zone', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
+      { id: 'y9', layer: 1, group: 'y', x: 200, y: 442, label: 'Y9: Volume POC Price', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 0.0, isContinuous: false },
+      { id: 'y10', layer: 1, group: 'y', x: 200, y: 485, label: 'Y10: SMC Sweep CME', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y11', layer: 1, group: 'y', x: 200, y: 528, label: 'Y11: DOM Imbalance Filter', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
+      { id: 'y12', layer: 1, group: 'y', x: 200, y: 571, label: 'Y12: CVOL Energy Area', dim: 'EJE Y • SMC 9D', type: 'Multi-Hot', val: 1.0, isContinuous: false },
 
-      // === PLACA 2: SUB-COLUMNA DENSE 2 (8 NEURONAS) (x: 685) ===
-      { id: 'd2_1', layer: 2, subLayer: 'dense2', x: 685, y: 105, label: 'dense_8_unit_01 [Synapse]', showPill: false, pillPos: 'center', weight: 0.74, latency: '2.0 ms' },
-      { id: 'd2_2', layer: 2, subLayer: 'dense2', x: 685, y: 166, label: 'quorum_master >= 0.70', showPill: true, pillPos: 'center', weight: 0.93, latency: '5.4 ms' },
-      { id: 'd2_3', layer: 2, subLayer: 'dense2', x: 685, y: 227, label: 'dense_8_unit_03 [Consensus]', showPill: false, pillPos: 'center', weight: 0.80, latency: '2.3 ms' },
-      { id: 'd2_4', layer: 2, subLayer: 'dense2', x: 685, y: 288, label: 'dense_8_unit_04 [KillzoneGate]', showPill: false, pillPos: 'center', weight: 0.76, latency: '2.7 ms' },
-      { id: 'd2_5', layer: 2, subLayer: 'dense2', x: 685, y: 349, label: 'score_premio_castigo_herd', showPill: true, pillPos: 'center', weight: 0.89, latency: '15.8 ms' },
-      { id: 'd2_6', layer: 2, subLayer: 'dense2', x: 685, y: 410, label: 'dense_8_unit_06 [RiskFilter]', showPill: false, pillPos: 'center', weight: 0.82, latency: '3.1 ms' },
-      { id: 'd2_7', layer: 2, subLayer: 'dense2', x: 685, y: 471, label: 'cache_trading_learning_kb', showPill: true, pillPos: 'center', weight: 0.87, latency: '19.2 ms' },
-      { id: 'd2_8', layer: 2, subLayer: 'dense2', x: 685, y: 532, label: 'dense_8_unit_08 [MemoryCBR]', showPill: false, pillPos: 'center', weight: 0.69, latency: '2.8 ms' },
+      // ==================== PLACA 1: EJE Z (MÉTRICAS CONTINUAS - 5D) ====================
+      { id: 'z0', layer: 1, group: 'z', x: 325, y: 110, label: 'Z0: ATR Dinámico Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.50, isContinuous: true },
+      { id: 'z1', layer: 1, group: 'z', x: 325, y: 195, label: 'Z1: RSI Extremo Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.30, isContinuous: true },
+      { id: 'z2', layer: 1, group: 'z', x: 325, y: 280, label: 'Z2: Spread Broker Normalizado', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.23, isContinuous: true },
+      { id: 'z3', layer: 1, group: 'z', x: 325, y: 365, label: 'Z3: DXY SMT Correlation Ratio', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.65, isContinuous: true },
+      { id: 'z4', layer: 1, group: 'z', x: 325, y: 450, label: 'Z4: TensorFlow Neural Confidence', dim: 'EJE Z • MÉTRICAS', type: 'Continuous', val: 0.60, isContinuous: true },
 
-      // === PLACA 3: CAPA 3 SALIDAS SIGMOID (2 NEURONAS) (x: 935) ===
-      { id: 'out_1', layer: 3, subLayer: 'output', x: 935, y: 215, label: 'OUT 1: POSICIÓN ABIERTA (APROBADO MT5)', showPill: true, pillPos: 'center', weight: 0.97, latency: '6.1 ms' },
-      { id: 'out_2', layer: 3, subLayer: 'output', x: 935, y: 430, label: 'OUT 2: VETO / CRIOSUEÑO (BLOQUEO RIESGO)', showPill: true, pillPos: 'center', weight: 0.91, latency: '4.3 ms' }
+      // ==================== PLACA 2: DENSE 1 (16 NEURONAS ReLU) ====================
+      ...Array.from({ length: 16 }).map((_, i) => ({
+        id: `d1_${i}`,
+        layer: 2,
+        subLayer: 'dense1',
+        x: 520,
+        y: 65 + i * 34,
+        label: `Dense_16_Unit_${i < 9 ? '0' : ''}${i+1} [ReLU]`,
+        dim: 'CAPA 2 • DENSE 16',
+        type: 'Hidden ReLU',
+        val: 0.72 + (i % 5) * 0.05,
+        isContinuous: true
+      })),
+
+      // ==================== PLACA 2: DENSE 2 (8 NEURONAS ReLU) ====================
+      ...Array.from({ length: 8 }).map((_, i) => ({
+        id: `d2_${i}`,
+        layer: 2,
+        subLayer: 'dense2',
+        x: 695,
+        y: 95 + i * 65,
+        label: `Dense_8_Unit_0${i+1} [Consolidator]`,
+        dim: 'CAPA 2 • DENSE 8',
+        type: 'Hidden Dropout',
+        val: 0.81 + (i % 3) * 0.06,
+        isContinuous: true
+      })),
+
+      // ==================== PLACA 3: CAPA 3 OUTPUT (2 NEURONAS SIGMOID) ====================
+      { id: 'out_buy', layer: 3, subLayer: 'output', x: 975, y: 220, label: 'OUT 1: CONFLUENCIA ALCISTA (BUY)', dim: 'CAPA 3 • OUTPUT', type: 'Sigmoid Probability', val: 0.834, isContinuous: true },
+      { id: 'out_sell', layer: 3, subLayer: 'output', x: 975, y: 420, label: 'OUT 2: CONFLUENCIA BAJISTA (SELL)', dim: 'CAPA 3 • OUTPUT', type: 'Sigmoid Probability', val: 0.166, isContinuous: true }
     ];
 
+    /********************************************************************
+     * 2. GENERACIÓN DE AXONES Y CONEXIONES (INPUT 22 ➔ D1 16 ➔ D2 8 ➔ OUT 2)
+     ********************************************************************/
     const LINKS = [];
-    const inputNodes  = NODES.filter(n => n.subLayer === 'input');
+    const inputNodes = NODES.filter(n => n.layer === 1);
     const dense1Nodes = NODES.filter(n => n.subLayer === 'dense1');
     const dense2Nodes = NODES.filter(n => n.subLayer === 'dense2');
     const outputNodes = NODES.filter(n => n.subLayer === 'output');
 
-    // Conectar Input (7) -> Dense 1 (10) = 70 axones
+    // Input 22 -> Dense 1 (16) = Conexiones representativas principales
     inputNodes.forEach((src, i) => {
       dense1Nodes.forEach((tgt, j) => {
-        LINKS.push({
-          id: `axon_${src.id}_${tgt.id}`,
-          source: src,
-          target: tgt,
-          colorType: (i + j) % 2 === 0 ? 'grad-purple-magenta' : 'grad-orange-purple'
-        });
+        if ((i + j) % 2 === 0 || i % 3 === 0) {
+          LINKS.push({
+            id: `axon_${src.id}_${tgt.id}`,
+            source: src,
+            target: tgt,
+            color: 'cyan'
+          });
+        }
       });
     });
 
-    // Conectar Dense 1 (10) -> Dense 2 (8) = 80 axones
+    // Dense 1 (16) -> Dense 2 (8)
     dense1Nodes.forEach((src, i) => {
       dense2Nodes.forEach((tgt, j) => {
+        if ((i + j) % 2 === 0) {
+          LINKS.push({
+            id: `axon_${src.id}_${tgt.id}`,
+            source: src,
+            target: tgt,
+            color: 'purple'
+          });
+        }
+      });
+    });
+
+    // Dense 2 (8) -> Output (2)
+    dense2Nodes.forEach((src) => {
+      outputNodes.forEach((tgt) => {
         LINKS.push({
           id: `axon_${src.id}_${tgt.id}`,
           source: src,
           target: tgt,
-          colorType: (i + j) % 2 === 0 ? 'grad-orange-purple' : 'grad-purple-magenta'
-        });
-      });
-    });
-
-    // Conectar Dense 2 (8) -> Sigmoid Output (2) = 16 axones
-    dense2Nodes.forEach((src, i) => {
-      outputNodes.forEach((tgt, j) => {
-        LINKS.push({
-          id: `axon_${src.id}_${tgt.id}`,
-          source: src,
-          target: tgt,
-          colorType: j === 0 ? 'grad-purple-magenta' : 'grad-orange-purple'
+          color: tgt.id === 'out_buy' ? 'green' : 'red'
         });
       });
     });
 
     /********************************************************************
-     * 2. RENDERIZADO DEL DOM Y SVG EN EL ESCENARIO 3D
+     * 3. RENDERIZADO VISUAL EN EL ESCENARIO 3D
      ********************************************************************/
-    const axonsContainer  = document.getElementById('axons-container');
-    const pulsesContainer = document.getElementById('pulses-container');
-    const nodesContainer  = document.getElementById('nodes-container');
+    function renderNetworkElements() {
+      const axonLayer = document.getElementById('axon-layer');
+      const neuronsLayer = document.getElementById('neurons-layer');
+      axonLayer.innerHTML = '';
+      neuronsLayer.innerHTML = '';
 
-    // Dibujar axones
-    LINKS.forEach(link => {
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('id', link.id);
-      line.setAttribute('x1', link.source.x);
-      line.setAttribute('y1', link.source.y);
-      line.setAttribute('x2', link.target.x);
-      line.setAttribute('y2', link.target.y);
-      line.setAttribute('stroke', `url(#${link.colorType})`);
-      line.setAttribute('class', 'axon-line');
-      line.dataset.source = link.source.id;
-      line.dataset.target = link.target.id;
-      axonsContainer.appendChild(line);
-    });
+      // Renderizar Axones SVG
+      LINKS.forEach(link => {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const sx = link.source.x, sy = link.source.y;
+        const tx = link.target.x, ty = link.target.y;
+        const cx1 = sx + (tx - sx) * 0.45;
+        const cy1 = sy;
+        const cx2 = sx + (tx - sx) * 0.55;
+        const cy2 = ty;
+        const d = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
 
-    // Dibujar Nodos 3D y Etiquetas
-    NODES.forEach(node => {
-      const el = document.createElement('div');
-      el.className = 'neuron-node';
-      el.id = `node-${node.id}`;
-      el.style.left = `${node.x}px`;
-      el.style.top  = `${node.y}px`;
-
-      const shouldShowAlways = node.layer !== 2 || node.showPill;
-
-      el.innerHTML = `
-        <div class="neuron-orb"></div>
-        <div class="neuron-pill pill-${node.pillPos} ${shouldShowAlways ? '' : 'hidden-pill'}" style="${shouldShowAlways ? '' : 'opacity:0; pointer-events:none;'}">
-          ${node.label}
-        </div>
-      `;
-
-      // Eventos de interacción por nodo
-      el.addEventListener('mouseenter', () => {
-        const pill = el.querySelector('.neuron-pill');
-        if (pill) pill.style.opacity = '1';
-        highlightNodeConnections(node, false);
+        path.setAttribute('d', d);
+        path.setAttribute('class', 'axon-path');
+        path.setAttribute('id', link.id);
+        path.setAttribute('stroke', link.color === 'green' ? '#00ff9d' : (link.color === 'red' ? '#ff2a55' : (link.color === 'purple' ? '#c084fc' : '#38bdf8')));
+        path.setAttribute('stroke-width', '1.2');
+        axonLayer.appendChild(path);
       });
 
-      el.addEventListener('mouseleave', () => {
-        const pill = el.querySelector('.neuron-pill');
-        if (!shouldShowAlways && !el.classList.contains('node-selected')) {
-          pill.style.opacity = '0';
-        }
-        if (!selectedNodeId) {
-          applyVisualMode(currentMode, false);
-        } else {
-          const lockedNode = NODES.find(n => n.id === selectedNodeId);
-          if (lockedNode) highlightNodeConnections(lockedNode, false);
-        }
-      });
+      // Renderizar Neuronas
+      NODES.forEach(node => {
+        const el = document.createElement('div');
+        el.className = 'neuron-node';
+        el.id = `node-${node.id}`;
+        el.style.left = `${node.x}px`;
+        el.style.top = `${node.y}px`;
 
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectedNodeId = node.id;
-        document.querySelectorAll('.neuron-node').forEach(n => n.classList.remove('node-selected'));
-        el.classList.add('node-selected');
-        highlightNodeConnections(node, true);
-        spawnPulseFromNode(node);
-      });
-
-      nodesContainer.appendChild(el);
-    });
-
-    // Clic en las placas de cristal para inspeccionar la capa entera
-    document.querySelectorAll('.glass-slab').forEach(slab => {
-      slab.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const layerNum = parseInt(slab.dataset.layer, 10);
-        inspectSlabLayer(layerNum);
-      });
-    });
-
-    /********************************************************************
-     * 3. SISTEMA DE PULSOS LUMINOSOS VIAJANDO POR LOS AXONES
-     ********************************************************************/
-    const activePulses = [];
-
-    function createAxonPulse(link, customColor = null) {
-      if (activePulses.length > 42) return; // límite de rendimiento fluido
-      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      circle.setAttribute('r', '3.2');
-      const color = customColor || (link.target.id === 'out_1' ? '#00ff9d' : '#ff36f8');
-      circle.setAttribute('fill', color);
-      circle.setAttribute('filter', 'url(#glow-pulse)');
-      pulsesContainer.appendChild(circle);
-
-      activePulses.push({
-        el: circle,
-        x1: link.source.x,
-        y1: link.source.y,
-        x2: link.target.x,
-        y2: link.target.y,
-        progress: 0,
-        speed: 0.014 + Math.random() * 0.018
-      });
-    }
-
-    function spawnPulseFromNode(node, color = '#00f0ff') {
-      const relatedLinks = LINKS.filter(l => l.source.id === node.id || l.target.id === node.id);
-      relatedLinks.slice(0, 12).forEach(l => createAxonPulse(l, color));
-    }
-
-    function spawnFullNetworkWave(color = null) {
-      const sample1 = LINKS.filter(l => l.source.subLayer === 'input').sort(() => 0.5 - Math.random()).slice(0, 10);
-      sample1.forEach(l => createAxonPulse(l, color || '#e024ff'));
-
-      setTimeout(() => {
-        const sample2 = LINKS.filter(l => l.source.subLayer === 'dense1').sort(() => 0.5 - Math.random()).slice(0, 10);
-        sample2.forEach(l => createAxonPulse(l, color || '#ff5500'));
-      }, 320);
-
-      setTimeout(() => {
-        const sample3 = LINKS.filter(l => l.source.subLayer === 'dense2').sort(() => 0.5 - Math.random()).slice(0, 8);
-        sample3.forEach(l => createAxonPulse(l, color || '#00f0ff'));
-      }, 650);
-    }
-
-    function animatePulsesLoop() {
-      for (let i = activePulses.length - 1; i >= 0; i--) {
-        const p = activePulses[i];
-        p.progress += p.speed;
-        if (p.progress >= 1) {
-          p.el.remove();
-          activePulses.splice(i, 1);
-        } else {
-          const cx = p.x1 + (p.x2 - p.x1) * p.progress;
-          const cy = p.y1 + (p.y2 - p.y1) * p.progress;
-          p.el.setAttribute('cx', cx);
-          p.el.setAttribute('cy', cy);
-        }
-      }
-
-      if (Math.random() < 0.24) {
-        const randomLink = LINKS[Math.floor(Math.random() * LINKS.length)];
-        let pulseColor = null;
-        if (currentMode === 'approved') pulseColor = '#00ff9d';
-        if (currentMode === 'vetoed') pulseColor = '#ff2a55';
-        createAxonPulse(randomLink, pulseColor);
-      }
-
-      requestAnimationFrame(animatePulsesLoop);
-    }
-    requestAnimationFrame(animatePulsesLoop);
-
-    /********************************************************************
-     * 4. LÓGICA DE INSPECCIÓN, LOGS DE TERMINAL Y MODOS DE FLUJO
-     ********************************************************************/
-    let selectedNodeId = 'd1_5';
-    let currentMode = 'isometric';
-    let isSystemOnline = false;
-
-    const terminalOutput = document.getElementById('terminal-output');
-
-    function appendTerminalLog(tag, message, tagColor = 'text-cyan-400') {
-      const oldCursors = terminalOutput.querySelectorAll('.cursor-blink');
-      oldCursors.forEach(c => c.remove());
-
-      const now = new Date();
-      const timeStr = now.toTimeString().split(' ')[0];
-      const line = document.createElement('div');
-      line.className = 'text-slate-200';
-      line.innerHTML = `<span class="text-slate-500">[${timeStr}]</span> <span class="${tagColor} font-bold">[${tag}]</span> ${message}<span class="cursor-blink"></span>`;
-      terminalOutput.appendChild(line);
-      terminalOutput.scrollTop = terminalOutput.scrollHeight;
-    }
-
-    function updateInspectorCard(node, synCount) {
-      const layerNames = {
-        1: 'CAPA 1 • INPUT 7 HERDS',
-        2: 'CAPA 2 • DENSE (10, 8)',
-        3: 'CAPA 3 • SIGMOID OUTPUT'
-      };
-      document.getElementById('insp-layer').textContent = layerNames[node.layer] || 'CAPA NEURAL';
-      document.getElementById('insp-name').textContent  = node.label;
-      document.getElementById('insp-act').textContent   = `${node.weight.toFixed(3)} σ`;
-      document.getElementById('insp-lat').textContent   = node.latency;
-      document.getElementById('insp-syn').textContent   = `${synCount} axones`;
-    }
-
-    function highlightNodeConnections(node, logToTerminal = false) {
-      let connectedCount = 0;
-      document.querySelectorAll('.axon-line').forEach(line => {
-        const isConn = line.dataset.source === node.id || line.dataset.target === node.id;
-        line.classList.remove('axon-highlighted', 'axon-dimmed', 'axon-approved', 'axon-vetoed');
-        if (isConn) {
-          line.classList.add('axon-highlighted');
-          connectedCount++;
-        } else {
-          line.classList.add('axon-dimmed');
-        }
-      });
-
-      updateInspectorCard(node, connectedCount);
-
-      if (logToTerminal) {
-        appendTerminalLog(
-          `Nodo:${node.id.toUpperCase()}`,
-          `Inspeccionando "${node.label}" → Activación=${node.weight}σ | Latencia=${node.latency} | ${connectedCount} sinapsis activas.`,
-          'text-fuchsia-400'
-        );
-      }
-    }
-
-    function inspectSlabLayer(layerNum) {
-      selectedNodeId = null;
-      document.querySelectorAll('.glass-slab').forEach(s => s.classList.remove('slab-active'));
-      document.getElementById(`slab-${layerNum}`).classList.add('slab-active');
-
-      document.querySelectorAll('.axon-line').forEach(line => {
-        line.classList.remove('axon-highlighted', 'axon-dimmed', 'axon-approved', 'axon-vetoed');
-        const srcNode = NODES.find(n => n.id === line.dataset.source);
-        const tgtNode = NODES.find(n => n.id === line.dataset.target);
-        if ((srcNode && srcNode.layer === layerNum) || (tgtNode && tgtNode.layer === layerNum)) {
-          line.classList.add('axon-highlighted');
-        } else {
-          line.classList.add('axon-dimmed');
-        }
-      });
-
-      const layerDescriptions = {
-        1: 'Placa 1: Especificaciones Individuales (.MD) en Disco / Obsidian → 7 Herds Desacoplados.',
-        2: 'Placa 2: Motor de Deliberación HFT (Llama 3.3 70B + Capas Densas 10x8). Cero I/O en bucle.',
-        3: 'Placa 3: Capa Sigmoid de Ejecución Canónica a MT5 o Bloqueo por Veto de Riesgo.'
-      };
-      appendTerminalLog(`Capa ${layerNum}`, layerDescriptions[layerNum], 'text-cyan-400');
-      spawnFullNetworkWave('#00f0ff');
-    }
-
-    function applyVisualMode(mode, logEvent = true) {
-      currentMode = mode;
-      selectedNodeId = null;
-
-      document.querySelectorAll('.neuron-node').forEach(n => {
-        n.classList.remove('node-selected', 'node-green', 'node-red');
-      });
-      document.querySelectorAll('.glass-slab').forEach(s => s.classList.remove('slab-active'));
-
-      const quorumEl = document.getElementById('hud-quorum');
-      const statusEl = document.getElementById('hud-status');
-
-      document.querySelectorAll('.axon-line').forEach(line => {
-        line.classList.remove('axon-highlighted', 'axon-dimmed', 'axon-approved', 'axon-vetoed');
-      });
-
-      if (mode === 'isometric') {
-        quorumEl.textContent = 'ESPERANDO DELIBERACIÓN...';
-        quorumEl.className = 'font-bold text-amber-400 truncate';
-        const defaultNode = document.getElementById('node-d1_5');
-        if (defaultNode) defaultNode.classList.add('node-selected');
-        if (logEvent) {
-          appendTerminalLog('Vista 3D', 'Restaurada vista isométrica 3D de la malla neuronal (7x10x8x2).', 'text-sky-400');
-        }
-      } else if (mode === 'input_herds') {
-        document.getElementById('slab-1').classList.add('slab-active');
-        quorumEl.textContent = 'CARGA EN RAM (@lru_cache)';
-        quorumEl.className = 'font-bold text-cyan-400 truncate';
-        document.querySelectorAll('.axon-line').forEach(line => {
-          if (line.dataset.source.startsWith('h')) {
-            line.classList.add('axon-highlighted');
+        // Coloración según valor del tensor
+        if (node.layer === 1) {
+          if (!node.isContinuous) {
+            if (node.val === 1.0) el.classList.add('node-green');
+            else el.classList.add('node-off');
           } else {
-            line.classList.add('axon-dimmed');
+            el.classList.add('node-cyan');
           }
-        });
-        if (logEvent) {
-          appendTerminalLog('Swarm RAM', 'Cargando especificaciones .MD de los 7 Herds en caché (@lru_cache). Cero I/O en bucle HFT.', 'text-cyan-400');
-          spawnFullNetworkWave('#00f0ff');
-        }
-      } else if (mode === 'approved') {
-        quorumEl.textContent = 'QUÓRUM 0.84 >= 0.70 (APROBADO MT5)';
-        quorumEl.className = 'font-bold text-emerald-400 truncate';
-        statusEl.textContent = 'ONLINE - DESPACHO CANÓNICO MT5';
-        statusEl.className = 'font-bold text-emerald-400 truncate';
-
-        // 1. Capa 1: Iluminar los 7 Herds que generan la confluencia de entrada
-        ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7'].forEach(hId => {
-          const el = document.getElementById(`node-${hId}`);
-          if (el) el.classList.add('node-green');
-        });
-
-        // 2. Capa 2: Iluminar el debate central y el Quórum del Master
-        const elDebate = document.getElementById('node-d1_5');
-        if (elDebate) elDebate.classList.add('node-green');
-        const elMaster = document.getElementById('node-d2_2');
-        if (elMaster) elMaster.classList.add('node-green');
-        const elScore = document.getElementById('node-d2_5');
-        if (elScore) elScore.classList.add('node-green');
-
-        // 3. Capa 3: Iluminar la salida ejecutada a MT5
-        document.getElementById('node-out_1').classList.add('node-green', 'node-selected');
-
-        // 4. Malla de Axones: Flujo completo desde los 7 Herds -> Capa 2 -> Master -> MT5
-        document.querySelectorAll('.axon-line').forEach(line => {
-          const src = line.dataset.source;
-          const tgt = line.dataset.target;
-          const isFromHerdToDelib = src.startsWith('h') && (tgt === 'd1_5' || tgt === 'd1_3' || tgt === 'd1_1');
-          const isFromDelibToMaster = (src === 'd1_5' || src === 'd1_3') && tgt === 'd2_2';
-          const isFromMasterToOut = tgt === 'out_1' || src === 'd2_2' || tgt === 'd2_2';
-
-          if (isFromHerdToDelib || isFromDelibToMaster || isFromMasterToOut) {
-            line.classList.add('axon-approved');
-          } else {
-            line.classList.add('axon-dimmed');
-          }
-        });
-
-        if (logEvent) {
-          appendTerminalLog('Swarm Confluencia', '7 Herds convergen con Score Quórum 0.84 >= 0.70 (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TF, ATLAS).', 'text-cyan-400');
-          appendTerminalLog('Master Quórum', 'Consenso cualificado alcanzado sin veto. Transfiriendo orden a H5: RUNE para dimensionamiento y Cascada MT5.', 'text-amber-400');
-          appendTerminalLog('RUNE MT5 Dispatch', 'Filtro de riesgo nominal superado. Despachando orden canónica a MT5 Live con Cascada 4 Fases activa.', 'text-emerald-400');
-          spawnFullNetworkWave('#00ff9d');
-        }
-      } else if (mode === 'vetoed') {
-        quorumEl.textContent = 'VETADO POR H5: RUNE (RISK CASCADE)';
-        quorumEl.className = 'font-bold text-red-400 truncate';
-        document.getElementById('node-out_2').classList.add('node-red', 'node-selected');
-        document.getElementById('node-h5').classList.add('node-red');
-
-        document.querySelectorAll('.axon-line').forEach(line => {
-          if (line.dataset.target === 'out_2' || line.dataset.source === 'h5') {
-            line.classList.add('axon-vetoed');
-          } else {
-            line.classList.add('axon-dimmed');
-          }
-        });
-        if (logEvent) {
-          appendTerminalLog('VETO RUNE', 'Alerta de riesgo en Cascade 4 Fases (H5: RUNE). Operación bloqueada en Sigmoid OUT 2.', 'text-red-400');
-          spawnFullNetworkWave('#ff2a55');
-        }
-      } else if (mode === 'deliberating') {
-        quorumEl.textContent = 'DELIBERANDO 7 HERDS (2.3s)...';
-        quorumEl.className = 'font-bold text-amber-400 truncate';
-        document.getElementById('slab-2').classList.add('slab-active');
-        document.getElementById('node-d1_5').classList.add('node-selected');
-        if (logEvent) {
-          appendTerminalLog('Llama 3.3 70B', 'Ejecutando debate_dinamico_7_herds (Prompt: 1,500 tokens • Inferencia estimada: 2.3s)...', 'text-amber-400');
-          spawnFullNetworkWave('#ffb800');
-        }
-      }
-    }
-
-    // Eventos de las píldoras superiores
-    const modeButtons = document.querySelectorAll('[data-mode]');
-    modeButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        modeButtons.forEach(b => b.classList.remove('active-cyan', 'active-mode'));
-        if (btn.classList.contains('pill-green') || btn.classList.contains('pill-red') || btn.classList.contains('pill-amber')) {
-          btn.classList.add('active-mode');
+        } else if (node.layer === 2) {
+          el.classList.add('node-purple');
+        } else if (node.id === 'out_buy') {
+          el.classList.add('node-green');
         } else {
-          btn.classList.add('active-cyan');
+          el.classList.add('node-red');
         }
-        applyVisualMode(btn.dataset.mode, true);
+
+        // Píldora de etiqueta flotante
+        const pill = document.createElement('div');
+        pill.className = 'neuron-label';
+        if (node.group === 'x') pill.classList.add('pos-left');
+        else if (node.group === 'z') pill.classList.add('pos-right');
+        else if (node.layer === 3) pill.classList.add('pos-right');
+        else pill.classList.add('pos-center');
+
+        const valText = node.isContinuous ? `${node.val.toFixed(2)}` : (node.val === 1.0 ? '1.0' : '0.0');
+        pill.textContent = `${node.label} [${valText}]`;
+        pill.onclick = (e) => {
+          e.stopPropagation();
+          inspectNode(node);
+        };
+        el.appendChild(pill);
+
+        el.onclick = () => inspectNode(node);
+        neuronsLayer.appendChild(el);
       });
-    });
+    }
 
-    // Botón Conmutar Estado Online / Desconectado
-    document.getElementById('btn-toggle-online').addEventListener('click', () => {
-      isSystemOnline = !isSystemOnline;
-      const statusEl = document.getElementById('hud-status');
-      const dotEl = document.getElementById('dot-online');
-      const shortTxt = document.getElementById('txt-online-short');
-      const btn = document.getElementById('btn-toggle-online');
+    function inspectNode(node) {
+      document.getElementById('insp-dim').textContent = node.dim;
+      document.getElementById('insp-name').textContent = node.label;
+      document.getElementById('insp-type').textContent = node.type;
+      const valStr = node.isContinuous ? `${node.val.toFixed(3)} σ` : (node.val === 1.0 ? '1.0 [ACTIVO]' : '0.0 [INACTIVO]');
+      document.getElementById('insp-val').textContent = valStr;
 
-      if (isSystemOnline) {
-        statusEl.textContent = 'ONLINE - SWARM HFT SINCRONIZADO';
-        statusEl.className = 'font-bold text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.6)] truncate';
-        dotEl.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0';
-        shortTxt.textContent = 'ONLINE HFT';
-        btn.className = 'px-2 sm:px-2.5 py-1 rounded-md bg-emerald-950/70 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/60 transition cursor-pointer flex items-center gap-1.5 text-[10px] sm:text-xs';
-        appendTerminalLog('TensorFlow', 'Conexión restablecida con Redis Sub-30ms y motor Keras Sequential.', 'text-emerald-400');
-        spawnFullNetworkWave('#00ff9d');
-      } else {
-        statusEl.textContent = 'DESCONECTADO - REINTENTANDO...';
-        statusEl.className = 'font-bold text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.5)] truncate';
-        dotEl.className = 'w-2 h-2 rounded-full bg-red-500 animate-ping flex-shrink-0';
-        shortTxt.textContent = 'REINTENTANDO...';
-        btn.className = 'px-2 sm:px-2.5 py-1 rounded-md bg-red-950/70 border border-red-500/50 text-red-300 hover:bg-red-900/60 transition cursor-pointer flex items-center gap-1.5 text-[10px] sm:text-xs';
-        appendTerminalLog('Master', 'MERCADO CERRADO (Fin de semana). Criosueño activo. Consumo de tokens: 0.', 'text-amber-400');
-      }
-    });
-
-    // Botón de Inyectar Pulso en la terminal
-    document.getElementById('btn-pulse-burst').addEventListener('click', () => {
-      spawnFullNetworkWave();
-      const tradesEl = document.getElementById('hud-trades');
-      const nextTrades = parseInt(tradesEl.textContent, 10) + 1;
-      tradesEl.textContent = nextTrades;
-      appendTerminalLog('CBR Autopsia', `Pulso sináptico completado. Memoria actualizada (Trades aprendidos: ${nextTrades}).`, 'text-fuchsia-400');
-    });
+      // Resaltar axones conectados
+      document.querySelectorAll('.axon-path').forEach(p => p.classList.remove('axon-active', 'axon-green', 'axon-red'));
+      LINKS.filter(l => l.source.id === node.id || l.target.id === node.id).forEach(l => {
+        const p = document.getElementById(l.id);
+        if (p) p.classList.add('axon-active');
+      });
+    }
 
     /********************************************************************
-     * 5. RESPONSIVE DESIGN & CONTROLES FLOTANTES MÓVILES
+     * 4. CONTROL DE CÁMARA 3D, ROTACIÓN Y ZOOM
      ********************************************************************/
-    const hudCardPanel = document.getElementById('hud-card-panel');
-    const hudTerminalPanel = document.getElementById('hud-terminal-panel');
-    const btnCloseHud = document.getElementById('btn-close-hud');
-    const btnCloseTerminal = document.getElementById('btn-close-terminal');
-
-    const mBtnMetrics = document.getElementById('m-btn-metrics');
-    const mBtnTerminal = document.getElementById('m-btn-terminal');
-    const mBtnClean = document.getElementById('m-btn-clean');
-
-    function checkScreenSize() {
-      const isMobile = window.innerWidth < 1024;
-      if (isMobile) {
-        // En móviles ocultar por defecto para dejar ver la red 3D
-        hudCardPanel.classList.add('hud-mobile-hidden');
-        hudTerminalPanel.classList.add('hud-mobile-hidden');
-      } else {
-        hudCardPanel.classList.remove('hud-mobile-hidden');
-        hudTerminalPanel.classList.remove('hud-mobile-hidden');
-      }
-    }
-
-    if (mBtnMetrics) {
-      mBtnMetrics.addEventListener('click', () => {
-        const isHidden = hudCardPanel.classList.contains('hud-mobile-hidden');
-        hudCardPanel.classList.toggle('hud-mobile-hidden', !isHidden);
-        hudTerminalPanel.classList.add('hud-mobile-hidden');
-        mBtnMetrics.className = isHidden 
-          ? 'px-3 py-1 rounded-full text-[11px] font-semibold bg-cyan-950/80 border border-cyan-400/50 text-cyan-300 flex items-center gap-1.5'
-          : 'px-3 py-1 rounded-full text-[11px] font-semibold bg-slate-900 border border-slate-700 text-slate-300 flex items-center gap-1.5';
-      });
-    }
-
-    if (mBtnTerminal) {
-      mBtnTerminal.addEventListener('click', () => {
-        const isHidden = hudTerminalPanel.classList.contains('hud-mobile-hidden');
-        hudTerminalPanel.classList.toggle('hud-mobile-hidden', !isHidden);
-        hudCardPanel.classList.add('hud-mobile-hidden');
-      });
-    }
-
-    if (mBtnClean) {
-      mBtnClean.addEventListener('click', () => {
-        hudCardPanel.classList.add('hud-mobile-hidden');
-        hudTerminalPanel.classList.add('hud-mobile-hidden');
-      });
-    }
-
-    if (btnCloseHud) {
-      btnCloseHud.addEventListener('click', () => {
-        hudCardPanel.classList.add('hud-mobile-hidden');
-      });
-    }
-
-    if (btnCloseTerminal) {
-      btnCloseTerminal.addEventListener('click', () => {
-        hudTerminalPanel.classList.add('hud-mobile-hidden');
-      });
-    }
-
-    window.addEventListener('resize', checkScreenSize);
-    checkScreenSize();
-
-    /********************************************************************
-     * 6. CÁMARA 3D INTERACTIVA CON GESTOS TÁCTILES Y PINCH-TO-ZOOM
-     ********************************************************************/
-    const viewport = document.getElementById('viewport');
-    const world    = document.getElementById('world');
-
-    const DEFAULT_CAM = { rotX: 48, rotZ: -34, scale: 0.84, panX: 30, panY: -10 };
-    let cam = { ...DEFAULT_CAM };
-    let isDragging = false;
-    let prevX = 0, prevY = 0;
-    let is3DView = true;
-    let autoTourTimer = null;
-    let initialPinchDist = null;
-    let initialPinchScale = 1;
+    let camRotX = 22;
+    let camRotY = -24;
+    let camZoom = 0.92;
+    let isAutoTour = false;
+    let tourTimer = null;
 
     function updateCameraTransform() {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const isMobile = w < 768;
-      const isTablet = w >= 768 && w < 1024;
-
-      let responsiveScale = cam.scale;
-      if (isMobile) {
-        // En móviles escalamos el mundo de 1160px para que quepa vertical u horizontalmente
-        const factor = Math.min((w - 24) / 1160, (h - 140) / 640);
-        responsiveScale = cam.scale * Math.max(0.34, factor * 1.15);
-      } else if (isTablet) {
-        responsiveScale = cam.scale * Math.min(w / 1340, 0.78);
-      } else {
-        responsiveScale = cam.scale * Math.min(1.0, w / 1440);
-      }
-
-      const pX = isMobile ? cam.panX * 0.3 : cam.panX;
-      const pY = isMobile ? cam.panY * 0.3 : cam.panY;
-
-      world.style.transform = `translate3d(${pX}px, ${pY}px, 0px) scale(${responsiveScale}) rotateX(${cam.rotX}deg) rotateZ(${cam.rotZ}deg)`;
+      const world = document.getElementById('world');
+      world.style.transform = `scale(${camZoom}) rotateX(${camRotX}deg) rotateY(${camRotY}deg)`;
     }
-
-    window.addEventListener('resize', updateCameraTransform);
-
-    // Mouse drag
-    viewport.addEventListener('mousedown', (e) => {
-      if (e.target.closest('aside, section, button, nav')) return;
-      isDragging = true;
-      prevX = e.clientX;
-      prevY = e.clientY;
-    });
-
-    window.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      const dx = e.clientX - prevX;
-      const dy = e.clientY - prevY;
-      cam.rotZ += dx * 0.28;
-      cam.rotX = Math.max(0, Math.min(74, cam.rotX - dy * 0.25));
-      prevX = e.clientX;
-      prevY = e.clientY;
-      updateCameraTransform();
-    });
-
-    window.addEventListener('mouseup', () => {
-      isDragging = false;
-    });
-
-    // Touch events (1 dedo para rotar, 2 dedos para PINCH-TO-ZOOM y PAN)
-    viewport.addEventListener('touchstart', (e) => {
-      if (e.target.closest('aside, section, button, nav')) return;
-      if (e.touches.length === 1) {
-        isDragging = true;
-        prevX = e.touches[0].clientX;
-        prevY = e.touches[0].clientY;
-      } else if (e.touches.length === 2) {
-        isDragging = false;
-        initialPinchDist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
-        initialPinchScale = cam.scale;
-      }
-    }, { passive: true });
-
-    window.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 1 && isDragging) {
-        const dx = e.touches[0].clientX - prevX;
-        const dy = e.touches[0].clientY - prevY;
-        cam.rotZ += dx * 0.34;
-        cam.rotX = Math.max(0, Math.min(74, cam.rotX - dy * 0.28));
-        prevX = e.touches[0].clientX;
-        prevY = e.touches[0].clientY;
-        updateCameraTransform();
-      } else if (e.touches.length === 2 && initialPinchDist) {
-        const currentDist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
-        const factor = currentDist / initialPinchDist;
-        cam.scale = Math.max(0.35, Math.min(1.55, initialPinchScale * factor));
-        updateCameraTransform();
-      }
-    }, { passive: true });
-
-    window.addEventListener('touchend', (e) => {
-      if (e.touches.length === 0) {
-        isDragging = false;
-        initialPinchDist = null;
-      }
-    });
-
-    // Zoom con rueda del ratón
-    viewport.addEventListener('wheel', (e) => {
-      if (e.target.closest('#terminal-output')) return;
-      e.preventDefault();
-      const delta = e.deltaY < 0 ? 0.06 : -0.06;
-      cam.scale = Math.max(0.40, Math.min(1.50, cam.scale + delta));
-      updateCameraTransform();
-    }, { passive: false });
 
     // Controles HUD cámara
-    document.getElementById('cam-zoom-in').addEventListener('click', () => {
-      cam.scale = Math.min(1.50, cam.scale + 0.12);
-      updateCameraTransform();
-    });
-
-    document.getElementById('cam-zoom-out').addEventListener('click', () => {
-      cam.scale = Math.max(0.40, cam.scale - 0.12);
-      updateCameraTransform();
-    });
-
-    document.getElementById('cam-reset').addEventListener('click', () => {
-      stopAutoTour();
-      cam = { ...DEFAULT_CAM };
-      is3DView = true;
-      document.getElementById('cam-toggle-3d').textContent = '3D';
-      document.getElementById('cam-toggle-3d').classList.add('active');
-      updateCameraTransform();
-      applyVisualMode('isometric', true);
-    });
-
-    document.getElementById('cam-toggle-3d').addEventListener('click', (e) => {
-      is3DView = !is3DView;
-      if (is3DView) {
-        cam.rotX = DEFAULT_CAM.rotX;
-        cam.rotZ = DEFAULT_CAM.rotZ;
-        e.currentTarget.textContent = '3D';
-        e.currentTarget.classList.add('active');
-        appendTerminalLog('Cámara', 'Activada perspectiva volumétrica 3D.', 'text-cyan-400');
+    document.getElementById('cam-zoom-in').onclick = () => { camZoom = Math.min(1.4, camZoom + 0.1); updateCameraTransform(); };
+    document.getElementById('cam-zoom-out').onclick = () => { camZoom = Math.max(0.6, camZoom - 0.1); updateCameraTransform(); };
+    document.getElementById('cam-reset').onclick = () => { camRotX = 22; camRotY = -24; camZoom = 0.92; isAutoTour = false; updateCameraTransform(); };
+    document.getElementById('cam-toggle-3d').onclick = () => {
+      const btn = document.getElementById('cam-toggle-3d');
+      if (camRotX !== 0 || camRotY !== 0) {
+        camRotX = 0; camRotY = 0;
+        btn.textContent = '2D';
       } else {
-        cam.rotX = 0;
-        cam.rotZ = 0;
-        e.currentTarget.textContent = '2D';
-        e.currentTarget.classList.remove('active');
-        appendTerminalLog('Cámara', 'Activada proyección ortogonal 2D superior.', 'text-cyan-400');
+        camRotX = 22; camRotY = -24;
+        btn.textContent = '3D';
       }
       updateCameraTransform();
-    });
+    };
 
-    // Recorrido Automático 3D
     function toggleAutoTour() {
-      const pillTour = document.getElementById('pill-autotour');
-      const camOrbit = document.getElementById('cam-orbit');
-
-      if (autoTourTimer) {
-        stopAutoTour();
-      } else {
-        pillTour.classList.add('active-cyan');
-        camOrbit.classList.add('active');
-        appendTerminalLog('AutoTour 3D', 'Iniciando órbita automática e inyección periódica de tensores...', 'text-cyan-400');
-        let angleTick = 0;
-        autoTourTimer = setInterval(() => {
-          angleTick += 0.03;
-          cam.rotZ = DEFAULT_CAM.rotZ + Math.sin(angleTick) * 18;
-          cam.rotX = DEFAULT_CAM.rotX + Math.cos(angleTick * 0.7) * 8;
+      isAutoTour = !isAutoTour;
+      if (isAutoTour) {
+        tourTimer = setInterval(() => {
+          camRotY += 0.4;
           updateCameraTransform();
-          if (Math.random() < 0.12) spawnFullNetworkWave();
         }, 30);
+      } else if (tourTimer) {
+        clearInterval(tourTimer);
+        tourTimer = null;
       }
     }
+    document.getElementById('cam-orbit').onclick = toggleAutoTour;
+    document.getElementById('pill-tour').onclick = toggleAutoTour;
 
-    function stopAutoTour() {
-      if (autoTourTimer) {
-        clearInterval(autoTourTimer);
-        autoTourTimer = null;
-      }
-      document.getElementById('pill-autotour').classList.remove('active-cyan');
-      document.getElementById('cam-orbit').classList.remove('active');
-    }
+    // Arrastre con el mouse / touch
+    let isDragging = false;
+    let lastX = 0, lastY = 0;
+    const vp = document.getElementById('viewport');
 
-    document.getElementById('pill-autotour').addEventListener('click', toggleAutoTour);
-    document.getElementById('cam-orbit').addEventListener('click', toggleAutoTour);
+    vp.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+    });
+    window.addEventListener('mouseup', () => isDragging = false);
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      camRotY += dx * 0.25;
+      camRotX = Math.max(-45, Math.min(65, camRotX - dy * 0.25));
+      lastX = e.clientX;
+      lastY = e.clientY;
+      updateCameraTransform();
+    });
 
     /********************************************************************
-     * 7. TELEMETRÍA EN VIVO Y SINCRONIZACIÓN CON BACKEND (/health / api)
+     * 5. SINCRONIZACIÓN EN VIVO CON EL BACKEND (/api/tensor_vector_data)
      ********************************************************************/
-    async function syncBackendTelemetry() {
+    async function syncTensorTelemetry() {
       try {
-        const res = await fetch('/health', { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
-          const statusEl = document.getElementById('hud-status');
-          const dotEl = document.getElementById('dot-online');
-          const shortTxt = document.getElementById('txt-online-short');
-          const btn = document.getElementById('btn-toggle-online');
+        const res = await fetch('/api/tensor_vector_data', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.status !== 'success' || !data.tensor_1d) return;
 
-          if (data.status === 'ok' || data.status === 'success' || data.app) {
-            isSystemOnline = true;
-            statusEl.textContent = 'ONLINE - SWARM HFT SINCRONIZADO';
-            statusEl.className = 'font-bold text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.6)] truncate';
-            dotEl.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0';
-            shortTxt.textContent = 'ONLINE HFT';
-            btn.className = 'px-2 sm:px-2.5 py-1 rounded-md bg-emerald-950/70 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/60 transition cursor-pointer flex items-center gap-1.5 text-[10px] sm:text-xs';
+        const vec = data.tensor_1d;
+        // Mapear los 22 valores
+        if (vec.length >= 22) {
+          // Eje X: 0..3
+          for (let i = 0; i < 4; i++) {
+            const n = NODES.find(node => node.id === `x${i}`);
+            if (n) n.val = vec[i];
+          }
+          // Eje Y: 4..16
+          for (let i = 0; i < 13; i++) {
+            const n = NODES.find(node => node.id === `y${i}`);
+            if (n) n.val = vec[4 + i];
+          }
+          // Eje Z: 17..21
+          for (let i = 0; i < 5; i++) {
+            const n = NODES.find(node => node.id === `z${i}`);
+            if (n) n.val = vec[17 + i];
           }
         }
-      } catch (e) {
-        // Modo offline / criosueño silencioso
+
+        // Actualizar HUD
+        if (data.accuracy) document.getElementById('hud-acc').textContent = `${(data.accuracy * 100).toFixed(2)}%`;
+        if (data.trades_aprendidos) document.getElementById('hud-trades').textContent = `${data.trades_aprendidos} Trades`;
+        if (data.activo) document.getElementById('hud-status').textContent = `ONLINE · ${data.activo} EN VIVO`;
+
+        // Refrescar Nodos
+        renderNetworkElements();
+
+        // Enviar a la terminal de tensores
+        const term = document.getElementById('terminal-output');
+        const now = new Date().toTimeString().split(' ')[0];
+        const row = document.createElement('div');
+        row.innerHTML = `<span class="text-cyan-400">[${now}]</span> <span class="text-emerald-400 font-bold">[22D Ingest]</span> Vector inyectado (${data.activo}) • Sesión: Asia(${vec[0]}), SMC OB(${vec[8]}), Conf(${vec[21] || 0.6})`;
+        term.insertBefore(row, term.firstChild);
+        while (term.children.length > 6) term.removeChild(term.lastChild);
+
+      } catch (err) {
+        // Fail-safe silencioso
       }
     }
 
-    // Inicializar escena
-    updateCameraTransform();
-    applyVisualMode('isometric', false);
-    setTimeout(() => spawnFullNetworkWave(), 300);
-    setInterval(syncBackendTelemetry, 25000);
+    // Inicialización al cargar la ventana
+    window.addEventListener('load', () => {
+      renderNetworkElements();
+      updateCameraTransform();
+      inspectNode(NODES[8]); // Inspeccionar OB Lux 2H por defecto
+      syncTensorTelemetry();
+      setInterval(syncTensorTelemetry, 3500);
+    });
   </script>
 </body>
 </html>
