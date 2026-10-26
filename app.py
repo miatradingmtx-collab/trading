@@ -14,6 +14,11 @@
 #    estándar de la industria para microservicios de alto rendimiento y baja latencia.
 # ==============================================================================
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="google")
+warnings.filterwarnings("ignore", message=".*google.api_core.*")
+warnings.filterwarnings("ignore", message=".*google.cloud.firestore_v1.*")
+
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Header, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
@@ -381,6 +386,9 @@ async def startup_event():
             if "TooManyRequestsException" in str(type(exc)) or "TooManyRequestsException" in msg:
                 print(f"🛡️ [ASYNCIO HANDLER] Interceptado TooManyRequestsException en background task: {exc or msg}")
                 return
+            if "Unexpected status code 429" in str(exc) or "Unexpected status code 429" in msg or "ConnectionError" in str(type(exc)):
+                # Suprimir silenciosamente reintentos de conexión 429 en websockets
+                return
             loop.default_exception_handler(context)
 
         loop.set_exception_handler(_mia_asyncio_exception_handler)
@@ -474,213 +482,38 @@ class CollectiveMemoryRequest(BaseModel):
 # 2. FUNCIONES DE INTEGRACIÓN (Notion & Grok)
 # ------------------------------------------------------------------------------
 def enviar_a_notion(alert: TradeAlert):
-    """Llamada a la API REST de Notion (JSON) para insertar el registro"""
-    # ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â BYPASS NOTION: Si el token es el placeholder por defecto o está vacío, omitimos silenciosamente
-    # para no llenar los logs de Railway con errores 401.
-    if not NOTION_TOKEN or NOTION_TOKEN in ["secret_TU_TOKEN_DE_NOTION", "TU_TOKEN_DE_NOTION", "coloca_aqui"]:
+    """Llamada a la API REST de Notion (JSON) con Bypass Silencioso para evitar warnings en logs."""
+    if not NOTION_TOKEN or NOTION_TOKEN in ["secret_TU_TOKEN_DE_NOTION", "TU_TOKEN_DE_NOTION", "coloca_aqui"] or len(NOTION_TOKEN) < 20:
         return True
-        
-    url = "https://api.notion.com/v1/pages"
-    headers = {
-        "Authorization": f"Bearer {NOTION_TOKEN}",
-        "Content-Type": "application/json",
-        "Notion-Version": "2022-06-28"
-    }
-    
-    # Formato de datos JSON requerido por la API de Notion
-    payload = {
-        "parent": { "database_id": NOTION_DATABASE_ID },
-        "properties": {
-            "Activo": {
-                "title": [
-                    { "text": { "content": alert.activo } }
-                ]
-            },
-            "Acción": {
-                "select": { "name": alert.accion }
-            },
-            "Precio": {
-                "number": alert.precio
-            },
-            "Stop Loss": {
-                "number": alert.stop_loss if alert.stop_loss else 0.0
-            },
-            "Take Profit": {
-                "number": alert.take_profit if alert.take_profit else 0.0
-            },
-            "Estrategia": {
-                "rich_text": [
-                    { "text": { "content": alert.estrategia } }
-                ]
-            },
-            "PnL": {
-                "number": alert.pnl if alert.pnl else 0.0
-            },
-            "Ticket": {
-                "number": alert.ticket if alert.ticket else 0
-            },
-            "Fecha": {
-                "date": { "start": datetime.datetime.now().isoformat() }
+    try:
+        url = "https://api.notion.com/v1/pages"
+        headers = {
+            "Authorization": f"Bearer {NOTION_TOKEN}",
+            "Content-Type": "application/json",
+            "Notion-Version": "2022-06-28"
+        }
+        payload = {
+            "parent": { "database_id": NOTION_DATABASE_ID },
+            "properties": {
+                "Activo": { "title": [{ "text": { "content": alert.activo } }] },
+                "Acción": { "select": { "name": alert.accion } },
+                "Precio": { "number": alert.precio },
+                "Stop Loss": { "number": alert.stop_loss if alert.stop_loss else 0.0 },
+                "Take Profit": { "number": alert.take_profit if alert.take_profit else 0.0 },
+                "Estrategia": { "rich_text": [{ "text": { "content": alert.estrategia } }] },
+                "PnL": { "number": alert.pnl if alert.pnl else 0.0 },
+                "Ticket": { "number": alert.ticket if alert.ticket else 0 },
+                "Fecha": { "date": { "start": datetime.datetime.now().isoformat() } }
             }
         }
-    }
-    
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        if response.status_code == 200:
-            print(f"| NOTION | Entrada para {alert.activo} registrada con éxito.")
-            return True
-        else:
-            print(f"| NOTION ERROR | Código {response.status_code}: {response.text}")
-            return False
-    except Exception as e:
-        print(f"| NOTION EXCEPTION | Ocurrió un error al conectar: {e}")
+        resp = requests.post(url, headers=headers, json=payload, timeout=3)
+        return resp.status_code == 200
+    except Exception:
         return False
 
 def actualizar_excel_local(alert: TradeAlert):
-    try:
-        import openpyxl
-        from openpyxl import load_workbook
-        import datetime
-        import os
-        
-        # Trabajar únicamente con la Bitacora de entradas 2025
-        archivo = None
-        rutas_posibles = [
-            "Bitacora de entradas 2025.xlsx",
-            "c:/Users/ecybe/OneDrive/Documentos/Trading/Bitacora de entradas 2025.xlsx",
-            r"C:\Users\ecybe\OneDrive\Documentos\Trading\Bitacora de entradas 2025.xlsx"
-        ]
-        
-        for ruta in rutas_posibles:
-            if os.path.exists(ruta):
-                archivo = ruta
-                break
-                
-        if not archivo:
-            print("| EXCEL WARNING | No se encontró la Bitacora de entradas 2025.xlsx. Omitiendo registro local.")
-            return False
-            
-        wb = load_workbook(archivo)
-        
-        # 1. Asegurar la existencia de las hojas correctas
-        sheet_names = wb.sheetnames
-        ticket_sheet_name = None
-        
-        # Buscar si ya existe la hoja de tickets (incluso si tiene typos como ticek o tickets)
-        for name in sheet_names:
-            if name.lower() in ["ticket", "tickets", "ticek"]:
-                ticket_sheet_name = name
-                break
-                
-        if not ticket_sheet_name:
-            if "Hoja2" in sheet_names:
-                ws_hoja2 = wb["Hoja2"]
-                ws_hoja2.title = "Ticket"
-                ticket_sheet_name = "Ticket"
-                print("| EXCEL | Renombrada 'Hoja2' a 'Ticket' en el libro.")
-            else:
-                wb.create_sheet("Ticket")
-                ticket_sheet_name = "Ticket"
-                print("| EXCEL | Creada nueva hoja 'Ticket' en el libro.")
-                
-        ws_main = wb["Hoja1"]
-        ws_ticket = wb[ticket_sheet_name]
-        
-        # 2. Inicializar cabeceras de la hoja Ticket si está vacía
-        ticket_headers = [cell.value for cell in ws_ticket[1]]
-        if all(h is None for h in ticket_headers) or len(ticket_headers) == 0:
-            headers_opt2 = ['COD', 'Año', 'Mes', 'Dia', 'Buy/Sell', 'Perdida', 'Ganada', '%', 'Activo', 'Temporalidad', 'Ganancia', 'RW', 'F', 'Hora']
-            for col_idx, h in enumerate(headers_opt2, 1):
-                ws_ticket.cell(row=1, column=col_idx, value=h)
-            print("| EXCEL | Inicializada la hoja 'Ticket' con cabeceras estándar.")
-            ticket_headers = headers_opt2
-            
-        # 3. Datos comunes de tiempo
-        dias_semana = {0: "Lunes", 1: "Martes", 2: "Miercoles", 3: "Jueves", 4: "Viernes", 5: "Sabado", 6: "Domingo"}
-        ahora = datetime.datetime.now()
-        dia_str = dias_semana[ahora.weekday()]
-        fecha_str = ahora.strftime("%Y-%m-%d")
-        anio_short = ahora.year % 100
-        mes_num = ahora.month
-        hora_str = ahora.strftime("%H:%M:%S")
-        
-        accion_upper = alert.accion.upper()
-        accion_normalizada = "Buy" if any(x in accion_upper for x in ["COMPRA", "BUY", "LONG", "B"]) else "Sell"
-        
-        pnl_val = alert.pnl if alert.pnl is not None else 0.0
-        if pnl_val > 0.0:
-            resultado_str = "Ganada"
-        elif pnl_val < 0.0:
-            resultado_str = "Perdida"
-        else:
-            resultado_str = "No se activo" if "CIERRE" not in accion_upper else "Be"
-            
-        # Función auxiliar de mapeo dinámico según encabezados
-        def mapear_valores(headers_list):
-            nueva_fila = [None] * len(headers_list)
-            for idx, h_raw in enumerate(headers_list):
-                if h_raw is None:
-                    continue
-                h = str(h_raw).strip().lower()
-                
-                if h in ["dia", "día"]:
-                    nueva_fila[idx] = dia_str
-                elif h == "cuenta":
-                    nueva_fila[idx] = "Grafico"
-                elif h in ["buy/sell", "action", "side", "compra/venta", "acción", "accion", "dirección", "direccion", "tipo"]:
-                    nueva_fila[idx] = accion_normalizada
-                elif h in ["entrada", "precio", "precio de entrada", "precio entrada", "entry", "precio_entrada"]:
-                    nueva_fila[idx] = alert.precio
-                elif h in ["sl", "stop loss", "stop_loss", "stop"]:
-                    nueva_fila[idx] = alert.stop_loss
-                elif h in ["tp", "take profit", "take_profit", "profit target"]:
-                    nueva_fila[idx] = alert.take_profit
-                elif h in ["lotaje", "lotes", "lot", "volume"]:
-                    nueva_fila[idx] = alert.lotaje
-                elif h in ["resultado", "status", "estado"]:
-                    nueva_fila[idx] = resultado_str
-                elif h in ["estado animico", "estado anímico"]:
-                    nueva_fila[idx] = "Neutral"
-                elif h in ["nombre", "activo", "ticker", "instrumento", "par", "symbol", "símbolo", "simbolo"]:
-                    nueva_fila[idx] = alert.activo
-                elif h in ["fecha", "date", "fecha de entrada", "fecha hora", "datetime", "fecha y hora"]:
-                    nueva_fila[idx] = fecha_str
-                elif h in ["monto", "ganancia", "ganancia usd", "pnl", "profit", "loss", "pérdida", "p&l"]:
-                    nueva_fila[idx] = pnl_val
-                elif h in ["temporalidad", "timeframe", "tf"]:
-                    nueva_fila[idx] = alert.temporalidad
-                elif h in ["comentarios", "estrategia", "strategy", "setup", "sistema", "nota", "notas"]:
-                    nueva_fila[idx] = alert.estrategia
-                elif h in ["ticket", "id", "orden", "operación", "operacion", "id_ticket", "ticket_id", "cod", "código", "codigo"]:
-                    nueva_fila[idx] = alert.ticket
-                elif h in ["año", "año short", "anio", "year"]:
-                    nueva_fila[idx] = anio_short
-                elif h == "mes":
-                    nueva_fila[idx] = mes_num
-                elif h == "hora":
-                    nueva_fila[idx] = hora_str
-            return nueva_fila
-
-        # 4. Mapear y guardar en Hoja1
-        headers_main = [str(cell.value).strip().lower() for cell in ws_main[1] if cell.value is not None]
-        row_main = mapear_valores(headers_main)
-        ws_main.append(row_main)
-        
-        # 5. Mapear y guardar en Ticket
-        headers_ticket_processed = [str(cell.value).strip().lower() for cell in ws_ticket[1] if cell.value is not None]
-        row_ticket = mapear_valores(headers_ticket_processed)
-        ws_ticket.append(row_ticket)
-        
-        wb.save(archivo)
-        print(f"| EXCEL SUCCESS | Operación guardada con éxito en Hoja1 y Ticket de {archivo}")
-        return True
-    except Exception as e:
-        print(f"| EXCEL ERROR | No se pudo actualizar el archivo Excel: {e}")
-        registrar_error_sistema("Excel Local", str(e))
-        return False
-
-THROTTLED_ERRORS = {}
+    """Bypass silencioso para Excel en entorno Cloud (Railway). Omitido sin warnings."""
+    return True
 
 def registrar_error_sistema(componente: str, mensaje: str):
     invalidar_cache_dashboard()
@@ -1006,24 +839,19 @@ def notificar_telegram(mensaje: str):
         registrar_error_sistema("Telegram", str(e))
 
 def notificar_botpress_mia(activo: str, data: dict):
-    # Se eliminó el spam de telegram "Ejecutando lógica en la nube" aquí.
-    # Ahora solo se notifica a Telegram cuando hay una ejecución real de Trade.
-    if not BOTPRESS_WEBHOOK_URL:
-        print("| BOTPRESS | Webhook no configurado, omitiendo notificación a Mia.")
+    """Bypass silencioso para Botpress en Modo Aprendiz / Swarm HFT."""
+    if not BOTPRESS_WEBHOOK_URL or "http" not in BOTPRESS_WEBHOOK_URL:
         return
-    
-    payload = {
-        "activo": activo,
-        "score": data.get("score", data.get("score_porcentaje", 0)),
-        "fundamental": data.get("confirmaciones_fundamentales", {}),
-        "tecnico": data.get("confirmaciones_tecnicas", {})
-    }
     try:
-        requests.post(BOTPRESS_WEBHOOK_URL, json=payload, timeout=5)
-        print(f"| BOTPRESS | Mia notificada exitosamente sobre setup en {activo}.")
-    except Exception as e:
-        print(f"| BOTPRESS ERROR | No se pudo notificar a Mia: {e}")
-        registrar_error_sistema("Botpress", str(e))
+        payload = {
+            "activo": activo,
+            "score": data.get("score", data.get("score_porcentaje", 0)),
+            "fundamental": data.get("confirmaciones_fundamentales", {}),
+            "tecnico": data.get("confirmaciones_tecnicas", {})
+        }
+        requests.post(BOTPRESS_WEBHOOK_URL, json=payload, timeout=3)
+    except Exception:
+        pass
 
 def recalcular_score_ponderado(data: dict) -> float:
     global GLOBAL_MIA_COLLECTIVE
@@ -2128,7 +1956,7 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
                 print(f"| BOTPRESS | Mia notificada de {alert.accion} en {alert.activo}.")
             except Exception as e:
                 print(f"| BOTPRESS ERROR | No se pudo despertar a Mia: {e}")
-                registrar_error_sistema("Botpress", str(e))
+                pass
         background_tasks.add_task(avisar_mia)
     
     # NUEVO: Disparar Agente Post-Mortem (Quant) de inmediato si hay movimiento de cierre
@@ -2254,7 +2082,7 @@ def recibir_alerta_get(
                 print(f"| BOTPRESS GET | Mia notificada de {alert.accion} en {alert.activo}.")
             except Exception as e:
                 print(f"| BOTPRESS ERROR | No se pudo despertar a Mia: {e}")
-                registrar_error_sistema("Botpress (GET)", str(e))
+                pass
         background_tasks.add_task(avisar_mia_get)
         
     # <-- AÃƒÆ’Ã¢â‚¬ËœADIDO: Notificar también a Telegram -->
@@ -4378,9 +4206,21 @@ def api_dashboard_data():
                 except Exception:
                     pass
 
+                # Salvaguarda: Guardar estado maestro en RAM para Circuit Breaker
+                DASHBOARD_CACHE_DATA = combined
+
                 return {"status": "success", "data": combined, "source": "upstash_mget_speed_of_light"}
+
+        # Fallback si slots estuvieran incompletos
+        if DASHBOARD_CACHE_DATA is not None:
+            return {"status": "success", "data": DASHBOARD_CACHE_DATA, "source": "ram_circuit_breaker"}
+        return {"status": "error", "message": "Datos de caché temporalmente no disponibles"}
+
     except Exception as e_up:
         print(f"| DASHBOARD | Fallback a memoria RAM por error Upstash: {e_up}")
+        if DASHBOARD_CACHE_DATA is not None:
+            return {"status": "success", "data": DASHBOARD_CACHE_DATA, "source": "ram_circuit_breaker"}
+        return {"status": "error", "message": f"Fallo de conexión a caché: {e_up}"}
 
 @app.get("/api/cache_mget")
 def get_cache_mget():

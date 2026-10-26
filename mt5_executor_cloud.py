@@ -219,6 +219,10 @@ async def conectar_metaapi():
         from metaapi_cloud_sdk.logger import LoggerManager
         LoggerManager.use_logging()
         logging.getLogger("SubscriptionManager").setLevel(logging.CRITICAL)
+        logging.getLogger("socketio").setLevel(logging.CRITICAL)
+        logging.getLogger("engineio").setLevel(logging.CRITICAL)
+        logging.getLogger("metaapi_cloud_sdk").setLevel(logging.CRITICAL)
+        logging.getLogger("urllib3").setLevel(logging.WARNING)
         # Aplicar el parche defensivo contra KeyError('type') y unhandled task exceptions
         patch_metaapi_subscription_manager()
     except ImportError:
