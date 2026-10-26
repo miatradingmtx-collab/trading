@@ -402,6 +402,14 @@ class MiaQuantSupervisor:
 
         return None
 
+    def _generate_and_register_case(self, trade: Dict[str, Any]) -> Dict[str, Any]:
+        """Alias canónico de compatibilidad para process_trade_post_mortem y registro en CBR."""
+        return self.process_trade_post_mortem(trade)
+
+    def generate_and_register_case(self, trade: Dict[str, Any]) -> Dict[str, Any]:
+        """Alias canónico de compatibilidad para process_trade_post_mortem y registro en CBR."""
+        return self.process_trade_post_mortem(trade)
+
     def process_trade_post_mortem(self, trade: Dict[str, Any]) -> Dict[str, Any]:
         """
         Genera la autopsia post-mortem del trade con el ticket oficial de entrada en MT5.
