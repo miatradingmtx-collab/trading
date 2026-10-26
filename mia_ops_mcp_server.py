@@ -68,6 +68,39 @@ MAPA_YAHOO_CANONICO = {
     "SP500": "ES=F"
 }
 
+def fetch_market_spot_native(symbol: str) -> Optional[float]:
+    """
+    Obtiene la cotización spot en tiempo real directamente desde la API JSON de Yahoo Finance
+    vía HTTPX nativo (sub-100ms, 0% yfinance, 0% BeautifulSoup).
+    """
+    try:
+        sym_clean = symbol.upper().replace("/", "").replace("_", "").replace("-", "").strip()
+        yf_symbol = MAPA_YAHOO_CANONICO.get(sym_clean)
+        if not yf_symbol:
+            if len(sym_clean) == 6 and sym_clean.isalpha():
+                yf_symbol = f"{sym_clean}=X"
+            else:
+                yf_symbol = sym_clean
+
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yf_symbol}?interval=1m&range=1d"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        with httpx.Client(timeout=4.0, follow_redirects=True) as client:
+            resp = client.get(url, headers=headers)
+            if resp.status_code == 200:
+                res = resp.json().get("chart", {}).get("result", [])
+                if res:
+                    digits = 2 if any(k in sym_clean for k in ["JPY", "XAU", "GOLD", "US30", "SP500", "NAS"]) else 5
+                    meta_p = res[0].get("meta", {}).get("regularMarketPrice")
+                    if meta_p and float(meta_p) > 0:
+                        return round(float(meta_p), digits)
+                    quote = res[0].get("indicators", {}).get("quote", [{}])[0]
+                    closes = [c for c in quote.get("close", []) if c is not None]
+                    if closes:
+                        return round(float(closes[-1]), digits)
+        return None
+    except Exception:
+        return None
+
 def fetch_market_chart_native(symbol: str, timeframe: str = "1h") -> Dict[str, Any]:
     """
     Descarga velas de mercado OHLCV, EMA50 y EMA200 directamente desde la API JSON de Yahoo Finance
@@ -220,6 +253,18 @@ def fetch_market_chart_native(symbol: str, timeframe: str = "1h") -> Dict[str, A
 # ====================================================================
 OPS_TOOLS_REGISTRY = [
     {
+        "name": "mcp_ops_get_spot_price",
+        "description": "INFRAESTRUCTURA & FEED: Obtiene la cotización spot en tiempo real de un activo vía HTTPX nativo (sub-100ms, cero yfinance).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "symbol": {"type": "string", "description": "Símbolo del activo (ej: 'EURUSD', 'XAUUSD', 'GBPUSD')"}
+            },
+            "required": ["symbol"]
+        }
+    },
+
+    {
         "name": "mcp_ops_get_market_chart",
         "description": "INFRAESTRUCTURA & FEED: Descarga velas de mercado OHLCV, EMA50 y EMA200 directamente desde la API JSON de Yahoo Finance vía HTTPX nativo (sub-150ms, cero Pandas).",
         "inputSchema": {
@@ -339,6 +384,11 @@ def execute_ops_tool(tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any
         sym = arguments.get("symbol", "EURUSD")
         tf = arguments.get("timeframe", "1h")
         return fetch_market_chart_native(sym, tf)
+
+    elif tool_name == "mcp_ops_get_spot_price":
+        sym = arguments.get("symbol", "EURUSD")
+        p = fetch_market_spot_native(sym)
+        return {"status": "SUCCESS" if p else "ERROR", "symbol": sym, "price": p}
 
     elif tool_name == "mcp_ops_sync_mt5_cache":
         return system_ops_supervisor.herd_db.execute(system_ops_supervisor.db)

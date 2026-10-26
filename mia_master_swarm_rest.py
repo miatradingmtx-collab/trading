@@ -202,7 +202,12 @@ def llamar_openrouter_rest(prompt, model="meta-llama/llama-3.3-70b-instruct"):
 
 
 def obtener_precios_spot_mercado() -> dict:
-    """Obtiene precios spot reales de Yahoo Finance con fallback seguro."""
+    """
+    Obtiene precios spot reales para los 6 activos oficiales.
+    Capa 1: cache_mt5 (MetaTrader 5 en Upstash Redis, 0ms).
+    Capa 2: Motor spot nativo HTTPX vía mia_ops_mcp_server (0% yfinance).
+    Capa 3: Fallback canónico defensivo.
+    """
     precios = {
         "EURUSD": 1.1207,
         "GBPUSD": 1.3246,
@@ -211,26 +216,33 @@ def obtener_precios_spot_mercado() -> dict:
         "XAUUSD": 4209.30,
         "NZDCAD": 0.7988
     }
+    # 1. Intentar primero con cache_mt5 en vivo (Broker MT5)
     try:
-        import yfinance as yf
-        mapeo_yf = {
-            "EURUSD": "EURUSD=X",
-            "GBPUSD": "GBPUSD=X",
-            "AUDUSD": "AUDUSD=X",
-            "GBPJPY": "GBPJPY=X",
-            "XAUUSD": "GC=F",
-            "NZDCAD": "NZDCAD=X"
-        }
-        for act, sym in mapeo_yf.items():
-            try:
-                t = yf.Ticker(sym)
-                px = t.fast_info.get('last_price')
-                if px and px > 0:
-                    precios[act] = round(float(px), 5 if "JPY" not in act and "XAU" not in act else 2)
-            except Exception:
-                pass
+        import requests, json
+        up_url = os.getenv("UPSTASH_REDIS_REST_URL", "https://firm-koi-93555.upstash.io")
+        up_token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg")
+        headers = {"Authorization": f"Bearer {up_token}"}
+        r = requests.get(f"{up_url}/get/cache_mt5", headers=headers, timeout=2)
+        if r.status_code == 200 and r.json().get("result"):
+            mt5_data = json.loads(r.json()["result"])
+            for tick in mt5_data.get("ticks_recientes", []):
+                sym = str(tick.get("symbol", "")).upper()
+                if sym in precios:
+                    p = float(tick.get("ask") or tick.get("bid") or tick.get("price", 0.0))
+                    if p > 0:
+                        precios[sym] = round(p, 2 if "JPY" in sym or "XAU" in sym else 5)
+    except Exception:
+        pass
+
+    # 2. Para los pares restantes o si no había tick MT5, consultar spot nativo HTTPX
+    try:
+        from mia_ops_mcp_server import fetch_market_spot_native
+        for sym in list(precios.keys()):
+            p_spot = fetch_market_spot_native(sym)
+            if p_spot and p_spot > 0:
+                precios[sym] = p_spot
     except Exception as e:
-        print(f"Error consultando precios spot: {e}")
+        print(f"| SWARM SPOT WARN | Error consultando precios spot nativos: {e}")
     return precios
 
 

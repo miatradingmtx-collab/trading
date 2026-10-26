@@ -1026,26 +1026,14 @@ def procesar_anomalia_firestore(anomaly: MarketAnomaly):
 def obtener_precio_spot_nativo(activo: str) -> Optional[float]:
     """
     Obtiene el precio spot en tiempo real directamente desde la API JSON de Yahoo Finance
-    vía HTTPX nativo (sub-100ms, 0% yfinance, 0% BeautifulSoup).
+    vía HTTPX nativo delegando a fetch_market_spot_native de mia_ops_mcp_server (sub-100ms, 0% yfinance).
     """
     try:
-        from mia_ops_mcp_server import MAPA_YAHOO_CANONICO
-        import httpx
-        sym_clean = activo.upper().replace("/", "").replace("_", "").replace("-", "").strip()
-        yf_sym = MAPA_YAHOO_CANONICO.get(sym_clean, f"{sym_clean}=X")
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yf_sym}?interval=1m&range=1d"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        with httpx.Client(timeout=4.0, follow_redirects=True) as client:
-            resp = client.get(url, headers=headers)
-            if resp.status_code == 200:
-                res = resp.json().get("chart", {}).get("result", [])
-                if res:
-                    quote = res[0].get("indicators", {}).get("quote", [{}])[0]
-                    closes = [c for c in quote.get("close", []) if c is not None]
-                    if closes:
-                        precio = round(float(closes[-1]), 5)
-                        print(f"| SPOT NATIVO | Cotización obtenida para {activo} ({yf_sym}): {precio}")
-                        return precio
+        from mia_ops_mcp_server import fetch_market_spot_native
+        p = fetch_market_spot_native(activo)
+        if p and p > 0:
+            print(f"| SPOT NATIVO | Cotización obtenida para {activo}: {p}")
+            return p
         return None
     except Exception as e:
         print(f"| SPOT NATIVO WARN | No se pudo obtener cotización spot para {activo}: {e}")
