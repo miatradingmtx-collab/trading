@@ -165,8 +165,25 @@
       margin-left: -590px;
       margin-top: -330px;
       transform-style: preserve-3d;
-      transition: transform 0.1s cubic-bezier(0.1, 0.9, 0.2, 1);
-      will-change: transform;
+      transition: left 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.1s cubic-bezier(0.1, 0.9, 0.2, 1);
+      will-change: transform, left;
+    }
+
+    /* En pantallas de escritorio, desplazar el centro 3D 150px a la derecha para no empalmar con la barra lateral */
+    @media (min-width: 1025px) {
+      .world-3d {
+        left: calc(50% + 150px);
+      }
+      .world-3d.sidebar-collapsed {
+        left: 50%;
+      }
+    }
+
+    /* En pantallas móviles / Android, centrado absoluto */
+    @media (max-width: 1024px) {
+      .world-3d {
+        left: 50%;
+      }
     }
 
     /* Suelo Perspectiva */
@@ -573,95 +590,108 @@
       <div id="particles-layer" class="absolute inset-0 pointer-events-none"></div>
     </div>
 
-    <!-- ==================== HUD LATERAL IZQUIERDO ==================== -->
-    <aside id="hud-metrics-panel" class="hud-card fixed top-16 left-3 sm:left-5 w-[285px] sm:w-[325px] p-3 sm:p-4 text-xs font-mono-code flex flex-col gap-2.5 z-40 pointer-events-auto">
-      <div class="flex items-center justify-between border-b border-cyan-500/30 pb-2">
-        <h2 class="text-xs sm:text-sm font-bold tracking-wider text-cyan-300">
-          TENSORFLOW CORE
-        </h2>
-        <span class="text-[9px] px-2 py-0.5 rounded bg-cyan-950/90 border border-cyan-400/40 text-cyan-300">
-          KERAS 3D · 22D
-        </span>
-      </div>
-
-      <div class="space-y-1.5 text-[11px] leading-tight text-slate-300">
-        <div class="flex justify-between gap-2">
-          <span class="text-slate-400">STATUS:</span>
-          <span id="hud-status" class="font-bold text-emerald-400 truncate">ONLINE · INFERENCIA 22D</span>
+    <!-- ==================== SIDEBAR UNIFICADO IZQUIERDO (SIN EMPALMES) ==================== -->
+    <aside id="unified-sidebar" class="fixed top-16 left-2 sm:left-4 bottom-3 sm:bottom-4 w-[310px] sm:w-[335px] flex flex-col gap-2 z-40 pointer-events-none transition-transform duration-300 ease-out">
+      
+      <!-- Encabezado con Botón Colapsar / Minimizar -->
+      <div class="hud-card p-2 sm:p-2.5 flex items-center justify-between border-b border-cyan-500/30 pointer-events-auto">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+          <h2 class="text-xs font-bold tracking-wider text-cyan-300">TENSORFLOW CORE 3D</h2>
         </div>
-        <div class="flex justify-between gap-2">
-          <span class="text-slate-400">ARQUITECTURA:</span>
-          <span class="font-semibold text-slate-200">Matriz 22D ➔ Dense(10, 8)</span>
-        </div>
-        <div class="flex justify-between gap-2">
-          <span class="text-slate-400">MODELO:</span>
-          <span class="text-slate-200">Sequential (Keras Deep Learning)</span>
-        </div>
-        <div class="flex justify-between gap-2">
-          <span class="text-slate-400">PRECISIÓN (ACC):</span>
-          <span id="hud-acc" class="font-bold text-cyan-300">60.28%</span>
-        </div>
-        <div class="flex justify-between gap-2">
-          <span class="text-slate-400">TRADES APRENDIDOS:</span>
-          <span id="hud-trades" class="font-bold text-emerald-300">798</span>
-        </div>
-        <div class="flex justify-between gap-2">
-          <span class="text-slate-400">CAPAS:</span>
-          <span class="font-semibold text-slate-200">Input (22), Dense (10, 8), Sigmoid (2)</span>
-        </div>
-        <div class="flex justify-between gap-2">
-          <span class="text-slate-400">QUÓRUM CONSENSO:</span>
-          <span id="hud-consensus" class="font-bold text-emerald-400">QUÓRUM 0.84 ≥ 0.70 (APROBADO MT5)</span>
-        </div>
-      </div>
-
-      <!-- Inspector Dinámico de Neurona -->
-      <div class="mt-1 pt-2 border-t border-cyan-500/25 bg-slate-950/65 rounded-lg p-2">
-        <div class="flex items-center justify-between text-[9px] text-cyan-400 mb-1">
-          <span class="font-bold tracking-wider">INSPECTOR DE TENSORES / NODO</span>
-          <span id="insp-layer" class="text-purple-300">EJE Y • SMC 13D</span>
-        </div>
-        <div id="insp-name" class="text-[11px] font-bold text-white truncate mb-1">
-          SMC Y04 [Order Block Lux 2H]
-        </div>
-        <div class="grid grid-cols-3 gap-1 text-[9px]">
-          <div class="bg-slate-900/90 border border-slate-800 rounded px-1.5 py-1">
-            <div class="text-slate-400">VALOR</div>
-            <div id="insp-val" class="text-emerald-400 font-bold">1.0 [ACTIVO]</div>
-          </div>
-          <div class="bg-slate-900/90 border border-slate-800 rounded px-1.5 py-1">
-            <div class="text-slate-400">TIPO</div>
-            <div id="insp-type" class="text-cyan-300 font-bold">Multi-Hot</div>
-          </div>
-          <div class="bg-slate-900/90 border border-slate-800 rounded px-1.5 py-1">
-            <div class="text-slate-400">SINAPSIS</div>
-            <div id="insp-syn" class="text-fuchsia-400 font-bold">10 axones</div>
-          </div>
-        </div>
-        <div class="mt-2 flex items-center justify-between gap-1.5">
-          <button id="btn-toggle-node" class="w-full text-[9px] font-semibold py-1 rounded bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 hover:bg-cyan-900/80 hover:text-white transition cursor-pointer">
-            ⚡ Test Real-Time: Alternar Valor del Tensor (1.0 ⇄ 0.0)
+        <div class="flex items-center gap-1.5">
+          <span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950/90 border border-cyan-400/40 text-cyan-300">22D</span>
+          <button id="btn-toggle-sidebar" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600 transition cursor-pointer" title="Ocultar Panel">
+            ◀ Ocultar
           </button>
         </div>
+      </div>
+
+      <!-- Contenedor Scrollable de Tarjetas (Flex vertical, sin empalmes ni colisiones) -->
+      <div class="flex-1 flex flex-col gap-2 overflow-y-auto pr-1 pointer-events-auto no-scrollbar">
+        
+        <!-- TARJETA 1: MÉTRICAS Y QUÓRUM -->
+        <div class="hud-card p-2 sm:p-2.5 text-xs font-mono-code flex flex-col gap-1.5 flex-shrink-0">
+          <div class="flex justify-between items-center text-[11px]">
+            <span class="text-slate-400">STATUS:</span>
+            <span id="hud-status" class="font-bold text-emerald-400 truncate">ONLINE · AUDUSD EN VIVO</span>
+          </div>
+          <div class="flex justify-between items-center text-[10.5px]">
+            <span class="text-slate-400">MODELO:</span>
+            <span class="text-slate-200">Keras Sequential (22D)</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1 text-[10px] my-0.5">
+            <div class="bg-slate-900/80 border border-slate-800 rounded p-1">
+              <div class="text-slate-400 text-[8.5px]">ACCURACY</div>
+              <div id="hud-acc" class="font-bold text-cyan-300 text-[11px]">60.28%</div>
+            </div>
+            <div class="bg-slate-900/80 border border-slate-800 rounded p-1">
+              <div class="text-slate-400 text-[8.5px]">TRADES APRENDIDOS</div>
+              <div id="hud-trades" class="font-bold text-emerald-300 text-[11px]">798</div>
+            </div>
+          </div>
+          <div class="flex justify-between items-center text-[10px]">
+            <span class="text-slate-400">CAPAS:</span>
+            <span class="text-slate-200">Input(22) ➔ Dense(10,8) ➔ Out(2)</span>
+          </div>
+          <div class="p-1.5 rounded bg-slate-900/90 border border-cyan-500/25 flex flex-col gap-0.5 mt-0.5">
+            <span class="text-[9px] text-slate-400">QUÓRUM DE CONSENSO:</span>
+            <div id="hud-consensus" class="font-bold text-emerald-400 text-[11px]">
+              QUÓRUM 0.84 ≥ 0.70 (APROBADO MT5)
+            </div>
+          </div>
+        </div>
+
+        <!-- TARJETA 2: INSPECTOR DE TENSOR / NODO -->
+        <div class="hud-card p-2 sm:p-2.5 text-xs font-mono-code flex flex-col gap-1.5 flex-shrink-0">
+          <div class="flex items-center justify-between text-[9px] text-cyan-400 border-b border-cyan-500/20 pb-1">
+            <span class="font-bold tracking-wider">INSPECTOR DE NODO</span>
+            <span id="insp-layer" class="text-purple-300">EJE Y • SMC 13D</span>
+          </div>
+          <div id="insp-name" class="text-[10.5px] font-bold text-white truncate">
+            SMC Y04 [Order Block Lux 2H]
+          </div>
+          <div class="grid grid-cols-3 gap-1 text-[8.5px]">
+            <div class="bg-slate-900/90 border border-slate-800 rounded px-1 py-0.5">
+              <div class="text-slate-400">VALOR</div>
+              <div id="insp-val" class="text-emerald-400 font-bold">1.0 [ACTIVO]</div>
+            </div>
+            <div class="bg-slate-900/90 border border-slate-800 rounded px-1 py-0.5">
+              <div class="text-slate-400">TIPO</div>
+              <div id="insp-type" class="text-cyan-300 font-bold">Multi-Hot</div>
+            </div>
+            <div class="bg-slate-900/90 border border-slate-800 rounded px-1 py-0.5">
+              <div class="text-slate-400">SINAPSIS</div>
+              <div id="insp-syn" class="text-fuchsia-400 font-bold">10 axones</div>
+            </div>
+          </div>
+          <button id="btn-toggle-node" class="w-full text-[9px] font-semibold py-1 rounded bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 hover:bg-cyan-900/80 hover:text-white transition cursor-pointer mt-0.5">
+            ⚡ Test: Alternar Tensor (1.0 ⇄ 0.0)
+          </button>
+        </div>
+
+        <!-- TARJETA 3: TERMINAL DE NEURONAS // STREAMING [ 1 ] / [ 0 ] -->
+        <div class="hud-terminal p-2 sm:p-2.5 font-mono-code text-xs flex flex-col flex-1 min-h-[140px] max-h-[220px]">
+          <div class="flex items-center justify-between border-b border-emerald-500/25 pb-1 mb-1">
+            <span class="text-[9.5px] font-bold tracking-wider text-amber-400 truncate">
+              &gt; TERMINAL [ 1 / 0 ]
+            </span>
+            <button id="btn-pulse-burst" class="text-[8.5px] px-1.5 py-0.5 rounded bg-fuchsia-950/90 border border-fuchsia-500/50 text-fuchsia-300 hover:bg-fuchsia-900/80 transition cursor-pointer">
+              ⚡ Pulso
+            </button>
+          </div>
+          <div id="terminal-output" class="flex-1 overflow-y-auto space-y-1 text-[10px] leading-relaxed pr-1 text-slate-200">
+            <!-- Streaming dinámico de veredictos [ 1 ] / [ 0 ] -->
+          </div>
+        </div>
+
       </div>
     </aside>
 
-    <!-- ==================== TERMINAL INFERIOR IZQUIERDA ==================== -->
-    <section id="hud-terminal-panel" class="hud-terminal fixed bottom-16 lg:bottom-5 left-3 sm:left-5 w-[calc(100vw-24px)] sm:w-[450px] h-[145px] sm:h-[160px] p-3 font-mono-code text-xs flex flex-col pointer-events-auto z-40">
-      <div class="flex items-center justify-between border-b border-emerald-500/25 pb-1 mb-1">
-        <span class="text-[10px] font-bold tracking-wider text-amber-400 truncate">
-          &gt; TERMINAL DE NEURONAS // MATRIZ 22D + KERAS
-        </span>
-        <div class="flex items-center gap-1.5 flex-shrink-0">
-          <button id="btn-pulse-burst" class="text-[9px] px-2 py-0.5 rounded bg-fuchsia-950/90 border border-fuchsia-500/50 text-fuchsia-300 hover:bg-fuchsia-900/80 transition cursor-pointer">
-            ⚡ Pulso
-          </button>
-        </div>
-      </div>
-      <div id="terminal-output" class="flex-1 overflow-y-auto space-y-1 text-[10.5px] leading-relaxed pr-1 text-slate-200">
-        <!-- Rellenado dinámicamente con telemetría viva -->
-      </div>
-    </section>
+    <!-- Botón flotante para restaurar Sidebar si está colapsado -->
+    <button id="btn-open-sidebar" class="fixed top-20 left-2 z-40 hidden px-2.5 py-1.5 rounded-r-xl bg-cyan-950/95 border-r border-t border-b border-cyan-400/50 text-cyan-300 text-xs font-mono-code hover:bg-cyan-900/90 shadow-2xl backdrop-blur-md cursor-pointer transition">
+      ▶ Panel IA
+    </button>
 
     <!-- ==================== CONTROLES DE CÁMARA ==================== -->
     <div class="fixed bottom-16 lg:bottom-5 right-3 sm:right-5 z-40 flex flex-col items-end gap-2 pointer-events-auto">
@@ -676,7 +706,19 @@
       </div>
     </div>
 
-  </main>
+      <!-- Barra de Navegación Rápida para Móviles / Android -->
+    <nav class="mobile-hud-bar">
+      <button class="pill-btn text-[10px] py-1 px-2.5" id="mob-btn-3d">
+        <span>🌐 Ver 3D</span>
+      </button>
+      <button class="pill-btn text-[10px] py-1 px-2.5" id="mob-btn-panel">
+        <span>🧠 Métricas / Panel</span>
+      </button>
+      <button class="pill-btn text-[10px] py-1 px-2.5" id="mob-btn-reset">
+        <span>↻ Centrar</span>
+      </button>
+    </nav>
+</main>
 
   <!-- ==================== SCRIPT DE MOTOR 3D Y TELEMETRÍA 22D ==================== -->
   <script>
@@ -1138,15 +1180,15 @@
       });
     };
 
-    // Drag para Orbitar en Escritorio (Usando el contenedor 3D #viewport de forma segura)
+    // ================= CONTROLES DE INTERACCIÓN 3D (MOUSE + TOUCH ANDROID) =================
     let isDragging = false;
     let lastX = 0, lastY = 0;
     const stage = document.getElementById('viewport') || document.getElementById('world') || document.body;
 
+    // 1. Mouse Drag (Escritorio)
     if (stage) {
       stage.addEventListener('mousedown', (e) => {
-        // Ignorar clics sobre botones, paneles HUD o terminal
-        if (e.target.closest('#hud-panel') || e.target.closest('#hud-terminal-panel') || e.target.closest('header') || e.target.closest('button')) return;
+        if (e.target.closest('#unified-sidebar') || e.target.closest('header') || e.target.closest('button') || e.target.closest('.cam-btn')) return;
         isDragging = true;
         lastX = e.clientX;
         lastY = e.clientY;
@@ -1165,7 +1207,100 @@
         lastY = e.clientY;
         updateCameraTransform();
       });
+
+      // 2. Soporte Táctil Completo para Android (1 Dedo = Orbitar 3D, 2 Dedos = Pinch Zoom)
+      let touchStartX = 0, touchStartY = 0;
+      let initialPinchDist = null;
+      let initialZoomOnPinch = camZoom;
+
+      stage.addEventListener('touchstart', (e) => {
+        if (e.target.closest('#unified-sidebar') || e.target.closest('header') || e.target.closest('button') || e.target.closest('.cam-btn')) return;
+        if (e.touches.length === 1) {
+          isDragging = true;
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+          if (isAutoTour) toggleAutoTour();
+        } else if (e.touches.length === 2) {
+          isDragging = false;
+          initialPinchDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          initialZoomOnPinch = camZoom;
+        }
+      }, { passive: true });
+
+      stage.addEventListener('touchmove', (e) => {
+        if (e.target.closest('#unified-sidebar') || e.target.closest('header') || e.target.closest('button') || e.target.closest('.cam-btn')) return;
+        if (isDragging && e.touches.length === 1) {
+          const dx = e.touches[0].clientX - touchStartX;
+          const dy = e.touches[0].clientY - touchStartY;
+          camRotY += dx * 0.35;
+          camRotX = Math.max(-45, Math.min(65, camRotX - dy * 0.35));
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+          updateCameraTransform();
+        } else if (e.touches.length === 2 && initialPinchDist) {
+          const currentDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          const factor = currentDist / initialPinchDist;
+          camZoom = Math.max(0.32, Math.min(1.5, initialZoomOnPinch * factor));
+          updateCameraTransform();
+        }
+      }, { passive: true });
+
+      stage.addEventListener('touchend', (e) => {
+        if (e.touches.length === 0) {
+          isDragging = false;
+          initialPinchDist = null;
+        }
+      }, { passive: true });
+
+      // 3. Zoom con Rueda del Ratón
+      stage.addEventListener('wheel', (e) => {
+        if (e.target.closest('#unified-sidebar') || e.target.closest('header')) return;
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.06 : 0.06;
+        camZoom = Math.max(0.32, Math.min(1.5, camZoom + delta));
+        updateCameraTransform();
+      }, { passive: false });
     }
+
+    // ================= CONTROL DE COLAPSO / EXPANSIÓN DEL SIDEBAR =================
+    const unifiedSidebar = document.getElementById('unified-sidebar');
+    const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+    const btnOpenSidebar = document.getElementById('btn-open-sidebar');
+    const worldEl = document.getElementById('world');
+
+    function collapseSidebar() {
+      if (unifiedSidebar) unifiedSidebar.style.transform = 'translateX(-360px)';
+      if (btnOpenSidebar) btnOpenSidebar.classList.remove('hidden');
+      if (worldEl) worldEl.classList.add('sidebar-collapsed');
+    }
+
+    function expandSidebar() {
+      if (unifiedSidebar) unifiedSidebar.style.transform = 'translateX(0)';
+      if (btnOpenSidebar) btnOpenSidebar.classList.add('hidden');
+      if (worldEl) worldEl.classList.remove('sidebar-collapsed');
+    }
+
+    if (btnToggleSidebar) btnToggleSidebar.onclick = collapseSidebar;
+    if (btnOpenSidebar) btnOpenSidebar.onclick = expandSidebar;
+
+    // Botones de la Barra Móvil Android
+    const mobBtn3D = document.getElementById('mob-btn-3d');
+    const mobBtnPanel = document.getElementById('mob-btn-panel');
+    const mobBtnReset = document.getElementById('mob-btn-reset');
+
+    if (mobBtn3D) mobBtn3D.onclick = collapseSidebar;
+    if (mobBtnPanel) mobBtnPanel.onclick = expandSidebar;
+    if (mobBtnReset) mobBtnReset.onclick = () => {
+      camRotX = 18; camRotY = -14;
+      camZoom = (window.innerWidth <= 1024) ? 0.46 : 0.92;
+      updateCameraTransform();
+    };
 
     /********************************************************************
      * 5.1 MOTOR DE ANIMACIÓN DE PULSOS SINÁPTICOS (COMUNICACIÓN NEURONAL EN VIVO)
@@ -1395,6 +1530,16 @@
       if (hasInitialized) return;
       hasInitialized = true;
       try {
+        // Detección y calibración para Android / Móvil
+        const isMobileDevice = window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobileDevice) {
+          camZoom = 0.46;
+          camRotX = 18;
+          camRotY = -14;
+          // En móvil, iniciar con el panel replegado para que la red 3D luzca despejada
+          collapseSidebar();
+        }
+
         renderNetworkElements();
         updateCameraTransform();
         inspectNode(NODES[4]); // Inspeccionar OB Lux 2H por defecto
