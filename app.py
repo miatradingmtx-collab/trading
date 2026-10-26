@@ -6086,12 +6086,14 @@ def train_tensorflow():
             model_b64 = base64.b64encode(f.read()).decode('utf-8')
         os.remove(model_path) # Limpiar contenedor
         
+        total_trades = len(df_data)
+
         # 5. El JSON Maestro Neuronal
         tf_payload = {
             "version": "v1.0",
             "timestamp": time.time(),
             "accuracy": float(accuracy),
-            "trades_aprendidos": len(df),
+            "trades_aprendidos": total_trades,
             "keras_base64": model_b64 # El cerebro binario
         }
         
@@ -6105,7 +6107,7 @@ def train_tensorflow():
             hoy_str = datetime.utcnow().strftime("%Y-%m-%d")
             db.collection("mia_tensorflow").document(hoy_str).set({
                 "accuracy": float(accuracy),
-                "trades_aprendidos": len(df),
+                "trades_aprendidos": total_trades,
                 "timestamp": datetime.utcnow().isoformat()
             })
             print("| TENSORFLOW | Homologado en Firebase exitosamente.")
@@ -6115,9 +6117,9 @@ def train_tensorflow():
         return {
             "status": "success", 
             "accuracy": f"{accuracy*100:.2f}%", 
-            "trades_aprendidos": len(df),
+            "trades_aprendidos": total_trades,
             "nuevos_incorporados": nuevos_audit,
-            "message": f"Modelo TensorFlow entrenado con {len(df)} trades, cacheado en Upstash y homologado."
+            "message": f"Modelo TensorFlow entrenado con {total_trades} trades, cacheado en Upstash y homologado."
         }
         
     except Exception as e:
