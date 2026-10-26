@@ -4707,117 +4707,15 @@ def export_audit_csv():
 @app.get("/api/chart_data/{symbol}")
 async def get_chart_data(symbol: str, timeframe: str = "1h"):
     try:
-        import yfinance as yf
-        import pandas as pd
-        sym_clean = symbol.upper().replace("/", "").replace("_", "").replace("-", "").strip()
-        # Mapeo universal de sÃ­mbolos de Mia a Yahoo Finance
-        mapa = {
-            "EURUSD": "EURUSD=X",
-            "GBPUSD": "GBPUSD=X",
-            "GBPJPY": "GBPJPY=X",
-            "USDJPY": "USDJPY=X",
-            "AUDUSD": "AUDUSD=X",
-            "NZDCAD": "NZDCAD=X",
-            "USDCAD": "USDCAD=X",
-            "USDCHF": "USDCHF=X",
-            "EURJPY": "EURJPY=X",
-            "EURGBP": "EURGBP=X",
-            "XAUUSD": "GC=F",
-            "GOLD": "GC=F",
-            "NASDAQ100": "NQ=F",
-            "NAS100": "NQ=F",
-            "US100": "NQ=F",
-            "BTCUSD": "BTC-USD",
-            "BTCUSDT": "BTC-USD",
-            "ETHUSD": "ETH-USD",
-            "ETHUSDT": "ETH-USD",
-            "US30": "YM=F",
-            "SP500": "ES=F"
-        }
-        
-        yf_symbol = mapa.get(sym_clean)
-        if not yf_symbol:
-            if len(sym_clean) == 6 and sym_clean.isalpha():
-                yf_symbol = f"{sym_clean}=X"
-            else:
-                yf_symbol = sym_clean
-        
-        # Mapear temporalidades a periodos y tipos de intervalo correctos en yfinance
-        tf_lower = timeframe.lower()
-        interval_yf = "1h"
-        period_yf = "30d"
-        if tf_lower in ["1m", "5m"]:
-            interval_yf = "5m"
-            period_yf = "5d"
-        elif tf_lower in ["15m"]:
-            interval_yf = "15m"
-            period_yf = "14d"
-        elif tf_lower in ["30m"]:
-            interval_yf = "30m"
-            period_yf = "30d"
-        elif tf_lower in ["1h"]:
-            interval_yf = "1h"
-            period_yf = "30d"
-        elif tf_lower in ["2h"]:
-            interval_yf = "2h"
-            period_yf = "60d"
-        elif tf_lower in ["3h", "4h", "8h"]:
-            interval_yf = "1h"
-            period_yf = "60d"
-        elif tf_lower in ["1d", "d"]:
-            interval_yf = "1d"
-            period_yf = "1y"
-            
-        ticker = yf.Ticker(yf_symbol)
-        df = ticker.history(period=period_yf, interval=interval_yf)
-        
-        if df.empty:
-            # Reintentar con sÃ­mbolo alternativo si es oro o divisa
-            if yf_symbol == "GC=F":
-                df = yf.Ticker("XAUUSD=X").history(period=period_yf, interval=interval_yf)
-            elif yf_symbol.endswith("=X"):
-                df = yf.Ticker(yf_symbol.replace("=X", "")).history(period=period_yf, interval=interval_yf)
-            elif not yf_symbol.endswith("=X") and len(yf_symbol) == 6:
-                df = yf.Ticker(f"{yf_symbol}=X").history(period=period_yf, interval=interval_yf)
-            if df.empty:
-                return {"status": "error", "message": f"No se encontraron datos para {yf_symbol}"}
-                
-        # Si la temporalidad es 3h, 4h u 8h, agrupamos (resample) a partir de velas de 1h
-        if timeframe in ["3h", "4h", "8h"] and not df.empty:
-            rule_map = {"3h": "3h", "4h": "4h", "8h": "8h"}
-            rule = rule_map[timeframe]
-            df_resampled = df.resample(rule).agg({
-                "Open": "first",
-                "High": "max",
-                "Low": "min",
-                "Close": "last",
-                "Volume": "sum"
-            }).dropna()
-            df = df_resampled
+        from mia_ops_mcp_server import fetch_market_chart_native
+        chart_res = fetch_market_chart_native(symbol, timeframe)
+        if chart_res.get("status") == "error":
+            return chart_res
 
-            
-        if not df.empty:
-            df['EMA50'] = df['Close'].ewm(span=50, adjust=False).mean()
-            df['EMA200'] = df['Close'].ewm(span=200, adjust=False).mean()
-            
-        candles = []
-        ema50 = []
-        ema200 = []
-        
-        for index, row in df.iterrows():
-            ts = int(index.timestamp())
-            candles.append({
-                "time": ts,
-                "open": float(row["Open"]),
-                "high": float(row["High"]),
-                "low": float(row["Low"]),
-                "close": float(row["Close"])
-            })
-            if not pd.isna(row.get("EMA50")):
-                ema50.append({"time": ts, "value": float(row["EMA50"])})
-            if not pd.isna(row.get("EMA200")):
-                ema200.append({"time": ts, "value": float(row["EMA200"])})
-                
+        candles = chart_res.get("data", [])
+        ema50 = chart_res.get("ema50", [])
+        ema200 = chart_res.get("ema200", [])
+
         # Consultar trades desde Upstash Redis (recent_logs) para crear marcadores visuales (Cero Firebase Anti-429)
         markers = []
         try:
@@ -4841,25 +4739,22 @@ async def get_chart_data(symbol: str, timeframe: str = "1h"):
                 fecha_str = data.get("fecha", "") # Ej: 2026-06-30 08:30:00
                 
                 if accion in ["COMPRA", "VENTA"] and fecha_str:
-                        # Convertir fecha a timestamp aproximado (UTC o local dependiendo de como se guardo)
-                        # Como yfinance devuelve los index en UTC o timezone local, intentamos simplificar
-                        from datetime import datetime
-                        dt = datetime.strptime(fecha_str, "%Y-%m-%d %H:%M:%S")
-                        ts_marker = int(dt.timestamp())
-                        
-                        is_buy = accion == "COMPRA"
-                        markers.append({
-                            "time": ts_marker,
-                            "position": "belowBar" if is_buy else "aboveBar",
-                            "color": "#00e68a" if is_buy else "#f85149",
-                            "shape": "arrowUp" if is_buy else "arrowDown",
-                            "text": "BUY" if is_buy else "SELL",
-                            "size": 2
-                        })
+                    from datetime import datetime
+                    dt = datetime.strptime(fecha_str, "%Y-%m-%d %H:%M:%S")
+                    ts_marker = int(dt.timestamp())
+                    
+                    is_buy = accion == "COMPRA"
+                    markers.append({
+                        "time": ts_marker,
+                        "position": "belowBar" if is_buy else "aboveBar",
+                        "color": "#00e68a" if is_buy else "#f85149",
+                        "shape": "arrowUp" if is_buy else "arrowDown",
+                        "text": "BUY" if is_buy else "SELL",
+                        "size": 2
+                    })
         except Exception as mk_err:
             print(f"| CHART MARKERS ERROR | {mk_err}")
             
-        # Ordenar markers por tiempo para evitar errores en LightweightCharts
         markers = sorted(markers, key=lambda x: x["time"])
             
         return {
@@ -6217,7 +6112,7 @@ def train_tensorflow():
         import requests, json, os, base64, time
         os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-        import pandas as pd
+        import numpy as np
         import tensorflow as tf
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import Input, Dense, Dropout
@@ -6364,9 +6259,12 @@ def train_tensorflow():
         if len(df_data) < 500:
             return {"status": "error", "message": f"Muestra insuficiente ({len(df_data)} trades < 500). Se prohíbe reentrenar con menos de 500 trades para proteger el corpus histórico de más de 700 trades."}
             
-        df = pd.DataFrame(df_data).fillna(0)
-        X = df[['hora_utc', 'score_original', 'ind_lux_1h', 'ind_lux_2h', 'ind_rsi', 'ind_fvg', 'amd_sw_8h', 'amd_sw_4h', 'amd_sw_3h', 'amd_sw_intra', 'amd_dist_macro']].values
-        y = df['EXITO'].values
+        feature_keys = [
+            'hora_utc', 'score_original', 'ind_lux_1h', 'ind_lux_2h', 'ind_rsi',
+            'ind_fvg', 'amd_sw_8h', 'amd_sw_4h', 'amd_sw_3h', 'amd_sw_intra', 'amd_dist_macro'
+        ]
+        X = np.array([[float(d.get(k, 0.0) or 0.0) for k in feature_keys] for d in df_data], dtype=np.float64)
+        y = np.array([float(d.get('EXITO', 0.0) or 0.0) for d in df_data], dtype=np.float64)
         
         # 3. Entrenar TensorFlow Keras Model en Memoria RAM
         model = Sequential([
