@@ -860,7 +860,7 @@
         const d = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
 
         path.setAttribute('d', d);
-        path.setAttribute('class', 'axon-path');
+        path.setAttribute('class', 'axon-path axon-transmitting');
         path.setAttribute('id', link.id);
         
         let strokeColor = '#38bdf8';
@@ -1118,13 +1118,15 @@
         renderNetworkElements();
 
         // Terminal Log
-        const term = document.getElementById('terminal-output');
-        const now = new Date().toTimeString().split(' ')[0];
-        const row = document.createElement('div');
-        const colorClass = calc.prob_aprobado >= 0.70 ? 'text-emerald-400' : 'text-rose-400';
-        row.innerHTML = `<span class="text-cyan-400">[${now}]</span> <span class="text-amber-400 font-bold">[TEST MANUAL 22D]</span> ${selectedNode.baseLabel} = ${selectedNode.val} ➔ Sigmoid P(Aprobado)=${calc.prob_aprobado.toFixed(3)} ➔ <span class="${colorClass} font-bold">${calc.veredicto}</span>`;
-        term.insertBefore(row, term.firstChild);
-        while (term.children.length > 6) term.removeChild(term.lastChild);
+        logNeuralVerdictToTerminal({
+          prob_aprobado: calc.prob_aprobado,
+          prob_vetado: calc.prob_vetado,
+          d1: calc.d1,
+          d2: calc.d2,
+          vec: currentVec,
+          activo: `MANUAL (${selectedNode.id.toUpperCase()})`,
+          veredicto: calc.veredicto
+        });
       };
     }
 
@@ -1163,6 +1165,130 @@
         lastY = e.clientY;
         updateCameraTransform();
       });
+    }
+
+    /********************************************************************
+     * 5.1 MOTOR DE ANIMACIÓN DE PULSOS SINÁPTICOS (COMUNICACIÓN NEURONAL EN VIVO)
+     ********************************************************************/
+    let particleTimer = null;
+    function startSynapticFlowAnimation() {
+      if (particleTimer) clearInterval(particleTimer);
+      const container = document.getElementById('particles-layer');
+      if (!container) return;
+
+      particleTimer = setInterval(() => {
+        // Encontrar axones activos para transmitir partículas
+        const out1Node = NODES.find(n => n.id === 'out_1');
+        const isApp = (out1Node ? out1Node.val : 0.84) >= 0.70;
+
+        const candidateLinks = LINKS.filter(l => {
+          if (l.target.id === 'out_1') return isApp;
+          if (l.target.id === 'out_2') return !isApp;
+          return (l.source.val >= 0.4 || l.source.isContinuous);
+        });
+
+        if (candidateLinks.length === 0) return;
+        const link = candidateLinks[Math.floor(Math.random() * candidateLinks.length)];
+
+        const pEl = document.createElement('div');
+        pEl.className = 'synaptic-particle';
+        if (link.target.id === 'out_1') {
+          pEl.style.boxShadow = '0 0 14px #00ff9d, 0 0 24px #00ff9d';
+          pEl.style.background = '#86efac';
+        } else if (link.target.id === 'out_2') {
+          pEl.style.boxShadow = '0 0 14px #ff2a55, 0 0 24px #ff2a55';
+          pEl.style.background = '#fca5a5';
+        } else if (link.colorType === 'purple') {
+          pEl.style.boxShadow = '0 0 12px #c084fc, 0 0 20px #e024ff';
+          pEl.style.background = '#f0abfc';
+        } else {
+          pEl.style.boxShadow = '0 0 12px #00f0ff, 0 0 20px #0088ff';
+          pEl.style.background = '#bae6fd';
+        }
+        container.appendChild(pEl);
+
+        const duration = 850 + Math.random() * 350;
+        const startTime = performance.now();
+
+        function step(now) {
+          const t = Math.min(1.0, (now - startTime) / duration);
+          const oneMinusT = 1.0 - t;
+          const sx = link.source.x, sy = link.source.y;
+          const tx = link.target.x, ty = link.target.y;
+          const cx1 = sx + (tx - sx) * 0.45, cy1 = sy;
+          const cx2 = sx + (tx - sx) * 0.55, cy2 = ty;
+
+          const px = oneMinusT*oneMinusT*oneMinusT * sx +
+                     3*oneMinusT*oneMinusT*t * cx1 +
+                     3*oneMinusT*t*t * cx2 +
+                     t*t*t * tx;
+          const py = oneMinusT*oneMinusT*oneMinusT * sy +
+                     3*oneMinusT*oneMinusT*t * cy1 +
+                     3*oneMinusT*t*t * cy2 +
+                     t*t*t * ty;
+
+          pEl.style.left = `${px}px`;
+          pEl.style.top = `${py}px`;
+
+          if (t < 1.0) {
+            requestAnimationFrame(step);
+          } else {
+            if (pEl.parentNode) pEl.parentNode.removeChild(pEl);
+            // Destello en nodo destino
+            const targetDom = document.getElementById(`node-${link.target.id}`);
+            if (targetDom) {
+              targetDom.style.transform = 'scale(1.28)';
+              setTimeout(() => { targetDom.style.transform = ''; }, 140);
+            }
+          }
+        }
+        requestAnimationFrame(step);
+      }, 110);
+    }
+
+    /********************************************************************
+     * 5.2 RENDERIZADO DETALLADO EN TERMINAL (VEREDICTO 1 Ó 0 Y CONFLUENCIA)
+     ********************************************************************/
+    function logNeuralVerdictToTerminal(info) {
+      const term = document.getElementById('terminal-output');
+      if (!term) return;
+
+      const now = new Date().toTimeString().split(' ')[0];
+      const isApproved = info.prob_aprobado >= 0.70;
+      const binario = isApproved ? 1 : 0;
+      const binarioBadge = isApproved 
+        ? `<span class="px-1.5 py-0.5 rounded bg-emerald-950/90 border border-emerald-500/60 text-emerald-300 font-bold tracking-wider text-[9px]">[ 1 ] APROBADO MT5</span>`
+        : `<span class="px-1.5 py-0.5 rounded bg-rose-950/90 border border-rose-500/60 text-rose-300 font-bold tracking-wider text-[9px]">[ 0 ] VETADO (BLOQUEO)</span>`;
+
+      const borderClass = isApproved ? 'border-emerald-500' : 'border-rose-500';
+      const textClass = isApproved ? 'text-emerald-400' : 'text-rose-400';
+
+      const d1_mean = (info.d1.reduce((a, b) => a + b, 0) / info.d1.length).toFixed(2);
+      const d2_mean = (info.d2.reduce((a, b) => a + b, 0) / info.d2.length).toFixed(2);
+      const vec = info.vec;
+
+      const row = document.createElement('div');
+      row.className = `border-l-2 ${borderClass} pl-2 py-1 my-1 bg-slate-900/60 rounded-r text-[10px] leading-snug`;
+      row.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="text-cyan-300 font-bold">[${now}] • INFERENCIA 22D • ${info.activo || 'EURUSD'}</span>
+          ${binarioBadge}
+        </div>
+        <div class="mt-0.5 text-slate-200">
+          Veredicto: <b class="${textClass}">${isApproved ? 'APROBADO (1)' : 'VETADO (0)'}</b> 
+          | Quórum Sigmoide: <b class="${textClass}">${(info.prob_aprobado * 100).toFixed(1)}%</b> (P=${info.prob_aprobado.toFixed(3)})
+          | Umbral: <b>≥ 0.70</b>
+        </div>
+        <div class="text-[9px] text-slate-400 truncate mt-0.5">
+          <b>Tensores:</b> Top 2 OB Lux: <span class="text-emerald-400 font-bold">${vec[8]}</span> • Top 1 RSI Ext: <span class="text-emerald-400 font-bold">${vec[18]}</span> • Spread: <span class="text-amber-300 font-bold">${vec[19]}</span> • Sesión: <span class="text-cyan-400">${vec[0] ? 'Asia' : (vec[1] ? 'Londres' : 'NY')}</span>
+        </div>
+        <div class="text-[8.5px] text-slate-500 truncate">
+          <b>Capas:</b> Dense10(act=${d1_mean}) ➔ Dense8(act=${d2_mean}) ➔ Sigmoid(${info.prob_aprobado.toFixed(2)})
+        </div>
+      `;
+
+      term.insertBefore(row, term.firstChild);
+      while (term.children.length > 7) term.removeChild(term.lastChild);
     }
 
     /********************************************************************
@@ -1247,17 +1373,16 @@
         // 4. Refrescar Todo el Grafo 3D con los valores reales
         renderNetworkElements();
 
-        // 5. Enviar Telemetría Viva a la Terminal
-        const term = document.getElementById('terminal-output');
-        const now = new Date().toTimeString().split(' ')[0];
-        const row = document.createElement('div');
-        const colorClass = p_app >= 0.70 ? 'text-emerald-400' : 'text-rose-400';
-        const d1_mean = (d1_vals.reduce((a, b) => a + b, 0) / d1_vals.length).toFixed(2);
-        const d2_mean = (d2_vals.reduce((a, b) => a + b, 0) / d2_vals.length).toFixed(2);
-
-        row.innerHTML = `<span class="text-cyan-400">[${now}]</span> <span class="text-fuchsia-400 font-bold">[22D FORWARD PASS]</span> ${data.activo} • OB 2H: ${vec[8]} • RSI: ${vec[18]} • D1(act): ${d1_mean} • D2: ${d2_mean} ➔ <span class="${colorClass} font-bold">${p_app >= 0.70 ? 'APROBADO MT5' : 'VETO RIESGO'} [${p_app.toFixed(3)}]</span>`;
-        term.insertBefore(row, term.firstChild);
-        while (term.children.length > 6) term.removeChild(term.lastChild);
+        // 5. Enviar Telemetría Viva a la Terminal con Veredicto Binario 1 ó 0
+        logNeuralVerdictToTerminal({
+          prob_aprobado: p_app,
+          prob_vetado: p_vet,
+          d1: d1_vals,
+          d2: d2_vals,
+          vec: vec,
+          activo: data.activo || 'AUDUSD',
+          veredicto: veredicto
+        });
 
       } catch (err) {
         // Fail-safe silencioso
@@ -1273,6 +1398,21 @@
         renderNetworkElements();
         updateCameraTransform();
         inspectNode(NODES[4]); // Inspeccionar OB Lux 2H por defecto
+        startSynapticFlowAnimation(); // Iniciar flujo continuo de comunicacion neuronal
+        
+        // Log inicial inmediato en la terminal para que nunca esté vacía
+        const initVec = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.5, 0.3, 0.23, 0.65, 0.6];
+        const initCalc = computeForwardPass(initVec);
+        logNeuralVerdictToTerminal({
+          prob_aprobado: initCalc.prob_aprobado,
+          prob_vetado: initCalc.prob_vetado,
+          d1: initCalc.d1,
+          d2: initCalc.d2,
+          vec: initVec,
+          activo: 'AUDUSD (LIVE)',
+          veredicto: initCalc.veredicto
+        });
+
         syncTensorTelemetry();
         if (!window.tensorSyncInterval) {
           window.tensorSyncInterval = setInterval(syncTensorTelemetry, 3500);

@@ -3981,6 +3981,7 @@ def calcular_forward_pass_22d(vec):
         "prob_aprobado": prob_aprobado,
         "prob_vetado": prob_vetado,
         "veredicto": veredicto,
+        "veredicto_binario": 1 if prob_aprobado >= 0.70 else 0,
         "score_institucional": round(prob_aprobado * 100, 1),
         "razon_analisis": " | ".join(razones) if razones else "Evaluación Tensorial Neutral"
     }
@@ -4021,6 +4022,7 @@ def get_tensor_vector_data():
                 "prob_aprobado": fwd["prob_aprobado"],
                 "prob_vetado": fwd["prob_vetado"],
                 "veredicto": fwd["veredicto"],
+                "veredicto_binario": fwd.get("veredicto_binario", 1 if fwd["prob_aprobado"] >= 0.70 else 0),
                 "score_institucional": fwd["score_institucional"],
                 "razon_analisis": fwd["razon_analisis"]
             }
