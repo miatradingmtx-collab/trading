@@ -1136,30 +1136,34 @@
       });
     };
 
-    // Drag para Orbitar en Escritorio
+    // Drag para Orbitar en Escritorio (Usando el contenedor 3D #viewport de forma segura)
     let isDragging = false;
     let lastX = 0, lastY = 0;
-    const stage = document.getElementById('stage-canvas');
+    const stage = document.getElementById('viewport') || document.getElementById('world') || document.body;
 
-    stage.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      lastX = e.clientX;
-      lastY = e.clientY;
-      if (isAutoTour) toggleAutoTour();
-    });
+    if (stage) {
+      stage.addEventListener('mousedown', (e) => {
+        // Ignorar clics sobre botones, paneles HUD o terminal
+        if (e.target.closest('#hud-panel') || e.target.closest('#hud-terminal-panel') || e.target.closest('header') || e.target.closest('button')) return;
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        if (isAutoTour) toggleAutoTour();
+      });
 
-    window.addEventListener('mouseup', () => { isDragging = false; });
+      window.addEventListener('mouseup', () => { isDragging = false; });
 
-    stage.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      const dx = e.clientX - lastX;
-      const dy = e.clientY - lastY;
-      camRotY += dx * 0.25;
-      camRotX = Math.max(-45, Math.min(65, camRotX - dy * 0.25));
-      lastX = e.clientX;
-      lastY = e.clientY;
-      updateCameraTransform();
-    });
+      stage.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+        camRotY += dx * 0.25;
+        camRotX = Math.max(-45, Math.min(65, camRotX - dy * 0.25));
+        lastX = e.clientX;
+        lastY = e.clientY;
+        updateCameraTransform();
+      });
+    }
 
     /********************************************************************
      * 6. SINCRONIZACIÓN EN VIVO CON INFERENCIA MATEMÁTICA REAL (/api/tensor_vector_data)
@@ -1260,14 +1264,30 @@
       }
     }
 
-    // Inicialización al cargar la ventana
-    window.addEventListener('load', () => {
-      renderNetworkElements();
-      updateCameraTransform();
-      inspectNode(NODES[4]); // Inspeccionar OB Lux 2H por defecto
-      syncTensorTelemetry();
-      setInterval(syncTensorTelemetry, 3500);
-    });
+    // Inicialización ultra-robusta (Inmediata y en eventos de ciclo de vida)
+    let hasInitialized = false;
+    function initNetworkEngine() {
+      if (hasInitialized) return;
+      hasInitialized = true;
+      try {
+        renderNetworkElements();
+        updateCameraTransform();
+        inspectNode(NODES[4]); // Inspeccionar OB Lux 2H por defecto
+        syncTensorTelemetry();
+        if (!window.tensorSyncInterval) {
+          window.tensorSyncInterval = setInterval(syncTensorTelemetry, 3500);
+        }
+      } catch (err) {
+        console.error("Error inicializando Network Engine:", err);
+      }
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      initNetworkEngine();
+    } else {
+      window.addEventListener('DOMContentLoaded', initNetworkEngine);
+      window.addEventListener('load', initNetworkEngine);
+    }
   </script>
 </body>
 </html>
