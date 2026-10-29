@@ -12,17 +12,10 @@
     
     <style>
         :root {
-            --pixel-scale: 2px;
-            --bg-color: #1a1e29;
-            --floor-color: #273043;
-            --floor-grid: #33405c;
-            --wall-color: #1f2637;
-            --wall-border: #44567d;
-            --desk-wood: #7c4f32;
-            --desk-top: #9c6744;
-            --desk-edge: #5a3822;
-            --metal-gray: #4b5563;
-            --metal-light: #9ca3af;
+            --bg-color: #121620;
+            --floor-color: #1e2636;
+            --floor-grid: #2a354b;
+            --wall-color: #182030;
             --crt-green: #39ff14;
             --crt-cyan: #00f0ff;
             --crt-amber: #ffb700;
@@ -59,10 +52,10 @@
             top: 0; left: 0; width: 100vw; height: 100vh;
             pointer-events: none;
             z-index: 9999;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.22) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
             background-size: 100% 4px, 6px 100%;
-            opacity: 0.85;
+            opacity: 0.8;
         }
 
         /* Top HUD Bar */
@@ -70,7 +63,7 @@
             position: fixed;
             top: 0; left: 0; right: 0;
             height: 48px;
-            background: #111827;
+            background: #0f172a;
             border-bottom: 4px solid #000;
             display: flex;
             align-items: center;
@@ -84,7 +77,7 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            font-size: 13px;
+            font-size: 12px;
             color: var(--crt-cyan);
             text-shadow: 2px 2px 0 #000;
             letter-spacing: 1px;
@@ -94,7 +87,7 @@
             background: #e11d48;
             color: #fff;
             padding: 3px 8px;
-            font-size: 10px;
+            font-size: 9px;
             border: 2px solid #000;
             box-shadow: inset 1px 1px 0 #fda4af, inset -1px -1px 0 #881337;
             animation: blinkBadge 1.2s infinite steps(1);
@@ -115,9 +108,9 @@
             background: #374151;
             color: #fff;
             border: 3px solid #000;
-            padding: 6px 12px;
+            padding: 6px 11px;
             font-family: var(--text-pixel);
-            font-size: 10px;
+            font-size: 9px;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
@@ -158,16 +151,16 @@
             box-shadow: inset 2px 2px 0 #fbbf24, inset -2px -2px 0 #78350f, 2px 2px 0 #000;
         }
 
-        /* Isometric Main Viewport */
+        /* Isometric Main Viewport - AUTO FIT TO SCREEN */
         .viewport-container {
             position: absolute;
             top: 48px; left: 0; width: 100vw; height: calc(100vh - 48px);
-            overflow: auto;
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
+            background: radial-gradient(circle at 50% 50%, #1a2233 0%, #0a0d14 85%);
             cursor: grab;
-            background: radial-gradient(circle at 50% 50%, #1f293d 0%, #0d111a 80%);
         }
 
         .viewport-container:active {
@@ -176,21 +169,26 @@
 
         .iso-world {
             position: relative;
-            width: 1700px;
-            height: 1200px;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transform-origin: center center;
-            transition: transform 0.2s ease;
+            transition: transform 0.15s ease-out;
         }
 
-        /* SVG Isometric Scene */
+        /* SVG Isometric Scene - Fully Responsive */
         svg.iso-svg {
             width: 100%;
             height: 100%;
+            max-width: 100vw;
+            max-height: calc(100vh - 48px);
             display: block;
             shape-rendering: crispEdges;
         }
 
-        /* Retro Floating Windows (Image 1 & 2 Style) */
+        /* Retro Floating Windows */
         .pixel-window {
             position: fixed;
             background: #1e293b;
@@ -199,6 +197,12 @@
             z-index: 500;
             display: flex;
             flex-direction: column;
+            transition: height 0.2s ease, opacity 0.2s ease;
+        }
+
+        .pixel-window.minimized {
+            height: 34px !important;
+            overflow: hidden;
         }
 
         .window-titlebar {
@@ -208,9 +212,10 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            font-size: 11px;
+            font-size: 10px;
             color: #38bdf8;
             letter-spacing: 0.5px;
+            cursor: pointer;
         }
 
         .window-controls {
@@ -219,8 +224,8 @@
         }
 
         .win-btn {
-            width: 14px;
-            height: 14px;
+            width: 16px;
+            height: 16px;
             border: 2px solid #000;
             background: #64748b;
             cursor: pointer;
@@ -228,26 +233,27 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 8px;
+            font-size: 9px;
             color: #000;
             font-weight: bold;
         }
+        .win-btn:hover { filter: brightness(1.2); }
         .win-btn.close { background: #ef4444; color: #fff; }
 
-        /* Chat Window (Top Left - Exactly like Image 2) */
+        /* Chat Window (Top Left) */
         .chat-window {
-            top: 64px;
-            left: 20px;
-            width: 380px;
-            height: 310px;
+            top: 58px;
+            left: 14px;
+            width: 340px;
+            height: 270px;
         }
 
         .chat-body {
             flex: 1;
-            padding: 10px;
+            padding: 8px;
             overflow-y: auto;
             font-family: var(--text-mono);
-            font-size: 17px;
+            font-size: 16px;
             line-height: 1.35;
             background: #090d16;
             color: #94a3b8;
@@ -255,17 +261,17 @@
         }
 
         .chat-line {
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             animation: fadeIn 0.2s ease;
         }
 
         .chat-author {
             font-family: var(--text-pixel);
-            font-size: 9px;
+            font-size: 8px;
             display: inline-block;
-            padding: 2px 6px;
+            padding: 1px 5px;
             border: 1px solid #000;
-            margin-right: 6px;
+            margin-right: 5px;
         }
 
         .author-master { background: #eab308; color: #000; }
@@ -280,9 +286,9 @@
 
         .chat-input-bar {
             display: flex;
-            padding: 6px;
+            padding: 5px;
             background: #1e293b;
-            gap: 6px;
+            gap: 5px;
         }
 
         .chat-input {
@@ -291,27 +297,27 @@
             border: 2px solid #000;
             color: #38bdf8;
             font-family: var(--text-mono);
-            font-size: 16px;
-            padding: 4px 8px;
+            font-size: 15px;
+            padding: 3px 6px;
             outline: none;
             box-shadow: inset 2px 2px 0 #000;
         }
 
-        /* Control Panel Window (Bottom Right - Exactly like Image 1 & 2) */
+        /* Control Panel Window (Bottom Right) */
         .control-window {
-            bottom: 20px;
-            right: 20px;
-            width: 340px;
+            bottom: 14px;
+            right: 14px;
+            width: 320px;
             background: #0f172a;
         }
 
         .control-body {
-            padding: 12px;
+            padding: 10px;
             font-family: var(--text-pixel);
-            font-size: 10px;
+            font-size: 9px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
 
         .stat-row {
@@ -319,7 +325,7 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 2px dashed #334155;
-            padding-bottom: 6px;
+            padding-bottom: 4px;
         }
         .stat-label { color: #94a3b8; }
         .stat-value { color: var(--crt-green); font-weight: bold; text-shadow: 1px 1px 0 #000; }
@@ -327,22 +333,25 @@
         .stat-value.amber { color: var(--crt-amber); }
         .stat-value.red { color: var(--crt-red); }
 
-        /* Interactive Canvas Sparkline */
         #sparkline-canvas {
             width: 100%;
-            height: 48px;
+            height: 40px;
             background: #050811;
             border: 2px solid #000;
             box-shadow: inset 2px 2px 0 #000;
         }
 
-        /* Floating HITL Authorization Dialogue Bubble (Exactly like Image 1) */
+        /* Floating HITL Authorization Dialogue Bubble - WITH EXPLICIT 'X' CLOSE BUTTON */
         .hitl-bubble-container {
             position: absolute;
-            z-index: 600;
+            top: 42%;
+            left: 54%;
+            transform: translate(-50%, -50%);
+            z-index: 800;
             filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.85));
             pointer-events: auto;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: 90vw;
         }
 
         .hitl-bubble {
@@ -350,33 +359,42 @@
             border: 4px solid #000;
             color: #0f172a;
             padding: 14px 18px;
-            max-width: 440px;
+            width: 440px;
+            max-width: 100%;
             font-family: var(--text-pixel);
-            font-size: 11px;
+            font-size: 10px;
             line-height: 1.5;
             position: relative;
         }
 
-        .hitl-bubble-tail {
+        /* Retro [X] Close Button in HITL Bubble */
+        .hitl-close-btn {
             position: absolute;
-            bottom: -18px;
-            left: 48px;
-            width: 0;
-            height: 0;
-            border-left: 12px solid transparent;
-            border-right: 12px solid transparent;
-            border-top: 18px solid #000;
+            top: 8px;
+            right: 8px;
+            width: 22px;
+            height: 22px;
+            background: #ef4444;
+            color: #ffffff;
+            border: 2px solid #000;
+            font-family: var(--text-pixel);
+            font-size: 11px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: inset 1px 1px 0 #fca5a5, inset -1px -1px 0 #7f1d1d, 2px 2px 0 #000;
+            transition: all 0.08s ease;
+            z-index: 10;
         }
-        .hitl-bubble-tail::after {
-            content: '';
-            position: absolute;
-            bottom: 4px;
-            left: -8px;
-            width: 0;
-            height: 0;
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-top: 14px solid #f8fafc;
+        .hitl-close-btn:hover {
+            background: #dc2626;
+            transform: scale(1.08);
+        }
+        .hitl-close-btn:active {
+            transform: translate(1px, 1px);
+            box-shadow: none;
         }
 
         .hitl-header {
@@ -386,6 +404,7 @@
             margin-bottom: 8px;
             border-bottom: 2px solid #cbd5e1;
             padding-bottom: 6px;
+            padding-right: 28px; /* space for close button */
         }
 
         .hitl-avatar {
@@ -407,67 +426,30 @@
         }
 
         .hitl-message {
-            font-size: 10px;
+            font-size: 9px;
             color: #1e293b;
             margin-bottom: 12px;
-            line-height: 1.6;
+            line-height: 1.55;
         }
 
         .hitl-buttons {
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            flex-wrap: wrap;
         }
 
-        /* Status Badges Hovering over Robots (Image 1 & 2 Style) */
-        .robot-status-badge {
-            position: absolute;
-            background: #000;
-            border: 2px solid #000;
-            padding: 4px 8px;
-            font-size: 9px;
-            font-family: var(--text-pixel);
-            letter-spacing: 0.5px;
-            transform: translate(-50%, -100%);
-            white-space: nowrap;
-            pointer-events: none;
-            box-shadow: 2px 2px 0 rgba(0,0,0,0.8);
-            z-index: 200;
-            animation: badgeFloat 2.5s infinite ease-in-out;
+        /* SVG Walking / Moving Robots Animations */
+        @keyframes walkLegs {
+            0% { transform: rotate(-14deg); }
+            50% { transform: rotate(14deg); }
+            100% { transform: rotate(-14deg); }
         }
 
-        .badge-working {
-            background: #064e3b;
-            color: #34d399;
-            border-color: #34d399;
-        }
-        .badge-data {
-            background: #0c4a6e;
-            color: #38bdf8;
-            border-color: #38bdf8;
-        }
-        .badge-hitl {
-            background: #78350f;
-            color: #fbbf24;
-            border-color: #fbbf24;
-            animation: badgePulse 0.8s infinite steps(1);
-        }
-        .badge-alert {
-            background: #7f1d1d;
-            color: #f87171;
-            border-color: #f87171;
-            animation: badgePulse 0.5s infinite steps(1);
+        @keyframes walkBob {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
         }
 
-        @keyframes badgeFloat {
-            0%, 100% { margin-top: 0; }
-            50% { margin-top: -4px; }
-        }
-
-        @keyframes badgePulse {
-            50% { opacity: 0.4; }
-        }
-
-        /* Robot Animations inside SVG */
         @keyframes robotType {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-3px); }
@@ -478,37 +460,44 @@
             50% { fill: #ef4444; filter: drop-shadow(0 0 4px #ef4444); }
         }
 
-        @keyframes screenScan {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(12px); }
-        }
-
-        @keyframes serverLed {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.2; }
+        @keyframes beaconSpin {
+            0%, 100% { fill: #facc15; filter: drop-shadow(0 0 6px #facc15); opacity: 1; }
+            50% { fill: #b45309; filter: none; opacity: 0.4; }
         }
 
         .typing-arm {
             transform-origin: center top;
-            animation: robotType 0.35s infinite ease-in-out alternate;
+            animation: robotType 0.32s infinite ease-in-out alternate;
         }
         .antenna-led {
             animation: antennaBlink 1.4s infinite steps(1);
         }
-        .server-led-1 { animation: serverLed 0.5s infinite steps(1); }
-        .server-led-2 { animation: serverLed 0.8s infinite steps(1) 0.2s; }
-        .server-led-3 { animation: serverLed 1.1s infinite steps(1) 0.4s; }
+        .beacon-spin {
+            animation: beaconSpin 0.7s infinite steps(1);
+        }
 
-        /* Interactive Robot Hover & Click */
+        .walking-legs-left {
+            transform-origin: center top;
+            animation: walkLegs 0.35s infinite ease-in-out;
+        }
+        .walking-legs-right {
+            transform-origin: center top;
+            animation: walkLegs 0.35s infinite ease-in-out reverse;
+        }
+        .walking-bob {
+            animation: walkBob 0.35s infinite ease-in-out;
+        }
+
+        /* Cubicle Group Hover */
         .cubicle-group {
             cursor: pointer;
             transition: filter 0.15s ease;
         }
         .cubicle-group:hover {
-            filter: brightness(1.25) drop-shadow(0 0 10px rgba(0, 240, 255, 0.4));
+            filter: brightness(1.3) drop-shadow(0 0 8px rgba(0, 240, 255, 0.45));
         }
 
-        /* Robot Detail Modal */
+        /* Modal Card */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -523,9 +512,9 @@
         .modal-card {
             background: #1e293b;
             border: 4px solid #000;
-            width: 480px;
+            width: 440px;
+            max-width: 90vw;
             box-shadow: inset 2px 2px 0 #475569, inset -2px -2px 0 #0f172a, 8px 8px 0 #000;
-            padding: 0;
             font-family: var(--text-pixel);
         }
         .modal-header {
@@ -536,24 +525,23 @@
             justify-content: space-between;
             align-items: center;
             color: #38bdf8;
-            font-size: 11px;
+            font-size: 10px;
         }
         .modal-content {
-            padding: 16px;
-            font-size: 10px;
+            padding: 14px;
+            font-size: 9px;
             line-height: 1.6;
             color: #e2e8f0;
         }
         .modal-footer {
-            padding: 8px 16px 14px;
+            padding: 8px 14px 12px;
             display: flex;
             justify-content: flex-end;
         }
 
-        /* Tooltip Toast */
         .toast-box {
             position: fixed;
-            bottom: 24px;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             background: #0f172a;
@@ -592,26 +580,25 @@
             <button class="btn-pixel" onclick="triggerTestHITL()">
                 <i class="fa-solid fa-bell"></i> SIMULAR HITL
             </button>
+            <button class="btn-pixel green" onclick="autoFitRoom()">
+                <i class="fa-solid fa-expand"></i> AJUSTAR PANTALLA
+            </button>
             <a href="/dashboard" class="btn-pixel">
                 <i class="fa-solid fa-chart-line"></i> MT5 KPI
             </a>
             <a href="/brain" class="btn-pixel">
                 <i class="fa-solid fa-brain"></i> 3D BRAIN
             </a>
-            <button class="btn-pixel green" onclick="resetZoom()">
-                <i class="fa-solid fa-arrows-to-eye"></i> CENTRAR
-            </button>
         </div>
     </header>
 
-    <!-- Chat Window (Top Left - Replica Image 2) -->
-    <div class="pixel-window chat-window">
-        <div class="window-titlebar">
+    <!-- Chat Window (Top Left) -->
+    <div class="pixel-window chat-window" id="chat-win">
+        <div class="window-titlebar" onclick="toggleWindowMin('chat-win')">
             <span><i class="fa-solid fa-terminal"></i> COMUNICACIÓN SINÁPTICA</span>
             <div class="window-controls">
-                <div class="win-btn">_</div>
-                <div class="win-btn">□</div>
-                <div class="win-btn close" onclick="this.closest('.pixel-window').style.display='none'">X</div>
+                <div class="win-btn" onclick="event.stopPropagation(); toggleWindowMin('chat-win')">_</div>
+                <div class="win-btn close" onclick="event.stopPropagation(); document.getElementById('chat-win').style.display='none'">X</div>
             </div>
         </div>
         <div class="chat-body" id="chat-messages">
@@ -638,13 +625,13 @@
         </div>
     </div>
 
-    <!-- Control Window (Bottom Right - Replica Image 1 & 2) -->
-    <div class="pixel-window control-window">
-        <div class="window-titlebar">
+    <!-- Control Window (Bottom Right) -->
+    <div class="pixel-window control-window" id="control-win">
+        <div class="window-titlebar" onclick="toggleWindowMin('control-win')">
             <span><i class="fa-solid fa-sliders"></i> TABLERO DE CONTROL</span>
             <div class="window-controls">
-                <div class="win-btn">_</div>
-                <div class="win-btn">□</div>
+                <div class="win-btn" onclick="event.stopPropagation(); toggleWindowMin('control-win')">_</div>
+                <div class="win-btn close" onclick="event.stopPropagation(); document.getElementById('control-win').style.display='none'">X</div>
             </div>
         </div>
         <div class="control-body">
@@ -680,9 +667,12 @@
     <main class="viewport-container" id="viewport">
         <div class="iso-world" id="iso-world">
 
-            <!-- Floating HITL Authorization Dialogue Bubble (Image 1 Replica) -->
-            <div class="hitl-bubble-container" id="hitl-bubble" style="top: 420px; left: 740px;">
+            <!-- Floating HITL Authorization Dialogue Bubble WITH EXPLICIT 'X' CLOSE BUTTON -->
+            <div class="hitl-bubble-container" id="hitl-bubble">
                 <div class="hitl-bubble">
+                    <!-- Close Button [X] as explicitly requested by user -->
+                    <button class="hitl-close-btn" onclick="closeHITL(event)" title="Cerrar y posponer">X</button>
+                    
                     <div class="hitl-header">
                         <div class="hitl-avatar"><i class="fa-solid fa-shield-halved"></i></div>
                         <div>
@@ -697,74 +687,63 @@
                         <button class="btn-pixel green" onclick="approveHITL()"><i class="fa-solid fa-check"></i> [APROBAR ($34.33)]</button>
                         <button class="btn-pixel red" onclick="rejectHITL()"><i class="fa-solid fa-xmark"></i> [VETAR / RECHAZAR]</button>
                     </div>
-                    <div class="hitl-bubble-tail"></div>
                 </div>
             </div>
 
-            <!-- Isometric SVG Engine Scene -->
-            <svg class="iso-svg" viewBox="0 0 1700 1200" id="iso-svg-element">
+            <!-- Isometric SVG Engine Scene (Optimized viewBox for 100% Fit) -->
+            <svg class="iso-svg" viewBox="0 0 1600 960" id="iso-svg-element" preserveAspectRatio="xMidYMid meet">
                 <defs>
                     <!-- Isometric Grid Pattern -->
-                    <pattern id="isoTile" width="120" height="60" patternUnits="userSpaceOnUse">
-                        <path d="M 60 0 L 120 30 L 60 60 L 0 30 Z" fill="#242c3d" stroke="#334155" stroke-width="1"/>
-                        <path d="M 60 30 L 120 30" stroke="#1e293b" stroke-width="0.5"/>
+                    <pattern id="isoTile" width="100" height="50" patternUnits="userSpaceOnUse">
+                        <path d="M 50 0 L 100 25 L 50 50 L 0 25 Z" fill="#1c2434" stroke="#28354d" stroke-width="1"/>
+                        <path d="M 50 25 L 100 25" stroke="#161e2e" stroke-width="0.5"/>
                     </pattern>
-                    <!-- Carpet Floor for Executive Office -->
+                    <!-- Executive Office Carpet Tile -->
                     <pattern id="ceoTile" width="80" height="40" patternUnits="userSpaceOnUse">
                         <path d="M 40 0 L 80 20 L 40 40 L 0 20 Z" fill="#1e3a5f" stroke="#2563eb" stroke-width="1"/>
                     </pattern>
                 </defs>
 
                 <!-- ISOMETRIC FLOOR BASE -->
-                <!-- Main Trading Floor -->
-                <polygon points="850,80 1650,480 850,880 50,480" fill="url(#isoTile)" stroke="#0f172a" stroke-width="4"/>
+                <!-- Main Trading Floor Polygon -->
+                <polygon points="800,50 1560,430 800,810 40,430" fill="url(#isoTile)" stroke="#0f172a" stroke-width="4"/>
                 
                 <!-- Executive Office Floor Zone (Top Left) -->
-                <polygon points="500,280 850,455 550,605 200,430" fill="url(#ceoTile)" stroke="#38bdf8" stroke-width="2"/>
+                <polygon points="460,250 800,420 520,560 180,390" fill="url(#ceoTile)" stroke="#38bdf8" stroke-width="2"/>
                 
-                <!-- Floor Divider Pathway Lines (Yellow Dashed like Image 1) -->
-                <path d="M 380,510 L 550,605 L 850,455 L 1150,605" fill="none" stroke="#eab308" stroke-width="3" stroke-dasharray="6,6"/>
+                <!-- Floor Pathway Line (Yellow Dashed Pathway where Runner Robots Walk!) -->
+                <path id="path-runner" d="M 760,520 L 520,560 L 360,480" fill="none" stroke="#eab308" stroke-width="3" stroke-dasharray="6,6"/>
 
                 <!-- ========================================== -->
                 <!-- STATION 0: OFICINA DEL DIRECTOR / MASTER   -->
                 <!-- ========================================== -->
-                <g class="cubicle-group" id="station-master" onclick="inspectRobot('master')" transform="translate(360, 360)">
-                    <!-- Glass Partition Wall -->
+                <g class="cubicle-group" id="station-master" onclick="inspectRobot('master')" transform="translate(320, 340)">
+                    <!-- Glass Walls -->
                     <polygon points="0,0 80,-40 80,60 0,100" fill="rgba(56, 189, 248, 0.15)" stroke="#38bdf8" stroke-width="2"/>
                     <polygon points="80,-40 180,10 180,110 80,60" fill="rgba(56, 189, 248, 0.1)" stroke="#38bdf8" stroke-width="2"/>
                     
-                    <!-- Executive Wooden Desk -->
-                    <!-- Top -->
+                    <!-- Executive Desk -->
                     <polygon points="70,50 140,15 210,50 140,85" fill="#9c6744" stroke="#452712" stroke-width="2"/>
-                    <!-- Front Left Face -->
                     <polygon points="70,50 140,85 140,120 70,85" fill="#7c4f32" stroke="#452712" stroke-width="2"/>
-                    <!-- Front Right Face -->
                     <polygon points="140,85 210,50 210,85 140,120" fill="#5a3822" stroke="#452712" stroke-width="2"/>
                     
-                    <!-- Laptop & Hologram on Desk -->
+                    <!-- Laptop & Holo Beam -->
                     <polygon points="120,45 150,30 165,42 135,57" fill="#1e293b" stroke="#000" stroke-width="1.5"/>
                     <polygon points="135,30 165,15 165,37 135,52" fill="#38bdf8" stroke="#0284c7" stroke-width="1.5"/>
-                    <!-- Holo Beam -->
                     <line x1="145" y1="35" x2="145" y2="10" stroke="#00f0ff" stroke-width="2" stroke-dasharray="2,2"/>
-                    <circle cx="145" cy="5" r="8" fill="rgba(0, 240, 255, 0.3)" stroke="#00f0ff" stroke-width="1.5"/>
+                    <circle cx="145" cy="5" r="7" fill="rgba(0, 240, 255, 0.3)" stroke="#00f0ff" stroke-width="1.5"/>
 
-                    <!-- Executive Swivel Chair Behind Desk -->
+                    <!-- Chair -->
                     <rect x="125" y="-5" width="30" height="40" rx="4" fill="#0f172a" stroke="#000" stroke-width="2"/>
 
-                    <!-- Director Robot / Master Orchestrator (Image 1 & 2 CEO Style) -->
-                    <g transform="translate(125, 2)">
-                        <!-- Robot Torso -->
+                    <!-- Master Robot at Desk -->
+                    <g transform="translate(125, 2)" id="robot-avatar-master">
                         <rect x="4" y="14" width="22" height="24" rx="3" fill="#1e293b" stroke="#000" stroke-width="2"/>
-                        <!-- Golden Tie / Core -->
                         <polygon points="15,18 18,24 15,32 12,24" fill="#eab308"/>
-                        <!-- Robot Head -->
                         <rect x="5" y="0" width="20" height="15" rx="3" fill="#334155" stroke="#000" stroke-width="2"/>
-                        <!-- Cyan Visor Eyes -->
                         <rect x="8" y="4" width="14" height="4" fill="#00f0ff" class="antenna-led"/>
-                        <!-- Antenna -->
                         <line x1="15" y1="0" x2="15" y2="-8" stroke="#000" stroke-width="2"/>
                         <circle cx="15" cy="-8" r="3" fill="#eab308"/>
-                        <!-- Typing Arms -->
                         <g class="typing-arm">
                             <rect x="0" y="20" width="6" height="14" fill="#64748b" stroke="#000" stroke-width="1.5"/>
                             <rect x="24" y="20" width="6" height="14" fill="#64748b" stroke="#000" stroke-width="1.5"/>
@@ -772,44 +751,40 @@
                     </g>
 
                     <!-- Potted Pixel Plant -->
-                    <g transform="translate(30, 70)">
+                    <g transform="translate(25, 60)">
                         <polygon points="10,20 25,12 40,20 25,28" fill="#d97706" stroke="#78350f" stroke-width="1"/>
                         <polygon points="10,20 25,28 25,42 10,34" fill="#b45309" stroke="#78350f" stroke-width="1"/>
                         <polygon points="25,28 40,20 40,34 25,42" fill="#78350f" stroke="#451a03" stroke-width="1"/>
-                        <!-- Plant Leaves -->
                         <circle cx="25" cy="10" r="10" fill="#15803d" stroke="#14532d" stroke-width="2"/>
                         <circle cx="18" cy="14" r="6" fill="#22c55e"/>
-                        <circle cx="32" cy="12" r="7" fill="#16a34a"/>
+                    </g>
+
+                    <!-- SVG Integrated Status Badge (Always Anchored!) -->
+                    <g transform="translate(140, -25)">
+                        <rect x="-85" y="-12" width="170" height="22" rx="3" fill="#000" stroke="#38bdf8" stroke-width="2"/>
+                        <text x="0" y="3" fill="#38bdf8" font-size="9" font-family="'Silkscreen', monospace" text-anchor="middle" font-weight="bold">[DIRECTOR] MASTER SWARM</text>
                     </g>
                 </g>
 
                 <!-- ========================================== -->
-                <!-- STATION 1: TIDAL-BOT (HERD 1: MACRO & SESIONES) -->
+                <!-- STATION 1: TIDAL-BOT (HERD 1: MACRO)       -->
                 <!-- ========================================== -->
-                <g class="cubicle-group" id="station-tidal" onclick="inspectRobot('tidal')" transform="translate(620, 200)">
-                    <!-- Cubicle Partition Walls -->
+                <g class="cubicle-group" id="station-tidal" onclick="inspectRobot('tidal')" transform="translate(580, 180)">
                     <polygon points="0,0 70,-35 70,55 0,90" fill="#1e293b" stroke="#475569" stroke-width="2"/>
                     <polygon points="70,-35 150,5 150,95 70,55" fill="#0f172a" stroke="#475569" stroke-width="2"/>
                     
-                    <!-- Desk -->
                     <polygon points="50,45 110,15 170,45 110,75" fill="#64748b" stroke="#334155" stroke-width="2"/>
                     <polygon points="50,45 110,75 110,105 50,75" fill="#475569" stroke="#1e293b" stroke-width="2"/>
                     <polygon points="110,75 170,45 170,75 110,105" fill="#334155" stroke="#0f172a" stroke-width="2"/>
 
-                    <!-- Triple Monitors (Blue Glow) -->
-                    <!-- Center Monitor -->
+                    <!-- Monitors & Globe -->
                     <polygon points="100,28 125,15 125,38 100,51" fill="#0284c7" stroke="#000" stroke-width="1.5"/>
-                    <!-- Left Monitor -->
-                    <polygon points="80,36 100,26 100,48 80,58" fill="#0369a1" stroke="#000" stroke-width="1.5"/>
-                    <!-- Right Monitor (Holo Globe) -->
-                    <circle cx="140" cy="25" r="10" fill="rgba(2, 132, 199, 0.4)" stroke="#38bdf8" stroke-width="1.5"/>
-                    <ellipse cx="140" cy="25" rx="10" ry="4" fill="none" stroke="#38bdf8" stroke-width="1"/>
+                    <circle cx="140" cy="25" r="9" fill="rgba(2, 132, 199, 0.4)" stroke="#38bdf8" stroke-width="1.5"/>
 
-                    <!-- Chair -->
                     <rect x="95" y="0" width="24" height="34" rx="3" fill="#1e293b" stroke="#000" stroke-width="2"/>
 
-                    <!-- TIDAL-BOT Robot -->
-                    <g transform="translate(97, 6)">
+                    <!-- TIDAL Robot Avatar (Animated / Walkable) -->
+                    <g transform="translate(97, 6)" id="robot-avatar-tidal">
                         <rect x="3" y="12" width="18" height="20" rx="3" fill="#0369a1" stroke="#000" stroke-width="1.5"/>
                         <rect x="4" y="0" width="16" height="12" rx="2" fill="#0284c7" stroke="#000" stroke-width="1.5"/>
                         <rect x="6" y="3" width="12" height="4" fill="#38bdf8"/>
@@ -820,31 +795,35 @@
                             <rect x="19" y="16" width="5" height="12" fill="#bae6fd" stroke="#000" stroke-width="1"/>
                         </g>
                     </g>
+
+                    <!-- SVG Anchored Badge -->
+                    <g transform="translate(110, -18)" id="svg-badge-tidal">
+                        <rect x="-70" y="-11" width="140" height="20" rx="3" fill="#0c4a6e" stroke="#38bdf8" stroke-width="1.5"/>
+                        <text x="0" y="3" fill="#38bdf8" font-size="8.5" font-family="'Silkscreen', monospace" text-anchor="middle" font-weight="bold">[DATA] TIDAL (1.01x)</text>
+                    </g>
                 </g>
 
                 <!-- ========================================== -->
-                <!-- STATION 2: NORO-BOT (HERD 2: MATEMÁTICAS & POC) -->
+                <!-- STATION 2: NORO-BOT (HERD 2: MARKOV & POC) -->
                 <!-- ========================================== -->
-                <g class="cubicle-group" id="station-noro" onclick="inspectRobot('noro')" transform="translate(940, 200)">
+                <g class="cubicle-group" id="station-noro" onclick="inspectRobot('noro')" transform="translate(880, 180)">
                     <polygon points="0,0 70,-35 70,55 0,90" fill="#1e293b" stroke="#475569" stroke-width="2"/>
                     <polygon points="70,-35 150,5 150,95 70,55" fill="#0f172a" stroke="#475569" stroke-width="2"/>
                     
-                    <!-- Desk -->
                     <polygon points="50,45 110,15 170,45 110,75" fill="#64748b" stroke="#334155" stroke-width="2"/>
                     <polygon points="50,45 110,75 110,105 50,75" fill="#475569" stroke="#1e293b" stroke-width="2"/>
                     <polygon points="110,75 170,45 170,75 110,105" fill="#334155" stroke="#0f172a" stroke-width="2"/>
 
-                    <!-- Chalkboard with Markov Formulas behind desk -->
+                    <!-- Chalkboard -->
                     <polygon points="15,-10 65,-35 65,15 15,40" fill="#064e3b" stroke="#78350f" stroke-width="2"/>
                     <line x1="25" y1="0" x2="55" y2="-15" stroke="#fff" stroke-width="1"/>
-                    <line x1="25" y1="12" x2="45" y2="2" stroke="#fff" stroke-width="1"/>
 
-                    <!-- Dual CRT Monitors (Purple/Indigo Glow) -->
+                    <!-- Monitors -->
                     <polygon points="90,30 115,18 115,40 90,52" fill="#6366f1" stroke="#000" stroke-width="1.5"/>
                     <polygon points="118,18 140,28 140,50 118,40" fill="#4f46e5" stroke="#000" stroke-width="1.5"/>
 
-                    <!-- NORO-BOT Robot -->
-                    <g transform="translate(97, 6)">
+                    <!-- NORO Robot Avatar -->
+                    <g transform="translate(97, 6)" id="robot-avatar-noro">
                         <rect x="3" y="12" width="18" height="20" rx="3" fill="#4338ca" stroke="#000" stroke-width="1.5"/>
                         <rect x="4" y="0" width="16" height="12" rx="2" fill="#6366f1" stroke="#000" stroke-width="1.5"/>
                         <rect x="6" y="3" width="12" height="4" fill="#a5b4fc"/>
@@ -855,26 +834,30 @@
                             <rect x="19" y="16" width="5" height="12" fill="#e0e7ff" stroke="#000" stroke-width="1"/>
                         </g>
                     </g>
+
+                    <g transform="translate(110, -18)" id="svg-badge-noro">
+                        <rect x="-70" y="-11" width="140" height="20" rx="3" fill="#312e81" stroke="#818cf8" stroke-width="1.5"/>
+                        <text x="0" y="3" fill="#818cf8" font-size="8.5" font-family="'Silkscreen', monospace" text-anchor="middle" font-weight="bold">[MATH] NORO POC (1.01x)</text>
+                    </g>
                 </g>
 
                 <!-- ========================================== -->
                 <!-- STATION 3: ZEPHR-BOT (HERD 3: BAYES & EV)  -->
                 <!-- ========================================== -->
-                <g class="cubicle-group" id="station-zephr" onclick="inspectRobot('zephr')" transform="translate(1260, 200)">
+                <g class="cubicle-group" id="station-zephr" onclick="inspectRobot('zephr')" transform="translate(1180, 180)">
                     <polygon points="0,0 70,-35 70,55 0,90" fill="#1e293b" stroke="#475569" stroke-width="2"/>
                     <polygon points="70,-35 150,5 150,95 70,55" fill="#0f172a" stroke="#475569" stroke-width="2"/>
                     
-                    <!-- Desk -->
                     <polygon points="50,45 110,15 170,45 110,75" fill="#64748b" stroke="#334155" stroke-width="2"/>
                     <polygon points="50,45 110,75 110,105 50,75" fill="#475569" stroke="#1e293b" stroke-width="2"/>
                     <polygon points="110,75 170,45 170,75 110,105" fill="#334155" stroke="#0f172a" stroke-width="2"/>
 
-                    <!-- Bell Curve Probability Display (Teal Glow) -->
+                    <!-- Bell Curve Display -->
                     <polygon points="95,25 125,10 125,35 95,50" fill="#0f766e" stroke="#000" stroke-width="1.5"/>
                     <path d="M 100,42 Q 110,25 120,40" stroke="#2dd4bf" stroke-width="2" fill="none"/>
 
-                    <!-- ZEPHR-BOT Robot -->
-                    <g transform="translate(97, 6)">
+                    <!-- ZEPHR Robot Avatar -->
+                    <g transform="translate(97, 6)" id="robot-avatar-zephr">
                         <rect x="3" y="12" width="18" height="20" rx="3" fill="#0f766e" stroke="#000" stroke-width="1.5"/>
                         <rect x="4" y="0" width="16" height="12" rx="2" fill="#14b8a6" stroke="#000" stroke-width="1.5"/>
                         <rect x="6" y="3" width="12" height="4" fill="#5eead4"/>
@@ -885,28 +868,31 @@
                             <rect x="19" y="16" width="5" height="12" fill="#ccfbf1" stroke="#000" stroke-width="1"/>
                         </g>
                     </g>
+
+                    <g transform="translate(110, -18)" id="svg-badge-zephr">
+                        <rect x="-70" y="-11" width="140" height="20" rx="3" fill="#134e4a" stroke="#2dd4bf" stroke-width="1.5"/>
+                        <text x="0" y="3" fill="#2dd4bf" font-size="8.5" font-family="'Silkscreen', monospace" text-anchor="middle" font-weight="bold">[EV] ZEPHR BAYES (1.01x)</text>
+                    </g>
                 </g>
 
                 <!-- ========================================== -->
-                <!-- STATION 4: LUMEN-BOT (HERD 4: SMC & ORDER BLOCKS) -->
+                <!-- STATION 4: LUMEN-BOT (HERD 4: SMC & OB)    -->
                 <!-- ========================================== -->
-                <g class="cubicle-group" id="station-lumen" onclick="inspectRobot('lumen')" transform="translate(480, 520)">
+                <g class="cubicle-group" id="station-lumen" onclick="inspectRobot('lumen')" transform="translate(460, 480)">
                     <polygon points="0,0 70,-35 70,55 0,90" fill="#1e293b" stroke="#475569" stroke-width="2"/>
                     <polygon points="70,-35 150,5 150,95 70,55" fill="#0f172a" stroke="#475569" stroke-width="2"/>
                     
-                    <!-- Desk -->
                     <polygon points="50,45 110,15 170,45 110,75" fill="#64748b" stroke="#334155" stroke-width="2"/>
                     <polygon points="50,45 110,75 110,105 50,75" fill="#475569" stroke="#1e293b" stroke-width="2"/>
                     <polygon points="110,75 170,45 170,75 110,105" fill="#334155" stroke="#0f172a" stroke-width="2"/>
 
-                    <!-- Candlestick Multi-Monitors with SMC Boxes (Gold Glow) -->
+                    <!-- SMC Candlesticks -->
                     <polygon points="90,30 115,18 115,40 90,52" fill="#d97706" stroke="#000" stroke-width="1.5"/>
-                    <polygon points="118,18 140,28 140,50 118,40" fill="#b45309" stroke="#000" stroke-width="1.5"/>
-                    <rect x="94" y="30" width="8" height="12" fill="#22c55e" stroke="#14532d" stroke-width="0.5"/>
-                    <rect x="104" y="24" width="8" height="16" fill="#ef4444" stroke="#7f1d1d" stroke-width="0.5"/>
+                    <rect x="94" y="30" width="7" height="11" fill="#22c55e"/>
+                    <rect x="103" y="24" width="7" height="15" fill="#ef4444"/>
 
-                    <!-- LUMEN-BOT Robot -->
-                    <g transform="translate(97, 6)">
+                    <!-- LUMEN Robot Avatar -->
+                    <g transform="translate(97, 6)" id="robot-avatar-lumen">
                         <rect x="3" y="12" width="18" height="20" rx="3" fill="#b45309" stroke="#000" stroke-width="1.5"/>
                         <rect x="4" y="0" width="16" height="12" rx="2" fill="#f59e0b" stroke="#000" stroke-width="1.5"/>
                         <rect x="6" y="3" width="12" height="4" fill="#fde68a"/>
@@ -917,28 +903,31 @@
                             <rect x="19" y="16" width="5" height="12" fill="#fef3c7" stroke="#000" stroke-width="1"/>
                         </g>
                     </g>
+
+                    <g transform="translate(110, -18)" id="svg-badge-lumen">
+                        <rect x="-70" y="-11" width="140" height="20" rx="3" fill="#78350f" stroke="#fbbf24" stroke-width="1.5"/>
+                        <text x="0" y="3" fill="#fbbf24" font-size="8.5" font-family="'Silkscreen', monospace" text-anchor="middle" font-weight="bold">[SMC] LUMEN OB (1.01x)</text>
+                    </g>
                 </g>
 
                 <!-- ========================================== -->
-                <!-- STATION 5: RUNE-BOT (HERD 5: RIESGO & VETO) -->
+                <!-- STATION 5: RUNE-BOT (HERD 5: RIESGO & VETO)-->
                 <!-- ========================================== -->
-                <g class="cubicle-group" id="station-rune" onclick="inspectRobot('rune')" transform="translate(800, 520)">
+                <g class="cubicle-group" id="station-rune" onclick="inspectRobot('rune')" transform="translate(760, 480)">
                     <polygon points="0,0 70,-35 70,55 0,90" fill="#1e293b" stroke="#dc2626" stroke-width="2"/>
                     <polygon points="70,-35 150,5 150,95 70,55" fill="#0f172a" stroke="#dc2626" stroke-width="2"/>
                     
-                    <!-- Desk -->
                     <polygon points="50,45 110,15 170,45 110,75" fill="#64748b" stroke="#334155" stroke-width="2"/>
                     <polygon points="50,45 110,75 110,105 50,75" fill="#475569" stroke="#1e293b" stroke-width="2"/>
                     <polygon points="110,75 170,45 170,75 110,105" fill="#334155" stroke="#0f172a" stroke-width="2"/>
 
-                    <!-- Risk Shield Hologram & Red Alarm Beacon -->
+                    <!-- Shield & Red Beacon -->
                     <polygon points="100,28 125,15 125,38 100,51" fill="#b91c1c" stroke="#000" stroke-width="1.5"/>
-                    <!-- Shield Pulse -->
                     <polygon points="140,15 155,22 155,42 140,50 125,42 125,22" fill="rgba(220, 38, 38, 0.35)" stroke="#ef4444" stroke-width="1.5"/>
-                    <circle cx="140" cy="30" r="4" fill="#fca5a5" class="antenna-led"/>
+                    <circle cx="140" cy="30" r="4" fill="#fca5a5" class="beacon-spin"/>
 
-                    <!-- RUNE-BOT Robot -->
-                    <g transform="translate(97, 6)">
+                    <!-- RUNE Robot Avatar -->
+                    <g transform="translate(97, 6)" id="robot-avatar-rune">
                         <rect x="3" y="12" width="18" height="20" rx="3" fill="#991b1b" stroke="#000" stroke-width="1.5"/>
                         <rect x="4" y="0" width="16" height="12" rx="2" fill="#dc2626" stroke="#000" stroke-width="1.5"/>
                         <rect x="6" y="3" width="12" height="4" fill="#fca5a5"/>
@@ -949,32 +938,32 @@
                             <rect x="19" y="16" width="5" height="12" fill="#fee2e2" stroke="#000" stroke-width="1"/>
                         </g>
                     </g>
+
+                    <g transform="translate(110, -18)" id="svg-badge-rune">
+                        <rect x="-70" y="-11" width="140" height="20" rx="3" fill="#7f1d1d" stroke="#f87171" stroke-width="1.5"/>
+                        <text x="0" y="3" fill="#f87171" font-size="8.5" font-family="'Silkscreen', monospace" text-anchor="middle" font-weight="bold">[HITL] RUNE RISK (1.01x)</text>
+                    </g>
                 </g>
 
                 <!-- ========================================== -->
-                <!-- STATION 6: TENSORFLOW-BOT (HERD 6: KERAS 22D) -->
+                <!-- STATION 6: TENSORFLOW-BOT (KERAS 22D)      -->
                 <!-- ========================================== -->
-                <g class="cubicle-group" id="station-tf" onclick="inspectRobot('tf')" transform="translate(1120, 520)">
+                <g class="cubicle-group" id="station-tf" onclick="inspectRobot('tf')" transform="translate(1060, 480)">
                     <polygon points="0,0 70,-35 70,55 0,90" fill="#1e293b" stroke="#a855f7" stroke-width="2"/>
                     <polygon points="70,-35 150,5 150,95 70,55" fill="#0f172a" stroke="#a855f7" stroke-width="2"/>
                     
-                    <!-- Desk -->
                     <polygon points="50,45 110,15 170,45 110,75" fill="#64748b" stroke="#334155" stroke-width="2"/>
                     <polygon points="50,45 110,75 110,105 50,75" fill="#475569" stroke="#1e293b" stroke-width="2"/>
                     <polygon points="110,75 170,45 170,75 110,105" fill="#334155" stroke="#0f172a" stroke-width="2"/>
 
-                    <!-- Server Rack with Blinking Neural Cores -->
+                    <!-- Server Rack & Holo Brain -->
                     <polygon points="15,-15 50,-32 50,25 15,42" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
-                    <circle cx="30" cy="-5" r="2" fill="#22c55e" class="server-led-1"/>
-                    <circle cx="38" cy="-10" r="2" fill="#38bdf8" class="server-led-2"/>
-                    <circle cx="30" cy="15" r="2" fill="#ec4899" class="server-led-3"/>
+                    <circle cx="30" cy="-5" r="2" fill="#22c55e"/>
+                    <circle cx="38" cy="-10" r="2" fill="#38bdf8"/>
+                    <circle cx="135" cy="25" r="11" fill="rgba(168, 85, 247, 0.3)" stroke="#c084fc" stroke-width="2"/>
 
-                    <!-- Holographic Neural Core on Desk -->
-                    <circle cx="135" cy="25" r="12" fill="rgba(168, 85, 247, 0.3)" stroke="#c084fc" stroke-width="2"/>
-                    <polygon points="135,15 145,28 125,28" fill="none" stroke="#e879f9" stroke-width="1.5"/>
-
-                    <!-- TENSORFLOW-BOT Robot -->
-                    <g transform="translate(97, 6)">
+                    <!-- TF Robot Avatar -->
+                    <g transform="translate(97, 6)" id="robot-avatar-tf">
                         <rect x="3" y="12" width="18" height="20" rx="3" fill="#6b21a8" stroke="#000" stroke-width="1.5"/>
                         <rect x="4" y="0" width="16" height="12" rx="2" fill="#a855f7" stroke="#000" stroke-width="1.5"/>
                         <rect x="6" y="3" width="12" height="4" fill="#f0abfc"/>
@@ -985,28 +974,31 @@
                             <rect x="19" y="16" width="5" height="12" fill="#fae8ff" stroke="#000" stroke-width="1"/>
                         </g>
                     </g>
+
+                    <g transform="translate(110, -18)" id="svg-badge-tf">
+                        <rect x="-70" y="-11" width="140" height="20" rx="3" fill="#581c87" stroke="#c084fc" stroke-width="1.5"/>
+                        <text x="0" y="3" fill="#c084fc" font-size="8.5" font-family="'Silkscreen', monospace" text-anchor="middle" font-weight="bold">[22D] TENSORFLOW (1.01x)</text>
+                    </g>
                 </g>
 
                 <!-- ========================================== -->
-                <!-- STATION 7: ATLAS-BOT (HERD 7: CME DOM & CVD) -->
+                <!-- STATION 7: ATLAS-BOT (CME DOM & CVD)       -->
                 <!-- ========================================== -->
-                <g class="cubicle-group" id="station-atlas" onclick="inspectRobot('atlas')" transform="translate(640, 800)">
+                <g class="cubicle-group" id="station-atlas" onclick="inspectRobot('atlas')" transform="translate(600, 720)">
                     <polygon points="0,0 70,-35 70,55 0,90" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
                     <polygon points="70,-35 150,5 150,95 70,55" fill="#0f172a" stroke="#06b6d4" stroke-width="2"/>
                     
-                    <!-- Desk -->
                     <polygon points="50,45 110,15 170,45 110,75" fill="#64748b" stroke="#334155" stroke-width="2"/>
                     <polygon points="50,45 110,75 110,105 50,75" fill="#475569" stroke="#1e293b" stroke-width="2"/>
                     <polygon points="110,75 170,45 170,75 110,105" fill="#334155" stroke="#0f172a" stroke-width="2"/>
 
-                    <!-- CME DOM Order Ladder & CVD Delta Bars (Cyan Glow) -->
+                    <!-- DOM Ladder -->
                     <polygon points="90,30 115,18 115,40 90,52" fill="#0891b2" stroke="#000" stroke-width="1.5"/>
-                    <!-- Ladder Bars -->
                     <line x1="94" y1="34" x2="110" y2="26" stroke="#22c55e" stroke-width="2"/>
                     <line x1="94" y1="40" x2="106" y2="34" stroke="#ef4444" stroke-width="2"/>
 
-                    <!-- ATLAS-BOT Robot -->
-                    <g transform="translate(97, 6)">
+                    <!-- ATLAS Robot Avatar -->
+                    <g transform="translate(97, 6)" id="robot-avatar-atlas">
                         <rect x="3" y="12" width="18" height="20" rx="3" fill="#155e75" stroke="#000" stroke-width="1.5"/>
                         <rect x="4" y="0" width="16" height="12" rx="2" fill="#06b6d4" stroke="#000" stroke-width="1.5"/>
                         <rect x="6" y="3" width="12" height="4" fill="#a5f3fc"/>
@@ -1017,26 +1009,30 @@
                             <rect x="19" y="16" width="5" height="12" fill="#cffafe" stroke="#000" stroke-width="1"/>
                         </g>
                     </g>
+
+                    <g transform="translate(110, -18)" id="svg-badge-atlas">
+                        <rect x="-70" y="-11" width="140" height="20" rx="3" fill="#164e63" stroke="#22d3ee" stroke-width="1.5"/>
+                        <text x="0" y="3" fill="#22d3ee" font-size="8.5" font-family="'Silkscreen', monospace" text-anchor="middle" font-weight="bold">[CME] ATLAS CVD (1.01x)</text>
+                    </g>
                 </g>
 
                 <!-- ========================================== -->
                 <!-- STATION 8: QUANT & CBR LAB (GEMINI PRO)    -->
                 <!-- ========================================== -->
-                <g class="cubicle-group" id="station-quant" onclick="inspectRobot('quant')" transform="translate(960, 800)">
+                <g class="cubicle-group" id="station-quant" onclick="inspectRobot('quant')" transform="translate(900, 720)">
                     <polygon points="0,0 70,-35 70,55 0,90" fill="#1e293b" stroke="#ea580c" stroke-width="2"/>
                     <polygon points="70,-35 150,5 150,95 70,55" fill="#0f172a" stroke="#ea580c" stroke-width="2"/>
                     
-                    <!-- Desk -->
                     <polygon points="50,45 110,15 170,45 110,75" fill="#64748b" stroke="#334155" stroke-width="2"/>
                     <polygon points="50,45 110,75 110,105 50,75" fill="#475569" stroke="#1e293b" stroke-width="2"/>
                     <polygon points="110,75 170,45 170,75 110,105" fill="#334155" stroke="#0f172a" stroke-width="2"/>
 
-                    <!-- Autopsy Dissection Screen & CBR Case Ledger -->
+                    <!-- Autopsy Screens -->
                     <polygon points="90,30 115,18 115,40 90,52" fill="#c2410c" stroke="#000" stroke-width="1.5"/>
                     <polygon points="118,18 140,28 140,50 118,40" fill="#9a3412" stroke="#000" stroke-width="1.5"/>
 
-                    <!-- QUANT SUPERVISOR Robot (Gemini Pro) -->
-                    <g transform="translate(97, 6)">
+                    <!-- QUANT Robot Avatar -->
+                    <g transform="translate(97, 6)" id="robot-avatar-quant">
                         <rect x="3" y="12" width="18" height="20" rx="3" fill="#9a3412" stroke="#000" stroke-width="1.5"/>
                         <rect x="4" y="0" width="16" height="12" rx="2" fill="#ea580c" stroke="#000" stroke-width="1.5"/>
                         <rect x="6" y="3" width="12" height="4" fill="#fed7aa"/>
@@ -1047,43 +1043,60 @@
                             <rect x="19" y="16" width="5" height="12" fill="#ffedd5" stroke="#000" stroke-width="1"/>
                         </g>
                     </g>
+
+                    <g transform="translate(110, -18)" id="svg-badge-quant">
+                        <rect x="-70" y="-11" width="140" height="20" rx="3" fill="#7c2d12" stroke="#fb923c" stroke-width="1.5"/>
+                        <text x="0" y="3" fill="#fb923c" font-size="8.5" font-family="'Silkscreen', monospace" text-anchor="middle" font-weight="bold">[CBR] QUANT GEMINI (1.00x)</text>
+                    </g>
                 </g>
 
-                <!-- Water Cooler & Breakroom Accessory -->
-                <g transform="translate(260, 680)">
-                    <rect x="10" y="15" width="18" height="32" rx="2" fill="#e2e8f0" stroke="#000" stroke-width="1.5"/>
+                <!-- Water Cooler & Break Area -->
+                <g transform="translate(240, 600)" id="prop-watercooler">
+                    <rect x="10" y="15" width="18" height="30" rx="2" fill="#e2e8f0" stroke="#000" stroke-width="1.5"/>
                     <ellipse cx="19" cy="8" rx="8" ry="10" fill="rgba(56, 189, 248, 0.6)" stroke="#0284c7" stroke-width="1.5"/>
                 </g>
-            </svg>
 
-            <!-- HTML Status Badges Placed in 3D Isometric Coordinates -->
-            <div class="robot-status-badge badge-working" style="top: 360px; left: 510px;">
-                [DIRECTOR] MASTER ORCHESTRATOR
-            </div>
-            <div class="robot-status-badge badge-data" id="badge-tidal" style="top: 200px; left: 730px;">
-                [PROCESANDO DATA] TIDAL (W: 1.01x)
-            </div>
-            <div class="robot-status-badge badge-working" id="badge-noro" style="top: 200px; left: 1050px;">
-                [TRABAJANDO] NORO POC (W: 1.01x)
-            </div>
-            <div class="robot-status-badge badge-working" id="badge-zephr" style="top: 200px; left: 1370px;">
-                [TRABAJANDO] ZEPHR BAYES (W: 1.01x)
-            </div>
-            <div class="robot-status-badge badge-data" id="badge-lumen" style="top: 520px; left: 590px;">
-                [ANALIZANDO SMC] LUMEN OB (W: 1.01x)
-            </div>
-            <div class="robot-status-badge badge-hitl" id="badge-rune" style="top: 520px; left: 910px;">
-                [ESPERANDO HITL] RUNE RISK (W: 1.01x)
-            </div>
-            <div class="robot-status-badge badge-working" id="badge-tf" style="top: 520px; left: 1230px;">
-                [INFERENCIA 22D] TENSORFLOW (W: 1.01x)
-            </div>
-            <div class="robot-status-badge badge-data" id="badge-atlas" style="top: 800px; left: 750px;">
-                [BOOK CME] ATLAS CVD (W: 1.01x)
-            </div>
-            <div class="robot-status-badge badge-working" id="badge-quant" style="top: 800px; left: 1070px;">
-                [LAB AUTOPSIA] QUANT GEMINI (W: 1.00x)
-            </div>
+                <!-- ============================================================== -->
+                <!-- AUTONOMOUS ROAMING & RUNNER ROBOTS (MOVING ACROSS THE OFFICE!) -->
+                <!-- ============================================================== -->
+                
+                <!-- RUNNER ROBOT (Image 1 Banana-Runner Style): Walks to Director Desk when HITL is Active! -->
+                <g id="roaming-runner" transform="translate(480, 520)" style="transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1);">
+                    <g class="walking-bob">
+                        <!-- Runner Robot Chassis -->
+                        <rect x="-9" y="-22" width="18" height="22" rx="4" fill="#facc15" stroke="#000" stroke-width="1.5"/>
+                        <!-- Robot Head -->
+                        <rect x="-7" y="-34" width="14" height="12" rx="2" fill="#eab308" stroke="#000" stroke-width="1.5"/>
+                        <rect x="-5" y="-30" width="10" height="3" fill="#000"/>
+                        <circle cx="-2" cy="-28.5" r="1" fill="#38bdf8"/>
+                        <circle cx="2" cy="-28.5" r="1" fill="#38bdf8"/>
+                        <line x1="0" y1="-34" x2="0" y2="-40" stroke="#000" stroke-width="1.5"/>
+                        <circle cx="0" cy="-40" r="2.5" fill="#ef4444" class="antenna-led"/>
+                        <!-- Legs Animating When Walking -->
+                        <g id="runner-legs">
+                            <line x1="-4" y1="0" x2="-4" y2="8" stroke="#000" stroke-width="2" class="walking-legs-left"/>
+                            <line x1="4" y1="0" x2="4" y2="8" stroke="#000" stroke-width="2" class="walking-legs-right"/>
+                        </g>
+                    </g>
+                    <!-- Floating Indicator Tag -->
+                    <g transform="translate(0, -48)" id="runner-tag">
+                        <rect x="-42" y="-9" width="84" height="16" rx="2" fill="#000" stroke="#facc15" stroke-width="1"/>
+                        <text x="0" y="2" fill="#facc15" font-size="7.5" font-family="'Silkscreen', monospace" text-anchor="middle" font-weight="bold">RUNE SCOUT</text>
+                    </g>
+                </g>
+
+                <!-- ROAMING BOT 2: INSPECTOR BOT (Patrolling between Atlas and Quant) -->
+                <g id="roaming-inspector" transform="translate(740, 720)" style="transition: transform 2.5s ease-in-out;">
+                    <g class="walking-bob">
+                        <rect x="-8" y="-20" width="16" height="20" rx="3" fill="#06b6d4" stroke="#000" stroke-width="1.5"/>
+                        <rect x="-6" y="-30" width="12" height="10" rx="2" fill="#0891b2" stroke="#000" stroke-width="1.5"/>
+                        <rect x="-4" y="-27" width="8" height="3" fill="#a5f3fc"/>
+                        <line x1="-3" y1="0" x2="-3" y2="7" stroke="#000" stroke-width="2" class="walking-legs-left"/>
+                        <line x1="3" y1="0" x2="3" y2="7" stroke="#000" stroke-width="2" class="walking-legs-right"/>
+                    </g>
+                </g>
+
+            </svg>
 
         </div>
     </main>
@@ -1108,7 +1121,7 @@
     <div class="toast-box" id="toast">Acción completada</div>
 
     <script>
-        // Web Audio API Synthesizer (Zero External MP3s / 100% Reliable 8-bit sound)
+        // Web Audio Synthesizer (Zero External Dependencies)
         let audioCtx = null;
         let soundEnabled = false;
 
@@ -1158,7 +1171,7 @@
         function playFanfare() {
             if (!soundEnabled) return;
             [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => {
-                setTimeout(() => playTone(f, 0.12, 'square'), i * 90);
+                setTimeout(() => playTone(f, 0.12, 'square'), i * 80);
             });
         }
 
@@ -1201,16 +1214,16 @@
                 document.getElementById("stat-asym").textContent = `+${recReq.toFixed(2)}% RECUPERACIÓN`;
             }
 
-            // Update Robot RL Weights
+            // Update Robot RL Weights in SVG Anchored Badges
             if (data.weights) {
                 const w = data.weights;
-                updateBadgeWeight("badge-tidal", "TIDAL", w.herd_1_tidal);
-                updateBadgeWeight("badge-noro", "NORO POC", w.herd_2_noro);
-                updateBadgeWeight("badge-zephr", "ZEPHR BAYES", w.herd_3_zephr);
-                updateBadgeWeight("badge-lumen", "LUMEN OB", w.herd_4_lumen);
-                updateBadgeWeight("badge-rune", "RUNE RISK", w.herd_5_rune);
-                updateBadgeWeight("badge-tf", "TENSORFLOW", w.herd_6_tensorflow);
-                updateBadgeWeight("badge-atlas", "ATLAS CVD", w.herd_7_atlas);
+                updateSvgBadge("svg-badge-tidal", "[DATA] TIDAL", w.herd_1_tidal);
+                updateSvgBadge("svg-badge-noro", "[MATH] NORO POC", w.herd_2_noro);
+                updateSvgBadge("svg-badge-zephr", "[EV] ZEPHR BAYES", w.herd_3_zephr);
+                updateSvgBadge("svg-badge-lumen", "[SMC] LUMEN OB", w.herd_4_lumen);
+                updateSvgBadge("svg-badge-rune", "[HITL] RUNE RISK", w.herd_5_rune);
+                updateSvgBadge("svg-badge-tf", "[22D] TENSORFLOW", w.herd_6_tensorflow);
+                updateSvgBadge("svg-badge-atlas", "[CME] ATLAS CVD", w.herd_7_atlas);
             }
 
             // Update Chat Messages if Debate changed
@@ -1223,14 +1236,13 @@
             }
         }
 
-        function updateBadgeWeight(elementId, herdName, weight) {
-            const el = document.getElementById(elementId);
-            if (el && weight) {
+        function updateSvgBadge(groupId, prefix, weight) {
+            const grp = document.getElementById(groupId);
+            if (!grp || !weight) return;
+            const textEl = grp.querySelector("text");
+            if (textEl) {
                 const wVal = Number(weight).toFixed(2);
-                const currentText = el.textContent;
-                const parts = currentText.split("(");
-                const prefix = parts[0].trim();
-                el.textContent = `${prefix} (W: ${wVal}x)`;
+                textEl.textContent = `${prefix} (${wVal}x)`;
             }
         }
 
@@ -1276,31 +1288,25 @@
             inp.value = "";
             playTone(880, 0.05, 'triangle');
 
-            // Swarm Auto-Reply Simulation
             setTimeout(() => {
                 const reply = document.createElement("div");
                 reply.className = "chat-line";
-                reply.innerHTML = `<span class="chat-author author-rune">RUNE</span><span>Instrucción procesada: Priorizando preservación de capital y veto de media móvil macro.</span>`;
+                reply.innerHTML = `<span class="chat-author author-rune">RUNE</span><span>Instrucción recibida. Validando preservación de capital y filtro de medias móviles macro.</span>`;
                 chatBox.appendChild(reply);
                 chatBox.scrollTop = chatBox.scrollHeight;
                 playTone(660, 0.06, 'square');
             }, 800);
         }
 
-        // HITL Interactive Actions (Image 1 Replica)
+        // ========================================================
+        // HITL ACTIONS WITH CLOSE [X] & ROBOT WALKING TO DIRECTOR
+        // ========================================================
+        
         function approveHITL() {
             playFanfare();
-            const bubble = document.getElementById("hitl-bubble");
             const text = document.getElementById("hitl-text");
             text.innerHTML = "✅ <b style=\"color:#059669;\">ORDEN APROBADA POR EL DIRECTOR:</b> Despachando señal a MetaTrader 5 vía Cloud Gateway. Cascada RUNE armada.";
             showToast("🎯 Trade Aprobado Exitosamente");
-
-            // Change Rune Badge to Executed
-            const runeBadge = document.getElementById("badge-rune");
-            if (runeBadge) {
-                runeBadge.className = "robot-status-badge badge-working";
-                runeBadge.textContent = "[EJECUTANDO MT5] RUNE RISK";
-            }
 
             // Log to Chat
             const chatBox = document.getElementById("chat-messages");
@@ -1310,23 +1316,19 @@
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
 
+            // Runner Robot returns to base
+            sendRunnerHome();
+
             setTimeout(() => {
-                bubble.style.display = "none";
-            }, 3000);
+                document.getElementById("hitl-bubble").style.display = "none";
+            }, 2500);
         }
 
         function rejectHITL() {
             playRejectBuzz();
-            const bubble = document.getElementById("hitl-bubble");
             const text = document.getElementById("hitl-text");
             text.innerHTML = "🛑 <b style=\"color:#dc2626;\">ORDEN VETADA / RECHAZADA:</b> Capital preservado. Ninguna orden fue enviada al Broker.";
             showToast("🛑 Trade Vetado por el Director");
-
-            const runeBadge = document.getElementById("badge-rune");
-            if (runeBadge) {
-                runeBadge.className = "robot-status-badge badge-alert";
-                runeBadge.textContent = "[VETO ACTIVADO] RUNE RISK";
-            }
 
             const chatBox = document.getElementById("chat-messages");
             const div = document.createElement("div");
@@ -1335,21 +1337,112 @@
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
 
+            sendRunnerHome();
+
             setTimeout(() => {
-                bubble.style.display = "none";
-            }, 2500);
+                document.getElementById("hitl-bubble").style.display = "none";
+            }, 2200);
+        }
+
+        // CLOSE BUTTON [X] HANDLER (Explicitly requested by user)
+        function closeHITL(e) {
+            if (e) e.stopPropagation();
+            playTone(330, 0.06, 'square');
+            const bubble = document.getElementById("hitl-bubble");
+            bubble.style.display = "none";
+            sendRunnerHome();
+            showToast("✖ Ventana de Autorización Cerrada");
         }
 
         function triggerTestHITL() {
+            playTone(880, 0.08, 'square');
+            setTimeout(() => playTone(880, 0.08, 'square'), 110);
+            
             const bubble = document.getElementById("hitl-bubble");
             const text = document.getElementById("hitl-text");
             bubble.style.display = "block";
-            bubble.style.top = "420px";
-            bubble.style.left = "740px";
             text.innerHTML = "Director Juan: Alerta de confluencia institucional en <b>XAUUSD (Oro)</b>. Sesión Londres/NY Overlap. Score 86.2%. Riesgo 1.0R ($34.33 USD). ¿Autoriza apertura en MT5?";
-            playTone(880, 0.1, 'square');
-            setTimeout(() => playTone(880, 0.1, 'square'), 120);
-            showToast("🔔 Nueva Propuesta HITL Pendiente");
+            
+            // Send Runner Robot Walking along pathway to the Director's Desk!
+            sendRunnerToDirector();
+            showToast("🔔 Propuesta HITL Pendiente (Presione X para cerrar)");
+        }
+
+        // ========================================================
+        // ROBOT WALKING ANIMATION CONTROLLER (ROBOTS MOVING AROUND!)
+        // ========================================================
+        
+        function sendRunnerToDirector() {
+            const runner = document.getElementById("roaming-runner");
+            if (!runner) return;
+            // Physical walking coordinate step 1 (hallway) -> step 2 (director desk)
+            runner.style.transform = "translate(540px, 580px)";
+            setTimeout(() => {
+                runner.style.transform = "translate(420px, 490px)";
+            }, 600);
+        }
+
+        function sendRunnerHome() {
+            const runner = document.getElementById("roaming-runner");
+            if (!runner) return;
+            runner.style.transform = "translate(540px, 580px)";
+            setTimeout(() => {
+                runner.style.transform = "translate(760px, 520px)";
+            }, 600);
+        }
+
+        // Autonomous Ambient Walking Routine for Inspector Robot
+        let inspectorDest = 0;
+        const inspectorWaypoints = [
+            { x: 740, y: 720 },
+            { x: 620, y: 640 },
+            { x: 880, y: 680 },
+            { x: 1040, y: 720 },
+            { x: 820, y: 780 }
+        ];
+
+        function stepInspectorBot() {
+            const bot = document.getElementById("roaming-inspector");
+            if (!bot) return;
+            inspectorDest = (inspectorDest + 1) % inspectorWaypoints.length;
+            const wp = inspectorWaypoints[inspectorDest];
+            bot.style.transform = `translate(${wp.x}px, ${wp.y}px)`;
+        }
+
+        // Ambient roaming for other robots
+        setInterval(stepInspectorBot, 4200);
+
+        // Periodically simulate Runner visiting Director
+        setInterval(() => {
+            const bubble = document.getElementById("hitl-bubble");
+            if (bubble.style.display === "none") {
+                // Occasional brief patrol walk
+                sendRunnerToDirector();
+                setTimeout(sendRunnerHome, 3500);
+            }
+        }, 16000);
+
+        // ========================================================
+        // RESPONSIVE AUTO-FIT TO SCREEN & ZOOM
+        // ========================================================
+        
+        function autoFitRoom() {
+            const vp = document.getElementById("viewport");
+            const world = document.getElementById("iso-world");
+            world.style.transform = "scale(1)";
+            vp.scrollLeft = 0;
+            vp.scrollTop = 0;
+            playTone(520, 0.05, 'triangle');
+            showToast("🔍 Pantalla Ajustada al 100%");
+        }
+
+        // Window minimize toggle
+        function toggleWindowMin(winId) {
+            const w = document.getElementById(winId);
+            if (w) {
+                w.classList.toggle("minimized");
+                playTone(400, 0.04, 'triangle');
+            }
         }
 
         // Robot Inspection Dossier
@@ -1446,41 +1539,6 @@
             setTimeout(() => { t.style.display = "none"; }, 2800);
         }
 
-        // Viewport Drag & Pan
-        const vp = document.getElementById("viewport");
-        const world = document.getElementById("iso-world");
-        let isDown = false, startX, startY, scrollLeft, scrollTop;
-
-        vp.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.pixel-window') || e.target.closest('.hitl-bubble-container') || e.target.closest('.top-nav')) return;
-            isDown = true;
-            startX = e.pageX - vp.offsetLeft;
-            startY = e.pageY - vp.offsetTop;
-            scrollLeft = vp.scrollLeft;
-            scrollTop = vp.scrollTop;
-        });
-        vp.addEventListener('mouseleave', () => { isDown = false; });
-        vp.addEventListener('mouseup', () => { isDown = false; });
-        vp.addEventListener('mousemove', (e) => {
-            if (!isDown) return;
-            e.preventDefault();
-            const x = e.pageX - vp.offsetLeft;
-            const y = e.pageY - vp.offsetTop;
-            const walkX = (x - startX) * 1.4;
-            const walkY = (y - startY) * 1.4;
-            vp.scrollLeft = scrollLeft - walkX;
-            vp.scrollTop = scrollTop - walkY;
-        });
-
-        function resetZoom() {
-            vp.scrollTo({
-                left: (world.offsetWidth - vp.offsetWidth) / 2,
-                top: (world.offsetHeight - vp.offsetHeight) / 2 - 40,
-                behavior: 'smooth'
-            });
-            playTone(520, 0.06, 'triangle');
-        }
-
         // Sparkline Canvas Rendering
         function drawSparkline() {
             const canvas = document.getElementById("sparkline-canvas");
@@ -1491,7 +1549,6 @@
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Retro Grid Lines
             ctx.strokeStyle = "#111827";
             ctx.lineWidth = 1;
             for (let x = 0; x < canvas.width; x += 16) {
@@ -1501,7 +1558,6 @@
                 ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
             }
 
-            // Green Equity Curve
             ctx.strokeStyle = "#22c55e";
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -1515,7 +1571,6 @@
             });
             ctx.stroke();
 
-            // Blinking endpoint dot
             const lastX = canvas.width;
             const lastY = points[points.length - 1];
             ctx.fillStyle = "#38bdf8";
@@ -1524,11 +1579,14 @@
 
         // Initialize on Load
         window.addEventListener('DOMContentLoaded', () => {
-            resetZoom();
             drawSparkline();
+            autoFitRoom();
             fetchLiveData();
             setInterval(fetchLiveData, 2800);
-            window.addEventListener('resize', drawSparkline);
+            window.addEventListener('resize', () => {
+                drawSparkline();
+                autoFitRoom();
+            });
         });
     </script>
 </body>
