@@ -878,12 +878,11 @@ def recalcular_score_ponderado(data: dict) -> float:
     tiene_fvg = tech.get("fvg_detectado", False)
     tiene_retail = tech.get("soporte_resistencia_activo", False) or tech.get("smc_order_block", False)
     
-    # Escenario 6 (Bifurcación): PURO Lux OB sin confirmaciones extra para testeo de efectividad pura
-    es_escenario_6 = tiene_lux and not tiene_fvg and not tiene_retail
-    
-    if es_escenario_6:
-        # Pase directo a 85% para validar el indicador puro en el ML
-        return 85.0
+    # UNIFICACIÓN INSTITUCIONAL DE LUX ALGO OB & DEROGACIÓN DE ES_ESCENARIO_6:
+    # Lux Algo OB y SMC Order Block son confirmaciones independientes que no se mezclan.
+    # Si coinciden ambas en un setup, suman sus pesos independientemente dando máxima confluencia.
+    # Queda derogado el retorno anticipado de 85.0% sin confirmación de tendencia.
+    # Todo trade exige obligatoriamente ma_alineada o rsi_extremo.
     
     # 1. Indicadores Macro (Filtros de Tendencia y Agotamiento)
     ma_alineada = tiene_tendencia
@@ -939,8 +938,8 @@ def recalcular_score_ponderado(data: dict) -> float:
     if 22 in smc_codes or tech.get("amd_sweep_intradia", False):
         score += w_amd_intra
         
-    # Firebase es el único juez de la validación. Permitimos scores > 100% para mostrar fuerza extrema.
-    return score
+    # Score ponderado final acotado estrictamente al rango institucional [0.0, 100.0]%
+    return round(min(100.0, max(0.0, score)), 2)
 
 
 def normalizar_activo(activo: str) -> str:
@@ -3631,6 +3630,62 @@ async def render_brain():
         )
     except Exception as e:
         return HTMLResponse(content=f"Error cargando dashboard neural: {e}", status_code=500)
+
+@app.get("/mods", response_class=HTMLResponse)
+async def render_mods_war_room():
+    """Sirve el HUD Táctico Modo Guerra (Videojuego) en /mods"""
+    mods_path = os.path.join(os.path.dirname(__file__), "mods_war_room.html")
+    if not os.path.exists(mods_path):
+        mods_path = "mods_war_room.html"
+    try:
+        with open(mods_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HTMLResponse(
+            content=html_content,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"No se pudo cargar el HUD Modo Guerra: {e}")
+
+@app.get("/api/mods/live_data")
+def get_mods_live_data():
+    """Telemetría ultrarrápida MGET (sub-35ms) para el HUD Modo Guerra sin lecturas a Firebase"""
+    try:
+        import requests, json
+        up_url = "https://firm-koi-93555.upstash.io"
+        up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+        mget_url = f"{up_url}/mget/cache_herd_debate_latest/cache_herd_rl_weights/cache_trading_matrix/cache_mt5"
+        r = requests.get(mget_url, headers=up_headers, timeout=3)
+        if r.status_code == 200:
+            res = r.json().get("result", [])
+            debate_raw = res[0] if len(res) > 0 else None
+            weights_raw = res[1] if len(res) > 1 else None
+            matrix_raw = res[2] if len(res) > 2 else None
+            mt5_raw = res[3] if len(res) > 3 else None
+
+            debate = json.loads(debate_raw) if isinstance(debate_raw, str) and debate_raw else (debate_raw or {})
+            weights = json.loads(weights_raw) if isinstance(weights_raw, str) and weights_raw else (weights_raw or {
+                "herd_1_tidal": 1.0, "herd_2_noro": 1.0, "herd_3_zephr": 1.0,
+                "herd_4_lumen": 1.0, "herd_5_rune": 1.0, "herd_6_tensorflow": 1.0, "herd_7_atlas": 1.0
+            })
+            matrix = json.loads(matrix_raw) if isinstance(matrix_raw, str) and matrix_raw else (matrix_raw or {})
+            mt5 = json.loads(mt5_raw) if isinstance(mt5_raw, str) and mt5_raw else (mt5_raw or {})
+
+            return {
+                "status": "success",
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "debate": debate.get("debate", debate),
+                "weights": weights,
+                "matrix": matrix,
+                "mt5": mt5
+            }
+        return {"status": "error", "message": f"Upstash MGET HTTP {r.status_code}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def render_dashboard():

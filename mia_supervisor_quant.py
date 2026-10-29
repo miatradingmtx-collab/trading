@@ -211,7 +211,7 @@ class MiaQuantSupervisor:
         # Intento 3: Groq Failover de Alta Disponibilidad
         if not texto and os.getenv("GROQ_API_KEY"):
             groq_key = os.getenv("GROQ_API_KEY")
-            for g_model in ["llama-3.3-70b-versatile", "qwen/qwen3.8-27b", "openai/gpt-oss-120b"]:
+            for g_model in ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"]:
                 try:
                     url_groq = "https://api.groq.com/openai/v1/chat/completions"
                     headers_groq = {"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"}
@@ -223,7 +223,7 @@ class MiaQuantSupervisor:
                         ],
                         "response_format": {"type": "json_object"},
                         "temperature": 0.2,
-                        "max_tokens": 2000
+                        "max_tokens": 800
                     }
                     resp_g = requests.post(url_groq, headers=headers_groq, json=payload_groq, timeout=10)
                     if resp_g.status_code == 200:
@@ -232,6 +232,8 @@ class MiaQuantSupervisor:
                             texto = content_g
                             print(f"| QUANT SUPERVISOR | Inferencia Post-Mortem completada vía Failover Groq ({g_model}).")
                             break
+                    else:
+                        print(f"| QUANT SUPERVISOR WARN | Groq ({g_model}) respondió status {resp_g.status_code}: {resp_g.text[:120]}")
                 except Exception as e_groq:
                     print(f"| QUANT SUPERVISOR | Groq ({g_model}) falló: {e_groq}")
 
@@ -529,7 +531,23 @@ class MiaQuantSupervisor:
         except Exception as e_up:
             print(f"| QUANT SUPERVISOR WARN | Error guardando CBR en Upstash: {e_up}")
 
+        # Actualizar Pesos de Aprendizaje por Refuerzo (RL) para los 7 Herds en Upstash Redis
+        try:
+            r_w = requests.get(f"{self.UPSTASH_URL}/get/cache_herd_rl_weights", headers=self.UPSTASH_HEADERS, timeout=3).json()
+            herd_weights = json.loads(r_w.get("result", "{}")) if r_w.get("result") else {
+                "herd_1_tidal": 1.0, "herd_2_noro": 1.0, "herd_3_zephr": 1.0,
+                "herd_4_lumen": 1.0, "herd_5_rune": 1.0, "herd_6_tensorflow": 1.0, "herd_7_atlas": 1.0
+            }
+            for h_key, d_w in delta_weights.items():
+                cur_w = float(herd_weights.get(h_key, 1.0))
+                herd_weights[h_key] = round(max(0.20, min(2.50, cur_w + d_w)), 2)
+            requests.post(f"{self.UPSTASH_URL}/set/cache_herd_rl_weights", headers=self.UPSTASH_HEADERS, data=json.dumps(herd_weights), timeout=3)
+            print(f"| QUANT SUPERVISOR | Pesos RL de 7 Herds actualizados en Upstash: {herd_weights}")
+        except Exception as e_w:
+            print(f"| QUANT SUPERVISOR WARN | Error actualizando cache_herd_rl_weights: {e_w}")
+
         # 4. Notificar a Slack (#mia-trading-insights) con Block Kit RLHF (Idéntico a Imagen 1)
+        profit_fmt = f"${profit:.2f} USD" if profit >= 0 else f"-${abs(profit):.2f} USD"
         if slack_bridge and (slack_bridge.bot_token or slack_bridge.quant_bot_token):
             msg_fallback = f"MIA Quant: Análisis para {ticket} en {symbol}"
             blocks = [
@@ -546,10 +564,10 @@ class MiaQuantSupervisor:
                     "text": {
                         "type": "mrkdwn",
                         "text": (
-                            f"*Símbolo:* {symbol} | *Resultado:* `{profit} USD` ({r_multiplo:+.2f}R)\n"
-                            f"*⚖️ RL Score:* `{recompensa_neta:+.2f}R` ({tipo_resultado}) | *Asimetría:* `{factor_asimetria}x`\n\n"
-                            f"*🧠 Diagnóstico Gemini Pro:*\n{diagnostico}\n\n"
-                            f"*🎯 Acción Propuesta para los 7 Herds de Trading (LUMEN, TIDAL, NORO, ZEPHR, RUNE, ATLAS, TENSORFLOW):*\n{sugerencia_trading}"
+                            f"*Símbolo:* {symbol} | *Resultado:* `{profit_fmt}` ({r_multiplo:+.2f}R)\n"
+                            f"*⚖️ RL Score:* `{recompensa_neta:+.2f}R` ({tipo_resultado}) | *Asimetría:* `{factor_asimetria:.2f}x`\n\n"
+                            f"*🧠 Diagnóstico Cuantitativo (Gemini Pro / Groq Inferencia):*\n{diagnostico}\n\n"
+                            f"*🎯 Acción Propuesta para los 7 Herds de Trading (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS):*\n{sugerencia_trading}"
                         )
                     }
                 },

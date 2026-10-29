@@ -97,6 +97,50 @@ if os.path.exists(build_dir):
 
     # Las rutas de API y WebSocket se registran primero; el catch-all estático al final
 
+    @app.get("/mods")
+    async def render_mods_war_room():
+        """Sirve el HUD Táctico Modo Guerra (Videojuego) en /mods en la instancia 1fd4"""
+        try:
+            return FileResponse(os.path.join(os.path.dirname(__file__), "mods_war_room.html"))
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.get("/api/mods/live_data")
+    async def get_mods_live_data():
+        """Telemetría ultrarrápida MGET (sub-35ms) para el HUD Modo Guerra sin lecturas a Firebase"""
+        try:
+            up_url = "https://firm-koi-93555.upstash.io"
+            up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+            mget_url = f"{up_url}/mget/cache_herd_debate_latest/cache_herd_rl_weights/cache_trading_matrix/cache_mt5"
+            with httpx.Client(timeout=3.0) as client:
+                r = client.get(mget_url, headers=up_headers)
+                if r.status_code == 200:
+                    res = r.json().get("result", [])
+                    debate_raw = res[0] if len(res) > 0 else None
+                    weights_raw = res[1] if len(res) > 1 else None
+                    matrix_raw = res[2] if len(res) > 2 else None
+                    mt5_raw = res[3] if len(res) > 3 else None
+
+                    debate = json.loads(debate_raw) if isinstance(debate_raw, str) and debate_raw else (debate_raw or {})
+                    weights = json.loads(weights_raw) if isinstance(weights_raw, str) and weights_raw else (weights_raw or {
+                        "herd_1_tidal": 1.0, "herd_2_noro": 1.0, "herd_3_zephr": 1.0,
+                        "herd_4_lumen": 1.0, "herd_5_rune": 1.0, "herd_6_tensorflow": 1.0, "herd_7_atlas": 1.0
+                    })
+                    matrix = json.loads(matrix_raw) if isinstance(matrix_raw, str) and matrix_raw else (matrix_raw or {})
+                    mt5 = json.loads(mt5_raw) if isinstance(mt5_raw, str) and mt5_raw else (mt5_raw or {})
+
+                    return {
+                        "status": "success",
+                        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                        "debate": debate.get("debate", debate),
+                        "weights": weights,
+                        "matrix": matrix,
+                        "mt5": mt5
+                    }
+            return {"status": "error", "message": f"Upstash MGET HTTP {r.status_code}"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
 class ConnectionManager:
     def __init__(self):
         self.active_connections: list[WebSocket] = []

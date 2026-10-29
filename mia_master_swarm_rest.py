@@ -246,6 +246,75 @@ def obtener_precios_spot_mercado() -> dict:
     return precios
 
 
+def evaluar_tendencia_macro_multi_tf(symbol: str) -> dict:
+    """
+    Evalúa la estructura de tendencia macro en 1H y 4H usando EMA 50 y EMA 200 vía HTTPX nativo.
+    Regla Canónica:
+    - Si Precio < EMA 200 y EMA 50 < EMA 200 en 1H y 4H -> TENDENCIA BAJISTA ESTRICTA (Solo VENTAS).
+    - Si Precio > EMA 200 y EMA 50 > EMA 200 en 1H y 4H -> TENDENCIA ALCISTA ESTRICTA (Solo COMPRAS).
+    - Si divergen -> TRANSICIÓN / VETO CONTRATENDENCIA.
+    """
+    try:
+        from mia_ops_mcp_server import fetch_market_chart_native
+        res_1h = fetch_market_chart_native(symbol, "1h")
+        res_4h = fetch_market_chart_native(symbol, "4h")
+        
+        data_1h = res_1h.get("data", [])
+        e50_1h = res_1h.get("ema50", [])
+        e200_1h = res_1h.get("ema200", [])
+        
+        data_4h = res_4h.get("data", [])
+        e50_4h = res_4h.get("ema50", [])
+        e200_4h = res_4h.get("ema200", [])
+        
+        if not (data_1h and e50_1h and e200_1h):
+            return {"status": "error", "macro_sesgo": "NEUTRAL", "sesgo_permitido": "NEUTRAL", "sentimiento_alcista": False}
+            
+        px = float(data_1h[-1]["close"])
+        val_e50_1h = float(e50_1h[-1]["value"] if isinstance(e50_1h[-1], dict) else e50_1h[-1])
+        val_e200_1h = float(e200_1h[-1]["value"] if isinstance(e200_1h[-1], dict) else e200_1h[-1])
+        
+        val_e50_4h = float(e50_4h[-1]["value"] if isinstance(e50_4h[-1], dict) else e50_4h[-1]) if (e50_4h and len(e50_4h) > 0) else val_e50_1h
+        val_e200_4h = float(e200_4h[-1]["value"] if isinstance(e200_4h[-1], dict) else e200_4h[-1]) if (e200_4h and len(e200_4h) > 0) else val_e200_1h
+        
+        bias_1h = "BAJISTA" if (px < val_e200_1h and val_e50_1h < val_e200_1h) else ("ALCISTA" if (px > val_e200_1h and val_e50_1h > val_e200_1h) else "NEUTRAL")
+        bias_4h = "BAJISTA" if (px < val_e200_4h and val_e50_4h < val_e200_4h) else ("ALCISTA" if (px > val_e200_4h and val_e50_4h > val_e200_4h) else "NEUTRAL")
+        
+        if bias_1h == "BAJISTA" and bias_4h == "BAJISTA":
+            macro_sesgo = "BAJISTA_CONFIRMADO"
+            sesgo_permitido = "VENTA"
+            sentimiento_alcista = False
+        elif bias_1h == "ALCISTA" and bias_4h == "ALCISTA":
+            macro_sesgo = "ALCISTA_CONFIRMADO"
+            sesgo_permitido = "COMPRA"
+            sentimiento_alcista = True
+        elif bias_1h == "BAJISTA" or bias_4h == "BAJISTA":
+            macro_sesgo = "BAJISTA_MODERADO"
+            sesgo_permitido = "VENTA"
+            sentimiento_alcista = False
+        elif bias_1h == "ALCISTA" or bias_4h == "ALCISTA":
+            macro_sesgo = "ALCISTA_MODERADO"
+            sesgo_permitido = "COMPRA"
+            sentimiento_alcista = True
+        else:
+            macro_sesgo = "RANGO_TRANSICION"
+            sesgo_permitido = "NEUTRAL"
+            sentimiento_alcista = False
+            
+        return {
+            "status": "success",
+            "symbol": symbol,
+            "precio": px,
+            "1h": {"ema50": val_e50_1h, "ema200": val_e200_1h, "bias": bias_1h},
+            "4h": {"ema50": val_e50_4h, "ema200": val_e200_4h, "bias": bias_4h},
+            "macro_sesgo": macro_sesgo,
+            "sesgo_permitido": sesgo_permitido,
+            "sentimiento_alcista": sentimiento_alcista
+        }
+    except Exception as e_m:
+        return {"status": "error", "macro_sesgo": "NEUTRAL", "sesgo_permitido": "NEUTRAL", "sentimiento_alcista": False, "error": str(e_m)}
+
+
 def despachar_ejecucion_rune_mt5(payload: dict, active_symbol: str, current_px: float, poc_px: float, matrices_crudas: dict, mt5_json: dict):
     """
     ETAPA 4 CANONICA: RUNE RISK ENGINE & DISPATCHER A METATRADER 5
@@ -279,15 +348,53 @@ def despachar_ejecucion_rune_mt5(payload: dict, active_symbol: str, current_px: 
             emit_ws_event("RUNE (RISK)", "RISK", f"SANDBOX CONFINEMENT: {activo_objetivo} aprobado en simulacion Shadow. Prohibida orden real a broker MT5.")
             return None
 
-        # 3. Direccion del trade (COMPRA vs VENTA)
-        h1_text = str(debate.get("herd_1_tidal", "")).upper()
-        h4_text = str(debate.get("herd_4_lumen", "")).upper()
-        texto_global = (master_text + " " + h1_text + " " + h4_text).upper()
-        
-        accion = "COMPRA"
-        if "VENTA" in texto_global or "BEARISH" in texto_global or "BAJISTA" in texto_global or "SELL" in texto_global:
-            if "COMPRA" not in texto_global or texto_global.count("VENTA") > texto_global.count("COMPRA"):
-                accion = "VENTA"
+        # 3. Direccion del trade (COMPRA vs VENTA) Homologada y Equilibrada
+        # Evaluar todos los Herds y el veredicto del Master
+        textos_herds = [
+            master_text,
+            str(debate.get("herd_1_tidal", "")),
+            str(debate.get("herd_2_noro", "")),
+            str(debate.get("herd_3_zephr", "")),
+            str(debate.get("herd_4_lumen", "")),
+            str(debate.get("herd_5_rune", "")),
+            str(debate.get("herd_6_tensorflow", "")),
+            str(debate.get("herd_7_atlas", ""))
+        ]
+        texto_global = " ".join(textos_herds).upper()
+
+        kw_venta = ["VENTA", "SELL", "BEARISH", "BAJISTA", "SHORT"]
+        kw_compra = ["COMPRA", "BUY", "BULLISH", "ALCISTA", "LONG"]
+
+        count_venta = sum(texto_global.count(k) for k in kw_venta)
+        count_compra = sum(texto_global.count(k) for k in kw_compra)
+
+        # Consultar la tendencia Macro de EMAs (1H y 4H)
+        macro_info = evaluar_tendencia_macro_multi_tf(activo_objetivo)
+        sesgo_macro = macro_info.get("sesgo_permitido", "NEUTRAL")
+        macro_desc = macro_info.get("macro_sesgo", "NEUTRAL")
+
+        if count_venta > count_compra:
+            accion = "VENTA"
+        elif count_compra > count_venta:
+            accion = "COMPRA"
+        else:
+            # Empate o debate no concluyente -> RUNE adopta obligatoriamente el sesgo Macro
+            if sesgo_macro in ["VENTA", "COMPRA"]:
+                accion = sesgo_macro
+                emit_ws_event("RUNE (RISK)", "RISK", f"SESGO MACRO ADOPTADO: Debate del Swarm en empate ({count_compra}C vs {count_venta}V). RUNE adopta sesgo institucional {accion} según EMA50/200 ({macro_desc}).")
+            else:
+                emit_ws_event("RUNE (RISK)", "RISK", f"VETO INDECISIÓN: Debate del Swarm y Macro EMA sin dirección concluyente en {activo_objetivo}. Omitiendo trade.")
+                return None
+
+        # 3.1 FILTRO ANTI-CONTRATENDENCIA INQUEBRANTABLE (RUNE & REGLA DE 3 MACRO)
+        # Si la tendencia macro es Bajista Confirmada (EMA50 < EMA200 y Precio < EMA200), se PROHÍBE comprar.
+        # Si la tendencia macro es Alcista Confirmada (EMA50 > EMA200 y Precio > EMA200), se PROHÍBE vender.
+        if sesgo_macro == "VENTA" and accion == "COMPRA":
+            emit_ws_event("RUNE (RISK)", "RISK", f"VETO MACRO CONTRATENDENCIA: {activo_objetivo} en estructura Bajista ({macro_desc}: Precio/EMA50 por debajo de EMA200 en 1H/4H). Quedan ESTRICTAMENTE PROHIBIDAS las COMPRAS contra la corriente macro.")
+            return None
+        elif sesgo_macro == "COMPRA" and accion == "VENTA":
+            emit_ws_event("RUNE (RISK)", "RISK", f"VETO MACRO CONTRATENDENCIA: {activo_objetivo} en estructura Alcista ({macro_desc}: Precio/EMA50 por encima de EMA200 en 1H/4H). Quedan ESTRICTAMENTE PROHIBIDAS las VENTAS contra la corriente macro.")
+            return None
 
         # 4. Filtro Institucional de Sesion Optima Sincronizado (Londres, NY, Asia y México)
         from zoneinfo import ZoneInfo
@@ -537,6 +644,14 @@ def run_hft_cycle():
         w_amd_intra = ml_dyn_weights.get("amd_sweep_intradia", 1.40)
         w_amd_trampa = ml_dyn_weights.get("amd_trampa_macro_evitada", 2.10)
         amd_ml_vector_str = f"AMD Macro Sweep Weight={w_amd_macro} | AMD 3H Weight={w_amd_3h} | AMD Intradía Weight={w_amd_intra} | Anti-Trampa Weight={w_amd_trampa}"
+
+        # 7. Pesos Dinámicos de Aprendizaje por Refuerzo (RL) para los 7 Herds (slot Upstash cache_herd_rl_weights)
+        try:
+            r_rw = session.get("https://firm-koi-93555.upstash.io/get/cache_herd_rl_weights", headers=upstash_headers, timeout=2)
+            rl_w_dict = json.loads(r_rw.json().get("result", "{}")) if r_rw.status_code == 200 and r_rw.json().get("result") else {}
+        except Exception:
+            rl_w_dict = {}
+        str_rl_weights = " | ".join([f"{k.upper()}: {float(rl_w_dict.get(k, 1.0)):.2f}x" for k in ["herd_1_tidal", "herd_2_noro", "herd_3_zephr", "herd_4_lumen", "herd_5_rune", "herd_6_tensorflow", "herd_7_atlas"]])
             
         # Extracción de liquidez, balance y asimetría de recuperación (High-Water Mark)
         balance = mt5_json.get("balance_actual", 0.0)

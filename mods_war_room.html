@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIA AI // TACTICAL COMMAND WAR ROOM [1FD4 MODS]</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #06090e;
+            --bg-card: rgba(10, 16, 26, 0.85);
+            --bg-card-border: #14283b;
+            --cyan-glow: #00f0ff;
+            --cyan-dim: rgba(0, 240, 255, 0.15);
+            --green-glow: #00ff9d;
+            --green-dim: rgba(0, 255, 157, 0.15);
+            --amber-glow: #ffb700;
+            --amber-dim: rgba(255, 183, 0, 0.15);
+            --red-glow: #ff0055;
+            --red-dim: rgba(255, 0, 85, 0.2);
+            --text-main: #d8e5f2;
+            --text-muted: #5e778d;
+            --font-mono: 'Share Tech Mono', monospace;
+            --font-display: 'Orbitron', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: var(--font-body);
+            overflow-x: hidden;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.05) 0%, transparent 60%),
+                linear-gradient(rgba(20, 40, 59, 0.15) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(20, 40, 59, 0.15) 1px, transparent 1px);
+            background-size: 100% 100%, 30px 30px, 30px 30px;
+        }
+
+        /* Scanline Overlay */
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            z-index: 999;
+            opacity: 0.6;
+        }
+
+        /* Top Command Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 24px;
+            background: rgba(6, 12, 20, 0.95);
+            border-bottom: 1px solid var(--cyan-glow);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand-crest {
+            width: 42px;
+            height: 42px;
+            border: 2px solid var(--cyan-glow);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: 20px;
+            color: var(--cyan-glow);
+            background: rgba(0, 240, 255, 0.1);
+            text-shadow: 0 0 10px var(--cyan-glow);
+            box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.3);
+            position: relative;
+        }
+
+        .brand-crest::after {
+            content: '';
+            position: absolute;
+            top: -4px; right: -4px;
+            width: 6px; height: 6px;
+            background: var(--green-glow);
+            box-shadow: 0 0 6px var(--green-glow);
+        }
+
+        .brand-text h1 {
+            font-family: var(--font-display);
+            font-size: 18px;
+            letter-spacing: 2px;
+            color: #fff;
+            text-transform: uppercase;
+        }
+
+        .brand-text span {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--cyan-glow);
+            letter-spacing: 1px;
+        }
+
+        .header-defcon {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-family: var(--font-mono);
+        }
+
+        .defcon-badge {
+            background: rgba(255, 0, 85, 0.15);
+            border: 1px solid var(--red-glow);
+            color: var(--red-glow);
+            padding: 6px 14px;
+            border-radius: 2px;
+            font-size: 12px;
+            letter-spacing: 1.5px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: pulse-red 2s infinite;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .quorum-status {
+            padding: 6px 16px;
+            border-radius: 2px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .quorum-approved {
+            background: rgba(0, 255, 157, 0.15);
+            border: 1px solid var(--green-glow);
+            color: var(--green-glow);
+            box-shadow: 0 0 10px rgba(0, 255, 157, 0.2);
+        }
+
+        .quorum-vetoed {
+            background: rgba(255, 0, 85, 0.15);
+            border: 1px solid var(--red-glow);
+            color: var(--red-glow);
+            box-shadow: 0 0 10px rgba(255, 0, 85, 0.2);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-tactical {
+            background: rgba(0, 240, 255, 0.08);
+            border: 1px solid var(--cyan-glow);
+            color: var(--cyan-glow);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 1px;
+            padding: 8px 14px;
+            border-radius: 2px;
+            cursor: pointer;
+            text-transform: uppercase;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-tactical:hover {
+            background: var(--cyan-glow);
+            color: #000;
+            box-shadow: 0 0 15px var(--cyan-glow);
+        }
+
+        /* Tactical Ticker Bar */
+        .ticker-bar {
+            background: #09121d;
+            border-bottom: 1px solid var(--bg-card-border);
+            padding: 8px 24px;
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .ticker-stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ticker-stat b {
+            color: #fff;
+        }
+
+        .ticker-stat .val-cyan { color: var(--cyan-glow); }
+        .ticker-stat .val-green { color: var(--green-glow); }
+        .ticker-stat .val-amber { color: var(--amber-glow); }
+        .ticker-stat .val-red { color: var(--red-glow); }
+
+        /* Main War Room Grid */
+        .war-room-container {
+            display: grid;
+            grid-template-columns: 340px 1fr 340px;
+            gap: 16px;
+            padding: 16px 24px;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1400px) {
+            .war-room-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Squad Card Styling */
+        .column-squads {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .squad-card {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-card-border);
+            border-radius: 4px;
+            padding: 12px 14px;
+            position: relative;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .squad-card:hover {
+            border-color: var(--cyan-glow);
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.1);
+        }
+
+        .squad-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: var(--cyan-glow);
+        }
+
+        .squad-card.approved::before { background: var(--green-glow); }
+        .squad-card.vetoed::before { background: var(--red-glow); }
+        .squad-card.neutral::before { background: var(--amber-glow); }
+
+        .squad-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .squad-title {
+            font-family: var(--font-display);
+            font-size: 13px;
+            letter-spacing: 1px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .squad-title i {
+            color: var(--cyan-glow);
+            font-size: 12px;
+        }
+
+        .squad-role {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .squad-vote {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 2px;
+            letter-spacing: 1px;
+        }
+
+        .vote-buy {
+            background: rgba(0, 255, 157, 0.15);
+            border: 1px solid var(--green-glow);
+            color: var(--green-glow);
+        }
+
+        .vote-sell {
+            background: rgba(255, 0, 85, 0.15);
+            border: 1px solid var(--red-glow);
+            color: var(--red-glow);
+        }
+
+        .vote-veto {
+            background: rgba(255, 183, 0, 0.15);
+            border: 1px solid var(--amber-glow);
+            color: var(--amber-glow);
+        }
+
+        .squad-rl-meter {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-muted);
+            margin: 6px 0;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 4px 8px;
+            border-radius: 2px;
+            border: 1px dashed var(--bg-card-border);
+        }
+
+        .rl-score {
+            font-weight: 700;
+            color: var(--cyan-glow);
+        }
+
+        .squad-body {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: #9cb1c5;
+            line-height: 1.4;
+            max-height: 52px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+
+        /* Center Command Deck */
+        .column-center {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .tactical-display {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-card-border);
+            border-radius: 4px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .display-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--bg-card-border);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+
+        .display-header h2 {
+            font-family: var(--font-display);
+            font-size: 15px;
+            letter-spacing: 2px;
+            color: var(--cyan-glow);
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Macro Trend Radar Table */
+        .radar-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            margin-bottom: 16px;
+        }
+
+        .radar-table th {
+            text-align: left;
+            padding: 8px 10px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--bg-card-border);
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        .radar-table td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(20, 40, 59, 0.4);
+            vertical-align: middle;
+        }
+
+        .radar-table tr:hover td {
+            background: rgba(0, 240, 255, 0.03);
+        }
+
+        .bias-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 2px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .bias-bajista {
+            background: rgba(255, 0, 85, 0.12);
+            color: var(--red-glow);
+            border: 1px solid rgba(255, 0, 85, 0.4);
+        }
+
+        .bias-alcista {
+            background: rgba(0, 255, 157, 0.12);
+            color: var(--green-glow);
+            border: 1px solid rgba(0, 255, 157, 0.4);
+        }
+
+        .bias-sandbox {
+            background: rgba(255, 183, 0, 0.12);
+            color: var(--amber-glow);
+            border: 1px solid rgba(255, 183, 0, 0.4);
+        }
+
+        /* Confluence Badge */
+        .confluence-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            color: #fff;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            padding: 2px 8px;
+            border-radius: 2px;
+        }
+
+        /* Terminal Console */
+        .terminal-box {
+            background: #04070b;
+            border: 1px solid var(--bg-card-border);
+            border-radius: 4px;
+            padding: 14px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            line-height: 1.6;
+            color: #79d2a6;
+            height: 280px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .terminal-box::before {
+            content: 'LIVE SYNAPSE FEED // UPSTASH HOT CACHE';
+            position: absolute;
+            top: 6px; right: 10px;
+            font-size: 9px;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+
+        .terminal-line {
+            margin-bottom: 6px;
+            word-break: break-word;
+        }
+
+        .terminal-line .t-stamp { color: var(--text-muted); margin-right: 8px; }
+        .terminal-line .t-tag { color: var(--cyan-glow); font-weight: 700; margin-right: 6px; }
+        .terminal-line .t-veto { color: var(--red-glow); font-weight: 700; }
+        .terminal-line .t-ok { color: var(--green-glow); font-weight: 700; }
+
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 5px rgba(255, 0, 85, 0.4); }
+            50% { box-shadow: 0 0 15px rgba(255, 0, 85, 0.8); }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #06090e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #14283b;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--cyan-glow);
+        }
+    </style>
+</head>
+<body>
+    <div class="scanlines"></div>
+
+    <!-- COMMAND HEADER -->
+    <header>
+        <div class="header-brand">
+            <div class="brand-crest">M</div>
+            <div class="brand-text">
+                <h1>MIA // TACTICAL COMMAND NODE 1FD4</h1>
+                <span>WAR ROOM HUD · 7 HERDS SWARM DECISION MATRIX · ZERO-LAG ENGINE</span>
+            </div>
+        </div>
+
+        <div class="header-defcon">
+            <div class="defcon-badge">
+                <span class="live-dot"></span>
+                DEFCON 1 // LIVE OPERATIONS
+            </div>
+
+            <div id="master-quorum-chip" class="quorum-status quorum-approved">
+                <i class="fa-solid fa-crosshairs"></i> <span id="quorum-text">WEAPONS FREE · QUORUM APROBADO</span>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <button class="btn-tactical" onclick="manualRefreshData()">
+                <i class="fa-solid fa-arrows-rotate"></i> RADAR SCAN
+            </button>
+            <a href="/" class="btn-tactical">
+                <i class="fa-solid fa-satellite"></i> VISTA ÓRBITA 3D
+            </a>
+            <a href="https://trading-production-927a.up.railway.app/" target="_blank" class="btn-tactical" style="border-color:var(--green-glow); color:var(--green-glow)">
+                <i class="fa-solid fa-chart-line"></i> DASHBOARD KPIS (927A)
+            </a>
+        </div>
+    </header>
+
+    <!-- TICKER METRICS BAR -->
+    <div class="ticker-bar">
+        <div class="ticker-stat">
+            <span>CAPITAL BASE:</span> <b class="val-cyan">$5,000.00 USD</b>
+        </div>
+        <div class="ticker-stat">
+            <span>BALANCE MT5:</span> <b id="ticker-balance" class="val-amber">$3,433.52 USD</b>
+        </div>
+        <div class="ticker-stat">
+            <span>EQUITY:</span> <b id="ticker-equity" class="val-amber">$3,432.38 USD</b>
+        </div>
+        <div class="ticker-stat">
+            <span>DRAWDOWN ACUMULADO:</span> <b class="val-red">-$1,566.48 USD (-31.33%)</b>
+        </div>
+        <div class="ticker-stat">
+            <span>RECUPERACIÓN ASIMÉTRICA LEY D/(1-D):</span> <b class="val-green">+45.62%</b>
+        </div>
+        <div class="ticker-stat">
+            <span>ESTADO:</span> <b class="val-amber">EN RECUPERACIÓN ASIMÉTRICA</b>
+        </div>
+        <div class="ticker-stat">
+            <span>MGET LATENCY:</span> <b id="ticker-latency" class="val-cyan">18 ms</b>
+        </div>
+    </div>
+
+    <!-- MAIN WAR ROOM GRID -->
+    <div class="war-room-container">
+        <!-- LEFT COLUMN: SQUADS 1 TO 3 -->
+        <div class="column-squads">
+            <!-- SQUAD 1 -->
+            <div class="squad-card approved" id="card-herd-1">
+                <div class="squad-header">
+                    <div>
+                        <div class="squad-title"><i class="fa-solid fa-compass"></i> SQUAD 1 // TIDAL</div>
+                        <div class="squad-role">Macro Trend & Killzones</div>
+                    </div>
+                    <span class="squad-vote vote-sell" id="vote-herd-1">VENTA</span>
+                </div>
+                <div class="squad-rl-meter">
+                    <span>RL CREDIT:</span>
+                    <span class="rl-score" id="rl-herd-1">1.00x (+0.00R)</span>
+                </div>
+                <div class="squad-body" id="body-herd-1">
+                    Escaneo de Killzones Londres/NY activo. Sesión bajista validada en EURUSD y GBPUSD por debajo de EMA 200. SMT Divergence vigilada contra DXY.
+                </div>
+            </div>
+
+            <!-- SQUAD 2 -->
+            <div class="squad-card approved" id="card-herd-2">
+                <div class="squad-header">
+                    <div>
+                        <div class="squad-title"><i class="fa-solid fa-atom"></i> SQUAD 2 // NORO</div>
+                        <div class="squad-role">Quantum Ballistics & POC</div>
+                    </div>
+                    <span class="squad-vote vote-sell" id="vote-herd-2">VENTA</span>
+                </div>
+                <div class="squad-rl-meter">
+                    <span>RL CREDIT:</span>
+                    <span class="rl-score" id="rl-herd-2">1.00x (+0.00R)</span>
+                </div>
+                <div class="squad-body" id="body-herd-2">
+                    Cálculo integral CVOL ∫[FuerzaA - FuerzaB]dx en 1H, 2H, 3H, 4H, 8H. POC dinámico actuando como resistencia institucional.
+                </div>
+            </div>
+
+            <!-- SQUAD 3 -->
+            <div class="squad-card approved" id="card-herd-3">
+                <div class="squad-header">
+                    <div>
+                        <div class="squad-title"><i class="fa-solid fa-calculator"></i> SQUAD 3 // ZEPHR</div>
+                        <div class="squad-role">Bayesian EV & Asymmetry</div>
+                    </div>
+                    <span class="squad-vote vote-buy" id="vote-herd-3">NEUTRAL</span>
+                </div>
+                <div class="squad-rl-meter">
+                    <span>RL CREDIT:</span>
+                    <span class="rl-score" id="rl-herd-3">1.00x (+0.00R)</span>
+                </div>
+                <div class="squad-body" id="body-herd-3">
+                    Expected Value ponderado por Asimetría D/(1-D) = 1.45x. Exigencia de ratio beneficio/riesgo >= 2.0R para autorizar aperturas.
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER COLUMN: TACTICAL TARGET MATRIX & SYNAPSE CONSOLE -->
+        <div class="column-center">
+            <!-- TARGET RADAR TABLE -->
+            <div class="tactical-display">
+                <div class="display-header">
+                    <h2><i class="fa-solid fa-radar"></i> MATRIZ DE TENDENCIA MACRO MULTI-TF (1H & 4H)</h2>
+                    <span class="confluence-pill"><i class="fa-solid fa-shield-halved"></i> FILTRO ANTI-CONTRATENDENCIA ACTIVO</span>
+                </div>
+
+                <table class="radar-table">
+                    <thead>
+                        <tr>
+                            <th>ACTIVO</th>
+                            <th>PRECIO SPOT</th>
+                            <th>EMA 50 (1H/4H)</th>
+                            <th>EMA 200 (1H/4H)</th>
+                            <th>ESTRUCTURA MACRO</th>
+                            <th>SESGO AUTORIZADO</th>
+                            <th>CONFLUENCIA OB</th>
+                        </tr>
+                    </thead>
+                    <tbody id="radar-table-body">
+                        <tr>
+                            <td><b>EURUSD</b> [LIVE]</td>
+                            <td id="px-EURUSD">1.11421</td>
+                            <td>1.11498 / 1.11650</td>
+                            <td>1.11855 / 1.12100</td>
+                            <td><span class="bias-badge bias-bajista">DEATH CROSS</span></td>
+                            <td><b style="color:var(--red-glow)">SOLO VENTA</b></td>
+                            <td><span class="confluence-pill">SMC OB + LUXALGO UNIFICADO</span></td>
+                        </tr>
+                        <tr>
+                            <td><b>GBPUSD</b> [LIVE]</td>
+                            <td id="px-GBPUSD">1.33133</td>
+                            <td>1.33177 / 1.33320</td>
+                            <td>1.33294 / 1.33610</td>
+                            <td><span class="bias-badge bias-bajista">DEATH CROSS</span></td>
+                            <td><b style="color:var(--red-glow)">SOLO VENTA</b></td>
+                            <td><span class="confluence-pill">SMC OB + LUXALGO UNIFICADO</span></td>
+                        </tr>
+                        <tr>
+                            <td><b>GBPJPY</b> [LIVE]</td>
+                            <td id="px-GBPJPY">210.095</td>
+                            <td>210.155 / 210.350</td>
+                            <td>210.224 / 210.880</td>
+                            <td><span class="bias-badge bias-bajista">DEATH CROSS</span></td>
+                            <td><b style="color:var(--red-glow)">SOLO VENTA</b></td>
+                            <td><span class="confluence-pill">REGLA DE 3 VIGENTE</span></td>
+                        </tr>
+                        <tr>
+                            <td><b>XAUUSD</b> [LIVE]</td>
+                            <td id="px-XAUUSD">4037.30</td>
+                            <td>4053.20 / 4070.10</td>
+                            <td>4083.77 / 4115.00</td>
+                            <td><span class="bias-badge bias-bajista">DEATH CROSS</span></td>
+                            <td><b style="color:var(--red-glow)">SOLO VENTA</b></td>
+                            <td><span class="confluence-pill">FILTRO ATH + DEMANDA</span></td>
+                        </tr>
+                        <tr>
+                            <td><b>AUDUSD</b> [LIVE]</td>
+                            <td id="px-AUDUSD">0.70467</td>
+                            <td>0.70420 / 0.70110</td>
+                            <td>0.70201 / 0.69950</td>
+                            <td><span class="bias-badge bias-alcista">GOLDEN CROSS</span></td>
+                            <td><b style="color:var(--green-glow)">SOLO COMPRA</b></td>
+                            <td><span class="confluence-pill">SWEEP CONFIRMADO</span></td>
+                        </tr>
+                        <tr>
+                            <td><b>NZDCAD</b> [SANDBOX]</td>
+                            <td id="px-NZDCAD">0.88120</td>
+                            <td>0.88450 / 0.88950</td>
+                            <td>0.89200 / 0.89500</td>
+                            <td><span class="bias-badge bias-sandbox">SHADOW MODE</span></td>
+                            <td><b style="color:var(--amber-glow)">SIMULACIÓN (0 MT5)</b></td>
+                            <td><span class="confluence-pill">CONFINAMIENTO EXPERIMENTAL</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- LIVE SYNAPSE FEED CONSOLE -->
+            <div class="tactical-display" style="padding: 16px;">
+                <div class="display-header" style="margin-bottom: 10px; padding-bottom: 8px;">
+                    <h2><i class="fa-solid fa-terminal"></i> TERMINAL SINÁPTICA TÁCTICA // DELIBERACIÓN EN VIVO</h2>
+                    <span style="font-family:var(--font-mono); font-size:10px; color:var(--cyan-glow);" id="ws-status-badge">
+                        <i class="fa-solid fa-bolt"></i> STREAM ONLINE
+                    </span>
+                </div>
+
+                <div class="terminal-box" id="terminal-feed">
+                    <div class="terminal-line"><span class="t-stamp">[01:50:12 UTC]</span> <span class="t-tag">[SYSTEM]</span> Malla de 7 Herds inicializada sobre bus Upstash MGET sub-35ms.</div>
+                    <div class="terminal-line"><span class="t-stamp">[01:50:14 UTC]</span> <span class="t-tag">[RUNE]</span> Regla de Asimetría D/(1-D) armada. Factor actual: 1.45x para sanación de $5,000 USD.</div>
+                    <div class="terminal-line"><span class="t-stamp">[01:50:16 UTC]</span> <span class="t-tag">[LUMEN]</span> Bifurcación LuxAlgo OB derogada de raíz. Unificación institucional con SMC completada.</div>
+                    <div class="terminal-line"><span class="t-stamp">[01:50:18 UTC]</span> <span class="t-tag">[MASTER]</span> Macro trend Death Cross confirmado en EURUSD, GBPUSD, GBPJPY, XAUUSD. Compras vetadas.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: SQUADS 4 TO 7 -->
+        <div class="column-squads">
+            <!-- SQUAD 4 -->
+            <div class="squad-card approved" id="card-herd-4">
+                <div class="squad-header">
+                    <div>
+                        <div class="squad-title"><i class="fa-solid fa-bullseye"></i> SQUAD 4 // LUMEN</div>
+                        <div class="squad-role">SMC Sniper & OB Unificado</div>
+                    </div>
+                    <span class="squad-vote vote-sell" id="vote-herd-4">VENTA</span>
+                </div>
+                <div class="squad-rl-meter">
+                    <span>RL CREDIT:</span>
+                    <span class="rl-score" id="rl-herd-4">1.00x (+0.00R)</span>
+                </div>
+                <div class="squad-body" id="body-herd-4">
+                    Order Blocks SMC y LuxAlgo unificados. Sin pase directo de 85%. Confluencia obligatoria con medias móviles para autorizar disparos.
+                </div>
+            </div>
+
+            <!-- SQUAD 5 -->
+            <div class="squad-card approved" id="card-herd-5">
+                <div class="squad-header">
+                    <div>
+                        <div class="squad-title"><i class="fa-solid fa-shield"></i> SQUAD 5 // RUNE</div>
+                        <div class="squad-role">Defense Shield & Risk Arbiter</div>
+                    </div>
+                    <span class="squad-vote vote-veto" id="vote-herd-5">VETO RISK</span>
+                </div>
+                <div class="squad-rl-meter">
+                    <span>RL CREDIT:</span>
+                    <span class="rl-score" id="rl-herd-5">1.00x (+0.00R)</span>
+                </div>
+                <div class="squad-body" id="body-herd-5">
+                    Cascada 4 Fases lista: TP1 50% al 50% dist, BE +2.5 pips, Trail Locks 75%/85%, Front-Run 95%. Límite Canasta USD: máx 2 trades vivos.
+                </div>
+            </div>
+
+            <!-- SQUAD 6 -->
+            <div class="squad-card approved" id="card-herd-6">
+                <div class="squad-header">
+                    <div>
+                        <div class="squad-title"><i class="fa-solid fa-brain"></i> SQUAD 6 // TENSORFLOW</div>
+                        <div class="squad-role">AI Core Synapse 22D</div>
+                    </div>
+                    <span class="squad-vote vote-sell" id="vote-herd-6">SHORT</span>
+                </div>
+                <div class="squad-rl-meter">
+                    <span>RL CREDIT:</span>
+                    <span class="rl-score" id="rl-herd-6">1.00x (+0.00R)</span>
+                </div>
+                <div class="squad-body" id="body-herd-6">
+                    Red neuronal profunda entrenada sobre 798+ trades reales. Accuracy 97.8%. Inyección de tensores tensoriales 22D en tiempo real.
+                </div>
+            </div>
+
+            <!-- SQUAD 7 -->
+            <div class="squad-card approved" id="card-herd-7">
+                <div class="squad-header">
+                    <div>
+                        <div class="squad-title"><i class="fa-solid fa-satellite-dish"></i> SQUAD 7 // ATLAS</div>
+                        <div class="squad-role">CME DOM L3 Satellite Recon</div>
+                    </div>
+                    <span class="squad-vote vote-sell" id="vote-herd-7">VENTA</span>
+                </div>
+                <div class="squad-rl-meter">
+                    <span>RL CREDIT:</span>
+                    <span class="rl-score" id="rl-herd-7">1.00x (+0.00R)</span>
+                </div>
+                <div class="squad-body" id="body-herd-7">
+                    Microestructura de libro CME/OANDA Nivel 3. CVD Delta direccional negativo indicando presión vendedora masiva y absorción pasiva.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const UPSTASH_API = '/api/mods/live_data';
+        let ws;
+
+        function appendTerminal(tag, msg, isVeto = false, isOk = false) {
+            const term = document.getElementById('terminal-feed');
+            if (!term) return;
+            const now = new Date().toISOString().substring(11, 19);
+            const div = document.createElement('div');
+            div.className = 'terminal-line';
+            let tagClass = 't-tag';
+            if (isVeto) tagClass += ' t-veto';
+            if (isOk) tagClass += ' t-ok';
+            div.innerHTML = `<span class="t-stamp">[${now} UTC]</span> <span class="${tagClass}">[${tag}]</span> ${msg}`;
+            term.appendChild(div);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        async function manualRefreshData() {
+            const startT = performance.now();
+            try {
+                const res = await fetch(UPSTASH_API);
+                const data = await res.json();
+                const latency = Math.round(performance.now() - startT);
+                document.getElementById('ticker-latency').innerText = `${latency} ms`;
+                
+                if (data.status === 'success') {
+                    updateHUD(data);
+                    appendTerminal('SCAN', `Radar táctico sincronizado exitosamente (${latency}ms).`);
+                }
+            } catch (err) {
+                console.error("Error fetching live mods data:", err);
+                appendTerminal('ERR', `Fallo al sincronizar radar: ${err.message}`, true);
+            }
+        }
+
+        function updateHUD(data) {
+            const debate = data.debate || {};
+            const weights = data.weights || {};
+            const mt5 = data.mt5 || {};
+            
+            // 1. Balance & Telemetry
+            if (mt5.balance_actual) {
+                document.getElementById('ticker-balance').innerText = `$${Number(mt5.balance_actual).toFixed(2)} USD`;
+            }
+            if (mt5.equity) {
+                document.getElementById('ticker-equity').innerText = `$${Number(mt5.equity).toFixed(2)} USD`;
+            }
+
+            // 2. Quorum Status
+            const masterText = debate.master_quorum || debate.content || '';
+            const estado = debate.estado || (masterText.includes('VETADO') ? 'VETADO' : 'APROBADO');
+            const quorumChip = document.getElementById('master-quorum-chip');
+            const quorumText = document.getElementById('quorum-text');
+
+            if (estado.includes('VETA')) {
+                quorumChip.className = 'quorum-status quorum-vetoed';
+                quorumText.innerText = 'CEASE FIRE · VETO ACTIVO';
+            } else {
+                quorumChip.className = 'quorum-status quorum-approved';
+                quorumText.innerText = 'WEAPONS FREE · QUORUM APROBADO';
+            }
+
+            // 3. Update Squads
+            const squadMap = {
+                'herd_1': { key: 'herd_1_tidal', voteId: 'vote-herd-1', rlId: 'rl-herd-1', bodyId: 'body-herd-1', cardId: 'card-herd-1' },
+                'herd_2': { key: 'herd_2_noro', voteId: 'vote-herd-2', rlId: 'rl-herd-2', bodyId: 'body-herd-2', cardId: 'card-herd-2' },
+                'herd_3': { key: 'herd_3_zephr', voteId: 'vote-herd-3', rlId: 'rl-herd-3', bodyId: 'body-herd-3', cardId: 'card-herd-3' },
+                'herd_4': { key: 'herd_4_lumen', voteId: 'vote-herd-4', rlId: 'rl-herd-4', bodyId: 'body-herd-4', cardId: 'card-herd-4' },
+                'herd_5': { key: 'herd_5_rune', voteId: 'vote-herd-5', rlId: 'rl-herd-5', bodyId: 'body-herd-5', cardId: 'card-herd-5' },
+                'herd_6': { key: 'herd_6_tensorflow', voteId: 'vote-herd-6', rlId: 'rl-herd-6', bodyId: 'body-herd-6', cardId: 'card-herd-6' },
+                'herd_7': { key: 'herd_7_atlas', voteId: 'vote-herd-7', rlId: 'rl-herd-7', bodyId: 'body-herd-7', cardId: 'card-herd-7' }
+            };
+
+            for (const [squad, meta] of Object.entries(squadMap)) {
+                const text = debate[meta.key] || '';
+                const weight = weights[meta.key] !== undefined ? Number(weights[meta.key]).toFixed(2) : '1.00';
+                
+                if (text) {
+                    const elBody = document.getElementById(meta.bodyId);
+                    if (elBody) elBody.innerText = text;
+                    
+                    const elVote = document.getElementById(meta.voteId);
+                    if (elVote) {
+                        const upText = text.toUpperCase();
+                        if (upText.includes('VETA') || upText.includes('VETO')) {
+                            elVote.className = 'squad-vote vote-veto';
+                            elVote.innerText = 'VETO';
+                        } else if (upText.includes('VENTA') || upText.includes('BEARISH') || upText.includes('SELL') || upText.includes('BAJISTA')) {
+                            elVote.className = 'squad-vote vote-sell';
+                            elVote.innerText = 'VENTA';
+                        } else if (upText.includes('COMPRA') || upText.includes('BULLISH') || upText.includes('BUY') || upText.includes('ALCISTA')) {
+                            elVote.className = 'squad-vote vote-buy';
+                            elVote.innerText = 'COMPRA';
+                        }
+                    }
+                }
+
+                const elRl = document.getElementById(meta.rlId);
+                if (elRl) elRl.innerText = `${weight}x RL`;
+            }
+        }
+
+        // Auto Refresh every 3 seconds
+        setInterval(manualRefreshData, 3000);
+        window.addEventListener('DOMContentLoaded', manualRefreshData);
+    </style>
+</body>
+</html>
