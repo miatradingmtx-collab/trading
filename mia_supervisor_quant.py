@@ -31,6 +31,7 @@ load_dotenv()
 
 import firebase_admin
 from firebase_admin import credentials, firestore
+from mia_post_mortem_agent import MiaPostMortemAgent
 
 try:
     import google.generativeai as genai  # type: ignore
@@ -74,13 +75,20 @@ class MiaQuantSupervisor:
         self.UPSTASH_HEADERS = {"Authorization": f"Bearer {self.UPSTASH_TOKEN}"}
 
         self.SLACK_INSIGHTS_CHANNEL = os.getenv("SLACK_CHANNEL_INSIGHTS", "C0C6DUTQVEZ")
+        self.post_mortem_agent = MiaPostMortemAgent()
 
-    def _llm_gemini_inference(self, trade_context: Dict[str, Any], cbr_history: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _llm_gemini_inference(self, trade_context: Dict[str, Any], cbr_history: List[Dict[str, Any]], forensic_report: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Llamada EXCLUSIVA a Gemini 1.5 Pro con Failover de Alta Disponibilidad.
         Cruza el trade cerrado con el historial CBR, la Regla de 3, TensorFlow y ATLAS DOM/CVD.
         """
         gemini_api_key = (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or "").strip("'").strip('"')
+
+        if not forensic_report:
+            try:
+                forensic_report = self.post_mortem_agent.analyze_trade_and_herds(trade_context)
+            except Exception as e_pm:
+                forensic_report = {"diagnostico_forense": f"Autopsia básica: {trade_context}", "borrador_propuestas_7_herds": {}}
 
         # 1. Recolectar Contexto Operativo Integral vía MGET Atómico (Anti-429: Todo desde Upstash Hot Cache en 1 llamada)
         estrategia_actual = "{}"
@@ -138,9 +146,13 @@ class MiaQuantSupervisor:
         except Exception as e_mget:
             print(f"| QUANT SUPERVISOR WARN | Error leyendo MGET Hot Cache: {e_mget}")
 
+        autopsia_str = json.dumps(forensic_report.get("autopsia_herds", {}), indent=2, ensure_ascii=False)
+        borrador_prop_str = json.dumps(forensic_report.get("borrador_propuestas_7_herds", {}), indent=2, ensure_ascii=False)
+        diag_forense = forensic_report.get("diagnostico_forense", "Autopsia forense completada.")
+
         prompt = f"""
-        Eres MIA Quant Supervisor (Gemini Pro). Tu tarea es hacer un Análisis Cuantitativo y Post-Mortem de un trade cerrado para alimentar el CBR de Trading.
-        NO vas a ejecutar nada en vivo. Emites un diagnóstico y una propuesta cuantitativa para la aprobación humana (HITL).
+        Eres MIA QUANT SUPERVISOR (Árbitro y Supervisor Cuantitativo de Trading con Gemini 1.5 Pro).
+        Interactúas en un BUCLE DE CALIBRACIÓN (Quality Loop) con el AGENTE POST-MORTEM para auditar a los 7 Herds.
 
         PORTAFOLIO OFICIAL EN BROKER MT5:
         - EN VIVO (5 PARES): EURUSD, GBPUSD, AUDUSD, GBPJPY, XAUUSD.
@@ -148,15 +160,20 @@ class MiaQuantSupervisor:
 
         [TRADE CERRADO A EVALUAR]
         {json.dumps(trade_context)}
-        
+
+        [AUTOPSIA FORENSE PRELIMINAR DEL AGENTE POST-MORTEM (7 HERDS)]
+        - Diagnóstico Forense: {diag_forense}
+        - Desglose por Herd:
+{autopsia_str}
+        - Borrador de Propuestas Preliminares:
+{borrador_prop_str}
+        - Auditoría Técnica de Ejecución: {forensic_report.get("nota_tecnica", "Nominal")} (Anomalía: {forensic_report.get("anomalia_tecnica", False)})
+
         [ESTRATEGIAS ACTUALES (mia_kb / regla_de_3 / ML)]
         {estrategia_actual}
         
         [ESTADO RED NEURONAL TENSORFLOW]
         {estado_tf}
-
-        [ÚLTIMO DICTAMEN DE LOS 7 HERDS DEL SWARM (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS)]
-        {debate_7_herds}
 
         [MICROESTRUCTURA INSTITUCIONAL ATLAS DOM & CVD DELTA]
         {microestructura_atlas}
@@ -167,15 +184,14 @@ class MiaQuantSupervisor:
         [HISTORIAL CBR DE TRADING (Aprende de estos casos previos)]
         {json.dumps(cbr_history[:10])}
         
-        Instrucciones:
-        1. Diagnostica con precisión por qué se ganó, perdió o cerró en Breakeven el trade (respeto de Order Blocks, barridos de liquidez, buffer ATR, CVD Delta).
-        2. Formula recomendaciones puntuales para los 7 Herds (LUMEN, TIDAL, NORO, ZEPHR, RUNE, ATLAS, TENSORFLOW).
-        3. Evalúa si la ejecución técnica fue nominal o si reportó alguna anomalía técnica del servidor o red.
-        4. REGLA INQUEBRANTABLE (FILTRO ANTI-SUERTE >= 50 TRADES): Prohibido alterar la Regla de 3 sin mínimo 50 trades reales.
+        INSTRUCCIONES DE SUPERVISIÓN CUANTITATIVA (QUALITY LOOP):
+        1. Eres el Supervisor Cuantitativo. Valida o corrige el diagnóstico forense del Agente Post-Mortem.
+        2. Refina y calibra las propuestas para CADA UNO DE LOS 7 HERDS (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS) asegurando que no violen el Filtro Anti-Suerte (>= 50 trades) y potencien la recuperación de capital hacia los $5,000 USD base bajo la Ley D/(1-D).
+        3. Formula el veredicto consolidado para la Prueba de Confianza que someterás a la validación humana (HITL).
         
         Devuelve estrictamente un JSON con:
-        - "diagnostico": Explicación concisa y técnica de la causa raíz de la operación (máximo 2 líneas).
-        - "propuestas_7_herds": Objeto JSON con la propuesta de calibración específica para CADA UNO de los 7 Herds:
+        - "diagnostico": Dictamen consolidado del Supervisor Quant validando y refinando el diagnóstico forense del Post-Mortem (máximo 2 líneas).
+        - "propuestas_7_herds": Objeto JSON con la calibración final validada en loop para:
             * "tidal": Calibración sobre macro, Killzone o sesgo de sesión.
             * "noro": Calibración sobre confluencia matemática POC, Markov o CVOL.
             * "zephr": Calibración sobre probabilidad bayesiana y ratio EV.
@@ -188,30 +204,39 @@ class MiaQuantSupervisor:
 
         texto = None
 
-        # Intento 1: SDK oficial Google Generative AI (Failover agil sin bloqueo list_models)
+        # Intento 1: SDK oficial Google Generative AI (Failover ágil sin reintentos gRPC lentos ante 429)
+        gemini_quota_exhausted = False
         if genai and gemini_api_key:
-            for target_model_name in ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"]:
+            for target_model_name in ["gemini-2.5-flash", "gemini-flash-latest"]:
                 try:
                     genai.configure(api_key=gemini_api_key)
                     model = genai.GenerativeModel(target_model_name, generation_config={"temperature": 0.2, "max_output_tokens": 8192, "response_mime_type": "application/json"})
-                    resp = model.generate_content(prompt)
+                    resp = model.generate_content(prompt, request_options={"timeout": 10})
                     texto = resp.text
                     if texto:
                         break
                 except Exception as e_sdk:
-                    print(f"| QUANT SUPERVISOR | SDK Gemini ({target_model_name}) error: {e_sdk}")
-        # Intento 2: REST Gemini Directo
-        if not texto and gemini_api_key:
-            for m in ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"]:
+                    err_str = str(e_sdk)
+                    print(f"| QUANT SUPERVISOR | SDK Gemini ({target_model_name}) error: {err_str[:120]}")
+                    if "429" in err_str or "quota" in err_str.lower() or "exhausted" in err_str.lower():
+                        gemini_quota_exhausted = True
+                        break
+
+        # Intento 2: REST Gemini Directo (Solo si no hubo 429 de proyecto)
+        if not texto and gemini_api_key and not gemini_quota_exhausted:
+            for m in ["gemini-2.5-flash", "gemini-flash-latest"]:
                 try:
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={gemini_api_key}"
-                    r = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.2, "maxOutputTokens": 8192, "responseMimeType": "application/json"}}, timeout=15)
+                    r = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.2, "maxOutputTokens": 8192, "responseMimeType": "application/json"}}, timeout=8)
                     if r.status_code == 200:
                         cand = r.json().get("candidates", [])
                         if cand:
                             texto = cand[0].get("content", {}).get("parts", [])[0].get("text", "")
                             if texto:
                                 break
+                    elif r.status_code == 429:
+                        print(f"| QUANT SUPERVISOR | Gemini REST 429. Pasando a Groq Failover de inmediato.")
+                        break
                 except Exception:
                     continue
 
@@ -452,11 +477,14 @@ class MiaQuantSupervisor:
 
     def process_trade_post_mortem(self, trade: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Genera la autopsia post-mortem del trade con el ticket oficial de entrada en MT5.
-        Genera el Caso CBR normalizado (TRADE_CASE_<ticket>_<timestamp>) y notifica a Slack (#mia-trading-insights).
+        PROCESAMIENTO COGNITIVO DESACOPLADO (RAMA 1):
+        1. Agente Post-Mortem ejecuta la autopsia técnica y forense de los 7 Herds.
+        2. Supervisor Quant valida y refina con Gemini 1.5 Pro en un Quality Loop.
+        3. Se calculan Recompensa RL asimétrica y métricas de la Prueba de Confianza.
+        4. Notifica a Slack (#mia-trading-insights) con Block Kit y botones HITL.
         """
         ticket = str(trade.get('ticket', ''))
-        symbol = str(trade.get('symbol', 'EURUSD'))
+        symbol = str(trade.get('symbol', 'EURUSD')).upper()
         profit = float(trade.get('profit', 0.0) or 0.0)
 
         # 1. Obtener historial CBR para que Gemini cruce la información
@@ -466,8 +494,14 @@ class MiaQuantSupervisor:
         except Exception:
             cbr_history = []
 
-        # 2. Inferencia con Gemini Pro
-        gemini_analysis = self._llm_gemini_inference(trade, cbr_history)
+        # 1.5 Autopsia Forense de los 7 Herds con el Agente Post-Mortem (Desacoplamiento No-Monolítico)
+        forensic_report = self.post_mortem_agent.analyze_trade_and_herds(trade)
+        diagnostico_forense = forensic_report.get("diagnostico_forense", "Autopsia forense completada.")
+        if len(diagnostico_forense) > 280:
+            diagnostico_forense = diagnostico_forense[:277] + "..."
+
+        # 2. Quality Loop de Supervisión Cuantitativa con Gemini Pro
+        gemini_analysis = self._llm_gemini_inference(trade, cbr_history, forensic_report)
 
         sugerencia_raw = gemini_analysis.get("sugerencia_7_herds_trading") or gemini_analysis.get("sugerencia", "Mantener disciplina institucional bajo la Regla de 3 y verificar zonas de liquidez en ATLAS DOM.")
         sugerencia_trading = self._sanitize_slack_prose(sugerencia_raw, "Mantener disciplina de riesgo y confirmaciones institucionales mínimas de los 7 Herds.")
@@ -486,7 +520,7 @@ class MiaQuantSupervisor:
         r_multiplo = round(profit / riesgo_base_usd, 2) if riesgo_base_usd > 0 else 0.0
         
         # Factor de Asimetría según Ley D / (1 - D)
-        bal_actual = float(trade.get("balance", 3688.0) or 3688.0)
+        bal_actual = float(trade.get("balance", 3324.74) or 3324.74)
         drawdown_base = max(0.0, 5000.0 - bal_actual)
         d_frac = min(0.95, drawdown_base / 5000.0)
         factor_asimetria = round(1.0 / (1.0 - d_frac), 2) if d_frac < 1.0 else 1.0
@@ -524,16 +558,41 @@ class MiaQuantSupervisor:
             delta_weights = {k: 0.01 for k in ["herd_1_tidal", "herd_2_noro", "herd_3_zephr", "herd_4_lumen", "herd_5_rune", "herd_6_tensorflow", "herd_7_atlas"]}
             tipo_resultado = "BREAK_EVEN_NEUTRAL"
 
+        # 3.5 Métricas de la Prueba de Confianza (Trust Mode / Hacia la Autonomía)
+        aprobados_hitl = sum(1 for c in cbr_history if c.get("veredicto_humano") == "APROBADO")
+        rechazados_hitl = sum(1 for c in cbr_history if c.get("veredicto_humano") == "RECHAZADO")
+        pendientes_hitl = sum(1 for c in cbr_history if c.get("veredicto_humano") == "PENDIENTE_HITL")
+        total_resueltos = aprobados_hitl + rechazados_hitl
+        tasa_confianza = round((aprobados_hitl / total_resueltos * 100), 1) if total_resueltos > 0 else 0.0
+
+        racha_consecutiva = 0
+        for c in cbr_history:
+            if c.get("veredicto_humano") == "APROBADO":
+                racha_consecutiva += 1
+            elif c.get("veredicto_humano") == "RECHAZADO":
+                break
+
+        trust_mode_superado = (racha_consecutiva >= 20 and tasa_confianza >= 90.0)
+        estado_confianza = (
+            "🚀 MODO_AUTÓNOMO (CONFIANZA SUPERADA)" if trust_mode_superado
+            else f"🔒 ASISTIDO_HITL (Progreso: {racha_consecutiva}/20 racha | Tasa: {tasa_confianza}%)"
+        )
+
+        cluster_tag = "🏛️ Clúster: COMEX Metals (CFD Spot | Volatilidad: GVZ)" if symbol == "XAUUSD" else "🏛️ Clúster: CME G5 FX Basket (Forex Spot | Volatilidad: FXVL)"
+
         payload_cbr = {
             "case_id": case_id,
-            "caso": f"Análisis Post-Mortem Quant Trade #{ticket}",
+            "caso": f"Análisis Post-Mortem & Supervisor Quant Trade #{ticket}",
             "fecha": datetime.datetime.now().isoformat(),
             "ticket": ticket,
             "symbol": symbol,
+            "cluster": cluster_tag,
             "profit": profit,
             "r_multiplo": r_multiplo,
-            "diagnostico": diagnostico,
+            "diagnostico_forense_post_mortem": forensic_report.get("diagnostico_forense", ""),
+            "diagnostico_supervisor_quant": diagnostico,
             "solucion_aprendida": sugerencia_trading,
+            "propuestas_7_herds": gemini_analysis.get("propuestas_7_herds", {}),
             "nota_infraestructura_t1_t10": nota_infra,
             "veredicto_humano": "PENDIENTE_HITL",
             "score_confianza": 0.85 if profit > 0 else 0.40,
@@ -543,6 +602,15 @@ class MiaQuantSupervisor:
                 "recompensa_neta_r": recompensa_neta,
                 "factor_asimetria_aplicado": factor_asimetria,
                 "delta_weights_herds": delta_weights
+            },
+            "prueba_de_confianza": {
+                "estado": estado_confianza,
+                "trust_mode_superado": trust_mode_superado,
+                "racha_consecutiva": racha_consecutiva,
+                "tasa_confianza_pct": tasa_confianza,
+                "aprobados_hitl": aprobados_hitl,
+                "rechazados_hitl": rechazados_hitl,
+                "pendientes_hitl": pendientes_hitl
             }
         }
 
@@ -586,7 +654,6 @@ class MiaQuantSupervisor:
 
         # 4. Notificar a Slack (#mia-trading-insights) con Block Kit RLHF (Idéntico a Imagen 1)
         profit_fmt = f"${profit:.2f} USD" if profit >= 0 else f"-${abs(profit):.2f} USD"
-        cluster_tag = "🏛️ Clúster: COMEX Metals (CFD Spot | Volatilidad: GVZ)" if symbol == "XAUUSD" else "🏛️ Clúster: CME G5 FX Basket (Forex Spot | Volatilidad: FXVL)"
         
         # Formatear pesos en caliente para visualización inmediata
         weights_summary = (
@@ -601,12 +668,24 @@ class MiaQuantSupervisor:
 
         if slack_bridge and (slack_bridge.bot_token or slack_bridge.quant_bot_token):
             msg_fallback = f"MIA Quant: Análisis para {ticket} en {symbol}"
+            sec1_text = (
+                f"*Símbolo:* {symbol} ({cluster_tag})\n"
+                f"*Resultado MT5:* `{profit_fmt}` ({r_multiplo:+.2f}R) | *RL Score:* `{recompensa_neta:+.2f}R` ({tipo_resultado})\n"
+                f"*Factor Asimetría D/(1-D):* `{factor_asimetria:.2f}x` | *CBR Case:* `{case_id}`\n\n"
+                f"*🔍 Agente Post-Mortem (Autopsia Forense):*\n{diagnostico_forense}\n\n"
+                f"*🧠 Supervisor Quant (Validación Gemini 1.5 Pro):*\n{diagnostico}"
+            )
+            sec2_text = f"*🎯 Propuestas Validadas en Loop para los 7 Herds (RL & CBR):*\n{sugerencia_trading}"
+            sec3_text = (
+                f"*📊 Pesos RL en Caliente (cache_herd_rl_weights):*\n{weights_summary}\n\n"
+                f"*🛡️ Prueba de Confianza (Hacia la Autonomía):*\n`{estado_confianza}` ({aprobados_hitl} aprobados / {rechazados_hitl} rechazados | Meta: 20 seguidos)"
+            )
             blocks = [
                 {
                     "type": "header",
                     "text": {
                         "type": "plain_text",
-                        "text": f"🌌 MIA QUANT: Post-Mortem Trade #{ticket}",
+                        "text": f"🌌 MIA COGNICIÓN: Post-Mortem & Supervisión #{ticket}",
                         "emoji": True
                     }
                 },
@@ -614,26 +693,21 @@ class MiaQuantSupervisor:
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": (
-                            f"*Símbolo:* {symbol} ({cluster_tag})\n"
-                            f"*Resultado MT5:* `{profit_fmt}` ({r_multiplo:+.2f}R) | *RL Score:* `{recompensa_neta:+.2f}R` ({tipo_resultado})\n"
-                            f"*Factor Asimetría D/(1-D):* `{factor_asimetria:.2f}x` | *CBR Case:* `{case_id}`\n\n"
-                            f"*🧠 Diagnóstico Cuantitativo (Gemini Pro / Groq):*\n{diagnostico}"
-                        )
+                        "text": sec1_text
                     }
                 },
                 {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"*🎯 Propuestas de Calibración para los 7 Herds (RL & CBR):*\n{sugerencia_trading}"
+                        "text": sec2_text
                     }
                 },
                 {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"*📊 Pesos RL en Caliente (cache_herd_rl_weights):*\n{weights_summary}"
+                        "text": sec3_text
                     }
                 },
                 {
@@ -686,7 +760,6 @@ class MiaQuantSupervisor:
                     "type": "divider"
                 }
             ]
-
             try:
                 slack_bridge.send_channel_message(
                     text=msg_fallback,

@@ -5305,6 +5305,30 @@ async def handle_slack_interaction(request: Request):
                                 caso["aprobado_por"] = user_name
                                 caso["score_confianza"] = 1.0 if action_type == "APROBADO" else 0.0
                                 caso["timestamp_aprobacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                        
+                        # Recalcular métricas de la Prueba de Confianza (Trust Mode)
+                        aprobados = sum(1 for c in cbr_data if c.get("veredicto_humano") == "APROBADO")
+                        rechazados = sum(1 for c in cbr_data if c.get("veredicto_humano") == "RECHAZADO")
+                        resueltos = aprobados + rechazados
+                        tasa_confianza = round((aprobados / resueltos * 100), 1) if resueltos > 0 else 0.0
+
+                        racha = 0
+                        for c in cbr_data:
+                            if c.get("veredicto_humano") == "APROBADO":
+                                racha += 1
+                            elif c.get("veredicto_humano") == "RECHAZADO":
+                                break
+
+                        trust_mode_activo = (racha >= 20 and tasa_confianza >= 90.0)
+                        trust_stats = {
+                            "aprobados_hitl": aprobados,
+                            "rechazados_hitl": rechazados,
+                            "racha_consecutiva": racha,
+                            "tasa_confianza_pct": tasa_confianza,
+                            "trust_mode_activo": trust_mode_activo,
+                            "ultima_actualizacion": datetime.datetime.now(datetime.timezone.utc).isoformat()
+                        }
+                        requests.post("https://firm-koi-93555.upstash.io/set/cache_cbr_trust_mode", headers=up_headers, json=trust_stats)
                         requests.post("https://firm-koi-93555.upstash.io/set/cache_trading_learning_kb", headers=up_headers, json=cbr_data[:50])
                     except Exception as up_err:
                         print(f"| QUANT CBR UPSTASH ERROR | {up_err}")
@@ -5324,9 +5348,11 @@ async def handle_slack_interaction(request: Request):
                             print(f"| QUANT CBR FIREBASE ERROR | {fb_err}")
                             
                     emoji_status = "✅" if action_type == "APROBADO" else ("❌" if action_type == "RECHAZADO" else "🔍")
+                    estado_auto = "🚀 MODO_AUTÓNOMO (CONFIANZA SUPERADA)" if trust_mode_activo else f"🔒 ASISTIDO_HITL (Progreso: {racha}/20 racha | Tasa: {tasa_confianza}%)"
                     msg_quant = (
-                        f"{emoji_status} *MIA QUANT CBR:* Aprendizaje del trade `{ticket_id}` registrado como *{action_type}* por @{user_name}.\n"
+                        f"{emoji_status} *MIA COGNICIÓN CBR:* Aprendizaje del trade `{ticket_id}` registrado como *{action_type}* por @{user_name}.\n"
                         f"• *Confianza Sello Humano:* `{'100% (Verificado)' if action_type == 'APROBADO' else 'Descartado'}`.\n"
+                        f"• *🛡️ Prueba de Confianza (Hacia la Autonomía):* `{estado_auto}` ({aprobados} aprobados / {rechazados} rechazados).\n"
                         f"• *Destino:* `cache_trading_learning_kb` y `mia_trading_learning_history` sincronizados con Gemini Pro y ATLAS."
                     )
                     dispatch_slack_confirmation(msg_quant, response_url)
