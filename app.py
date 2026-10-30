@@ -4436,10 +4436,26 @@ def api_open_trades():
         asegurar_cache_firebase()
     
     open_tickets = []
+    closed_tickets = set()
     if GLOBAL_AUDIT_LOGS:
         for l in GLOBAL_AUDIT_LOGS:
-            if l.get("accion") in ["COMPRA", "VENTA"] and l.get("ticket"):
-                open_tickets.append(str(l.get("ticket")))
+            t = str(l.get("ticket", "")).strip()
+            if not t or t in ["DESC", "N/A"]:
+                continue
+            acc = str(l.get("accion", "")).upper()
+            res = str(l.get("resultado_salida", "")).upper()
+            mot = str(l.get("motivo", "")).upper()
+            if "CIERRE" in acc or "CERRAD" in mot or res in ["SL_ORIGINAL", "TP_ORIGINAL", "PARCIAL_BE", "CIERRE_TOTAL", "TRAILING_STOP"]:
+                closed_tickets.add(t)
+                
+        for l in GLOBAL_AUDIT_LOGS:
+            t = str(l.get("ticket", "")).strip()
+            if not t or t in closed_tickets:
+                continue
+            acc = str(l.get("accion", "")).upper()
+            if acc in ["COMPRA", "VENTA", "BUY", "SELL"]:
+                if t not in open_tickets:
+                    open_tickets.append(t)
                 
     return {"status": "success", "open_tickets": open_tickets}
 

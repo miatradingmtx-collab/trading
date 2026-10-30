@@ -787,7 +787,7 @@ class MiaQuantSupervisor:
                 requests.post(
                     f"{self.UPSTASH_URL}/rpush/cache_ops_incidents_queue",
                     headers=self.UPSTASH_HEADERS,
-                    data=json.dumps([json.dumps(incident_payload)]),
+                    data=json.dumps(incident_payload),
                     timeout=3
                 )
                 print(f"| QUANT SUPERVISOR | Anomalía técnica encolada en cache_ops_incidents_queue (Ticket MT5: {ticket}).")

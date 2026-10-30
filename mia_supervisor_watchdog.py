@@ -208,7 +208,14 @@ class MiaWatchdogSupervisor:
                 raw_items = r.json().get("result", [])
                 for it in raw_items:
                     try:
-                        incidents.append(json.loads(it) if isinstance(it, str) else it)
+                        parsed = json.loads(it) if isinstance(it, str) else it
+                        # Robust unwrapping of nested lists/strings from legacy double serialization
+                        while isinstance(parsed, list) and len(parsed) > 0:
+                            parsed = json.loads(parsed[0]) if isinstance(parsed[0], str) else parsed[0]
+                        if isinstance(parsed, dict):
+                            incidents.append(parsed)
+                        else:
+                            incidents.append({"raw": str(it)})
                     except Exception:
                         incidents.append({"raw": str(it)})
                 requests.post(f"{self.UPSTASH_URL}/del/cache_ops_incidents_queue", headers=self.UPSTASH_HEADERS, timeout=4)
@@ -216,10 +223,16 @@ class MiaWatchdogSupervisor:
             print(f"| WATCHDOG SUPERVISOR ERROR | Error leyendo incidentes: {e}")
 
         processed = []
-        for inc in incidents:
+        seen_tickets = set()
+        for idx, inc in enumerate(incidents, 1):
             ts_now = int(time.time())
-            ticket_ops = f"OPS_CASE_{ts_now}"
-            ticket_mt5 = inc.get("ticket_mt5", inc.get("ticket", "N/A"))
+            ticket_ops = f"OPS_CASE_{ts_now}_{idx}"
+            ticket_mt5 = str(inc.get("ticket_mt5", inc.get("ticket", "N/A"))).strip()
+            # Deduplicar incidencias repetidas del mismo ticket en la misma tanda
+            if ticket_mt5 in seen_tickets and ticket_mt5 != "N/A":
+                continue
+            if ticket_mt5 != "N/A":
+                seen_tickets.add(ticket_mt5)
             tipo = inc.get("tipo", "ANOMALIA_INFRAESTRUCTURA")
             nota = inc.get("nota_tecnica", inc.get("detalle", str(inc)))
             symbol = inc.get("symbol", "N/A")
