@@ -2650,13 +2650,43 @@ def webhook_mt5_setup(req: MT5SetupRequest, background_tasks: BackgroundTasks, a
             except Exception as e_smt:
                 pass
 
-        # 1.6 [FILTRO MACRO INSTITUCIONAL XAUUSD ANTI-CONTRATENDENCIA EN MÁXIMOS HISTÓRICOS]
-        if "XAU" in activo_normalizado or "GOLD" in activo_normalizado:
-            es_xau_ath = float(req.precio or 0.0) >= 3800.0  # Oro cotizando sobre ,100 - ,160+ USD
-            if es_xau_ath and req.accion.upper() in ["VENTA", "SELL"]:
+        # 1.6 [HOMOLOGACIÓN INSTITUCIONAL CME / COMEX: G5 FX BASKET & COMEX METALS]
+        is_gold = "XAU" in activo_normalizado or "GOLD" in activo_normalizado
+        amd_ctx = data.get("confirmaciones_tecnicas", {}).get("amd_context", {})
+        dist_macro_high = float(amd_ctx.get("dist_macro_high_pct", 999.0) or 999.0)
+        dist_macro_low = float(amd_ctx.get("dist_macro_low_pct", 999.0) or 999.0)
+        es_ath_dinamico = dist_macro_high < 0.50  # En zona ATH (< 0.5% del pico macro de 4H/1D)
+
+        if is_gold:
+            # CLÚSTER COMEX METALS (GC / GVZ Gold CVOL - CFD Spot MT5)
+            if es_ath_dinamico:
+                # FILTRO ANTI-CAZA ATH INSTITUCIONAL: Prohibido comprar en la cresta sin retroceso previo
+                if req.accion.upper() in ["COMPRA", "BUY"]:
+                    return {
+                        "authorized": False,
+                        "reason": f"VETO XAUUSD COMEX ATH: Oro en zona de Máximos Históricos ({dist_macro_high:.2f}% del pico). Prohibido comprar en la cresta sin retroceso de 30-50 pips (Filtro Anti-Caza Institucional).",
+                        "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
+                    }
+            # Si NO está en ATH (distancia >= 0.5%, como el 2.55% actual), el Oro está en Retroceso/Rango COMEX.
+            # Se permite operativa bidireccional si la confluencia de los 7 Herds y la estructura lo respaldan.
+        else:
+            # CLÚSTER G5 FX BASKET (6E, 6B, 6A, 6B/6J | Benchmark FXVL / CVOL)
+            # Candado Anti-Contratendencia Macro para Pares Forex (EURUSD, GBPUSD, AUDUSD, GBPJPY)
+            macro_sweep_alcista = amd_ctx.get("macro_sweep_alcista", False)
+            macro_sweep_bajista = amd_ctx.get("macro_sweep_bajista", False)
+
+            # Si el mercado tiene un sweep macro bajista fuerte pero se solicita COMPRA en contratendencia
+            if req.accion.upper() in ["COMPRA", "BUY"] and macro_sweep_bajista and not macro_sweep_alcista and dist_macro_low < 0.30:
                 return {
                     "authorized": False,
-                    "reason": f"VETO XAUUSD MACRO: Oro en régimen de Máximos Históricos (${req.precio:.2f} USD). Se prohíben estrictamente las VENTAS contratendencia. Solo se permiten COMPRAS en retrocesos hacia zonas de demanda.",
+                    "reason": f"VETO G5 FX MACRO: {activo_normalizado} con barrido de liquidez bajista macro (4H/8H). Prohibido comprar contra el flujo vendedor de CME FX.",
+                    "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
+                }
+            # Si el mercado tiene un sweep macro alcista fuerte pero se solicita VENTA en contratendencia
+            if req.accion.upper() in ["VENTA", "SELL"] and macro_sweep_alcista and not macro_sweep_bajista and dist_macro_high < 0.30:
+                return {
+                    "authorized": False,
+                    "reason": f"VETO G5 FX MACRO: {activo_normalizado} con barrido de liquidez alcista macro (4H/8H). Prohibido vender contra el flujo comprador de CME FX.",
                     "estado_ejecucion": data.get("estado_ejecucion", "INACTIVO")
                 }
 
@@ -5170,6 +5200,7 @@ def dispatch_slack_confirmation(msg: str, response_url: str = ""):
             print(f"| SLACK BRIDGE FALLBACK ERROR | {e_br}")
 
 @app.post("/api/slack/interactions")
+@app.post("/slack/interactions")
 async def handle_slack_interaction(request: Request):
     """
     Maneja las interacciones de botones y checkboxes en Slack con respuesta instantánea

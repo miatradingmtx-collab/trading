@@ -174,9 +174,16 @@ class MiaQuantSupervisor:
         4. REGLA INQUEBRANTABLE (FILTRO ANTI-SUERTE >= 50 TRADES): Prohibido alterar la Regla de 3 sin mínimo 50 trades reales.
         
         Devuelve estrictamente un JSON con:
-        - "diagnostico": Explicación concisa y técnica de la confluencia de mercado y resultado.
-        - "sugerencia_7_herds_trading": Qué reglas, trailing locks (RUNE), pesos neuronales (TENSORFLOW) o filtros DOM (ATLAS) propones ajustar.
-        - "nota_infraestructura_t1_t10": "Infraestructura backend nominal." o detalle de anomalía técnica si falló la conexión/servidor.
+        - "diagnostico": Explicación concisa y técnica de la causa raíz de la operación (máximo 2 líneas).
+        - "propuestas_7_herds": Objeto JSON con la propuesta de calibración específica para CADA UNO de los 7 Herds:
+            * "tidal": Calibración sobre macro, Killzone o sesgo de sesión.
+            * "noro": Calibración sobre confluencia matemática POC, Markov o CVOL.
+            * "zephr": Calibración sobre probabilidad bayesiana y ratio EV.
+            * "lumen": Calibración sobre Order Blocks, mitigaciones o breakers SMC.
+            * "rune": Calibración sobre gestión de riesgo, buffer SL, trailing locks.
+            * "tensorflow": Calibración sobre pesos neuronales y sesgo direccional.
+            * "atlas": Calibración sobre microestructura DOM CME/COMEX o absorción CVD.
+        - "nota_infraestructura_t1_t10": "Infraestructura backend nominal." o detalle de anomalía técnica.
         """
 
         texto = None
@@ -186,7 +193,7 @@ class MiaQuantSupervisor:
             for target_model_name in ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"]:
                 try:
                     genai.configure(api_key=gemini_api_key)
-                    model = genai.GenerativeModel(target_model_name, generation_config={"temperature": 0.2, "max_output_tokens": 2500, "response_mime_type": "application/json"})
+                    model = genai.GenerativeModel(target_model_name, generation_config={"temperature": 0.2, "max_output_tokens": 8192, "response_mime_type": "application/json"})
                     resp = model.generate_content(prompt)
                     texto = resp.text
                     if texto:
@@ -198,7 +205,7 @@ class MiaQuantSupervisor:
             for m in ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"]:
                 try:
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={gemini_api_key}"
-                    r = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2500, "responseMimeType": "application/json"}}, timeout=15)
+                    r = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.2, "maxOutputTokens": 8192, "responseMimeType": "application/json"}}, timeout=15)
                     if r.status_code == 200:
                         cand = r.json().get("candidates", [])
                         if cand:
@@ -218,12 +225,12 @@ class MiaQuantSupervisor:
                     payload_groq = {
                         "model": g_model,
                         "messages": [
-                            {"role": "system", "content": "Eres MIA Quant Supervisor (Failover Groq). Analiza el trade y devuelve estrictamente un objeto JSON con diagnostico, sugerencia_7_herds_trading, y nota_infraestructura_t1_t10."},
+                            {"role": "system", "content": "Eres MIA Quant Supervisor (Failover Groq). Analiza el trade y devuelve estrictamente un objeto JSON con diagnostico, propuestas_7_herds (objeto con claves tidal, noro, zephr, lumen, rune, tensorflow, atlas) y nota_infraestructura_t1_t10."},
                             {"role": "user", "content": prompt}
                         ],
                         "response_format": {"type": "json_object"},
                         "temperature": 0.2,
-                        "max_tokens": 800
+                        "max_tokens": 1500
                     }
                     resp_g = requests.post(url_groq, headers=headers_groq, json=payload_groq, timeout=10)
                     if resp_g.status_code == 200:
@@ -250,7 +257,7 @@ class MiaQuantSupervisor:
                     ],
                     "response_format": {"type": "json_object"},
                     "temperature": 0.2,
-                    "max_tokens": 2500
+                    "max_tokens": 4000
                 }
                 r_or = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=or_headers, json=or_payload, timeout=12)
                 if r_or.status_code == 200:
@@ -260,7 +267,7 @@ class MiaQuantSupervisor:
             except Exception as e_or:
                 print(f"| QUANT SUPERVISOR | OpenRouter Gemini falló: {e_or}")
 
-        # Intento 5: Fallback Determinista Cuantitativo
+        # Intento 5: Fallback Determinista Cuantitativo con Propuesta Estructurada para los 7 Herds
         if not texto:
             ticket = trade_context.get('ticket', 'N/A')
             symbol = trade_context.get('symbol', 'N/A')
@@ -270,19 +277,42 @@ class MiaQuantSupervisor:
             setup = trade_context.get('detalle_setup', 'SMC Setup')
             res_str = "Ganador" if profit > 0 else ("Breakeven" if profit == 0 else "Pérdida")
 
+            is_loss = profit < 0
+            is_win = profit > 0
+            propuestas_7 = {
+                "tidal": f"Reforzar filtro de sesión Killzone en {symbol} y subordinar entradas estrictamente al sesgo macro de 4H/1D." if is_loss else f"Consolidar ventana de liquidez en {symbol} como zona de alta probabilidad.",
+                "noro": f"Exigir confluencia de POC Price a menos de 15 pips para validar la entrada matemática." if is_loss else f"Mantener POC como nivel de soporte/resistencia institucional de alta fiabilidad.",
+                "zephr": f"Ajustar modelo de Expected Value (EV) exigiendo un ratio mínimo de 1:1.5R para mitigar asimetría." if is_loss else f"Confirmar ratio EV positivo en la distribución bayesiana del setup.",
+                "lumen": f"Invalidar Order Blocks no respaldados por barrido de liquidez macro (evitar trampas de BOS)." if is_loss else f"Ratificar Order Block y FVG mitigado en el mapa de liquidez institucional.",
+                "rune": f"Activar Break-Even institucional con buffer de +2.5 pips y cobro de TP1 (50%) anticipado." if is_loss else f"Mantener cascada de 4 fases (TP1 50%, BE +2.5p, Trailing Locks al 75% y 85%).",
+                "tensorflow": f"Aplicar gradiente negativo (-RL) a tensores que autorizaron confluencia en contratendencia." if is_loss else f"Reforzar pesos neuronales (+RL) del patrón de entrada en el dataset.",
+                "atlas": f"Exigir confirmación de absorción institucional en DOM L3 y divergencia CVD antes de autorizar el trade." if is_loss else f"Validar correlación positiva entre flujo de órdenes CME/COMEX y precio."
+            }
+
+            sug_text = "\n".join([f"• *{k.upper()}:* {v}" for k, v in propuestas_7.items()])
             return {
-                "diagnostico": f"Evaluación Cuantitativa Institucional (Fail-Safe): Trade #{ticket} en {symbol} ({tipo}) finalizado con {res_str} (${profit:.2f} USD). Score inicial evaluado: {score}%. Setup técnico: {setup}. Confluencia institucional auditada bajo Regla de 3.",
-                "sugerencia_7_herds_trading": f"Mantener disciplina de riesgo y confirmaciones institucionales mínimas (3 confluencias) en {symbol}. Verificar absorción en ATLAS DOM L3 antes de nuevas aperturas.",
+                "diagnostico": f"Evaluación Cuantitativa Institucional: Trade #{ticket} en {symbol} ({tipo}) finalizado con {res_str} (${profit:.2f} USD). Setup técnico: {setup}. Confluencia institucional auditada bajo Regla de 3.",
+                "sugerencia_7_herds_trading": sug_text,
+                "propuestas_7_herds": propuestas_7,
                 "nota_infraestructura_t1_t10": "Infraestructura backend nominal."
             }
 
         parsed = self._extract_json(texto)
         if parsed and isinstance(parsed, dict):
-            if "sugerencia" in parsed and "sugerencia_7_herds_trading" not in parsed:
+            # Si la IA devolvió propuestas_7_herds como diccionario, formatearlo a bullet points claros
+            p7 = parsed.get("propuestas_7_herds")
+            if isinstance(p7, dict):
+                herds_labels = [
+                    ("tidal", "TIDAL"), ("noro", "NORO"), ("zephr", "ZEPHR"),
+                    ("lumen", "LUMEN"), ("rune", "RUNE"), ("tensorflow", "TENSORFLOW"),
+                    ("atlas", "ATLAS")
+                ]
+                lines_p = [f"• *{lbl}:* {p7.get(k, 'Mantener disciplina técnica.')}" for k, lbl in herds_labels if p7.get(k)]
+                parsed["sugerencia_7_herds_trading"] = "\n".join(lines_p)
+            elif "sugerencia" in parsed and "sugerencia_7_herds_trading" not in parsed:
                 parsed["sugerencia_7_herds_trading"] = parsed["sugerencia"]
             if "nota_infraestructura_t1_t10" not in parsed:
                 parsed["nota_infraestructura_t1_t10"] = "Infraestructura backend nominal."
-            # Sanitizar proactivamente cualquier campo extraído
             parsed["diagnostico"] = self._sanitize_slack_prose(parsed.get("diagnostico", ""))
             parsed["sugerencia_7_herds_trading"] = self._sanitize_slack_prose(parsed.get("sugerencia_7_herds_trading", ""), "Mantener disciplina de riesgo y confluencia institucional de los 7 Herds.")
             return parsed
@@ -374,6 +404,14 @@ class MiaQuantSupervisor:
                 sub = re.search(r'"diagnostico"\s*:\s*"([^"\r\n]*)', limpio)
                 if sub:
                     extracted["diagnostico"] = sub.group(1)
+
+            # Extraer propuestas_7_herds como objeto JSON si existe
+            m_p7 = re.search(r'"(?:propuestas_7_herds|propuestas)"\s*:\s*(\{[\s\S]*?\})', limpio)
+            if m_p7:
+                try:
+                    extracted["propuestas_7_herds"] = json.loads(m_p7.group(1), strict=False)
+                except Exception:
+                    pass
 
             # Extraer sugerencia como objeto JSON o como string
             m_sug_dict = re.search(r'"(?:sugerencia_7_herds_trading|sugerencia)"\s*:\s*(\{[\s\S]*?\n\s*\})', limpio)
@@ -548,6 +586,19 @@ class MiaQuantSupervisor:
 
         # 4. Notificar a Slack (#mia-trading-insights) con Block Kit RLHF (Idéntico a Imagen 1)
         profit_fmt = f"${profit:.2f} USD" if profit >= 0 else f"-${abs(profit):.2f} USD"
+        cluster_tag = "🏛️ Clúster: COMEX Metals (CFD Spot | Volatilidad: GVZ)" if symbol == "XAUUSD" else "🏛️ Clúster: CME G5 FX Basket (Forex Spot | Volatilidad: FXVL)"
+        
+        # Formatear pesos en caliente para visualización inmediata
+        weights_summary = (
+            f"TIDAL: `{herd_weights.get('herd_1_tidal', 1.0)}` | "
+            f"NORO: `{herd_weights.get('herd_2_noro', 1.0)}` | "
+            f"ZEPHR: `{herd_weights.get('herd_3_zephr', 1.0)}` | "
+            f"LUMEN: `{herd_weights.get('herd_4_lumen', 1.0)}` | "
+            f"RUNE: `{herd_weights.get('herd_5_rune', 1.0)}` | "
+            f"TF: `{herd_weights.get('herd_6_tensorflow', 1.0)}` | "
+            f"ATLAS: `{herd_weights.get('herd_7_atlas', 1.0)}`"
+        )
+
         if slack_bridge and (slack_bridge.bot_token or slack_bridge.quant_bot_token):
             msg_fallback = f"MIA Quant: Análisis para {ticket} en {symbol}"
             blocks = [
@@ -555,7 +606,7 @@ class MiaQuantSupervisor:
                     "type": "header",
                     "text": {
                         "type": "plain_text",
-                        "text": f"🌌 MIA QUANT: Post-Mortem Trade {ticket}",
+                        "text": f"🌌 MIA QUANT: Post-Mortem Trade #{ticket}",
                         "emoji": True
                     }
                 },
@@ -564,21 +615,26 @@ class MiaQuantSupervisor:
                     "text": {
                         "type": "mrkdwn",
                         "text": (
-                            f"*Símbolo:* {symbol} | *Resultado:* `{profit_fmt}` ({r_multiplo:+.2f}R)\n"
-                            f"*⚖️ RL Score:* `{recompensa_neta:+.2f}R` ({tipo_resultado}) | *Asimetría:* `{factor_asimetria:.2f}x`\n\n"
-                            f"*🧠 Diagnóstico Cuantitativo (Gemini Pro / Groq Inferencia):*\n{diagnostico}\n\n"
-                            f"*🎯 Acción Propuesta para los 7 Herds de Trading (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS):*\n{sugerencia_trading}"
+                            f"*Símbolo:* {symbol} ({cluster_tag})\n"
+                            f"*Resultado MT5:* `{profit_fmt}` ({r_multiplo:+.2f}R) | *RL Score:* `{recompensa_neta:+.2f}R` ({tipo_resultado})\n"
+                            f"*Factor Asimetría D/(1-D):* `{factor_asimetria:.2f}x` | *CBR Case:* `{case_id}`\n\n"
+                            f"*🧠 Diagnóstico Cuantitativo (Gemini Pro / Groq):*\n{diagnostico}"
                         )
                     }
                 },
                 {
-                    "type": "context",
-                    "elements": [
-                        {
-                            "type": "mrkdwn",
-                            "text": f"Caso CBR: `{case_id}` | 🧠 *Memoria Viva:* `cache_trading_learning_kb` | Mandato HITL Activo."
-                        }
-                    ]
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*🎯 Propuestas de Calibración para los 7 Herds (RL & CBR):*\n{sugerencia_trading}"
+                    }
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*📊 Pesos RL en Caliente (cache_herd_rl_weights):*\n{weights_summary}"
+                    }
                 },
                 {
                     "type": "actions",
@@ -614,6 +670,15 @@ class MiaQuantSupervisor:
                             },
                             "value": f"review_{case_id}",
                             "action_id": f"quant_review_{ticket}"
+                        }
+                    ]
+                },
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": "🧠 *Memoria Viva:* `cache_trading_learning_kb` | Mandato HITL Activo | *Verificación Humana Obligatoria*."
                         }
                     ]
                 },

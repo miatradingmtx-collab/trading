@@ -2121,35 +2121,28 @@ async def ejecutar_escaner_cloud(account, connection, skip_risk=False):
 
             
             # -------------------------------------------------------------------------
-            # FILTRO ANTI-CONTRATENDENCIA OBLIGATORIO PARA XAUUSD (MÁXIMOS HISTÓRICOS)
+            # -------------------------------------------------------------------------
+            # FILTRO INSTITUCIONAL COMEX METALS / CFD SPOT (XAUUSD ATH DINÁMICO)
             # -------------------------------------------------------------------------
             if "XAU" in activo.upper() or "GOLD" in activo.upper():
-                # Detección dinámica de régimen de Máximos Históricos (ATH / Price Discovery)
-                # En 2026, XAUUSD cotiza en su rally histórico de $4,100 - $4,160+ USD por onza.
-                # Se activa si el precio está sobre el umbral institucional ($3,800 USD) y por encima de la EMA 200.
-                es_ath_xau = (precio_actual >= 3800.0) and (precio_actual > ema_200)
+                # Detección dinámica de régimen ATH en COMEX Gold Futures (< 0.5% del pico macro)
+                es_ath_xau = (dist_macro_high_pct is not None and dist_macro_high_pct < 0.50)
 
                 if es_ath_xau:
-                    if accion == "VENTA":
-                        print(f"| FILTRO XAUUSD MACRO | 🛑 VETO ANTI-CONTRATENDENCIA: {activo} en Máximos Históricos (${precio_actual:.2f} USD). "
-                              f"Estructura macro alcista. Quedan ESTRICTAMENTE PROHIBIDAS las órdenes de VENTA. "
-                              f"Solo se autorizan COMPRAS en retroceso a zonas de demanda.")
+                    # FILTRO ANTI-CAZA ATH: Prohibido comprar en la cresta sin retroceso previo
+                    if accion == "COMPRA":
+                        print(f"| FILTRO XAUUSD COMEX | 🚫 VETO ANTI-CAZA ATH: {activo} en zona de Máximos Históricos ({dist_macro_high_pct:.2f}% del pico). "
+                              f"Queda estrictamente prohibido comprar en el techo sin retroceso de 30-50 pips.")
                         continue
-                    elif accion == "COMPRA":
-                        # Validar que sea COMPRA ESTRATÉGICA EN RETROCESO (Pullback a zonas de demanda / OB 1H-4H / FVG / SSL sweep)
-                        tiene_zona_demanda = bool(
-                            sweep_alcista_global or 
-                            memoria_inst.get("lux_algo_ob_1h_alcista") or 
-                            memoria_inst.get("lux_algo_ob_2h_alcista") or 
-                            memoria_inst.get("lux_algo_ob_3h_alcista") or 
-                            memoria_inst.get("lux_algo_ob_4h_alcista") or 
-                            confirmaciones.get("order_block", False) or 
-                            confirmaciones.get("fvg", False) or
-                            (dist_macro_low_pct is not None and dist_macro_low_pct < 1.0)
-                        )
-                        if not tiene_zona_demanda:
-                            print(f"| FILTRO XAUUSD MACRO | ⚠️ COMPRA en {activo} pospuesta: Aunque está en ATH, el precio está extendido y no se encuentra en zona de demanda (OB 1H-4H o Sweep). Esperando retroceso.")
+                    elif accion == "VENTA":
+                        # En la cresta de ATH solo se permiten ventas si hay barrido macro de Buy Stops confirmado
+                        if not macro_sweep_bajista:
+                            print(f"| FILTRO XAUUSD COMEX | ⏳ VENTA en ATH pospuesta: Esperando barrido institucional de Buy Stops macro.")
                             continue
+                else:
+                    # ORO EN RETROCESO / CORRECCIÓN / RANGO COMEX (Distancia >= 0.5%, como el 2.55% actual)
+                    # Operativa bidireccional permitida: se evalúa normalmente según confluencia de 7 Herds y EMAs
+                    pass
 
             # Construcción del contexto AMD enriquecido
             amd_context = {
