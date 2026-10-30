@@ -1419,10 +1419,18 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 deals = deals_resp
                 
             if deals:
-                # Filtrar el deal de salida o acumular PnL de los deals asociados al ticket
-                pnl_final = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in deals)
-                # Tomar el precio de ejecución del Ãºltimo deal
-                precio_cierre = float(deals[-1].get('price', info["price_open"]))
+                # Filtrar el deal de salida o acumular PnL excluyendo depósitos/retiros de balance
+                trade_deals = [d for d in deals if str(d.get('type', '')).upper() not in ['DEAL_TYPE_BALANCE', 'DEAL_TYPE_CREDIT', '2', 'BALANCE']]
+                if not trade_deals:
+                    trade_deals = deals
+                pnl_calc = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in trade_deals)
+                vol_chk = float(info.get("volume", 0.01) or 0.01)
+                max_pnl_allowed = max(200.0, vol_chk * 4000.0)
+                if abs(pnl_calc) > max_pnl_allowed:
+                    print(f"| GESTOR COBROS WARNING | PnL anómalo detectado (${pnl_calc:.2f}) para volumen {vol_chk}. Recalculando con pips...")
+                    raise ValueError("PnL anómalo fuera de escala")
+                pnl_final = pnl_calc
+                precio_cierre = float(trade_deals[-1].get('price', info["price_open"]))
                 print(f"| GESTOR COBROS | PnL real obtenido del Broker para Ticket {ticket}: ${pnl_final:.2f} (Precio salida: {precio_cierre})")
             else:
                 raise ValueError("No deals found")
@@ -1466,7 +1474,14 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                     deals = deals_resp
                     
                 if deals:
-                    pnl_sinc = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in deals)
+                    trade_deals = [d for d in deals if str(d.get('type', '')).upper() not in ['DEAL_TYPE_BALANCE', 'DEAL_TYPE_CREDIT', '2', 'BALANCE']]
+                    if not trade_deals:
+                        trade_deals = deals
+                    pnl_calc = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in trade_deals)
+                    if abs(pnl_calc) <= 500.0:
+                        pnl_sinc = pnl_calc
+                    else:
+                        print(f"| GESTOR RIESGO WARNING | PnL anómalo ignorado en deal sinc ticket {t}: {pnl_calc}")
             except:
                 pass
                         

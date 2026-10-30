@@ -1241,11 +1241,12 @@ def recalcular_memoria_colectiva():
             cat_ind = {}
             for idoc in db.collection("mia_kb").document("indicadores_impacto").collection("detalle").stream():
                 idt = idoc.to_dict()
-                t_val = idt.get("trades") or idt.get("trades_con_indicador") or idt.get("ocurrencias") or 0
-                g_val = idt.get("ganados") or idt.get("trades_ganados_con") or 0
-                p_val = idt.get("perdidos") or idt.get("trades_perdidos_con") or 0
+                g_val = int(idt.get("ganados") or idt.get("trades_ganados_con") or 0)
+                p_val = int(idt.get("perdidos") or idt.get("trades_perdidos_con") or 0)
+                sum_gp = g_val + p_val
+                t_val = sum_gp if sum_gp > 0 else int(idt.get("trades") or idt.get("trades_con_indicador") or idt.get("ocurrencias") or 0)
                 pnl_val = idt.get("pnl_acumulado") if idt.get("pnl_acumulado") is not None else idt.get("pnl_generado", 0.0)
-                wr_val = idt.get("win_rate_indicador") if idt.get("win_rate_indicador") is not None else idt.get("win_rate", 0.0)
+                wr_val = round((g_val / t_val) * 100, 2) if t_val > 0 else (idt.get("win_rate_indicador") if idt.get("win_rate_indicador") is not None else idt.get("win_rate", 0.0))
                 cat_ind[idoc.id] = {
                     "nombre": idoc.id,
                     "trades": int(t_val),
@@ -1270,11 +1271,12 @@ def recalcular_memoria_colectiva():
             cat_pat = {}
             for pdoc in db.collection("mia_kb").document("patrones_ict_smc").collection("detalle").stream():
                 pdt = pdoc.to_dict()
-                t_val = pdt.get("trades") or pdt.get("ocurrencias") or pdt.get("trades_con_indicador") or 0
-                g_val = pdt.get("ganados") or pdt.get("trades_ganados_con") or 0
-                p_val = pdt.get("perdidos") or pdt.get("trades_perdidos_con") or 0
+                g_val = int(pdt.get("ganados") or pdt.get("trades_ganados_con") or 0)
+                p_val = int(pdt.get("perdidos") or pdt.get("trades_perdidos_con") or 0)
+                sum_gp = g_val + p_val
+                t_val = sum_gp if sum_gp > 0 else int(pdt.get("trades") or pdt.get("ocurrencias") or pdt.get("trades_con_indicador") or 0)
                 pnl_val = pdt.get("pnl_acumulado") if pdt.get("pnl_acumulado") is not None else pdt.get("pnl_generado", 0.0)
-                wr_val = pdt.get("win_rate") if pdt.get("win_rate") is not None else pdt.get("win_rate_indicador", 0.0)
+                wr_val = round((g_val / t_val) * 100, 2) if t_val > 0 else (pdt.get("win_rate") if pdt.get("win_rate") is not None else pdt.get("win_rate_indicador", 0.0))
                 cat_pat[pdoc.id] = {
                     "nombre": pdoc.id,
                     "trades": int(t_val),
@@ -1443,6 +1445,7 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                     
                 t_data["trades_con_indicador"] = t_data.get("trades_con_indicador", t_data.get("ocurrencias", 0)) + 1
                 t_data["ocurrencias"] = t_data["trades_con_indicador"]
+                t_data["trades"] = t_data["trades_con_indicador"]
                 if es_ganado:
                     t_data["trades_ganados_con"] = t_data.get("trades_ganados_con", t_data.get("ganados", 0)) + 1
                     t_data["ganados"] = t_data["trades_ganados_con"]
@@ -1450,8 +1453,14 @@ def actualizar_aprendizaje_mia(activo: str, pnl: float, ticket: str = ""):
                     t_data["trades_perdidos_con"] = t_data.get("trades_perdidos_con", t_data.get("perdidos", 0)) + 1
                     t_data["perdidos"] = t_data["trades_perdidos_con"]
                     
-                t_data["pnl_acumulado"] = round(float(t_data.get("pnl_acumulado", t_data.get("pnl_generado", 0.0))) + float(pnl), 2)
-                t_data["pnl_generado"] = t_data["pnl_acumulado"]
+                # Blindaje anti-glitch / retiros de balance (> +-500 USD en microlotes)
+                pnl_num = float(pnl)
+                if abs(pnl_num) <= 500.0:
+                    t_data["pnl_acumulado"] = round(float(t_data.get("pnl_acumulado", t_data.get("pnl_generado", 0.0))) + pnl_num, 2)
+                    t_data["pnl_generado"] = t_data["pnl_acumulado"]
+                else:
+                    print(f"| KB SANITY ALERT | PnL anomalo ignorado para KB: {pnl_num} USD en {confirmacion}")
+                    
                 if t_data["trades_con_indicador"] > 0:
                     wr_calc = round((t_data["trades_ganados_con"] / t_data["trades_con_indicador"]) * 100, 2)
                     t_data["win_rate_indicador"] = wr_calc

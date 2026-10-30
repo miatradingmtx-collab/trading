@@ -667,10 +667,20 @@ def run_hft_cycle():
         
         ops_resumen = []
         for op in mt5_json.get("operaciones_activas", []):
-            act = op.get("activo", "N/A")
-            sl = op.get("sl", "N/A")
-            tp = op.get("take_profit", "N/A")
-            ops_resumen.append(f"{act} (SL:{sl}, TP:{tp})")
+            act = op.get("activo") or op.get("symbol") or "N/A"
+            sl_val = op.get("sl") if op.get("sl") is not None else (op.get("stopLoss") if op.get("stopLoss") is not None else op.get("stop_loss"))
+            tp_val = op.get("tp") if op.get("tp") is not None else (op.get("takeProfit") if op.get("takeProfit") is not None else op.get("take_profit"))
+            try:
+                sl_str = f"{float(sl_val):.5f}".rstrip('0').rstrip('.') if sl_val not in [None, "", 0, 0.0, "0", "0.0", "N/A"] else "N/A"
+            except (ValueError, TypeError):
+                sl_str = str(sl_val) if sl_val else "N/A"
+
+            try:
+                tp_str = f"{float(tp_val):.5f}".rstrip('0').rstrip('.') if tp_val not in [None, "", 0, 0.0, "0", "0.0", "N/A"] else "N/A"
+            except (ValueError, TypeError):
+                tp_str = str(tp_val) if tp_val else "N/A"
+
+            ops_resumen.append(f"{act} (SL:{sl_str}, TP:{tp_str})")
         str_ops = ", ".join(ops_resumen) if ops_resumen else "Ninguno"
         
         tf_acc = tf_json.get('accuracy', 0.5)
@@ -765,9 +775,17 @@ def run_hft_cycle():
                 spot_px = precios_spot.get(act, 0.0)
                 if isinstance(datos, dict):
                     poc = datos.get("poc_price", spot_px)
-                    tp = datos.get("take_profit", "N/A")
-                    sl = datos.get("sl", "N/A")
-                    scr = datos.get("score_tecnico", datos.get("score_porcentaje", 0))
+                    tp_val = datos.get("tp") if datos.get("tp") is not None else (datos.get("take_profit") if datos.get("take_profit") is not None else datos.get("takeProfit"))
+                    sl_val = datos.get("sl") if datos.get("sl") is not None else (datos.get("stop_loss") if datos.get("stop_loss") is not None else datos.get("stopLoss"))
+                    try:
+                        tp = f"{float(tp_val):.5f}".rstrip('0').rstrip('.') if tp_val not in [None, "", 0, 0.0, "0", "0.0", "N/A"] else "N/A"
+                    except (ValueError, TypeError):
+                        tp = str(tp_val) if tp_val else "N/A"
+                    try:
+                        sl = f"{float(sl_val):.5f}".rstrip('0').rstrip('.') if sl_val not in [None, "", 0, 0.0, "0", "0.0", "N/A"] else "N/A"
+                    except (ValueError, TypeError):
+                        sl = str(sl_val) if sl_val else "N/A"
+                    scr = datos.get("score_tecnico", datos.get("score_porcentaje", datos.get("score", 0)))
                     tag = " [SANDBOX]" if act in ACTIVOS_SANDBOX else " [LIVE]"
                     activos_resumen.append(f"[{act}{tag}] SPOT:{spot_px} POC:{poc} TP:{tp} SL:{sl} SCORE:{scr}%")
                 else:
