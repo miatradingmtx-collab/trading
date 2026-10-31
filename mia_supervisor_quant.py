@@ -640,7 +640,18 @@ class MiaQuantSupervisor:
 
         if self.db:
             try:
-                self.db.collection("mia_trading_learning_history").document(case_id).set(payload_cbr)
+                today_str = datetime.datetime.now().strftime('%Y-%m-%d')
+                # 1. Asegurar documento padre del Día
+                self.db.collection("mia_trading_learning_history").document(today_str).set({
+                    "fecha": today_str,
+                    "has_subcollections": True,
+                    "ultima_actualizacion": datetime.datetime.now().isoformat()
+                }, merge=True)
+                
+                # 2. Guardar caso dentro de la subcolección 'casos' por día
+                self.db.collection("mia_trading_learning_history").document(today_str).collection("casos").document(case_id).set(payload_cbr, merge=True)
+                
+                # 3. Snapshot en documento latest
                 latest_cbr_doc = {
                     "descripcion": "Snapshot canónico consolidado de memoria CBR Trading (Top 50 casos en vivo)",
                     "total_casos": len(cbr_top_50),
@@ -1032,6 +1043,30 @@ class MiaQuantSupervisor:
                     icon_emoji=":chart_with_upwards_trend:",
                     blocks=blocks
                 )
+
+            # Persistencia jerárquica en Documento del Día (Firestore)
+            if self.db:
+                try:
+                    report_doc = {
+                        "fecha": today_str,
+                        "has_subcollections": True,
+                        "pnl_total": total_pnl,
+                        "win_rate": win_rate,
+                        "total_trades": total_trades,
+                        "wins": len(wins),
+                        "losses": len(losses),
+                        "breakevens": len(breakevens),
+                        "balance_mt5": bal_mt5,
+                        "equity_mt5": equity_mt5,
+                        "drawdown_usd": dd_usd,
+                        "drawdown_pct": dd_pct,
+                        "recuperacion_requerida_pct": recup_req_pct,
+                        "estado_cuenta": estado_cuenta,
+                        "timestamp": datetime.datetime.now().isoformat()
+                    }
+                    self.db.collection("mia_trading_learning_history").document(today_str).set(report_doc, merge=True)
+                except Exception as e_fb_rep:
+                    print(f"| QUANT REPORT WARN | Error guardando reporte diario en Firestore: {e_fb_rep}")
 
             return {"status": "success", "total_trades": total_trades, "win_rate": win_rate, "total_pnl": total_pnl}
         except Exception as e:

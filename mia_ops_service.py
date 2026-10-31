@@ -430,23 +430,44 @@ async def slack_interactions_endpoint(request: Request, background_tasks: Backgr
                             "timestamp_aprobacion": datetime.datetime.now(datetime.timezone.utc).isoformat()
                         }
                         found_in_fb = False
+                        today_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+                        
+                        # A. Buscar en subcolección jerárquica del día
                         if target_case_id:
-                            doc_ref = db_fb.collection("mia_trading_learning_history").document(target_case_id)
-                            doc_snap = doc_ref.get()
-                            if doc_snap.exists:
-                                doc_ref.update(update_payload)
+                            doc_hier = db_fb.collection("mia_trading_learning_history").document(today_str).collection("casos").document(target_case_id)
+                            if doc_hier.get().exists:
+                                doc_hier.update(update_payload)
                                 found_in_fb = True
                         
+                        # B. Buscar en todas las subcolecciones 'casos' por case_id o ticket
+                        if not found_in_fb and target_case_id:
+                            docs_cg = db_fb.collection_group("casos").where("case_id", "==", target_case_id).stream()
+                            for dc in docs_cg:
+                                dc.reference.update(update_payload)
+                                found_in_fb = True
+                                
                         if not found_in_fb and ticket_id:
-                            docs = db_fb.collection("mia_trading_learning_history").where("ticket", "==", str(ticket_id)).stream()
-                            for d in docs:
-                                d.reference.update(update_payload)
+                            docs_cg_t = db_fb.collection_group("casos").where("ticket", "==", str(ticket_id)).stream()
+                            for dc in docs_cg_t:
+                                dc.reference.update(update_payload)
                                 found_in_fb = True
                         
-                        # Si no existía en Firestore, crearlo desde el caso en Upstash
+                        # C. Compatibilidad con raíz legacy
+                        if target_case_id:
+                            doc_legacy = db_fb.collection("mia_trading_learning_history").document(target_case_id)
+                            if doc_legacy.get().exists:
+                                doc_legacy.update(update_payload)
+                                found_in_fb = True
+                        
+                        # D. Si no existía, persistir en la jerarquía del día actual
                         if not found_in_fb and updated_case:
                             cid = target_case_id or f"TRADE_CASE_{ticket_id}_{int(time.time())}"
-                            db_fb.collection("mia_trading_learning_history").document(cid).set(updated_case)
+                            db_fb.collection("mia_trading_learning_history").document(today_str).set({
+                                "fecha": today_str,
+                                "has_subcollections": True,
+                                "ultima_actualizacion": datetime.datetime.now(datetime.timezone.utc).isoformat()
+                            }, merge=True)
+                            db_fb.collection("mia_trading_learning_history").document(today_str).collection("casos").document(cid).set(updated_case)
 
                         # Actualizar documento latest
                         try:

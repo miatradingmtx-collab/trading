@@ -5479,20 +5479,35 @@ async def handle_slack_interaction(request: Request):
                                 "timestamp_aprobacion": datetime.datetime.now(datetime.timezone.utc).isoformat()
                             }
                             found_in_fb = False
+                            today_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
                             if target_case_id:
-                                doc_ref = db.collection("mia_trading_learning_history").document(target_case_id)
-                                doc_snap = doc_ref.get()
-                                if doc_snap.exists:
-                                    doc_ref.update(update_payload)
+                                doc_hier = db.collection("mia_trading_learning_history").document(today_str).collection("casos").document(target_case_id)
+                                if doc_hier.get().exists:
+                                    doc_hier.update(update_payload)
+                                    found_in_fb = True
+                            if not found_in_fb and target_case_id:
+                                docs_cg = db.collection_group("casos").where("case_id", "==", target_case_id).stream()
+                                for dc in docs_cg:
+                                    dc.reference.update(update_payload)
                                     found_in_fb = True
                             if not found_in_fb and ticket_id:
-                                docs = db.collection("mia_trading_learning_history").where("ticket", "==", str(ticket_id)).stream()
-                                for d in docs:
-                                    d.reference.update(update_payload)
+                                docs_cg_t = db.collection_group("casos").where("ticket", "==", str(ticket_id)).stream()
+                                for dc in docs_cg_t:
+                                    dc.reference.update(update_payload)
+                                    found_in_fb = True
+                            if target_case_id:
+                                doc_legacy = db.collection("mia_trading_learning_history").document(target_case_id)
+                                if doc_legacy.get().exists:
+                                    doc_legacy.update(update_payload)
                                     found_in_fb = True
                             if not found_in_fb and updated_case:
                                 cid = target_case_id or f"TRADE_CASE_{ticket_id}_{int(time.time())}"
-                                db.collection("mia_trading_learning_history").document(cid).set(updated_case)
+                                db.collection("mia_trading_learning_history").document(today_str).set({
+                                    "fecha": today_str,
+                                    "has_subcollections": True,
+                                    "ultima_actualizacion": datetime.datetime.now(datetime.timezone.utc).isoformat()
+                                }, merge=True)
+                                db.collection("mia_trading_learning_history").document(today_str).collection("casos").document(cid).set(updated_case)
                             try:
                                 db.collection("mia_trading_learning_history").document("latest").set({
                                     "ultimo_caso_evaluado": target_case_id or ticket_id,
