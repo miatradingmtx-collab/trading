@@ -659,7 +659,7 @@ class MiaQuantSupervisor:
                     "slot_redis_principal": "cache_trading_learning_kb",
                     "ultima_actualizacion": datetime.datetime.now().isoformat()
                 }
-                self.db.collection("mia_trading_learning_history").document("latest").set(latest_cbr_doc)
+                self.db.collection("system_memory").document("latest_cbr").set(latest_cbr_doc)
             except Exception as e_fb:
                 print(f"| QUANT SUPERVISOR WARN | Error guardando CBR en Firestore: {e_fb}")
 

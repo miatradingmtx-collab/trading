@@ -5509,7 +5509,7 @@ async def handle_slack_interaction(request: Request):
                                 }, merge=True)
                                 db.collection("mia_trading_learning_history").document(today_str).collection("casos").document(cid).set(updated_case)
                             try:
-                                db.collection("mia_trading_learning_history").document("latest").set({
+                                db.collection("system_memory").document("latest_cbr").set({
                                     "ultimo_caso_evaluado": target_case_id or ticket_id,
                                     "veredicto_humano": action_type,
                                     "aprobado_por": user_name,

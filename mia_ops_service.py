@@ -471,7 +471,7 @@ async def slack_interactions_endpoint(request: Request, background_tasks: Backgr
 
                         # Actualizar documento latest
                         try:
-                            db_fb.collection("mia_trading_learning_history").document("latest").set({
+                            db_fb.collection("system_memory").document("latest_cbr").set({
                                 "ultimo_caso_evaluado": target_case_id or ticket_id,
                                 "veredicto_humano": action_type,
                                 "aprobado_por": user_name,
