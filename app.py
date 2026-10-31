@@ -5291,6 +5291,21 @@ async def handle_slack_interaction(request: Request):
         action_id = actions[0].get("action_id", "")
         val = actions[0].get("value", "")
 
+        # Telemetría forense en Upstash Redis para auditoría de clics en tiempo real
+        try:
+            up_h = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+            audit_entry = {
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "server": "927a",
+                "path": request.url.path,
+                "action_id": action_id,
+                "val": val,
+                "user": user_name
+            }
+            requests.post("https://firm-koi-93555.upstash.io/lpush/cache_slack_interactions_audit", headers=up_h, data=json.dumps(audit_entry), timeout=1)
+        except Exception as e_aud:
+            print(f"| SLACK AUDIT PUSH ERROR | {e_aud}")
+
         # 1. Ignorar cambios de estado en checkboxes (no son aprobación ni rechazo)
         if "selected_proposals_checkbox" in action_id or "checkboxes" in action_id:
             return Response(content="OK", media_type="text/plain", status_code=200)
