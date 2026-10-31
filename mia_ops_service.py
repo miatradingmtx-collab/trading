@@ -301,6 +301,21 @@ async def slack_interactions_endpoint(request: Request, background_tasks: Backgr
     user_name = payload.get("user", {}).get("name") or "Padre"
     channel_id = payload.get("channel", {}).get("id") or "C0C4ZMFCMJ8"
     response_url = payload.get("response_url", "")
+    
+    # Telemetría forense en Upstash Redis para auditoría de clics en tiempo real
+    try:
+        up_h = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+        audit_entry = {
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "server": "0b51",
+            "path": request.url.path,
+            "action_id": action_id,
+            "val": val,
+            "user": user_name
+        }
+        requests.post("https://firm-koi-93555.upstash.io/lpush/cache_slack_interactions_audit", headers=up_h, data=json.dumps(audit_entry), timeout=1)
+    except Exception:
+        pass
 
     # 1. Ignorar clics en los checkboxes directamente (solo guardan estado en el cliente)
     if "selected_proposals_checkbox" in action_id or "checkboxes" in action_id:

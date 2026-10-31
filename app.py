@@ -5215,6 +5215,43 @@ def dispatch_slack_confirmation(msg: str, response_url: str = ""):
         except Exception as e_br:
             print(f"| SLACK BRIDGE FALLBACK ERROR | {e_br}")
 
+@app.get("/api/slack/diag")
+def slack_diagnostics():
+    """Retorna el diagnóstico forense de los tokens de Slack, app_id, bot_id y telemetría de interacciones."""
+    from mia_slack_bridge import slack_bridge
+    diag = {}
+    tokens = {
+        "SLACK_BOT_TOKEN": slack_bridge.bot_token,
+        "SLACK_QUANT_BOT_TOKEN": slack_bridge.quant_bot_token,
+        "SLACK_MIA_CHAT_BOT_TOKEN": slack_bridge.chat_bot_token
+    }
+    for name, tok in tokens.items():
+        if tok:
+            try:
+                r = requests.post("https://slack.com/api/auth.test", headers={"Authorization": f"Bearer {tok}"}, timeout=4).json()
+                diag[name] = {
+                    "configured": True,
+                    "ok": r.get("ok"),
+                    "app_id": r.get("app_id"),
+                    "bot_id": r.get("bot_id"),
+                    "user": r.get("user"),
+                    "team": r.get("team"),
+                    "error": r.get("error")
+                }
+            except Exception as e:
+                diag[name] = {"configured": True, "error": str(e)}
+        else:
+            diag[name] = {"configured": False}
+    
+    try:
+        up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+        r_hist = requests.get("https://firm-koi-93555.upstash.io/lrange/cache_slack_interactions_audit/0/10", headers=up_headers, timeout=3).json()
+        diag["recent_slack_interactions"] = r_hist.get("result", [])
+    except Exception as e:
+        diag["recent_slack_interactions_error"] = str(e)
+        
+    return diag
+
 @app.post("/api/slack/interactions")
 @app.post("/slack/interactions")
 async def handle_slack_interaction(request: Request):
