@@ -5233,10 +5233,7 @@ def test_slack_hitl_buttons(token_type: str = "quant"):
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"• *Bot Emisor:* `{bot_label}`
-• *Canal:* `{channel_id}`
-• *Objetivo:* Validar respuesta instantánea de botones HITL sin advertencias ⚠️.
-• Presiona cualquiera de los 3 botones para verificar la recepción en Upstash Redis."
+                "text": f"• *Bot Emisor:* `{bot_label}`\n• *Canal:* `{channel_id}`\n• *Objetivo:* Validar respuesta instantánea de botones HITL sin advertencias ⚠️.\n• Presiona cualquiera de los 3 botones para verificar la recepción en Upstash Redis."
             }
         },
         {
