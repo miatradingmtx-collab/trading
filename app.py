@@ -5427,6 +5427,7 @@ async def handle_slack_interaction(request: Request):
                         up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
                         r_cbr = requests.get("https://firm-koi-93555.upstash.io/get/cache_trading_learning_kb", headers=up_headers, timeout=3).json()
                         cbr_data = json.loads(r_cbr.get("result", "[]")) if r_cbr.get("result") else []
+                        updated_case = None
                         for caso in cbr_data:
                             match = False
                             if target_case_id and str(caso.get("case_id")) == target_case_id:
@@ -5439,6 +5440,7 @@ async def handle_slack_interaction(request: Request):
                                 caso["aprobado_por"] = user_name
                                 caso["score_confianza"] = 1.0 if action_type == "APROBADO" else 0.0
                                 caso["timestamp_aprobacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                                updated_case = caso
                         
                         # Recalcular métricas de la Prueba de Confianza (Trust Mode)
                         aprobados = sum(1 for c in cbr_data if c.get("veredicto_humano") == "APROBADO")
@@ -5470,14 +5472,37 @@ async def handle_slack_interaction(request: Request):
                     # 2. Actualizar Firestore
                     if firebase_inicializado and db:
                         try:
-                            docs = db.collection("mia_trading_learning_history").where("ticket", "==", str(ticket_id)).limit(1).stream()
-                            for d in docs:
-                                d.reference.update({
+                            update_payload = {
+                                "veredicto_humano": action_type,
+                                "aprobado_por": user_name,
+                                "score_confianza": 1.0 if action_type == "APROBADO" else 0.0,
+                                "timestamp_aprobacion": datetime.datetime.now(datetime.timezone.utc).isoformat()
+                            }
+                            found_in_fb = False
+                            if target_case_id:
+                                doc_ref = db.collection("mia_trading_learning_history").document(target_case_id)
+                                doc_snap = doc_ref.get()
+                                if doc_snap.exists:
+                                    doc_ref.update(update_payload)
+                                    found_in_fb = True
+                            if not found_in_fb and ticket_id:
+                                docs = db.collection("mia_trading_learning_history").where("ticket", "==", str(ticket_id)).stream()
+                                for d in docs:
+                                    d.reference.update(update_payload)
+                                    found_in_fb = True
+                            if not found_in_fb and updated_case:
+                                cid = target_case_id or f"TRADE_CASE_{ticket_id}_{int(time.time())}"
+                                db.collection("mia_trading_learning_history").document(cid).set(updated_case)
+                            try:
+                                db.collection("mia_trading_learning_history").document("latest").set({
+                                    "ultimo_caso_evaluado": target_case_id or ticket_id,
                                     "veredicto_humano": action_type,
                                     "aprobado_por": user_name,
-                                    "score_confianza": 1.0 if action_type == "APROBADO" else 0.0,
-                                    "timestamp_aprobacion": datetime.datetime.now(datetime.timezone.utc).isoformat()
-                                })
+                                    "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                                    "prueba_de_confianza": trust_stats
+                                }, merge=True)
+                            except Exception:
+                                pass
                         except Exception as fb_err:
                             print(f"| QUANT CBR FIREBASE ERROR | {fb_err}")
                             

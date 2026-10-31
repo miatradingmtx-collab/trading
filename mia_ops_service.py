@@ -45,6 +45,52 @@ app.include_router(ops_mcp_router)
 app.include_router(api_ops_mcp_router)
 
 # ====================================================================
+# CLIENTE FIREBASE FIRESTORE (PERSISTENCIA HISTÓRICA HOMOLOGADA)
+# ====================================================================
+_firestore_db = None
+
+def get_firestore_db():
+    global _firestore_db
+    if _firestore_db is not None:
+        return _firestore_db
+    try:
+        import firebase_admin
+        from firebase_admin import credentials, firestore
+        if not firebase_admin._apps:
+            key_path = "serviceAccountKey.json"
+            if os.path.exists(key_path):
+                cred = credentials.Certificate(key_path)
+                firebase_admin.initialize_app(cred)
+            else:
+                for env_var in ["FIREBASE_SERVICE_ACCOUNT_JSON", "FIREBASE_SERVICE_ACCOUNT", "SERVICE_ACCOUNT_KEY"]:
+                    raw_val = os.getenv(env_var)
+                    if raw_val:
+                        try:
+                            info = json.loads(raw_val.strip())
+                            cred = credentials.Certificate(info)
+                            firebase_admin.initialize_app(cred)
+                            break
+                        except Exception:
+                            keys = ["type", "project_id", "private_key_id", "private_key", "client_email", "client_id", "auth_uri", "token_uri", "auth_provider_x509_cert_url", "client_x509_cert_url"]
+                            info = {}
+                            for k in keys:
+                                pat = re.compile(r'[\'"]' + re.escape(k) + r'[\'"]\s*:\s*[\'"](.*?)[\'"]', re.DOTALL)
+                                m = pat.search(raw_val)
+                                if m:
+                                    info[k] = m.group(1).replace(r'\\n', '\n')
+                            if "private_key" in info and "client_email" in info:
+                                cred = credentials.Certificate(info)
+                                firebase_admin.initialize_app(cred)
+                                break
+        if firebase_admin._apps:
+            _firestore_db = firestore.client()
+        return _firestore_db
+    except Exception as e_fb:
+        print(f"| FIREBASE CLIENT INIT ERROR | {e_fb}")
+        return None
+
+
+# ====================================================================
 # HEALTHCHECK & TELEMETRÍA
 # ====================================================================
 @app.get("/health")
@@ -331,8 +377,9 @@ async def slack_interactions_endpoint(request: Request, background_tasks: Backgr
                 
                 # 1. Actualizar Upstash CBR Trading
                 up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
-                r_cbr = requests.get("https://firm-koi-93555.upstash.io/get/cache_trading_learning_kb", headers=up_headers, timeout=3).json()
+                r_cbr = requests.get("https://firm-koi-93555.upstash.io/get/cache_trading_learning_kb", headers=up_headers, timeout=6).json()
                 cbr_data = json.loads(r_cbr.get("result", "[]")) if r_cbr.get("result") else []
+                updated_case = None
                 for caso in cbr_data:
                     match = False
                     if target_case_id and str(caso.get("case_id")) == target_case_id:
@@ -345,6 +392,7 @@ async def slack_interactions_endpoint(request: Request, background_tasks: Backgr
                         caso["aprobado_por"] = user_name
                         caso["score_confianza"] = 1.0 if action_type == "APROBADO" else 0.0
                         caso["timestamp_aprobacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                        updated_case = caso
                 
                 # Recalcular métricas de la Prueba de Confianza (Trust Mode)
                 aprobados = sum(1 for c in cbr_data if c.get("veredicto_humano") == "APROBADO")
@@ -371,13 +419,57 @@ async def slack_interactions_endpoint(request: Request, background_tasks: Backgr
                 requests.post("https://firm-koi-93555.upstash.io/set/cache_cbr_trust_mode", headers=up_headers, json=trust_stats)
                 requests.post("https://firm-koi-93555.upstash.io/set/cache_trading_learning_kb", headers=up_headers, json=cbr_data[:50])
 
+                # 2. Homologación Dual en Firebase Firestore (mia_trading_learning_history)
+                db_fb = get_firestore_db()
+                if db_fb:
+                    try:
+                        update_payload = {
+                            "veredicto_humano": action_type,
+                            "aprobado_por": user_name,
+                            "score_confianza": 1.0 if action_type == "APROBADO" else 0.0,
+                            "timestamp_aprobacion": datetime.datetime.now(datetime.timezone.utc).isoformat()
+                        }
+                        found_in_fb = False
+                        if target_case_id:
+                            doc_ref = db_fb.collection("mia_trading_learning_history").document(target_case_id)
+                            doc_snap = doc_ref.get()
+                            if doc_snap.exists:
+                                doc_ref.update(update_payload)
+                                found_in_fb = True
+                        
+                        if not found_in_fb and ticket_id:
+                            docs = db_fb.collection("mia_trading_learning_history").where("ticket", "==", str(ticket_id)).stream()
+                            for d in docs:
+                                d.reference.update(update_payload)
+                                found_in_fb = True
+                        
+                        # Si no existía en Firestore, crearlo desde el caso en Upstash
+                        if not found_in_fb and updated_case:
+                            cid = target_case_id or f"TRADE_CASE_{ticket_id}_{int(time.time())}"
+                            db_fb.collection("mia_trading_learning_history").document(cid).set(updated_case)
+
+                        # Actualizar documento latest
+                        try:
+                            db_fb.collection("mia_trading_learning_history").document("latest").set({
+                                "ultimo_caso_evaluado": target_case_id or ticket_id,
+                                "veredicto_humano": action_type,
+                                "aprobado_por": user_name,
+                                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                                "prueba_de_confianza": trust_stats
+                            }, merge=True)
+                        except Exception:
+                            pass
+                        print(f"| FIREBASE CBR SYNC | Caso {target_case_id or ticket_id} homologado exitosamente en Firestore mia_trading_learning_history.")
+                    except Exception as e_fb:
+                        print(f"| FIREBASE CBR SYNC ERROR | {e_fb}")
+
                 emoji_status = "✅" if action_type == "APROBADO" else ("❌" if action_type == "RECHAZADO" else "🔍")
                 estado_auto = "🚀 MODO_AUTÓNOMO (CONFIANZA SUPERADA)" if trust_mode_activo else f"🔒 ASISTIDO_HITL (Progreso: {racha}/20 racha | Tasa: {tasa_confianza}%)"
                 msg_quant = (
                     f"{emoji_status} *MIA COGNICIÓN CBR:* Aprendizaje del trade `{ticket_id}` registrado como *{action_type}* por @{user_name}.\n"
                     f"• *Confianza Sello Humano:* `{'100% (Verificado)' if action_type == 'APROBADO' else 'Descartado'}`.\n"
                     f"• *🛡️ Prueba de Confianza (Hacia la Autonomía):* `{estado_auto}` ({aprobados} aprobados / {rechazados} rechazados).\n"
-                    f"• *Destino:* `cache_trading_learning_kb` y memoria viva sincronizados con Gemini Pro y ATLAS."
+                    f"• *Destino:* `cache_trading_learning_kb` y `mia_trading_learning_history` (Firebase) sincronizados con Gemini Pro y ATLAS."
                 )
                 
                 # Despacho dual: response_url + canal de insights
