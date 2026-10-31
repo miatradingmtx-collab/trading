@@ -5309,6 +5309,7 @@ async def handle_slack_interaction(request: Request):
                 try:
                     ticket_id = action_id.replace("quant_approve_", "").replace("quant_reject_", "").replace("quant_review_", "")
                     action_type = "APROBADO" if "quant_approve_" in action_id else ("RECHAZADO" if "quant_reject_" in action_id else "REVISION")
+                    target_case_id = val.replace("approve_", "").replace("reject_", "").replace("review_", "") if val else ""
                     
                     # 1. Actualizar Upstash CBR Trading
                     try:
@@ -5316,7 +5317,13 @@ async def handle_slack_interaction(request: Request):
                         r_cbr = requests.get("https://firm-koi-93555.upstash.io/get/cache_trading_learning_kb", headers=up_headers, timeout=3).json()
                         cbr_data = json.loads(r_cbr.get("result", "[]")) if r_cbr.get("result") else []
                         for caso in cbr_data:
-                            if str(caso.get("ticket")) == str(ticket_id):
+                            match = False
+                            if target_case_id and str(caso.get("case_id")) == target_case_id:
+                                match = True
+                            elif not target_case_id and str(caso.get("ticket")) == str(ticket_id):
+                                match = True
+                            
+                            if match:
                                 caso["veredicto_humano"] = action_type
                                 caso["aprobado_por"] = user_name
                                 caso["score_confianza"] = 1.0 if action_type == "APROBADO" else 0.0

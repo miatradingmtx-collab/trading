@@ -520,12 +520,32 @@ class MiaQuantSupervisor:
         r_multiplo = round(profit / riesgo_base_usd, 2) if riesgo_base_usd > 0 else 0.0
         
         # Factor de Asimetría según Ley D / (1 - D)
-        bal_actual = float(trade.get("balance", 3324.74) or 3324.74)
+        bal_actual = float(trade.get("balance", 3306.26) or 3306.26)
         drawdown_base = max(0.0, 5000.0 - bal_actual)
         d_frac = min(0.95, drawdown_base / 5000.0)
         factor_asimetria = round(1.0 / (1.0 - d_frac), 2) if d_frac < 1.0 else 1.0
 
-        if profit > 0:
+        # Detección de remanente post-cierre parcial (Protección Break-Even de RUNE)
+        prev_cases = [c for c in cbr_history if str(c.get('ticket')) == ticket]
+        prev_parcial_profit = sum([float(c.get('profit', 0.0) or 0.0) for c in prev_cases])
+        net_trade_profit = round(prev_parcial_profit + profit, 2)
+        es_remanente_post_parcial = (len(prev_cases) > 0 and prev_parcial_profit > 0)
+
+        if es_remanente_post_parcial and net_trade_profit > 0:
+            # Mandato Canónico: Si la posición cobró parcial ganador (+22.88 USD) y el remanente cierra en BE (-4.62 USD),
+            # el PnL neto es positivo (+18.26 USD). ¡RUNE cumplió la gestión institucional! Premio por protección.
+            recompensa_neta = +0.50
+            delta_weights = {
+                "herd_1_tidal": 0.02,
+                "herd_2_noro": 0.03,
+                "herd_3_zephr": 0.02,
+                "herd_4_lumen": 0.04,
+                "herd_5_rune": 0.08,
+                "herd_6_tensorflow": 0.02,
+                "herd_7_atlas": 0.03
+            }
+            tipo_resultado = "GANADOR_BE_PROTEGIDO"
+        elif profit > 0:
             # Mandato Canónico: Todo WIN parte de como mínimo +1.0R (o ratio superior si superó 1:1)
             r_win_base = max(1.0, round(profit / riesgo_base_usd, 2) if riesgo_base_usd > 0 else 1.0)
             recompensa_neta = round(r_win_base * 1.0, 2)
@@ -889,37 +909,89 @@ class MiaQuantSupervisor:
         return {"status": "success", "closed_trades": len(closed_trades), "new_cases": new_cases}
 
     def generate_daily_quant_summary_report(self):
-        """Genera y publica el reporte cuantitativo diario en #mia-trading-insights."""
+        """Genera y publica el reporte cuantitativo diario en #mia-trading-insights con Verdad Financiera MT5."""
         today_str = datetime.datetime.now().strftime('%Y-%m-%d')
         print(f"| QUANT SUPERVISOR | Generando Reporte Diario Cuantitativo ({today_str})...")
-        if not self.db:
-            return {"status": "error", "message": "Firestore no disponible"}
 
+        # 1. Obtener Verdad Contable de MT5 (cache_mt5 en Upstash)
+        pnl_mt5_hoy = 0.0
+        bal_mt5 = 3306.26
+        equity_mt5 = 3312.14
         try:
-            docs = self.db.collection('mia_audit_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(100).stream()
-            today_trades = []
-            for doc in docs:
-                data = doc.to_dict()
-                ticket = str(data.get('ticket', doc.id))
-                ts = str(data.get('timestamp', ''))
-                if today_str in ts and ticket.isdigit() and len(ticket) >= 8:
-                    pnl = float(data.get('pnl', 0.0) or 0.0)
-                    accion = data.get('accion', '')
-                    if accion in ['CIERRE_TOTAL', 'CERRAR_TP', 'CIERRE_PARCIAL', 'TRAILING_STOP', 'PROTECCION_BE'] or pnl != 0.0:
-                        today_trades.append({
-                            'ticket': ticket, 'activo': data.get('activo', 'EURUSD'),
-                            'pnl': pnl, 'accion': accion, 'timestamp': ts
-                        })
+            r_m = requests.get(f"{self.UPSTASH_URL}/get/cache_mt5", headers=self.UPSTASH_HEADERS, timeout=4).json()
+            raw_m = r_m.get("result")
+            if raw_m:
+                d_m = json.loads(raw_m) if isinstance(raw_m, str) else raw_m
+                pnl_mt5_hoy = float(d_m.get("pnl_cerrado_hoy", 0.0) or 0.0)
+                bal_mt5 = float(d_m.get("balance", bal_mt5) or bal_mt5)
+                equity_mt5 = float(d_m.get("equity", equity_mt5) or equity_mt5)
+        except Exception as e_m:
+            print(f"| QUANT REPORT WARN | Error leyendo cache_mt5: {e_m}")
 
-            total_trades = len(today_trades)
-            if total_trades == 0:
+        # 2. Reconstruir operaciones cerradas del día agrupando por ticket (anti-pérdida de parciales)
+        try:
+            r_cbr = requests.get(f"{self.UPSTASH_URL}/get/cache_trading_learning_kb", headers=self.UPSTASH_HEADERS, timeout=4).json()
+            cbr_cases = json.loads(r_cbr.get("result", "[]")) if r_cbr.get("result") else []
+            
+            tickets_data = {}
+            for c in cbr_cases:
+                ts = str(c.get("fecha", ""))
+                t_id = str(c.get("ticket", ""))
+                if today_str in ts and t_id.isdigit() and len(t_id) >= 8:
+                    if t_id not in tickets_data:
+                        tickets_data[t_id] = {
+                            "ticket": t_id,
+                            "symbol": c.get("symbol", "N/A"),
+                            "pnl": 0.0,
+                            "deals": []
+                        }
+                    pnl_c = float(c.get("profit", 0.0) or 0.0)
+                    tickets_data[t_id]["pnl"] += pnl_c
+                    tickets_data[t_id]["deals"].append(pnl_c)
+
+            # Complementar con mia_audit_logs si hay tickets no presentes en CBR
+            if self.db:
+                try:
+                    docs = self.db.collection('mia_audit_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(100).stream()
+                    for doc in docs:
+                        data = doc.to_dict()
+                        ticket = str(data.get('ticket', doc.id))
+                        ts = str(data.get('timestamp', ''))
+                        if today_str in ts and ticket.isdigit() and len(ticket) >= 8:
+                            pnl = float(data.get('pnl', 0.0) or 0.0)
+                            accion = data.get('accion', '')
+                            if accion in ['CIERRE_TOTAL', 'CERRAR_TP', 'CIERRE_PARCIAL', 'TRAILING_STOP', 'PROTECCION_BE'] or pnl != 0.0:
+                                if ticket not in tickets_data:
+                                    tickets_data[ticket] = {
+                                        "ticket": ticket,
+                                        "symbol": data.get("activo", "EURUSD"),
+                                        "pnl": pnl,
+                                        "deals": [pnl]
+                                    }
+                except Exception as e_fb:
+                    print(f"| QUANT REPORT WARN | Error leyendo Firestore mia_audit_logs: {e_fb}")
+
+            total_trades = len(tickets_data)
+            if total_trades == 0 and pnl_mt5_hoy == 0.0:
                 return {"status": "no_trades", "message": "Sin operaciones cerradas hoy."}
 
-            wins = [t for t in today_trades if t['pnl'] > 0]
-            losses = [t for t in today_trades if t['pnl'] < 0]
-            breakevens = [t for t in today_trades if t['pnl'] == 0]
-            total_pnl = sum([t['pnl'] for t in today_trades])
+            wins = [t for t in tickets_data.values() if t['pnl'] > 0]
+            losses = [t for t in tickets_data.values() if t['pnl'] < 0]
+            breakevens = [t for t in tickets_data.values() if t['pnl'] == 0]
+
+            total_pnl = pnl_mt5_hoy if pnl_mt5_hoy != 0.0 else sum([t['pnl'] for t in tickets_data.values()])
             win_rate = (len(wins) / (len(wins) + len(losses)) * 100) if (len(wins) + len(losses)) > 0 else 0.0
+
+            # Métricas Canónicas de Verdad Financiera Base $5,000 USD y Ley D / (1 - D)
+            base_capital = 5000.0
+            dd_usd = max(0.0, base_capital - bal_mt5)
+            dd_pct = (dd_usd / base_capital) * 100
+            recup_req_pct = (dd_usd / bal_mt5 * 100) if bal_mt5 > 0 else 0.0
+
+            estado_cuenta = (
+                f"EN RECUPERACIÓN / BAJO DRAWDOWN SEVERO ACUMULADO (-${dd_usd:.2f} USD / -{dd_pct:.2f}% vs Base $5,000)"
+                if bal_mt5 < base_capital else "RESTABLECIDA / SALUDABLE (>= $5,000.00 USD)"
+            )
 
             emoji_pnl = "🟢" if total_pnl >= 0 else "🔴"
             blocks = [
@@ -930,21 +1002,31 @@ class MiaQuantSupervisor:
                 {
                     "type": "section",
                     "fields": [
-                        {"type": "mrkdwn", "text": f"*PnL Neto:* `{emoji_pnl} ${total_pnl:.2f} USD`"},
+                        {"type": "mrkdwn", "text": f"*PnL Neto MT5:* `{emoji_pnl} ${total_pnl:.2f} USD`"},
                         {"type": "mrkdwn", "text": f"*Win Rate:* `{win_rate:.1f}%` ({len(wins)}W / {len(losses)}L / {len(breakevens)}BE)"},
-                        {"type": "mrkdwn", "text": f"*Operaciones:* `{total_trades} cerradas`"}
+                        {"type": "mrkdwn", "text": f"*Posiciones Cerradas:* `{total_trades}`"},
+                        {"type": "mrkdwn", "text": f"*Balance Real MT5:* `${bal_mt5:.2f} USD`"}
+                    ]
+                },
+                {
+                    "type": "section",
+                    "fields": [
+                        {"type": "mrkdwn", "text": f"*Drawdown vs Base $5,000:* `-${dd_usd:.2f} USD` (`-{dd_pct:.2f}%`)"},
+                        {"type": "mrkdwn", "text": f"*Recuperación Asimétrica Req:* `+{recup_req_pct:.2f}%`"}
                     ]
                 },
                 {
                     "type": "context",
-                    "elements": [{"type": "mrkdwn", "text": "🤖 *MIA Quant Supervisor (Gemini Pro)* | Gobernanza HITL activa."}]
+                    "elements": [
+                        {"type": "mrkdwn", "text": f"🏛️ *Estado Oficial:* `{estado_cuenta}`\n🤖 *MIA Quant Supervisor (Gemini Pro)* | Gobernanza HITL activa."}
+                    ]
                 },
                 {"type": "divider"}
             ]
 
             if slack_bridge:
                 slack_bridge.send_channel_message(
-                    text=f"Reporte Diario Quant: PnL ${total_pnl:.2f} | Win Rate {win_rate:.1f}%",
+                    text=f"Reporte Diario Quant: PnL ${total_pnl:.2f} | Win Rate {win_rate:.1f}% | Balance ${bal_mt5:.2f}",
                     channel=self.SLACK_INSIGHTS_CHANNEL,
                     username="MIA Quant Supervisor",
                     icon_emoji=":chart_with_upwards_trend:",
