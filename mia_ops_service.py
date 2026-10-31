@@ -276,6 +276,7 @@ async def slack_events_endpoint(request: Request, background_tasks: BackgroundTa
     return PlainTextResponse("EVENT_RECEIVED", status_code=200)
 
 @app.post("/api/slack/interactions")
+@app.post("/slack/interactions")
 async def slack_interactions_endpoint(request: Request, background_tasks: BackgroundTasks):
     """
     Maneja las interacciones de botones y checkboxes en Slack.
@@ -305,8 +306,80 @@ async def slack_interactions_endpoint(request: Request, background_tasks: Backgr
     if "selected_proposals_checkbox" in action_id or "checkboxes" in action_id:
         return PlainTextResponse("OK", status_code=200)
 
-    # 2. Botón: Aprobar Seleccionadas
-    if "approve_selected" in val or "approve_selected" in action_id:
+    # 2. Botones de MIA Quant Supervisor (RLHF Post-Mortem y CBR Trading)
+    if action_id.startswith("quant_approve_") or action_id.startswith("quant_reject_") or action_id.startswith("quant_review_"):
+        def do_quant_interaction():
+            try:
+                ticket_id = action_id.replace("quant_approve_", "").replace("quant_reject_", "").replace("quant_review_", "")
+                action_type = "APROBADO" if "quant_approve_" in action_id else ("RECHAZADO" if "quant_reject_" in action_id else "REVISION")
+                target_case_id = val.replace("approve_", "").replace("reject_", "").replace("review_", "") if val else ""
+                
+                # 1. Actualizar Upstash CBR Trading
+                up_headers = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+                r_cbr = requests.get("https://firm-koi-93555.upstash.io/get/cache_trading_learning_kb", headers=up_headers, timeout=3).json()
+                cbr_data = json.loads(r_cbr.get("result", "[]")) if r_cbr.get("result") else []
+                for caso in cbr_data:
+                    match = False
+                    if target_case_id and str(caso.get("case_id")) == target_case_id:
+                        match = True
+                    elif not target_case_id and str(caso.get("ticket")) == str(ticket_id):
+                        match = True
+                    
+                    if match:
+                        caso["veredicto_humano"] = action_type
+                        caso["aprobado_por"] = user_name
+                        caso["score_confianza"] = 1.0 if action_type == "APROBADO" else 0.0
+                        caso["timestamp_aprobacion"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                
+                # Recalcular métricas de la Prueba de Confianza (Trust Mode)
+                aprobados = sum(1 for c in cbr_data if c.get("veredicto_humano") == "APROBADO")
+                rechazados = sum(1 for c in cbr_data if c.get("veredicto_humano") == "RECHAZADO")
+                resueltos = aprobados + rechazados
+                tasa_confianza = round((aprobados / resueltos * 100), 1) if resueltos > 0 else 0.0
+
+                racha = 0
+                for c in cbr_data:
+                    if c.get("veredicto_humano") == "APROBADO":
+                        racha += 1
+                    elif c.get("veredicto_humano") == "RECHAZADO":
+                        break
+
+                trust_mode_activo = (racha >= 20 and tasa_confianza >= 90.0)
+                trust_stats = {
+                    "aprobados_hitl": aprobados,
+                    "rechazados_hitl": rechazados,
+                    "racha_consecutiva": racha,
+                    "tasa_confianza_pct": tasa_confianza,
+                    "trust_mode_activo": trust_mode_activo,
+                    "ultima_actualizacion": datetime.datetime.now(datetime.timezone.utc).isoformat()
+                }
+                requests.post("https://firm-koi-93555.upstash.io/set/cache_cbr_trust_mode", headers=up_headers, json=trust_stats)
+                requests.post("https://firm-koi-93555.upstash.io/set/cache_trading_learning_kb", headers=up_headers, json=cbr_data[:50])
+
+                emoji_status = "✅" if action_type == "APROBADO" else ("❌" if action_type == "RECHAZADO" else "🔍")
+                estado_auto = "🚀 MODO_AUTÓNOMO (CONFIANZA SUPERADA)" if trust_mode_activo else f"🔒 ASISTIDO_HITL (Progreso: {racha}/20 racha | Tasa: {tasa_confianza}%)"
+                msg_quant = (
+                    f"{emoji_status} *MIA COGNICIÓN CBR:* Aprendizaje del trade `{ticket_id}` registrado como *{action_type}* por @{user_name}.\n"
+                    f"• *Confianza Sello Humano:* `{'100% (Verificado)' if action_type == 'APROBADO' else 'Descartado'}`.\n"
+                    f"• *🛡️ Prueba de Confianza (Hacia la Autonomía):* `{estado_auto}` ({aprobados} aprobados / {rechazados} rechazados).\n"
+                    f"• *Destino:* `cache_trading_learning_kb` y memoria viva sincronizados con Gemini Pro y ATLAS."
+                )
+                
+                # Despacho dual: response_url + canal de insights
+                if response_url:
+                    try:
+                        requests.post(response_url, json={"text": msg_quant, "replace_original": False, "response_type": "in_channel"}, timeout=3)
+                    except Exception:
+                        pass
+                slack_bridge.send_channel_message(msg_quant, channel=os.getenv("SLACK_CHANNEL_INSIGHTS", "C0C6DUTQVEZ"))
+            except Exception as e_quant:
+                print(f"| QUANT CBR ERROR (OPS SERVICE) | {e_quant}")
+        
+        background_tasks.add_task(do_quant_interaction)
+        return PlainTextResponse("OK", status_code=200)
+
+    # 2.5 Botón: Aprobar Seleccionadas
+    elif "approve_selected" in val or "approve_selected" in action_id:
         state_values = payload.get("state", {}).get("values", {})
         indices = []
         for b_id, b_val in state_values.items():

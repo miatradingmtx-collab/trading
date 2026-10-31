@@ -5220,11 +5220,10 @@ def dispatch_slack_confirmation(msg: str, response_url: str = ""):
 async def handle_slack_interaction(request: Request):
     """
     Maneja las interacciones de botones y checkboxes en Slack con respuesta instantánea
-    (HTTP 200 <50ms) y despacho asíncrono con confirmación garantizada en Slack.
-    Human-in-the-Loop para el Watchdog Supervisor.
+    (HTTP 200 <10ms) y despacho asíncrono con confirmación garantizada en Slack.
+    Human-in-the-Loop para el Watchdog Supervisor y MIA Quant Supervisor.
     """
     try:
-        from mia_system_ops_swarm import system_ops_supervisor
         payload_str = None
         try:
             body_bytes = await request.body()
@@ -5285,6 +5284,7 @@ async def handle_slack_interaction(request: Request):
 
             async def async_apply_selected():
                 try:
+                    from mia_system_ops_swarm import system_ops_supervisor
                     exec_res = system_ops_supervisor.apply_approved_actions(selected_indices=indices, user_name=user_name)
                     res = system_ops_supervisor.run_swarm_audit(notify_slack=False)
                     ejecutadas_str = ", ".join(exec_res.get("ejecutadas", [])) if exec_res.get("ejecutadas") else "Propuestas seleccionadas aplicadas"
@@ -5379,6 +5379,11 @@ async def handle_slack_interaction(request: Request):
                         f"• *Destino:* `cache_trading_learning_kb` y `mia_trading_learning_history` sincronizados con Gemini Pro y ATLAS."
                     )
                     dispatch_slack_confirmation(msg_quant, response_url)
+                    try:
+                        from mia_slack_bridge import slack_bridge
+                        slack_bridge.send_channel_message(msg_quant, channel=os.getenv("SLACK_CHANNEL_INSIGHTS", "C0C6DUTQVEZ"))
+                    except Exception as e_ch:
+                        print(f"| SLACK DIRECT POST WARN | {e_ch}")
                 except Exception as q_err:
                     print(f"| QUANT INTERACTION ERROR | {q_err}")
                     dispatch_slack_confirmation(f"❌ *Error al procesar interacción Quant*: {q_err}", response_url)
@@ -5390,6 +5395,7 @@ async def handle_slack_interaction(request: Request):
         elif "approve" in val or "approve" in action_id:
             async def async_apply_all():
                 try:
+                    from mia_system_ops_swarm import system_ops_supervisor
                     exec_res = system_ops_supervisor.apply_approved_actions(user_name=user_name)
                     res = system_ops_supervisor.run_swarm_audit(notify_slack=False)
                     ejecutadas_str = ", ".join(exec_res.get("ejecutadas", [])) if exec_res.get("ejecutadas") else "Verificación y calibración completa"
