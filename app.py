@@ -5215,6 +5215,68 @@ def dispatch_slack_confirmation(msg: str, response_url: str = ""):
         except Exception as e_br:
             print(f"| SLACK BRIDGE FALLBACK ERROR | {e_br}")
 
+@app.get("/api/slack/test_hitl_buttons")
+def test_slack_hitl_buttons(token_type: str = "quant"):
+    """Envía una tarjeta de prueba con botones HITL a #mia-trading-insights para verificar la interactividad."""
+    from mia_slack_bridge import slack_bridge
+    channel_id = os.getenv("SLACK_CHANNEL_INSIGHTS", "C0C6DUTQVEZ")
+    
+    token = slack_bridge.quant_bot_token if token_type == "quant" and slack_bridge.quant_bot_token else slack_bridge.bot_token
+    bot_label = "mia_quant_supervisor (B0C6P3SAYSG)" if token == slack_bridge.quant_bot_token else "mia_watchdog (B0C4PT2BE0K)"
+    
+    blocks = [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": "🧪 PRUEBA DE TELEMETRÍA BOTONES HITL", "emoji": True}
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"• *Bot Emisor:* `{bot_label}`
+• *Canal:* `{channel_id}`
+• *Objetivo:* Validar respuesta instantánea de botones HITL sin advertencias ⚠️.
+• Presiona cualquiera de los 3 botones para verificar la recepción en Upstash Redis."
+            }
+        },
+        {
+            "type": "actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "✅ Aprobar Telemetría", "emoji": True},
+                    "style": "primary",
+                    "value": "approve_TEST_CASE",
+                    "action_id": "quant_approve_TEST"
+                },
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "❌ Rechazar Telemetría", "emoji": True},
+                    "style": "danger",
+                    "value": "reject_TEST_CASE",
+                    "action_id": "quant_reject_TEST"
+                },
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "🔍 Revisión Manual", "emoji": True},
+                    "value": "review_TEST_CASE",
+                    "action_id": "quant_review_TEST"
+                }
+            ]
+        }
+    ]
+    
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    payload = {
+        "channel": channel_id,
+        "text": "Prueba de Telemetría Botones HITL",
+        "blocks": blocks,
+        "username": "MIA Telemetry Validator",
+        "icon_emoji": ":satellite:"
+    }
+    r = requests.post("https://slack.com/api/chat.postMessage", headers=headers, json=payload, timeout=6)
+    return {"status": r.status_code, "slack_response": r.json(), "bot_used": bot_label}
+
 @app.get("/api/slack/diag")
 def slack_diagnostics():
     """Retorna el diagnóstico forense de los tokens de Slack, app_id, bot_id y telemetría de interacciones."""
