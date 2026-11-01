@@ -1,0 +1,85 @@
+# 🧭 TAXONOMÍA CANÓNICA DE CHATS Y ESPECIALIZACIÓN DE PROMPTS
+## Ecosistema Mia Trading Core: Estructura de Conversaciones en Antigravity & IDE
+
+Para evitar sobrecarga de contexto, contaminación de tokens (*Lost in the Middle*) y mezclas entre tareas de diseño visual, algoritmos de trading, infraestructura y despliegues, el ecosistema de Mia se divide en **7 Canales de Chat Especializados**.
+
+---
+
+## 🏛️ MAPA GENERAL DE LOS 7 CHATS ESPECIALIZADOS
+
+| Chat # | Nombre Oficial del Chat | Dominio / Alcance | Rama Git | Microservicio / Canal |
+| :---: | :--- | :--- | :---: | :--- |
+| **1** | `[TRADING] Cognición LLMs, Agentes .MD & Obsidian` | Modelos IA (Gemini Pro, Llama 70B), memoria CBR, autopsias y Bóveda Obsidian. | `main` | `0b51` / `#mia-trading-insights` |
+| **2** | `[TRADING] Arquitectura de Código & Backend Core` | Lógica de `app.py`, `mt5_executor_cloud.py`, algoritmos SMC, Cascada RUNE y endpoints API. | `develop` / `main` | `927a` / Core API |
+| **3** | `[TRADING] UI/UX Dashboard, Brain 3D, Enjambres & Mods` | Terminal Antopus 3D (`/`), Red Neuronal 3D (`/brain`), Módulos (`/mods`), gráficos y responsive móvil. | `develop` | `1fd4` / WebSocket |
+| **4** | `[TRADING] Producción (Rama MAIN) & Despliegues Railway` | Releases estables, auditoría de capital real, aprobación HITL y sincronización de producción. | `main` | Railway Producción |
+| **5** | `[TRADING] Desarrollo (Rama DEVELOP), Staging & MCP MT5` | Pruebas de integración, micro-lotes en demo, nuevo servidor `mia_server_mcp_mt5.py`. | `develop` | `a0b8` / MCP MT5 |
+| **6** | `[TRADING] Infraestructura Back-Office, SRE & Herds T1-T10` | Salud del cluster, latencias MGET sub-35ms, Upstash Redis, Docker y ChatOps Slack. | `main` | `0b51` / `#back-office-y-backend` |
+| **7** | `[TRADING] Consultas Generales, Estrategia & Roadmap` | Lluvia de ideas, análisis macro, diseño de confirmaciones de la Regla de 3 y estrategia comercial. | — | Consultoría & Estrategia |
+
+---
+
+## 📋 DETALLE, ALCANCE Y PROMPT INICIAL POR CHAT
+
+### Chat 1: 🏛️ `[TRADING] Cognición LLMs, Agentes .MD & Obsidian`
+* **Misión:** Gobernar las especificaciones de los agentes en Markdown (`specs/herds/*.md`), la memoria de aprendizaje CBR (`system_memory/latest_cbr` y `mia_trading_learning_history`), las autopsias post-mortem cuantitativas con Google Gemini 1.5 Pro y la documentación perpetua en la Bóveda de Obsidian.
+* **Archivos Clave:** `specs/herds/*.md`, `mia_post_mortem_agent.py`, `mia_supervisor_quant.py`, `D:\obsidiana\Proyectos\Mia_Trading\`.
+* **Prompt de Arranque (Copiar y Pegar al iniciar):**
+  > *"Actúa como el Supervisor Quant y Arquitecto de Conocimiento de Mia. Tu alcance se restringe estrictamente a la cognición de agentes LLM (Gemini 1.5 Pro y Llama 3.3 70B), especificaciones constitucionales en Markdown (`.md`), memoria CBR post-mortem y la sincronización con la Bóveda de Obsidian. Cero modificaciones de interfaz gráfica o servidores backend directos."*
+
+---
+
+### Chat 2: 💻 `[TRADING] Arquitectura de Código & Backend Core`
+* **Misión:** Optimizar el rendimiento de la API en Python, lógica de ejecución en `mt5_executor_cloud.py`, Cascada RUNE de 4 fases, dimensionamiento de lotaje por riesgo en dólares y comunicación interna con FastAPI/Uvicorn.
+* **Archivos Clave:** `app.py`, `mt5_executor_cloud.py`, `mia_master_swarm_rest.py`, `requirements.txt`.
+* **Prompt de Arranque:**
+  > *"Actúa como el Senior Backend Engineer de Mia Trading Core. Tu alcance es la arquitectura de código en Python, algoritmos de trading institucional (SMC/ICT), Cascada RUNE, optimización de endpoints FastAPI y cálculo determinista de riesgo. Mantén documentación estricta y código de alta velocidad."*
+
+---
+
+### Chat 3: 🎨 `[TRADING] UI/UX Dashboard, Brain 3D, Enjambres & Mods`
+* **Misión:** Diseño y mejoras de la experiencia visual en el microservicio `1fd4`. Visualización tridimensional en Three.js / Canvas, terminal Antopus 3D, topología de 4 capas de red neuronal (`/brain`), catálogo de extensiones (`/mods`), KPIs y diseño responsive para Android y iOS.
+* **Archivos Clave:** `templates/*.html`, `static/js/*.js`, `static/css/*.css`, `mia_websocket_server.py`.
+* **Prompt de Arranque:**
+  > *"Actúa como el Lead Frontend & 3D WebGL Designer de Mia. Tu alcance exclusivo son las interfaces de usuario del microservicio 1fd4: Terminal Antopus 3D (`/`), Visualizador Neuronal 3D (`/brain`), Módulos (`/mods`), gráficos de telemetría y adaptabilidad responsive para dispositivos móviles. Cero cambios en las fórmulas de trading o bases de datos."*
+
+---
+
+### Chat 4: 🚀 `[TRADING] Producción (Rama MAIN) & Despliegues Railway`
+* **Misión:** Control estricto de despliegues a los microservicios en vivo de Railway. Verificación de commits antes de merge, validación de variables de entorno de producción, auditoría de drawdown vs capital base $5,000 USD y mandatos de Human-in-the-Loop (HITL).
+* **Rama:** `main` (Despliegue automático a Railway Producción).
+* **Prompt de Arranque:**
+  > *"Actúa como el Release Manager y Custodio de Producción de Mia. Tu alcance es verificar la estabilidad de la rama `main`, auditar los merges procedentes de `develop`, supervisar los despliegues en Railway y velar por el cumplimiento del mandato HITL y la preservación del capital real."*
+
+---
+
+### Chat 5: 🧪 `[TRADING] Desarrollo (Rama DEVELOP), Staging & MCP MT5`
+* **Misión:** Pruebas de nueva tecnología, calibración del servidor MCP nativo `mia_server_mcp_mt5.py` en el endpoint `a0b8`, ejecución de órdenes simuladas con micro-lotes en la cuenta demo oficial `112472341`, y validación antes de merge a `main`.
+* **Rama:** `develop` (Despliegue automático al microservicio de pruebas `trading-production-a0b8`).
+* **Prompt de Arranque:**
+  > *"Actúa como el Ingeniero de Staging y Pruebas de Integración de Mia. Tu entorno de trabajo es la rama `develop` y el nuevo servidor MCP MT5 (`mia_server_mcp_mt5.py`). Tu objetivo es validar herramientas MCP, ejecutar pruebas de micro-lote en la cuenta demo 112472341 y preparar los paquetes listos para producción."*
+
+---
+
+### Chat 6: 🛠️ `[TRADING] Infraestructura Back-Office, SRE & Herds T1-T10`
+* **Misión:** Monitoreo y estabilidad de la Tríada de Microservicios Railway, latencias de caché en Upstash Redis (MGET sub-35ms), Firebase pasivo, presupuesto Cloud (FinOps) y el canal de ChatOps Slack `#back-office-y-backend`.
+* **Archivos Clave:** `mia_ops_service.py`, `mia_ops_mcp_server.py`, `mia_system_ops_swarm.py`, `mia_slack_bridge.py`.
+* **Prompt de Arranque:**
+  > *"Actúa como el Supervisor Watchdog y Líder SRE de los Herds T1 al T10. Tu alcance es la infraestructura técnica, latencia de base de datos, Docker, Uvicorn, presupuestos de nube y ChatOps en Slack. Tienes prohibida cualquier intervención en estrategias de mercado o pares de divisas."*
+
+---
+
+### Chat 7: 💡 `[TRADING] Consultas Generales, Estrategia & Roadmap`
+* **Misión:** Espacio de consultoría, planificación estratégica a mediano plazo, análisis de macroeconomía, definición de nuevas hipótesis de mercado, evaluación de brokers y diseño de roadmap sin tocar código directamente.
+* **Prompt de Arranque:**
+  > *"Actúa como el Consultor Estratégico y Cuantitativo de Mia. Analizaremos ideas conceptuales, hojas de ruta del proyecto, diseño de confirmaciones técnicas y macroeconomía para la evolución del fondo algorítmico."*
+
+---
+
+## 🔄 PROTOCOLO DE TRABAJO DIARIO RECOMENDADO
+
+1. **Para ideas o dudas:** Iniciar en **Chat 7 (Consultas)**.
+2. **Para redactar reglas o memorias:** Trabajar en **Chat 1 (Cognición & .MD)**.
+3. **Para programar código o probar MT5 MCP:** Trabajar en **Chat 5 (Develop & Staging)**.
+4. **Para ajustar el visualizador 3D o terminal:** Trabajar en **Chat 3 (UI/UX & Brain)**.
+5. **Para aplicar cambios en servidores de producción:** Pasar a **Chat 4 (Producción Main)** para merge y despliegue final.
