@@ -22,6 +22,21 @@ Todo agente que modifique código fuente de los endpoints, servidores o lógica 
 3. Ejecutar 'git push'
 Railway está conectado a GitHub y solo detectará y compilará la actualización cuando reciba el push en el repositorio.
 
+## Regla de Arquitectura de Microservicios en Railway (Tríada Desacoplada: 0b51, 1fd4, 927a)
+La infraestructura en Railway opera desacoplada en 3 microservicios independientes para blindar la ejecución y no competir por recursos:
+1. **Instancia `0b51` (`trading-production-0b51.up.railway.app`):** Control Plane & ChatOps Gateway.
+   - Gobierna los 2 canales de Slack: `#back-office-y-backend` (`C0C4ZMFCMJ8` para Herds T1-T10) y `#mia-trading-insights` (`C0C6DUTQVEZ` para Post-Mortem y Supervisor Quant).
+   - Endpoints de Slack: `/api/slack/interactions`, `/api/slack/events`, `/api/slack/command`.
+   - Servidor MCP Back-Office: `/mcp/ops` y `/api/mcp/ops` (`mia_ops_mcp_server.py`) con Llama 3.3 70B (`OPENROUTER_API_KEY_OPS`).
+   - Supervisor Quant: Autopsias y CBR con Gemini 1.5 Pro (`GOOGLE_API_KEY`).
+2. **Instancia `1fd4` (`trading-production-1fd4.up.railway.app`):** Neural Cluster & 3D Terminal.
+   - URLs canónicas: `/` (Terminal Antopus 3D / WebSocket `/ws`), `/brain` (Visualizador Neuronal 3D y CBR), `/mods` (Catálogo de Módulos & Extensiones).
+   - Inferencia de red neuronal profunda TensorFlow Keras (22 tensores sinápticos) y consenso de los 7 Herds.
+3. **Instancia `927a` (`trading-production-927a.up.railway.app`):** MT5 Data Plane & HFT Execution Core.
+   - Ejecución directa hacia MT5 Broker, ingesta de ticks, streaming de precios, `/dashboard`, `/dashboard/preview`, MCP Trading `/mcp`.
+   - Trailing stop asimétrico institucional de RUNE sub-50ms.
+   - **CERO tráfico de Slack** para garantizar latencia ultra-baja y cero bloqueos.
+
 ## Regla de Modo Aprendiz (Arquitectura de Validación)
 Mia (Botpress) se encuentra actualmente en **Modo Aprendiz** (recaudando datos durante 1 a 3 meses para la "Regla de 3"). 
 Por tanto, Mia NO toma decisiones finales de trading ni ejecuta órdenes de forma autónoma basándose solo en su IA.

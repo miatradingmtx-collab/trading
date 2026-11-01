@@ -254,11 +254,11 @@ trigger: always_on
    - `HERD T3 (OBSERVABILITY_SRE)`: Monitoreo activo de los 3 microservicios Railway (927a MT5, 1fd4 Brain, 0b51 Ops), OpenRouter, Servidores MCP (`/mcp` y `/mcp/ops`), Upstash y GitHub.
    - `HERD T4 (CACHE_LATENCY_SPECIALIST)`: Desacoplamiento canónico por documento, garantía de latencia MGET $< 35\text{ ms}$ y paridad perpetua de la Regla de 3.
    - `HERD T5 (FINOPS_BILLING_CONTROLLER)`: Control de presupuestos en modo Spark (Railway, OpenRouter, MetaAPI, Firebase Spark limit), con alertas preventivas a 48 horas con montos exactos y enlaces directos de pago.
-   - `HERD T6 (UIUX_STITCH_DESIGNER)`: Diseño frontend con Google Stitch y Plotly Dark Theme; extracción de CSS/HTML modular. Auditoría visual de `/brain`, `/` y `/dashboard`.
-   - `HERD T7 (ARCHITECT_DIAGRAMMER_INNOVATOR)`: Arquitectura del sistema, topología de 3 microservicios desacoplados y diagramas Mermaid/SVG vivos en tiempo real.
+   - `HERD T6 (UIUX_STITCH_DESIGNER)`: Diseño frontend con Google Stitch y Plotly Dark Theme; extracción de CSS/HTML modular. Auditoría visual y mantenimiento de la instancia `1fd4` (`/brain`, `/`, `/mods`) y de la instancia `927a` (`/dashboard`, `/dashboard/preview`).
+   - `HERD T7 (ARCHITECT_DIAGRAMMER_INNOVATOR)`: Arquitectura del sistema, topología canónica de la tríada de microservicios (`0b51` Control Plane & Slack, `1fd4` Neural Cluster & 3D Terminal, `927a` MT5 Data Plane) y diagramas Mermaid/SVG vivos en tiempo real.
    - `HERD T8 (SHADOW_COMPLIANCE_GATEKEEPER)`: Candado institucional de ejecución (SHADOW_MODE_GLOBAL = True) y custodia estricta del filtro de noticias (15m Pre / 5m Post).
-   - `HERD T9 (SLACK_OPS_DISPATCHER)`: Aislamiento total de canal (#back-office-y-backend exclusivo; #mia-chat silenciado) y despacho interactivo con Block Kit y checkboxes.
-   - `HERD T10 (SWARM_NEURAL_SENTRY)`: Vigilancia de salud, precisión y latencia de TensorFlow Deep Learning ($> 85\%$) y de los 7 Herds de Trading HFT.
+   - `HERD T9 (SLACK_OPS_DISPATCHER)`: Operación centralizada en la instancia `0b51` (`trading-production-0b51.up.railway.app`) gobernando los 2 canales oficiales: `#back-office-y-backend` (`C0C4ZMFCMJ8` para T1-T10) y `#mia-trading-insights` (`C0C6DUTQVEZ` para Post-Mortem y Quant). Endpoints oficiales: `/api/slack/interactions`, `/api/slack/events`, `/api/slack/command`. Despacho interactivo con Block Kit, checkboxes HITL y botones de acción.
+   - `HERD T10 (SWARM_NEURAL_SENTRY)`: Vigilancia de salud, precisión y latencia de TensorFlow Deep Learning ($> 85\%$) en `1fd4` y de los 7 Herds de Trading HFT.
 2. **Supervisor General Watchdog Master:**
    - Ejerce liderazgo senior integral. Ejecuta los 10 Herds en Python determinista (0 tokens de LLM), evalúa propuestas cognitivamente con Llama 3.3 70B Grounded y realiza el triage clasificando en:
      - `[AUTO-CORREGIDO EN CALIENTE ⚡]`: Acciones seguras ejecutadas de forma autónoma o ratificadas en Google Antigravity.
@@ -278,20 +278,6 @@ trigger: always_on
    - Ante excepciones de cdigo o fallos complejos en la nube, el sistema invoca quirrgicamente a OpenRouter (`Claude 3.5 Sonnet`, `DeepSeek V3` o `Llama 3.3 70B`) para generar diagnsticos y parches automticos con la misma capacidad analtica que Antigravity.
 3. **Estndar de Modernizacin Frontend (HERD T6):** Toda mejora o rediseo para `/dashboard` (`https://trading-production-927a.up.railway.app/dashboard`) debe adoptar la esttica financiera de grficos interactivos estilo Plotly Dark, preservando intactos el men lateral, balances, mrgenes, floating PnL, regla de 3 y tabla de posiciones de MT5.
 
----
-name: homologacion_antigravity_cloud_openrouter
-description: Regla de homologacin entre agentes locales de Antigravity y la ejecucin autnoma en Railway con OpenRouter.
-trigger: always_on
----
-
-#  REGLA: HOMOLOGACIN ANTIGRAVITY (LOCAL) VS OPENROUTER (RAILWAY CLOUD)
-1. **Paridad Cognitiva y de Contexto:** Los prompts ejecutados en local va Antigravity y los workers autnomos en Railway comparten la misma taxonoma, reglas de negocio y acceso a los slots atmicos de Upstash Redis.
-2. **Patrn Hbrido (Deterministic First + Cognition-on-Demand):**
-   - El 95% de las auditoras de infraestructura corren en Python nativo a costo cero ($0.00 USD).
-   - Ante excepciones de cdigo o fallos complejos en la nube, el sistema invoca quirrgicamente a OpenRouter (`Claude 3.5 Sonnet`, `DeepSeek V3` o `Llama 3.3 70B`) para generar diagnsticos y parches automticos con la misma capacidad analtica que Antigravity.
-3. **Estndar de Modernizacin Frontend (HERD T6):** Toda mejora o rediseo para `/dashboard` (`https://trading-production-927a.up.railway.app/dashboard`) debe adoptar la esttica financiera de grficos interactivos estilo Plotly Dark, preservando intactos el men lateral, balances, mrgenes, floating PnL, regla de 3 y tabla de posiciones de MT5.
-
----
 name: strict_human_in_the_loop_fase1
 description: Regla mandatoria de Fase 1 para requerir notificacin transparente de cada agente y aprobacin humana obligatoria en Slack antes de cualquier cambio.
 trigger: always_on

@@ -18,27 +18,36 @@ Para evitar sobrecarga de contexto y tropiezos entre agentes:
     *(Los 7 Herds son: 1. TIDAL, 2. NORO, 3. ZEPHR, 4. LUMEN, 5. RUNE, 6. TENSORFLOW, 7. ATLAS)*.
     *(Motor: Llama 3.3 70B HFT REST / Groq | Sincronización en Redis: cache_herd_debate_latest)*.
 
-# 🏛️ DIVISIÓN CANÓNICA DE TRES RAMAS (ESTRICTAMENTE PROHIBIDO CONFUNDIR)
+# 🏛️ DIVISIÓN CANÓNICA DE TRES RAMAS Y TRÍADA DE MICROSERVICIOS RAILWAY
 
 1. **RAMA 1: COGNICIÓN POST-MORTEM & SUPERVISOR QUANT (APRENDIZAJE CBR & AUTOPSIA):**
    - **Agentes:** `Agente Post-Mortem` + `Supervisor Quant`.
    - **Canal de Slack:** `#mia-trading-insights` (`C0C6DUTQVEZ`).
-   - **Motor LLM Asignado:** **Google Gemini 1.5 Pro** (con Failover a Gemini 2.5 Flash / OpenRouter).
-   - **Misión Exclusiva:** Analizar a profundidad los trades cerrados (Wins, Losses, Breakevens) recopilando y cruzando los datos generados por los 7 Herds (Llama 70B), TensorFlow, ATLAS, Firebase (`mia_kb`, `regla_de_3`, `ml_history`), métricas MT5 y Upstash Redis. Consultar y enriquecer la memoria CBR (`cache_trading_learning_kb`) para saber qué mejoras aplicar, aprender de cada caso para que en el futuro el sistema sepa exactamente qué hacer, y emitir propuestas cuantitativas con validación HITL.
+   - **Microservicio Host:** `trading-production-0b51.up.railway.app` (Instancia `0b51`).
+   - **Motor LLM Asignado:** **Google Gemini 1.5 Pro** (`GOOGLE_API_KEY` con Failover a Gemini 2.5 Flash / OpenRouter).
+   - **Misión Exclusiva:** Analizar a profundidad los trades cerrados (Wins, Losses, Breakevens) recopilando y cruzando los datos generados por los 7 Herds (Llama 70B), TensorFlow, ATLAS, Firebase (`mia_kb`, `regla_de_3`, `ml_history`), métricas MT5 y Upstash Redis. Consultar y enriquecer la memoria CBR (`cache_trading_learning_kb` y `system_memory/latest_cbr`) para saber qué mejoras aplicar, aprender de cada caso y emitir propuestas cuantitativas con validación HITL.
    - **Portafolio Oficial MT5:** 5 pares oficiales en vivo (`EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`) y 1 en Sandbox (`NZDCAD`).
 
-2. **RAMA 2: BACK-OFFICE / BACKEND (INFRAESTRUCTURA TÉCNICA & SRE):**
+2. **RAMA 2: BACK-OFFICE / BACKEND (INFRAESTRUCTURA TÉCNICA, SRE & CHATOPS):**
    - **Agentes:** `Supervisor Watchdog` + `Herds T1 al T10` (Terminators de Infraestructura: DBA Sentinel, Sr Dev, Observability SRE, Cache Latency, FinOps Billing, UI/UX Stitch, Architect, Shadow Compliance, Slack Dispatcher, Neural Sentry).
    - **Canal de Slack:** `#back-office-y-backend` (`C0C4ZMFCMJ8`).
-   - **Motor LLM Asignado:** **Llama 3.3 70B** (`meta-llama/llama-3.3-70b-instruct` vía OpenRouter Ops / Ollama).
-   - **Misión Exclusiva:** Estabilidad técnica de servidores, microservicio Railway Ops (`trading-production-0b51.up.railway.app`), Docker, Firebase pasivo, Upstash Redis, Uvicorn, latencias MGET sub-35ms, presupuestos Cloud y ChatOps.
+   - **Microservicio Host:** `trading-production-0b51.up.railway.app` (Instancia `0b51` - Control Plane).
+     * Endpoints de Slack: `/api/slack/events`, `/api/slack/interactions`, `/api/slack/command`.
+     * Servidor MCP Back-Office: `/mcp/ops` y `/api/mcp/ops` (`mia_ops_mcp_server.py`).
+   - **Motor LLM Asignado:** **Llama 3.3 70B** (`meta-llama/llama-3.3-70b-instruct` vía OpenRouter Ops / `OPENROUTER_API_KEY_OPS`).
+   - **Misión Exclusiva:** Estabilidad técnica de servidores, Docker, Firebase pasivo, Upstash Redis, Uvicorn, latencias MGET sub-35ms, presupuestos Cloud y ChatOps.
    - **Restricción Terminante:** CERO intervención en pares de divisas, velas, SL/TP, trailing stops ni estrategias de mercado.
 
-3. **RAMA 3: SWARM DE TRADING HFT EN VIVO (LOS 7 HERDS + TENSORFLOW + ATLAS):**
+3. **RAMA 3: SWARM DE TRADING HFT EN VIVO & PLATAFORMA DE DATOS:**
    - **Agentes:** `Los 7 Herds del Swarm` (1. TIDAL, 2. NORO, 3. ZEPHR, 4. LUMEN, 5. RUNE, 6. TENSORFLOW, 7. ATLAS) + `Master Orchestrator`.
-   - **Canal / Ejecución:** Inferencia HFT REST / Async (`mia_master_swarm_rest.py`). Sincronización desacoplada en Upstash Redis (`cache_herd_debate_latest`, `cache_swarm_rest_history`).
-   - **Motor LLM Asignado:** **Llama 3.3 70B** (`meta-llama/llama-3.3-70b-instruct` vía OpenRouter HFT / Groq failover).
-   - **Misión Exclusiva:** Escaneo y análisis continuo de mercado en vivo segundo a segundo sobre los 5 pares MT5 oficiales (`EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`) y 1 en Sandbox (`NZDCAD`). Evalúan macro/sesiones (TIDAL), matemáticas/POC/Markov (NORO), probabilidad bayesiana/EV (ZEPHR), SMC/Order Blocks (LUMEN), gestión de riesgo/parciales/trailing stop (RUNE), inferencia neuronal (TENSORFLOW con 687+ trades) y microestructura DOM CME/OANDA / CVD Delta (ATLAS). Generan quórum ponderado de ejecución y vuelcan su debate a Redis para que la Rama 1 (Post-Mortem y Quant con Gemini) lo audite y aprenda.
+   - **Microservicios Hosts:**
+     * **Instancia `927a` (`trading-production-927a.up.railway.app`):** MT5 Data Plane, ingesta de ticks, streaming de precios, `/dashboard`, `/dashboard/preview`, MCP Trading `/mcp` y cálculo de trailing stop asimétrico de RUNE sub-50ms. **CERO tráfico de Slack**.
+     * **Instancia `1fd4` (`trading-production-1fd4.up.railway.app`):** Neural Cluster & 3D Terminal:
+       - `https://trading-production-1fd4.up.railway.app/`: Terminal Antopus 3D y stream WebSocket `/ws`.
+       - `https://trading-production-1fd4.up.railway.app/brain`: Visualizador 3D de red neuronal y CBR.
+       - `https://trading-production-1fd4.up.railway.app/mods`: Catálogo de módulos y extensiones UI.
+   - **Motor LLM Asignado:** **Llama 3.3 70B** (`meta-llama/llama-3.3-70b-instruct` vía OpenRouter HFT / Groq failover) + **TensorFlow Keras** (22 tensores sinápticos).
+   - **Misión Exclusiva:** Escaneo y análisis continuo de mercado en vivo segundo a segundo sobre los 5 pares MT5 oficiales (`EURUSD`, `GBPUSD`, `AUDUSD`, `GBPJPY`, `XAUUSD`) y 1 en Sandbox (`NZDCAD`). Generan quórum ponderado de ejecución y vuelcan su debate a Redis para que la Rama 1 lo audite.
 
 # 🛡️ MANDATO HITL (HUMAN-IN-THE-LOOP) Y CONFIANZA
 **REGLA DE ORO:** NINGÚN Agente Supervisor Watchdog, Herds de Infraestructura (T1-T10), Enjambre de Trading (7 Herds: TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS) o tú mismo como LLM, tienen permitido aplicar cambios técnicos en producción (como sobreescribir `regla_de_3`, modificar SL/TP del bot, alterar arquitecturas o configuraciones activas) de manera automática (auto-corregida).

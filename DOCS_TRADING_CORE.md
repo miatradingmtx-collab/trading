@@ -15,13 +15,62 @@ A partir de la actualización de Octubre 2026, la base de conocimiento se desaco
    - [`CBR_POST_MORTEM_QUANT.md`](specs/herds/CBR_POST_MORTEM_QUANT.md): Autopsia Gemini Pro, Score de Premio ($+R$) y Castigo ($-R$) RL ligado a Ticket MT5 + Case ID.
 
 > [!IMPORTANT]
-> **REGLA DE ORO DE ACTUALIZACIÓN, HOMOLOGACIÓN, HOMOLOGACIÓN Y DEPURACIÓN RADICAL (ANTI-ALUCINACIÓN):**
+> **REGLA DE ORO DE ACTUALIZACIÓN, HOMOLOGACIÓN Y DEPURACIÓN RADICAL (ANTI-ALUCINACIÓN):**
 > Todo cambio en estrategias, pesos, confirmaciones de la Regla de 3, parámetros de Cascada RUNE o balances de cuenta MT5 exige actualizar y homologar de inmediato este documento maestro, las 9 micro-especificaciones en `specs/herds/`, las reglas constitucionales (`GEMINI.md`, `GEMINI_TRADING.md`, `GEMINI_OPS.md`, `.agents/AGENTS.md`) y la bóveda de Obsidian.
 > **Prohibición Terminante de Coexistencia de Datos Obsoletos:** Cualquier métrica, balance o indicador superado debe ser eliminado o corregido de raíz en el texto para asegurar que los 7 Herds y el Agente Post-Mortem lean una única verdad unívoca sin alucinaciones ni reversión a parámetros deprecados.
 
+### Topología Canónica de Despliegue en Railway (Tríada de Microservicios Desacoplados)
+
+```mermaid
+flowchart TD
+    subgraph Control_Plane ["Control Plane & ChatOps (Instancia 0b51)"]
+        A["trading-production-0b51.up.railway.app"]
+        A -->|POST /api/slack/*| S1["#back-office-y-backend (C0C4ZMFCMJ8)<br/>Herds T1-T10 + Watchdog"]
+        A -->|POST /api/slack/*| S2["#mia-trading-insights (C0C6DUTQVEZ)<br/>Post-Mortem + Supervisor Quant"]
+        A -->|/mcp/ops| M1["Servidor MCP Back-Office<br/>Llama 3.3 70B (OpenRouter)"]
+    end
+
+    subgraph Data_Plane ["MT5 Data Plane & HFT Execution (Instancia 927a)"]
+        B["trading-production-927a.up.railway.app"]
+        B -->|FastAPI / Webhooks| MT5["MetaTrader 5 Bridge & Trailing Sub-50ms"]
+        B -->|/dashboard| D1["Dashboard Institucional MT5"]
+        B -->|/mcp| M2["Servidor MCP Trading Core"]
+    end
+
+    subgraph Neural_Plane ["Neural Cluster & 3D Terminal (Instancia 1fd4)"]
+        C["trading-production-1fd4.up.railway.app"]
+        C -->|/| U1["Antopus 3D Floor (WebSocket /ws)"]
+        C -->|/brain| U2["Visualizador Neuronal 3D & CBR"]
+        C -->|/mods| U3["Catálogo de Módulos & Extensiones"]
+        C -->|Deep Learning| TF["TensorFlow 4 Capas (687+ Trades)"]
+    end
+
+    Control_Plane <-->|Slots Atómicos Sub-35ms| Redis[("Upstash Redis Central")]
+    Data_Plane <-->|Slots Atómicos Sub-35ms| Redis
+    Neural_Plane <-->|Slots Atómicos Sub-35ms| Redis
+```
+
+1. **Instancia `0b51` (`https://trading-production-0b51.up.railway.app`) - Control Plane & ChatOps Gateway:**
+   - Gobernanza de los dos canales oficiales de Slack:
+     * `#back-office-y-backend` (`C0C4ZMFCMJ8`): Herds T1-T10 + Supervisor Watchdog. Aprobaciones interactivas HITL vía Checkboxes y botones de acción.
+     * `#mia-trading-insights` (`C0C6DUTQVEZ`): Agente Post-Mortem + Supervisor Quant (Gemini 1.5 Pro). Autopsias de trades, memoria CBR (`cache_trading_learning_kb`) y propuestas para los 7 Herds.
+   - Endpoints de Slack: `POST /api/slack/interactions`, `POST /api/slack/events`, `POST /api/slack/command`.
+   - Servidor MCP Back-Office: `/mcp/ops` y `/api/mcp/ops` (`mia_ops_mcp_server.py`) con motor Llama 3.3 70B (`OPENROUTER_API_KEY_OPS`).
+
+2. **Instancia `1fd4` (`https://trading-production-1fd4.up.railway.app`) - Neural Cluster & 3D Terminal:**
+   - URLs canónicas activas:
+     * `https://trading-production-1fd4.up.railway.app/`: Terminal Antopus 3D / Piso de Trading y Consenso en vivo inter-agente (WebSocket `/ws`).
+     * `https://trading-production-1fd4.up.railway.app/brain`: Visualizador Neuronal 3D y Clústeres de Razonamiento CBR (topología 4 capas TensorFlow).
+     * `https://trading-production-1fd4.up.railway.app/mods`: Catálogo de Módulos & Extensiones Visuales.
+   - Modelos: TensorFlow Keras (pesos en `cache_mia_tensorflow`) + Swarm Trading Herds vía Groq y OpenRouter HFT.
+
+3. **Instancia `927a` (`https://trading-production-927a.up.railway.app`) - MT5 Data Plane & HFT Execution Core:**
+   - Ejecución directa hacia MT5 Broker, ingesta de ticks y trailing stop institucional de RUNE en submilisegundos.
+   - Endpoints web: `/dashboard`, `/dashboard/preview`, `/health`.
+   - Servidor MCP Trading Core: `/mcp` y `/api/mcp` (`mia_mcp_server.py`).
+   - Aislamiento estricto: CERO tráfico de Slack para garantizar latencias sub-50ms en operativa viva.
 
 ---
-
 #  DOCUMENTACION CORE DE MIA TRADING AI
 
 #  MIA KB: Vectorizacion del Sweep y Ciclo AMD

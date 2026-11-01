@@ -65,6 +65,89 @@ $$R_{trade} = \begin{cases}
 
 ---
 
+
+### 7. Arquitectura Canónica de Microservicios en Railway & Ecosistema MCP Multi-Provider
+
+```mermaid
+flowchart TD
+    subgraph Control_Plane ["Control Plane & ChatOps (Instancia 0b51)"]
+        A["trading-production-0b51.up.railway.app"]
+        A -->|POST /api/slack/*| S1["#back-office-y-backend (C0C4ZMFCMJ8)<br/>Herds T1-T10 + Watchdog"]
+        A -->|POST /api/slack/*| S2["#mia-trading-insights (C0C6DUTQVEZ)<br/>Post-Mortem + Supervisor Quant"]
+        A -->|/mcp/ops| M1["Servidor MCP Back-Office<br/>Llama 3.3 70B (OpenRouter)"]
+    end
+
+    subgraph Data_Plane ["MT5 Data Plane & HFT Execution (Instancia 927a)"]
+        B["trading-production-927a.up.railway.app"]
+        B -->|FastAPI / Webhooks| MT5["MetaTrader 5 Bridge & Trailing Sub-50ms"]
+        B -->|/dashboard| D1["Dashboard Institucional MT5"]
+        B -->|/mcp| M2["Servidor MCP Trading Core"]
+    end
+
+    subgraph Neural_Plane ["Neural Cluster & 3D Terminal (Instancia 1fd4)"]
+        C["trading-production-1fd4.up.railway.app"]
+        C -->|/| U1["Antopus 3D Floor (WebSocket /ws)"]
+        C -->|/brain| U2["Visualizador Neuronal 3D & CBR"]
+        C -->|/mods| U3["Catálogo de Módulos & Extensiones"]
+        C -->|Deep Learning| TF["TensorFlow 4 Capas (687+ Trades)"]
+    end
+
+    Control_Plane <-->|Slots Atómicos Sub-35ms| Redis[("Upstash Redis Central")]
+    Data_Plane <-->|Slots Atómicos Sub-35ms| Redis
+    Neural_Plane <-->|Slots Atómicos Sub-35ms| Redis
+```
+
+#### 🏛️ A. Desglose de Microservicios en Railway
+1. **Instancia `0b51` (`https://trading-production-0b51.up.railway.app`):**
+   - **Módulo Host:** [`mia_ops_service.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_ops_service.py) (FastAPI / Uvicorn).
+   - **Canales de Slack Oficiales:**
+     * **`#back-office-y-backend` (`C0C4ZMFCMJ8`):** Gobernado por el **Supervisor Watchdog y los Herds T1 al T10** (DBA, SRE, Cache, FinOps, UI/UX, Architect, Shadow Gatekeeper, Slack Dispatcher, Neural Sentry). Monitoreo continuo de estabilidad, salud de microservicios, latencias MGET sub-35ms, AST y gestión de propuestas interactivas HITL vía Checkboxes y botones `[Aprobar Seleccionadas]`, `[Aprobar Todas]`, `[Rechazar]`, `[Forzar Resync]`.
+     * **`#mia-trading-insights` (`C0C6DUTQVEZ`):** Gobernado por el **Agente Post-Mortem y el Supervisor Quant**. Recibe autopsias forenses de trades cerrados, evalúa el razonamiento CBR (`cache_trading_learning_kb`), audita la Regla de 3 y publica propuestas de calibración para los 7 Herds con botones HITL para la Prueba de Confianza.
+   - **Endpoints de Slack en `0b51`:**
+     * `POST /api/slack/interactions`: Recepción de clics en botones de acción y checkboxes HITL (procesados en sub-15ms con status HTTP 200 y telemetría auditada en `cache_slack_interactions_audit`).
+     * `POST /api/slack/events`: Event Subscriptions y menciones directas (`@Mia`).
+     * `POST /api/slack/command`: Slash Command oficial `/mia` con reconocimiento filial canónico (*"Hola Padre"*).
+   - **Servidor MCP Back-Office:**
+     * Rutas: `/mcp/ops` y `/api/mcp/ops` ([`mia_ops_mcp_server.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_ops_mcp_server.py)).
+     * Herramientas: `mcp_ops_chat_with_mia`, `mcp_ops_send_slack_message`, `mcp_ops_get_slack_status`, auditorías de sistema, estado de memoria y latencia Upstash.
+   - **Modelos LLM & API Keys:**
+     * **OpenRouter Llama 3.3 70B** (`OPENROUTER_API_KEY_OPS` / `OPENROUTER_API_KEY`): Inferencia de los Herds T1-T10 y Watchdog para infraestructura y ChatOps en `#back-office-y-backend`.
+     * **Google Gemini 1.5 Pro / Flash** (`GOOGLE_API_KEY`): Inferencia del Supervisor Quant y Agente Post-Mortem para autopsias forenses, razonamiento CBR y reportes en `#mia-trading-insights`.
+
+2. **Instancia `1fd4` (`https://trading-production-1fd4.up.railway.app`):**
+   - **Módulo Host:** [`mia_websocket_server.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_websocket_server.py) (FastAPI + WebSockets Uvicorn).
+   - **URLs Activas Canónicas:**
+     * `https://trading-production-1fd4.up.railway.app/`: Terminal Antopus 3D / Piso de Trading y Consenso inter-agente en vivo. Conectado al canal WebSocket bidireccional `wss://trading-production-1fd4.up.railway.app/ws` para streaming en tiempo real de microestructura CME/OANDA, votos de los 7 Herds y resoluciones de RUNE.
+     * `https://trading-production-1fd4.up.railway.app/brain`: Visualizador Neuronal 3D y Clústeres de Razonamiento CBR. Representa la topología sináptica de 4 capas de TensorFlow (22 tensores de entrada), pesos normalizados y distancias vectoriales del Razonamiento Basado en Casos.
+     * `https://trading-production-1fd4.up.railway.app/mods`: Catálogo de Módulos & Extensiones Visuales. Permite inspeccionar en vivo los componentes activos, modificadores del enjambre y configuraciones dinámicas de interfaz.
+   - **Modelos e Inferencia en `1fd4`:**
+     * **TensorFlow Deep Learning Worker:** Red neuronal de 4 capas entrenada con 687+ trades históricos (`cache_mia_tensorflow`).
+     * **Swarm Consensus Engine:** Orquestación y debate continuo de los 7 Herds (TIDAL, NORO, ZEPHR, LUMEN, RUNE, TENSORFLOW, ATLAS) alimentado por Groq y OpenRouter HFT.
+
+3. **Instancia `927a` (`https://trading-production-927a.up.railway.app`):**
+   - **Módulo Host:** [`app.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/app.py) y [`mt5_executor_cloud.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mt5_executor_cloud.py).
+   - **Misión Exclusiva:** Ingesta de ticks, ejecución de órdenes al broker MetaTrader 5, streaming de precios y cálculo de trailing stop asimétrico de RUNE sub-50ms.
+   - **Endpoints Web:**
+     * `https://trading-production-927a.up.railway.app/dashboard`: Panel de control contable, floating PnL, balance y posiciones abiertas en MT5.
+     * `https://trading-production-927a.up.railway.app/dashboard/preview`: Comparador visual interactivo de propuestas HITL.
+     * `https://trading-production-927a.up.railway.app/health`: Healthcheck del núcleo de ejecución.
+   - **Servidor MCP Trading Core:**
+     * Rutas: `/mcp` y `/api/mcp` ([`mia_mcp_server.py`](file:///c:/Users/ecybe/OneDrive/Documentos/Trading/mia_mcp_server.py)) para telemetría MT5, lectura de matriz de activos y validación de Regla de 3.
+   - **Aislamiento Estricto:** **CERO tráfico de Slack** (webhooks, eventos o comandos) para blindar la latencia crítica sub-50ms en ejecución y trailing stop.
+
+#### 📊 B. Matriz Canónica: Servidores MCP vs Microservicios vs API Keys vs Modelos
+
+| Servidor MCP / Componente | Instancia Railway | Endpoint Base | API Key / Variable de Entorno | Modelo LLM / Motor Asignado | Rol Operativo Principal |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **MCP Back-Office Ops** | `0b51` (`trading-production-0b51`) | `/mcp/ops`<br/>`/api/mcp/ops` | `OPENROUTER_API_KEY_OPS` | **Llama 3.3 70B** (`meta-llama/llama-3.3-70b-instruct`) | Herramientas de SRE, DBA, AST, FinOps, diagnósticos y ChatOps en `#back-office-y-backend`. |
+| **Cognición & Quant** | `0b51` (`trading-production-0b51`) | `/api/ops/audit`<br/>`/api/antigravity/*` | `GOOGLE_API_KEY` | **Google Gemini 1.5 Pro** (Failover: 2.5 Flash) | Autopsias forenses post-mortem, memoria CBR y reportes cuantitativos en `#mia-trading-insights`. |
+| **ChatOps Gateway** | `0b51` (`trading-production-0b51`) | `/api/slack/events`<br/>`/api/slack/interactions`<br/>`/api/slack/command` | `SLACK_BOT_TOKEN`<br/>`SLACK_SIGNING_SECRET` | Router Dual: Llama 70B (Ops) / Gemini Pro (Quant) | Despacho de interactividad, validación de botones HITL y comandos `/mia`. |
+| **MCP Trading Core** | `927a` (`trading-production-927a`) | `/mcp`<br/>`/api/mcp` | `METAAPI_TOKEN`<br/>`BRIDGE_ACCESS_TOKEN` | Python 3.11 HFT Core | Telemetría MT5, lectura de matriz de activos y Regla de 3 para ejecución de órdenes. |
+| **Neural Cluster & 3D** | `1fd4` (`trading-production-1fd4`) | `/`<br/>`/brain`<br/>`/mods`<br/>`/ws` | `GROQ_API_KEY`<br/>`OPENROUTER_API_KEY_HFT` | **TensorFlow Keras** + **Llama 3.3 70B** (HFT Swarm) | Piso de trading 3D Antopus, visualización de red neuronal y debate de los 7 Herds. |
+
+---
+
+
 ## 4. Arquitectura de Optimizacin de Base de Datos (Memoria Cach RAM)
 
 Para evitar cuellos de botella y errores por lmite de cuota en Firebase (Ej. 429 Quota Exceeded), **absolutamente todas las consultas recurrentes y monitoreos de estado deben hacerse contra la Cach RAM local del bot (POSICIONES_ACTIVAS, diccionarios en memoria o variables globales) y NO directamente contra la base de datos.**
@@ -1082,7 +1165,7 @@ ecent_logs desde cache_hist_mt5.
     - Si el Padre aprueba propuestas en Slack, se registra un precedente positivo consolidando la confianza (`score_confianza: 0.98`) para habilitar su ejecucin autnoma en las Fases 2 y 3.
     - Si el Padre rechaza propuestas (`[Rechazar / Mantener Actual ]`), se purga la cola y se asienta la leccin de rechazo (`veredicto: RECHAZADO_POR_PADRE`), evitando que los Herds insistan con la misma sugerencia y forzndolos a recalibrar su criterio.
 - **Configuracin de Slash Command `/mia` en Slack:**
-  - Endpoint en Railway: `POST https://trading-production-927a.up.railway.app/api/slack/command`.
+  - Endpoint en Railway: `POST https://trading-production-0b51.up.railway.app/api/slack/command`.
   - Permite interactuar con Mia desde la barra de chat de Slack en mvil o PC escribiendo `/mia` o `/mia [pregunta]`.
   - **Resolucin de Request URL vs Socket Mode:** En Slack Apps, si *Socket Mode* est activado, Slack oculta los campos de Request URL. Para usar los endpoints REST de Railway FastAPI, se desactiva Socket Mode en *Settings -> Socket Mode -> Disable*, permitiendo ingresar la Request URL directa.
 - **Motor Dual Cognitivo con Google Gemini Habilitado (#mia-chat):**
@@ -1368,7 +1451,7 @@ Para blindar el sistema contra errores 429 de Firebase, caídas de RAM y garanti
 11. `cache_mia_atlas`: Microestructura CME Tape+ (6E, 6B, 6J, GC), CVD Delta direccional y mapa de resting liquidity.
 
 ## 3. Protocolo de los Herds T1 al T10 (Terminators de Infraestructura)
-- Monitoreo continuo de salud del microservicio Railway `trading-production-927a.up.railway.app` y `trading-production-0b51.up.railway.app`.
+- Monitoreo continuo de salud de la tríada de microservicios Railway (0b51 Ops/Slack, 1fd4 Neural/3D, 927a MT5 Data Plane).
 - Verificación de consistencia append-only en colecciones históricas de Firebase.
 - Mandato estricto HITL: Todo ajuste o migración de esquemas se somete a `cache_pending_ops_approvals`.
 
