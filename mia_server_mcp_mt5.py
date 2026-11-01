@@ -120,18 +120,20 @@ def ensure_mt5_connected() -> bool:
     if ok:
         # Verificar cuenta activa
         acc = mt5.account_info()
-        if acc:
+        if acc and acc.login == MT5_LOGIN:
             _mt5_connected = True
-            print(f"[MT5 MCP] Conectado exitosamente a {acc.server} (Login: {acc.login} | Balance: ${acc.balance:.2f})")
+            print(f"[MT5 MCP] Conectado exitosamente a la cuenta oficial {acc.server} (Login: {acc.login} | Balance: ${acc.balance:.2f})")
             return True
-        elif MT5_LOGIN and MT5_PASSWORD and MT5_SERVER:
+
+        # Si el terminal está en otra cuenta o no autenticado, forzar login en la cuenta oficial 112472341
+        if MT5_LOGIN and MT5_PASSWORD and MT5_SERVER:
             auth = mt5.login(login=MT5_LOGIN, password=MT5_PASSWORD, server=MT5_SERVER)
             if auth:
                 _mt5_connected = True
-                print(f"[MT5 MCP] Login exitoso en {MT5_SERVER} (Login: {MT5_LOGIN})")
+                print(f"[MT5 MCP] Login oficial exitoso en {MT5_SERVER} (Login: {MT5_LOGIN})")
                 return True
             else:
-                print(f"[MT5 MCP] Falló login a {MT5_SERVER}: {mt5.last_error()}")
+                print(f"[MT5 MCP] Falló autenticación en cuenta oficial {MT5_LOGIN} ({MT5_SERVER}): {mt5.last_error()}")
                 _mt5_connected = False
                 return False
         _mt5_connected = True
