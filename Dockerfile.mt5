@@ -1,0 +1,36 @@
+FROM python:3.11-slim
+
+# Evitar que Python escriba archivos .pyc y forzar salida stdout sin buffer
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=utf-8
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+# Variables de Entorno Institucionales Oficiales para Servidor MCP MT5
+ENV MT5_LOGIN=112472341
+ENV MT5_PASSWORD=*uR8HmJh
+ENV MT5_SERVER=MetaQuotes-Demo
+ENV FASTAPI_URL=https://trading-production-927a.up.railway.app
+ENV PORT=8080
+
+WORKDIR /app
+
+# Instalar dependencias del sistema mínimas
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar dependencias de Python especializadas para Servidor MCP MT5
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copiar el código fuente
+COPY . .
+
+# Exponer el puerto por defecto
+EXPOSE 8080
+
+# Comando de ejecución del nuevo Servidor MCP MT5
+CMD uvicorn mia_server_mcp_mt5:app --host 0.0.0.0 --port ${PORT:-8080}
