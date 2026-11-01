@@ -44,6 +44,7 @@ MT5_LOGIN = int(os.getenv("MT5_LOGIN", "112472341"))
 MT5_PASSWORD = os.getenv("MT5_PASSWORD", "*uR8HmJh")
 MT5_SERVER = os.getenv("MT5_SERVER", "MetaQuotes-Demo")
 MT5_PATH = os.getenv("MT5_PATH", None)
+FASTAPI_URL = os.getenv("FASTAPI_URL", "https://trading-production-927a.up.railway.app")
 
 PORTAFOLIO_CANONICO = ["EURUSD", "GBPUSD", "AUDUSD", "GBPJPY", "XAUUSD", "NZDCAD"]
 PORTAFOLIO_SANDBOX = ["NZDCAD"]  # Confinado a entrenamiento (0 órdenes reales)
@@ -752,6 +753,13 @@ def health():
         "status": "ONLINE" if connected else "DISCONNECTED",
         "broker_server": MT5_SERVER,
         "account_login": MT5_LOGIN,
+        "fastapi_url": FASTAPI_URL,
+        "env_configured": {
+            "mt5_login": bool(MT5_LOGIN),
+            "mt5_password": bool(MT5_PASSWORD),
+            "mt5_server": bool(MT5_SERVER),
+            "fastapi_url": bool(FASTAPI_URL)
+        },
         "tools_count": len(MCP_TOOLS_REGISTRY),
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }

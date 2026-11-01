@@ -7,6 +7,13 @@ ENV PYTHONIOENCODING=utf-8
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
+# Variables de Entorno Institucionales Oficiales para Servidor MCP MT5
+ENV MT5_LOGIN=112472341
+ENV MT5_PASSWORD=*uR8HmJh
+ENV MT5_SERVER=MetaQuotes-Demo
+ENV FASTAPI_URL=https://trading-production-927a.up.railway.app
+ENV PORT=8080
+
 WORKDIR /app
 
 # Instalar dependencias del sistema mínimas
