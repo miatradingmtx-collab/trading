@@ -39,6 +39,12 @@ FASTAPI_URL = os.getenv("FASTAPI_URL", "http://localhost:8080")
 
 ACCESS_TOKEN = os.getenv("BRIDGE_ACCESS_TOKEN", "tu-token-seguro-de-acceso")
 
+# BROKER DRIVER SELECTOR (Transicion Segura hacia Servidor MCP)
+# Por defecto se mantiene en "METAAPI" para garantizar continuidad operativa 100% de trades en vivo.
+# Para activar el nuevo servidor MCP sin MetaAPI, definir BROKER_DRIVER="MCP" en Railway o .env.
+BROKER_DRIVER = os.getenv("BROKER_DRIVER", "METAAPI").upper()
+MT5_MCP_SERVER_URL = os.getenv("MT5_MCP_SERVER_URL", "http://localhost:8085/mcp/mt5")
+
 METAAPI_TOKEN = os.getenv("METAAPI_TOKEN")
 MT5_LOGIN = os.getenv("MT5_LOGIN", "112472341")
 MT5_PASSWORD = os.getenv("MT5_PASSWORD", "*uR8HmJh")
@@ -1583,13 +1589,41 @@ async def ejecutar_orden_cloud(connection, activo: str, accion: str, precio: flo
         
 
 
-        if es_buy:
-            result = await connection.create_market_buy_order(simbolo_broker, lote, sl, tp, options)
+        if BROKER_DRIVER == "MCP":
+            try:
+                mcp_base = MT5_MCP_SERVER_URL.replace("/mcp/mt5", "").rstrip("/")
+                mcp_url = f"{mcp_base}/api/mcp/mt5/execute/mcp_mt5_open_order"
+                mcp_payload = {
+                    "symbol": simbolo_broker,
+                    "action": "BUY" if es_buy else "SELL",
+                    "volume": float(lote),
+                    "sl": float(sl),
+                    "tp": float(tp),
+                    "comment": f"MIA_{activo}"[:31],
+                    "magic": 20260616
+                }
+                async with httpx.AsyncClient() as mcp_client:
+                    m_res = await mcp_client.post(mcp_url, json=mcp_payload, timeout=10.0)
+                    if m_res.status_code == 200 and m_res.json().get("status") == "success":
+                        order_id = m_res.json().get("result", {}).get("ticket", "N/A")
+                        print(f"| MCP SUCCESS | Orden colocada con éxito vía Servidor MCP MT5 en {simbolo_broker}. Ticket ID: {order_id}")
+                    else:
+                        raise RuntimeError(f"Error MCP: {m_res.text}")
+            except Exception as e_mcp:
+                print(f"| MCP WARN | Fallo al despachar vía Servidor MCP ({e_mcp}). Fallback a MetaAPI...")
+                if es_buy:
+                    result = await connection.create_market_buy_order(simbolo_broker, lote, sl, tp, options)
+                else:
+                    result = await connection.create_market_sell_order(simbolo_broker, lote, sl, tp, options)
+                order_id = result.get("orderId", "N/A")
+                print(f"| METAAPI FAILOVER SUCCESS | Orden colocada con éxito en {simbolo_broker}. Ticket ID: {order_id}")
         else:
-            result = await connection.create_market_sell_order(simbolo_broker, lote, sl, tp, options)
-
-        order_id = result.get("orderId", "N/A")
-        print(f"| METAAPI SUCCESS | Orden colocada con éxito en {simbolo_broker}. Ticket ID: {order_id}")
+            if es_buy:
+                result = await connection.create_market_buy_order(simbolo_broker, lote, sl, tp, options)
+            else:
+                result = await connection.create_market_sell_order(simbolo_broker, lote, sl, tp, options)
+            order_id = result.get("orderId", "N/A")
+            print(f"| METAAPI SUCCESS | Orden colocada con éxito en {simbolo_broker}. Ticket ID: {order_id}")
         
         # Avisar al backend que ya se ejecutÃ³ para que apague el semÃ¡foro y evite doble ejecución
         try:
