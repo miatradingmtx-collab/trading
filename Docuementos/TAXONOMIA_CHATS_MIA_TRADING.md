@@ -7,15 +7,15 @@ Para evitar sobrecarga de contexto, contaminación de tokens (*Lost in the Middl
 
 ## 🏛️ MAPA GENERAL DE LOS 7 CHATS ESPECIALIZADOS
 
-| Chat # | Nombre Oficial del Chat | Dominio / Alcance | Rama Git | Microservicio / Canal |
-| :---: | :--- | :--- | :---: | :--- |
-| **1** | `[TRADING] Cognición LLMs, Agentes .MD & Obsidian` | Modelos IA (Gemini Pro, Llama 70B), memoria CBR, autopsias y Bóveda Obsidian. | `main` | `0b51` / `#mia-trading-insights` |
-| **2** | `[TRADING] Arquitectura de Código & Backend Core` | Lógica de `app.py`, `mt5_executor_cloud.py`, algoritmos SMC, Cascada RUNE y endpoints API. | `develop` / `main` | `927a` / Core API |
-| **3** | `[TRADING] UI/UX Dashboard, Brain 3D, Enjambres & Mods` | Terminal Antopus 3D (`/`), Red Neuronal 3D (`/brain`), Módulos (`/mods`), gráficos y responsive móvil. | `develop` | `1fd4` / WebSocket |
-| **4** | `[TRADING] Producción (Rama MAIN) & Despliegues Railway` | Releases estables, auditoría de capital real, aprobación HITL y sincronización de producción. | `main` | Railway Producción |
-| **5** | `[TRADING] Desarrollo (Rama DEVELOP), Staging & MCP MT5` | Pruebas de integración, micro-lotes en demo, nuevo servidor `mia_server_mcp_mt5.py`. | `develop` | `a0b8` / MCP MT5 |
-| **6** | `[TRADING] Infraestructura Back-Office, SRE & Herds T1-T10` | Salud del cluster, latencias MGET sub-35ms, Upstash Redis, Docker y ChatOps Slack. | `main` | `0b51` / `#back-office-y-backend` |
-| **7** | `[TRADING] Consultas Generales, Estrategia & Roadmap` | Lluvia de ideas, análisis macro, diseño de confirmaciones de la Regla de 3 y estrategia comercial. | — | Consultoría & Estrategia |
+| Chat # | Conversation ID | Nombre Oficial del Chat | Dominio / Alcance | Rama Git | Microservicio / Canal |
+| :---: | :--- | :--- | :--- | :---: | :--- |
+| **01** | `30cc37f2` | `01 - Cognición LLMs, Reglas MD y Memoria Obsidian` | Modelos IA (Gemini Pro, Llama 70B), memoria CBR, autopsias y Bóveda Obsidian. | `develop` | `0b51` / `#mia-trading-insights` |
+| **02** | `2bd45cda` | `02 - Arquitectura Backend & Microservicios` | Lógica de `app.py`, `mt5_executor_cloud.py`, algoritmos SMC, Cascada RUNE y endpoints API. | `develop` | `927a` / Core API |
+| **03** | `b456972a` | `03 - UI/UX Dashboard, Brain 3D, Mods & KPIs` | Terminal Antopus 3D (`/`), Red Neuronal 3D (`/brain`), Módulos (`/mods`), gráficos y responsive móvil. | `develop` | `1fd4` / WebSocket |
+| **04** | `ba9096c1` | `04 - Producción Main Railway & Despliegues` | Releases estables, auditoría de capital real, aprobación HITL y sincronización de producción. | `main` | Railway Producción |
+| **05** | `0abdbfa6` | `05 - Desarrollador Develop & Servidor MCP MT5` | Pruebas de integración, micro-lotes en demo, nuevo servidor `mia_server_mcp_mt5.py`. | `develop` | `a0b8` / MCP MT5 |
+| **06** | `29c6e21a` | `06 - Infraestructura SRE & Watchdog Herds T1-T10` | Salud del cluster, latencias MGET sub-35ms, Upstash Redis, Docker y ChatOps Slack. | `develop` | `0b51` / `#back-office-y-backend` |
+| **07** | `12664818` | `07 - Consultas Generales, Backtesting & Roadmap` | Lluvia de ideas, análisis macro, diseño de confirmaciones de la Regla de 3 y estrategia comercial. | `develop` | Consultoría & Estrategia |
 
 ---
 
