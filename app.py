@@ -3810,6 +3810,30 @@ async def render_flujo_hitl_trust_mode():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo cargar el flujo HITL Trust Mode: {e}")
 
+@app.get("/flujo/figma-mcp", response_class=HTMLResponse)
+@app.get("/flujo_figma", response_class=HTMLResponse)
+@app.get("/diagramas/figma-mcp", response_class=HTMLResponse)
+async def render_flujo_figma_mcp():
+    """
+    Retorna el flujo de conectividad entre Figma MCP, Herd T6 y los destinos de produccion.
+    """
+    flujo_path = os.path.join(os.path.dirname(__file__), "flujo_conectividad_figma_mcp.html")
+    if not os.path.exists(flujo_path):
+        flujo_path = "flujo_conectividad_figma_mcp.html"
+    try:
+        with open(flujo_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HTMLResponse(
+            content=html_content,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"No se pudo cargar el flujo Figma MCP: {e}")
+
 @app.get("/api/cme_tape_data")
 def get_cme_tape_data():
     """Devuelve los datos y muestras de CME FX Tape+ (4 CLOBs: EBSC, XCME, GLBX, XFXS)."""

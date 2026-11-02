@@ -107,6 +107,16 @@ if os.path.exists(build_dir):
 
     # Las rutas de API y WebSocket se registran primero; el catch-all estático al final
 
+    @app.get("/flujo/figma-mcp")
+    @app.get("/flujo_figma")
+    @app.get("/diagramas/figma-mcp")
+    async def render_flujo_figma_mcp():
+        """Sirve el flujo interactivo de conectividad Figma MCP en 1fd4"""
+        try:
+            return FileResponse(os.path.join(os.path.dirname(__file__), "flujo_conectividad_figma_mcp.html"))
+        except Exception as e:
+            return {"error": str(e)}
+
     @app.get("/mods")
     async def render_mods_war_room():
         """Sirve el HUD Táctico Modo Guerra (Videojuego) en /mods en la instancia 1fd4"""
