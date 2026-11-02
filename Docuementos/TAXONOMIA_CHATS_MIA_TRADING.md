@@ -9,7 +9,7 @@ Para evitar sobrecarga de contexto, contaminación de tokens (*Lost in the Middl
 
 | Chat # | Conversation ID | Nombre Oficial del Chat | Dominio / Alcance | Rama Git | Microservicio / Canal |
 | :---: | :--- | :--- | :--- | :---: | :--- |
-| **01** | `30cc37f2` | `01 - Supervisor Quant & Agente Post-Mortem (Cognición CBR & Slack Insights)` | Autopsias forenses de trades MT5, cálculo de premio/castigo, memoria CBR y Bóveda Obsidian. | `develop` | `0b51` / `#mia-trading-insights` |
+| **01** | `30cc37f2` | `01 - Cognición LLMs, Memoria Obsidian & Supervisor Quant Post-Mortem` | Autopsias forenses de trades MT5, cálculo de premio/castigo, memoria CBR y Bóveda Obsidian. | `develop` | `0b51` / `#mia-trading-insights` |
 | **02** | `2bd45cda` | `02 - Arquitectura Backend & Microservicios` | Lógica de `app.py`, `mt5_executor_cloud.py`, algoritmos SMC, Cascada RUNE y endpoints API. | `develop` | `927a` / Core API |
 | **03** | `b456972a` | `03 - UI/UX Dashboard, Brain 3D, Mods & Mobile Responsive (Stitch/Figma/Flutter)` | Terminal Antopus 3D (`/`), Red Neuronal 3D (`/brain`), Módulos (`/mods`), flujo Bézier y Flutter. | `develop` | `1fd4` / WebSocket |
 | **04** | `ba9096c1` | `04 - Producción Main Railway & Despliegues` | Releases estables, auditoría de capital real, aprobación HITL y sincronización de producción. | `main` | Railway Producción |
@@ -21,11 +21,11 @@ Para evitar sobrecarga de contexto, contaminación de tokens (*Lost in the Middl
 
 ## 📋 DETALLE, ALCANCE Y PROMPT INICIAL POR CHAT
 
-### Chat 1: 🏛️ `01 - Supervisor Quant & Agente Post-Mortem (Cognición CBR & Slack Insights)`
-* **Misión:** Dupla Cognitiva de la Rama 1: Autopsias forenses de cada trade cerrado en MT5 con Google Gemini 1.5 Pro, asignación de premio/castigo (+R / -R), enriquecimiento continuo de la memoria CBR (`system_memory/latest_cbr` y `cache_trading_learning_kb`), despacho interactivo a `#mia-trading-insights` y sincronización perpetua con la Bóveda de Obsidian.
+### Chat 1: 🏛️ `01 - Cognición LLMs, Memoria Obsidian & Supervisor Quant Post-Mortem`
+* **Misión:** Dupla Cognitiva de la Rama 1: Custodia de especificaciones en Markdown (`specs/herds/*.md`), autopsias forenses de cada trade cerrado en MT5 con Google Gemini 1.5 Pro, asignación de premio/castigo (+R / -R), enriquecimiento continuo de la memoria CBR (`system_memory/latest_cbr` y `cache_trading_learning_kb`), despacho interactivo a `#mia-trading-insights` y sincronización perpetua con la Bóveda de Obsidian.
 * **Archivos Clave:** `specs/herds/*.md`, `specs/herds/CBR_POST_MORTEM_QUANT.md`, `mia_post_mortem_agent.py`, `mia_supervisor_quant.py`, `D:\obsidiana\Proyectos\Mia_Trading\`.
 * **Prompt de Arranque (Copiar y Pegar al iniciar):**
-  > *"Actúa como la Dupla Cognitiva de la Rama 1 de Mia Trading Core: el Agente Post-Mortem y el Supervisor Quant. Tu canal oficial es #mia-trading-insights (C0C6DUTQVEZ). Tu alcance exclusivo son las autopsias forenses de trades cerrados en MT5, cálculo de premio/castigo, memoria CBR post-mortem (system_memory/latest_cbr) y la sincronización con la Bóveda de Obsidian. Cero modificaciones de interfaz gráfica o servidores backend directos."*
+  > *"Actúa como el Supervisor Quant, Arquitecto de Conocimiento y Agente Post-Mortem de Mia Trading Core. Tu canal oficial es #mia-trading-insights (C0C6DUTQVEZ). Tu alcance exclusivo abarca la cognición de agentes LLM, custodia de especificaciones Markdown, autopsias forenses de trades cerrados en MT5, memoria CBR post-mortem (system_memory/latest_cbr) y la sincronización perpetua con la Bóveda de Obsidian. Cero modificaciones de interfaz gráfica o servidores backend directos."*
 
 ---
 
