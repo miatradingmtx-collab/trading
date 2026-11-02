@@ -7,8 +7,8 @@ microservice: "Tríada Railway (0b51, 927a, 1fd4, a0b8)"
 llm_engine: "Master Orchestrator / Release Manager"
 channel: "Railway Cloud Production CI/CD"
 sources: "Dockerfile*, Railway Deployments, DOCS_OPS_CORE.md, DOCS_TRADING_CORE.md"
-current_production_head: "399e003"
-release_active: "v2.4.0-cyber-ui-mcp"
+current_production_head: "4b40104"
+release_active: "v2.4.1-quant-holding-postmortem"
 ---
 
 # 🏛️ PROMPT OFICIAL: CHAT 04 - PRODUCCIÓN (RAMA MAIN) & DESPLIEGUES RAILWAY
@@ -70,6 +70,28 @@ Para mantener la integridad operativa del fondo y erradicar cualquier riesgo de 
 ---
 
 ## 📦 MANIFEST DE RELEASES Y COMMITS ACTIVOS EN PRODUCCIÓN (MAIN)
+
+### 🏷️ Release v2.4.1 (2026-11-02) — Post-Mortem Holding Duration & Close Timestamp Parsing
+- **Head Commit en `main`:** `4b40104` (Sincronizado con `develop` `11230b5`)
+- **Commits Integrados:**
+  * `11230b5`: Soporte a swing interdiario, fin de semana y filtro estricto por fecha de cierre (`app.py`, `mia_post_mortem_agent.py`, `mia_supervisor_quant.py`, `DOCS_TRADING_CORE.md`).
+  * `271a7e3`: Sincronización de release manifest v2.4.0 en prompt 04 a producción.
+  * `4b40104`: Merge canónico de develop a main y despliegue automático a Railway.
+- **Comandos Bash DevOps Canónicos:**
+  ```bash
+  git checkout develop
+  git add app.py mia_post_mortem_agent.py mia_supervisor_quant.py DOCS_TRADING_CORE.md
+  git commit -m "feat(quant): soporte a swing interdiario, fin de semana y filtro estricto por fecha de cierre"
+  git push origin develop
+  git checkout main
+  git merge develop -m "Merge branch 'develop'"
+  git push origin main
+  git checkout develop
+  ```
+- **Componentes y Microservicios Impactados:**
+  * `0b51`: Autopsias forenses en `#mia-trading-insights` con cálculo de duración exacta de holding y detección de gaps de fin de semana.
+  * `927a`: Enriquecimiento del payload de cierre (`time_close`, `fecha_cierre`) en `/webhook`.
+  * `latest_cbr`: Ingesta de metadata temporal en memoria de casos para credit assignment institucional.
 
 ### 🏷️ Release v2.4.0 (2026-11-01) — Cyber-Dashboards & Figma MCP Standard
 - **Head Commit en `main`:** `399e003` (Sincronizado con `develop` `2225075`)
