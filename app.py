@@ -716,6 +716,10 @@ def guardar_en_firestore(alert: TradeAlert, precio_yahoo: Optional[float] = None
                 "ultima_actualizacion": iso_time,
                 "timestamp": iso_time,
                 "fecha": fecha_str,
+                "time_close": iso_time if es_cierre else "",
+                "fecha_cierre": iso_time if es_cierre else "",
+                "open_time": getattr(alert, "open_time", "") or (exist_data.get("open_time", "") if exist_data else "") or (exist_data.get("fecha_apertura", "") if exist_data else "") or (iso_time if not es_cierre else ""),
+                "fecha_apertura": getattr(alert, "open_time", "") or (exist_data.get("fecha_apertura", "") if exist_data else "") or (iso_time if not es_cierre else ""),
                 "score": score,
                 "poc_price": poc_price,
                 "ejecutada_mt5": ejecutada_flag,
@@ -1931,7 +1935,9 @@ def recibir_alerta(alert: TradeAlert, background_tasks: BackgroundTasks):
             'symbol': alert.activo,
             'profit': alert.pnl if alert.pnl else 0.0,
             'type': alert.accion,
-            'motivo': alert.comentario if alert.comentario else 'Cierre de mercado'
+            'motivo': alert.comentario if alert.comentario else 'Cierre de mercado',
+            'time_close': datetime.datetime.now().isoformat(),
+            'open_time': getattr(alert, 'open_time', '') or (exist_data.get('open_time') if exist_data else '') or (exist_data.get('fecha_apertura') if exist_data else '')
         }
         def disparar_quant(trade_info):
             try:

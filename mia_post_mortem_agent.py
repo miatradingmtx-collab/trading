@@ -43,11 +43,131 @@ class MiaPostMortemAgent:
         self.UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg")
         self.UPSTASH_HEADERS = {"Authorization": f"Bearer {self.UPSTASH_TOKEN}"}
 
+    def _parse_datetime(self, val: Any) -> Optional[datetime.datetime]:
+        """Parsea de forma resiliente cualquier formato de fecha o timestamp Unix/ISO."""
+        if not val:
+            return None
+        if isinstance(val, (int, float)):
+            try:
+                return datetime.datetime.fromtimestamp(val, tz=datetime.timezone.utc)
+            except Exception:
+                return None
+        s = str(val).strip()
+        if not s:
+            return None
+        if s.isdigit():
+            try:
+                return datetime.datetime.fromtimestamp(int(s), tz=datetime.timezone.utc)
+            except Exception:
+                return None
+        try:
+            f = float(s)
+            if f > 1000000000:
+                return datetime.datetime.fromtimestamp(f, tz=datetime.timezone.utc)
+        except ValueError:
+            pass
+
+        try:
+            s_clean = s.replace('Z', '+00:00')
+            dt = datetime.datetime.fromisoformat(s_clean)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            return dt
+        except Exception:
+            pass
+
+        for fmt in [
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d %H:%M",
+            "%Y-%m-%d",
+            "%d/%m/%Y %H:%M:%S",
+            "%d/%m/%Y %H:%M",
+            "%Y.%m.%d %H:%M:%S",
+            "%Y.%m.%d %H:%M"
+        ]:
+            try:
+                dt = datetime.datetime.strptime(s, fmt)
+                return dt.replace(tzinfo=datetime.timezone.utc)
+            except Exception:
+                continue
+        return None
+
+    def _lookup_open_time_from_cache(self, ticket: str) -> Optional[datetime.datetime]:
+        """Busca el timestamp de apertura en el historial de cache si el evento de cierre no lo trajo."""
+        if not ticket or not str(ticket).isdigit():
+            return None
+        try:
+            r = requests.get(f"{self.UPSTASH_URL}/get/cache_hist_mt5", headers=self.UPSTASH_HEADERS, timeout=3)
+            if r.status_code == 200 and r.json().get("result"):
+                raw = r.json().get("result")
+                d = json.loads(raw) if isinstance(raw, str) else (raw or {})
+                for l in d.get("recent_logs", []):
+                    if str(l.get("ticket")) == str(ticket):
+                        raw_ot = l.get("open_time") or l.get("time_open") or l.get("fecha_apertura")
+                        if raw_ot:
+                            return self._parse_datetime(raw_ot)
+                        if str(l.get("accion")).upper() in ["COMPRA", "VENTA", "EJECUTADO"]:
+                            return self._parse_datetime(l.get("timestamp") or l.get("fecha"))
+        except Exception:
+            pass
+        return None
+
+    def _classify_trade_holding(self, open_dt: Optional[datetime.datetime], close_dt: Optional[datetime.datetime]) -> Dict[str, Any]:
+        """
+        Clasifica con precisión institucional la duración del trade:
+        - INTRADIA: Apertura y cierre en el mismo día operativo.
+        - SWING_INTERDIARIO: Abierto un día y cerrado al día siguiente (ej. Jueves -> Viernes).
+        - SWING_FIN_DE_SEMANA: Abierto antes del cierre de mercado el viernes y cerrado domingo/lunes.
+        """
+        if not close_dt:
+            return {"duracion_horas": None, "categoria_holding": "INTRADIA", "mantuvo_fin_de_semana": False}
+
+        if not open_dt:
+            return {"duracion_horas": None, "categoria_holding": "INTRADIA", "mantuvo_fin_de_semana": False}
+
+        dur_seconds = (close_dt - open_dt).total_seconds()
+        if dur_seconds < 0:
+            dur_seconds = 0.0
+        duracion_horas = round(dur_seconds / 3600.0, 2)
+
+        mantuvo_fin_de_semana = False
+        day_diff = (close_dt.date() - open_dt.date()).days
+        if day_diff > 0:
+            for i in range(day_diff + 1):
+                curr_date = open_dt.date() + datetime.timedelta(days=i)
+                # 5: Sabado, 6: Domingo
+                if curr_date.weekday() == 5:
+                    mantuvo_fin_de_semana = True
+                    break
+                elif curr_date.weekday() == 6 and (curr_date != close_dt.date() or close_dt.hour >= 20):
+                    mantuvo_fin_de_semana = True
+                    break
+                elif curr_date.weekday() == 6 and curr_date != open_dt.date():
+                    mantuvo_fin_de_semana = True
+                    break
+
+        if mantuvo_fin_de_semana:
+            categoria_holding = "SWING_FIN_DE_SEMANA"
+        elif day_diff > 0 or duracion_horas >= 18.0:
+            categoria_holding = "SWING_INTERDIARIO"
+        else:
+            categoria_holding = "INTRADIA"
+
+        return {
+            "duracion_horas": duracion_horas,
+            "categoria_holding": categoria_holding,
+            "mantuvo_fin_de_semana": mantuvo_fin_de_semana
+        }
+
     def fetch_recent_closed_trades(self, limit: int = 20, max_hours_lookback: int = 24) -> List[Dict[str, Any]]:
-        """Extrae trades cerrados del día operativo reciente desde Upstash Redis."""
+        """
+        Extrae trades cerrados recientes desde Upstash Redis basándose estrictamente en la FECHA DE CIERRE.
+        Si es domingo o lunes, amplía la ventana a 72h para capturar operaciones de fin de semana y reapertura.
+        """
         closed = []
         now_utc = datetime.datetime.now(datetime.timezone.utc)
-        cutoff_dt = now_utc - datetime.timedelta(hours=max(1, max_hours_lookback))
+        effective_lookback = max(72 if now_utc.weekday() in [0, 6] else 24, max_hours_lookback)
+        cutoff_dt = now_utc - datetime.timedelta(hours=effective_lookback)
         try:
             r = requests.get(f"{self.UPSTASH_URL}/get/cache_hist_mt5", headers=self.UPSTASH_HEADERS, timeout=4)
             if r.status_code == 200 and r.json().get("result"):
@@ -60,19 +180,12 @@ class MiaPostMortemAgent:
                         pnl = float(data.get("pnl", 0.0) or 0.0)
                         accion = data.get("accion", "")
                         if accion in ["CIERRE_TOTAL", "CERRAR_TP", "CIERRE_PARCIAL", "TRAILING_STOP", "PROTECCION_BE"] or pnl != 0.0:
-                            # Filtro estricto de antigüedad temporal: Omitir trades previos a la ventana de 24h
-                            ts_raw = str(data.get("timestamp") or data.get("fecha") or "")
+                            # Filtro estricto basado en FECHA DE CIERRE (time_close / timestamp / fecha)
+                            ts_close_raw = str(data.get("time_close") or data.get("fecha_cierre") or data.get("timestamp_cierre") or data.get("timestamp") or data.get("fecha") or "")
+                            close_dt = self._parse_datetime(ts_close_raw)
                             es_reciente = True
-                            if ts_raw:
-                                try:
-                                    ts_clean = ts_raw.replace('Z', '+00:00')
-                                    t_dt = datetime.datetime.fromisoformat(ts_clean)
-                                    if t_dt.tzinfo is None:
-                                        t_dt = t_dt.replace(tzinfo=datetime.timezone.utc)
-                                    if t_dt < cutoff_dt:
-                                        es_reciente = False
-                                except Exception:
-                                    pass
+                            if close_dt and close_dt < cutoff_dt:
+                                es_reciente = False
 
                             if es_reciente:
                                 closed.append({
@@ -82,6 +195,8 @@ class MiaPostMortemAgent:
                                     "type": accion,
                                     "motivo": data.get("motivo", "Cierre MT5"),
                                     "timestamp": data.get("timestamp", datetime.datetime.now().isoformat()),
+                                    "time_close": ts_close_raw,
+                                    "open_time": data.get("open_time") or data.get("fecha_apertura") or data.get("time_open"),
                                     "score": data.get("score", 75.0),
                                     "detalle_setup": data.get("detalle_setup", "")
                                 })
@@ -129,6 +244,20 @@ class MiaPostMortemAgent:
         is_loss = profit < 0
         is_be = profit == 0
         res_str = "Ganador" if is_win else ("Breakeven" if is_be else "Pérdida")
+
+        # 0. Cálculo y Clasificación de Holding Temporal (Swing vs Intradía vs Fin de Semana)
+        raw_close = trade.get('time_close') or trade.get('fecha_cierre') or trade.get('timestamp_cierre') or trade.get('timestamp') or trade.get('fecha') or trade.get('ultima_actualizacion')
+        close_dt = self._parse_datetime(raw_close) or datetime.datetime.now(datetime.timezone.utc)
+        
+        raw_open = trade.get('open_time') or trade.get('time_open') or trade.get('fecha_apertura') or trade.get('open_timestamp')
+        open_dt = self._parse_datetime(raw_open)
+        if not open_dt and ticket and ticket != "N/A":
+            open_dt = self._lookup_open_time_from_cache(ticket)
+
+        holding_info = self._classify_trade_holding(open_dt, close_dt)
+        duracion_horas = holding_info["duracion_horas"]
+        categoria_holding = holding_info["categoria_holding"]
+        mantuvo_fin_de_semana = holding_info["mantuvo_fin_de_semana"]
 
         # Clúster Institucional CME / COMEX
         if "XAU" in symbol or "GOLD" in symbol:
@@ -253,9 +382,11 @@ class MiaPostMortemAgent:
         nota_tecnica = audit.get("nota_auditoria", "Infraestructura backend nominal.")
 
         # Diagnóstico Forense Preliminar Consolidado
+        dur_str = f"{duracion_horas:.1f}h" if duracion_horas is not None else "N/A"
+        swing_txt = f" | Duración: {dur_str} [{categoria_holding}{' | Hold Fin de Semana' if mantuvo_fin_de_semana else ''}]"
         diagnostico_forense = (
             f"Autopsia Forense Agente Post-Mortem: Trade #{ticket} en {symbol} ({tipo}) finalizó como {res_str} "
-            f"(${profit:.2f} USD). Clúster: {cluster}. Setup: {setup}. Score entrada: {score}%. "
+            f"(${profit:.2f} USD){swing_txt}. Clúster: {cluster}. Setup: {setup}. Score entrada: {score}%. "
             f"Dictamen forense: {'Confluencia validada en enjambre.' if is_win else 'Desalineación entre sesgo de volatilidad y microestructura DOM/CVD.'}"
         )
 
@@ -271,6 +402,11 @@ class MiaPostMortemAgent:
             "es_ganador": is_win,
             "es_perdida": is_loss,
             "es_breakeven": is_be,
+            "duracion_horas": duracion_horas,
+            "categoria_holding": categoria_holding,
+            "mantuvo_fin_de_semana": mantuvo_fin_de_semana,
+            "fecha_apertura": open_dt.isoformat() if open_dt else None,
+            "fecha_cierre": close_dt.isoformat() if close_dt else None,
             "diagnostico_forense": diagnostico_forense,
             "autopsia_herds": autopsia_herds,
             "borrador_propuestas_7_herds": borrador_propuestas,
