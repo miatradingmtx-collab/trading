@@ -151,3 +151,20 @@ Toda mejora o corrección sobre los parámetros del bot DEBE ser enviada como un
    Si los agentes LLMs (Gemini Pro, Llama 3.3 70B, DeepSeek) o los 7 Herds del Swarm leen documentos donde coexisten datos en conflicto (ejemplo: un Top 3 antiguo de septiembre con 94% WR junto al Top 3 validado con $\ge 50$ trades, o balances desfasados de $4,325 junto a $3,688), el agente sufre degradación de atención ("Lost in the Middle"), alucina, pierde precisión en el razonamiento probabilístico o revierte a parámetros erróneos ya superados. Mantener la documentación limpia, homologada y unívoca es una **condición crítica de seguridad operativa**.
 4. **Protocolo de Cierre Obligatorio (Definition of Done):**
    Ningún agente puede reportar una tarea como terminada al usuario, ni realizar commit/push hacia Railway, sin antes haber verificado la ausencia total de discrepancias entre los archivos de documentación y las especificaciones activas.
+
+
+# 🎨 REGLA DE ORO DE DIAGRAMAS INSTITUCIONALES HIGH-FIDELITY Y RUTA CANÓNICA (/Diagramas)
+**MANDATO INQUEBRANTABLE PARA LOS 7 CHATS / PROMPTS Y TODOS LOS AGENTES:**
+1. **Prohibición Total de Diagramas Planos / Cajas Secas (⛔):**
+   Queda terminantemente prohibido generar flujos de arquitectura, conectividad o enjambres como diagramas de flujo planos, esquemas monocromáticos verticales o cajas rectangulares secas.
+2. **Estándar High-Fidelity Cyber-Dashboard Obligatorio (✅):**
+   Todo diagrama o flujo solicitado en CUALQUIERA de los 7 chats/prompts de Antigravity DEBE construirse obligatoriamente bajo el estándar visual canónico de `flujo_conectividad_figma_mcp.html` y `flujo_aprobacion_hitl_cbr_t6.html`:
+   - **Ticker Superior en Vivo:** Barra superior flotante con telemetría en tiempo real (latencias sub-35ms, modelos asignados y estado de red).
+   - **Capas Horizontales:** Jerarquía visual estricta sobre fondo Dark Obsidian (`#080a0f`), tarjetas traslúcidas (`backdrop-filter: blur(14px)`) y resplandores neón semánticos (Cian `#38bdf8`, Púrpura `#c084fc`, Verde `#4ade80`, Oro `#facc15`, Naranja Figma `#ff7262`).
+   - **Cableado Dinámico SVG Bézier:** Curvas cúbicas paramétricas libres de colisión con holgura tangencial ($\Delta y \ge 45\text{px}$) que jamás tapen títulos de capa ni tarjetas, con animación de pulso láser (`laserDash`) y píldoras flotantes en el punto medio ($t=0.5$).
+   - **Stack Tecnológico Ligero:** 100% construido en HTML5 semántico, SVG vectorial, CSS Grid/Flexbox y Vanilla JavaScript puro. CERO librerías externas pesadas ni Tailwind CDN bloqueante.
+   - **Inspector Interactivo:** Panel inferior para auditar dependencias y metadatos JSON al hacer clic en nodos o conectores.
+3. **Ubicación Canónica de Almacenamiento Obligatoria:**
+   Todos los diagramas y flujos generados en el sistema DEBEN guardarse obligatoriamente en la ruta canónica:
+   `C:\Users\ecybe\OneDrive\Documentos\Trading\Diagramas\`
+   para mantener el orden integral del repositorio.

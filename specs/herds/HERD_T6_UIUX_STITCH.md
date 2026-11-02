@@ -13,8 +13,9 @@ Su misión exclusiva es modelar, auditar y optimizar los interfaces de usuario d
   Todo flujo de arquitectura o conectividad solicitado debe renderizarse bajo el estándar **High-Fidelity Cyber-Dashboard**:
   - **Estructura:** HTML5 semántico + CSS Grid & Flexbox puro (cero Tailwind CDN ni librerías externas bloqueantes).
   - **Cableado Dinámico:** SVG vectorial paramétrico con curvas Bézier cúbicas auto-enrutadas que respetan márgenes y NUNCA solapan títulos, textos ni tarjetas.
-  - **Estética Canónica:** Paleta Obsidian (`#080a0f`), bordes con resplandor neón (`#38bdf8` cian, `#c084fc` púrpura, `#4ade80` verde, `#f87171` rojo), badges de estado vivos y ticker superior de telemetría con latencia en milisegundos (`MGET sub-35ms`).
+  - **Estética Canónica:** Paleta Obsidian (`#080a0f`), bordes con resplandor neón (`#38bdf8` cian, `#c084fc` púrpura, `#4ade80` verde, `#f87171` rojo, `#ff7262` naranja Figma), badges de estado vivos y ticker superior de telemetría con latencia en milisegundos (`MGET sub-35ms`).
   - **Rendimiento:** 60 FPS estables, aceleración por hardware GPU en animaciones (`transform`, `opacity`), y compatibilidad móvil touch-native.
+  - **Ruta Canónica de Almacenamiento:** Todo diagrama y flujo generado en el sistema debe guardarse obligatoriamente en `C:\Users\ecybe\OneDrive\Documentos\Trading\Diagramas\` para mantener el orden integral del repositorio.
 
 ---
 

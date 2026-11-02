@@ -86,3 +86,9 @@ Está terminantemente prohibido que `trading_matrix`, memorias RAM (`FIREBASE VI
    Si los agentes LLMs (Gemini Pro, Llama 3.3 70B, DeepSeek) o los 7 Herds del Swarm leen documentos donde coexisten datos en conflicto (ejemplo: un Top 3 antiguo de septiembre con 94% WR junto al Top 3 validado con $\ge 50$ trades, o balances desfasados de $4,325 junto a $3,688), el agente sufre degradación de atención ("Lost in the Middle"), alucina, pierde precisión en el razonamiento probabilístico o revierte a parámetros erróneos ya superados. Mantener la documentación limpia, homologada y unívoca es una **condición crítica de seguridad operativa**.
 4. **Protocolo de Cierre Obligatorio (Definition of Done):**
    Ningún agente puede reportar una tarea como completada ni hacer commit/push hacia Railway sin antes haber verificado la ausencia total de discrepancias entre los archivos de documentación y las especificaciones activas, habiendo asentado el hito con fecha exacta en `Historial_Cambios_Trading.md`.
+
+
+## Regla de Diagramas Institucionales High-Fidelity y Almacenamiento en Diagramas/
+1. **Mandato Visual Inquebrantable:** Todo diagrama o flujo de arquitectura, enjambres o conectividad generado en cualquiera de los 7 chats/prompts DEBE diseñarse bajo el estándar de High-Fidelity Cyber-Dashboard (HTML5 semántico, dynamic SVG Bézier anti-colisiones, CSS Grid/Flexbox puro, Vanilla JS, fondo Dark Obsidian `#080a0f`, ticker superior en vivo y cero CDNs pesadas), tal como se evidencia en `flujo_conectividad_figma_mcp.html`.
+2. **Ruta Canónica de Almacenamiento:** Todo diagrama o visualizador HTML/SVG generado en el sistema debe guardarse obligatoriamente dentro del directorio canónico:
+   `C:\Users\ecybe\OneDrive\Documentos\Trading\Diagramas\`
