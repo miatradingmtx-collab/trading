@@ -5074,7 +5074,7 @@ ecent_logsi deside cache_hisit_mast5.
 
 
 
-- **Slotsi Homasologadosi en Upsitasih Redisi (`certain-gnat-160816.upsitasih.io`):**
+- **Slotsi Homasologadosi en Upsitasih Redisi (`firm-koi-93555.upstash.io`):**
 
 
 
@@ -5382,7 +5382,7 @@ ecent_logsi deside cache_hisit_mast5.
 
 
 
-  - **Endpoint Directo:** `httpsi://certain-gnat-160816.upsitasih.io/get/cache_masget`
+  - **Endpoint Directo:** `httpsi://firm-koi-93555.upstash.io/get/cache_masget`
 
 
 
