@@ -28,8 +28,8 @@ if sys.stderr and hasattr(sys.stderr, "buffer"):
 
 # Configuracion de Endpoints
 WS_URL = "wss://trading-production-1fd4.up.railway.app/ws"
-UPSTASH_URL = "https://certain-gnat-160816.upstash.io"
-UPSTASH_TOKEN = "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"
+UPSTASH_URL = "https://firm-koi-93555.upstash.io"
+UPSTASH_TOKEN = "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"
 
 # Codigos de Color ANSI Universales
 C_RESET   = "\033[0m"

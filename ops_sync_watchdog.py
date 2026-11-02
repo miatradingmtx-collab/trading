@@ -22,8 +22,8 @@ if not firebase_admin._apps:
                     pass
 db = firestore.client() if firebase_admin._apps else None
 
-UPSTASH_URL = "https://certain-gnat-160816.upstash.io"
-UPSTASH_TOKEN = "gQAAAAAAAnQwAAIgcDI2YTA5YjRlZDU2MDM0OWU5ODhlZjBlYTk4ODYyZDg0OA"
+UPSTASH_URL = "https://firm-koi-93555.upstash.io"
+UPSTASH_TOKEN = "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"
 headers = {"Authorization": f"Bearer {UPSTASH_TOKEN}"}
 
 print("Iniciando MGET Watchdog Sync (Herd T1 & T4)...")
