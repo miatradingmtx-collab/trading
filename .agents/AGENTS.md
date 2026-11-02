@@ -92,3 +92,15 @@ Está terminantemente prohibido que `trading_matrix`, memorias RAM (`FIREBASE VI
 1. **Mandato Visual Inquebrantable:** Todo diagrama o flujo de arquitectura, enjambres o conectividad generado en cualquiera de los 7 chats/prompts DEBE diseñarse bajo el estándar de High-Fidelity Cyber-Dashboard (HTML5 semántico, dynamic SVG Bézier anti-colisiones, CSS Grid/Flexbox puro, Vanilla JS, fondo Dark Obsidian `#080a0f`, ticker superior en vivo y cero CDNs pesadas), tal como se evidencia en `flujo_conectividad_figma_mcp.html`.
 2. **Ruta Canónica de Almacenamiento:** Todo diagrama o visualizador HTML/SVG generado en el sistema debe guardarse obligatoriamente dentro del directorio canónico:
    `C:\Users\ecybe\OneDrive\Documentos\Trading\Diagramas\`
+
+
+## 🎨 MANDATO OBLIGATORIO DE ENLACES DE DIAGRAMAS T6 & T7 Y COMPARATIVA ANTES VS DESPUÉS
+1. **Visualización Dual de Diagramas:** Todo diagrama o flujo arquitectónico generado o auditado por HERD T6 o T7 DEBE proporcionar de forma obligatoria tanto la ruta local del archivo:
+   `file:///C:/Users/ecybe/OneDrive/Documentos/Trading/Diagramas/<nombre_diagrama>.html`
+   como su enlace web en vivo para previsualización directa en Slack:
+   `https://trading-production-927a.up.railway.app/diagramas/<nombre_diagrama>.html`
+   (ejemplo: `file:///C:/Users/ecybe/OneDrive/Documentos/Trading/Diagramas/flujo_conectividad_figma_mcp.html` y `https://trading-production-927a.up.railway.app/flujo/figma-mcp`).
+2. **Checkboxes HITL para Selección Quirúrgica:** Toda propuesta de los Herds T1 al T10 debe publicarse en `#back-office-y-backend` con casillas de verificación interactivas (`checkboxes`) para permitir autorización individual o masiva mediante los 4 botones canónicos (`[Aprobar Seleccionadas ☑️]`, `[Aprobar Todas ✅]`, `[Rechazar ⛔]`, `[Forzar Resync 🔄]`).
+3. **Comparativa 'Antes vs Después' (Visual Diff):** Toda propuesta de interfaz en dashboards (`/brain`, `/`, `/mods`, `/dashboard`) debe incluir la comparativa 'Antes vs Después' y el enlace interactivo:
+   `👉 https://trading-production-927a.up.railway.app/dashboard/preview`
+   junto con la barra de enlaces persistente a los 5 dashboards en el pie de mensaje.

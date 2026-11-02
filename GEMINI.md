@@ -168,3 +168,15 @@ Toda mejora o corrección sobre los parámetros del bot DEBE ser enviada como un
    Todos los diagramas y flujos generados en el sistema DEBEN guardarse obligatoriamente en la ruta canónica:
    `C:\Users\ecybe\OneDrive\Documentos\Trading\Diagramas\`
    para mantener el orden integral del repositorio.
+
+
+## 🎨 MANDATO OBLIGATORIO DE ENLACES DE DIAGRAMAS T6 & T7 Y COMPARATIVA ANTES VS DESPUÉS
+1. **Visualización Dual de Diagramas:** Todo diagrama o flujo arquitectónico generado o auditado por HERD T6 o T7 DEBE proporcionar de forma obligatoria tanto la ruta local del archivo:
+   `file:///C:/Users/ecybe/OneDrive/Documentos/Trading/Diagramas/<nombre_diagrama>.html`
+   como su enlace web en vivo para previsualización directa en Slack:
+   `https://trading-production-927a.up.railway.app/diagramas/<nombre_diagrama>.html`
+   (ejemplo: `file:///C:/Users/ecybe/OneDrive/Documentos/Trading/Diagramas/flujo_conectividad_figma_mcp.html` y `https://trading-production-927a.up.railway.app/flujo/figma-mcp`).
+2. **Checkboxes HITL para Selección Quirúrgica:** Toda propuesta de los Herds T1 al T10 debe publicarse en `#back-office-y-backend` con casillas de verificación interactivas (`checkboxes`) para permitir autorización individual o masiva mediante los 4 botones canónicos (`[Aprobar Seleccionadas ☑️]`, `[Aprobar Todas ✅]`, `[Rechazar ⛔]`, `[Forzar Resync 🔄]`).
+3. **Comparativa 'Antes vs Después' (Visual Diff):** Toda propuesta de interfaz en dashboards (`/brain`, `/`, `/mods`, `/dashboard`) debe incluir la comparativa 'Antes vs Después' y el enlace interactivo:
+   `👉 https://trading-production-927a.up.railway.app/dashboard/preview`
+   junto con la barra de enlaces persistente a los 5 dashboards en el pie de mensaje.

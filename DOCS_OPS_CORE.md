@@ -1464,3 +1464,12 @@ Para blindar el sistema contra errores 429 de Firebase, caídas de RAM y garanti
 ## 5. Protocolo de Failover y Gobernanza Cognitiva (Gemini 2.5 Flash / Pro + Groq)
 - **Latencia Sub-Segundo en Autopsias CBR:** El módulo `mia_supervisor_quant.py` implementa failover directo a `gemini-2.5-flash` (< 1s de respuesta) y `gemini-flash-latest`, eliminando llamadas bloqueantes a `genai.list_models()`.
 - **Mandato HITL Estricto:** NINGÚN cambio estructural sobre `regla_de_3`, pesos de `mia_tensorflow` o parámetros de riesgo de RUNE se auto-ejecuta; todas las propuestas se despachan como tarjetas interactivas Block Kit a Slack (`#mia-trading-insights` para Trading y `#back-office-y-backend` para Infraestructura) requiriendo autorización explícita del operador humano.
+
+## 6. Homologación Visual de Slack Block Kit, Checkboxes HITL y Enlaces Duales de Diagramas (T6 & T7)
+- **Sanitización Estricta de Formato Mrkdwn:** En Slack `#back-office-y-backend`, todo asterisco doble (`**`) es convertido a asterisco simple (`*bold*`) para evitar texto crudo no renderizado. Las viñetas de los 10 Herds mantienen sus emojis canónicos exactos (`🗄️ T1`, `💻 T2`, `📡 T3`, `⚡ T4`, `💳 T5`, `🎨 T6`, `📐 T7`, `🛡️ T8`, `💬 T9`, `🧠 T10`), erradicando listas numeradas.
+- **Checkboxes para Aprobación Selectiva:** Toda propuesta de infraestructura proveniente de los Herds T1 al T10 se carga dinámicamente desde `cache_pending_ops_approvals` y se presenta con casillas de verificación interactivas (`checkboxes`) junto con el botón `[ Aprobar Seleccionadas ☑️ ]`, `[ Aprobar Todas ✅ ]`, `[ Rechazar / Mantener Actual ⛔ ]` y `[ Forzar Resync 🔄 ]`.
+- **Previsualización Interactiva 'Antes vs Después' (T6):** Cada propuesta de interfaz en dashboards (`/brain`, `/`, `/mods`, `/dashboard`) incluye el enlace interactivo directo:
+  `👉 https://trading-production-927a.up.railway.app/dashboard/preview`
+- **Visualización Dual de Diagramas Institucionales High-Fidelity:** Todo diagrama HTML creado por T6 o T7 ofrece enlace local `file:///C:/Users/ecybe/OneDrive/Documentos/Trading/Diagramas/<nombre>.html` y enlace web directo servido por el enrutador dinámico `@app.get("/diagramas/{filename:path}")` en Railway (`https://trading-production-927a.up.railway.app/diagramas/<nombre>.html`).
+- **Barra Inferior Persistente de Dashboards:** Toda respuesta y reporte en Slack incluye de forma inmutable la barra de enlaces context:
+  `🔗 Dashboards: 🧠 Red Neuronal | 🌐 Enjambres 3D | 📊 Dashboard MT5 | 🎨 Visual Diff | 🧩 Mods Catalog`
