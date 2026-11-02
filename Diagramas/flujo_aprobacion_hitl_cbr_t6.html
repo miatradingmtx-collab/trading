@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>MIA Herd T6 — Flujo Canónico de Aprobación HITL, Memoria CBR & Trust Mode</title>
+  <style>
+    :root {
+      --bg-obsidian: #080a0f;
+      --node-bg: rgba(14, 18, 28, 0.94);
+      --node-border: #283347;
+      --cyan-neon: #38bdf8;
+      --blue-neon: #60a5fa;
+      --purple-neon: #c084fc;
+      --magenta-neon: #e879f9;
+      --green-neon: #4ade80;
+      --red-neon: #f87171;
+      --gold-neon: #facc15;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-obsidian);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(30, 58, 138, 0.25), transparent 55%),
+        radial-gradient(circle at 10% 40%, rgba(192, 132, 252, 0.10), transparent 45%),
+        radial-gradient(circle at 90% 70%, rgba(74, 222, 128, 0.08), transparent 45%),
+        radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 100% 100%, 28px 28px;
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ==================== TICKER SUPERIOR EN VIVO ==================== */
+    .top-ticker-section {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(8, 10, 15, 0.88);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8);
+      padding: 10px 24px;
+    }
+
+    .ticker-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .ticker-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-pulse-dot {
+      width: 10px;
+      height: 10px;
+      background: var(--cyan-neon);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--cyan-neon);
+      animation: pulseGlow 1.8s infinite ease-in-out;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.35); opacity: 0.4; }
+    }
+
+    .ticker-main-badge {
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--cyan-neon);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ticker-metrics-badges {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.78rem;
+    }
+
+    .metric-pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 3px 10px;
+      border-radius: 9999px;
+      color: var(--text-muted);
+    }
+
+    .metric-pill strong {
+      color: var(--green-neon);
+    }
+
+    .metric-pill.model strong {
+      color: var(--purple-neon);
+    }
+
+    .ticker-feed-window {
+      background: rgba(14, 18, 28, 0.95);
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-size: 0.76rem;
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .ticker-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .ticker-time {
+      color: #64748b;
+      font-size: 0.72rem;
+    }
+
+    .ticker-tag {
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+    }
+
+    .tag-t6 { background: rgba(192, 132, 252, 0.15); color: var(--purple-neon); border: 1px solid rgba(192, 132, 252, 0.4); }
+    .tag-sre { background: rgba(56, 189, 248, 0.15); color: var(--cyan-neon); border: 1px solid rgba(56, 189, 248, 0.4); }
+    .tag-hitl { background: rgba(250, 204, 21, 0.15); color: var(--gold-neon); border: 1px solid rgba(250, 204, 21, 0.4); }
+    .tag-cbr { background: rgba(74, 222, 128, 0.15); color: var(--green-neon); border: 1px solid rgba(74, 222, 128, 0.4); }
+
+    /* ==================== LIENZO Y CAPAS ==================== */
+    main {
+      flex: 1;
+      position: relative;
+      overflow-x: auto;
+      overflow-y: visible;
+      padding-bottom: 60px;
+    }
+
+    #diagram-canvas {
+      position: relative;
+      max-width: 1400px;
+      min-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 40px;
+    }
+
+    /* Capa SVG para conectores */
+    #svg-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+      overflow: visible;
+    }
+
+    #edge-pills-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 25;
+    }
+
+    .layer-section {
+      margin-bottom: 48px;
+      position: relative;
+    }
+
+    .layer-title {
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #94a3b8;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      z-index: 20;
+    }
+
+    .layer-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(71, 85, 105, 0.6) 0%, transparent 100%);
+    }
+
+    .layer-title .badge-num {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid var(--cyan-neon);
+      color: var(--cyan-neon);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+    }
+
+    /* ==================== NODOS INTERACTIVOS ==================== */
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      position: relative;
+      z-index: 20;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 32px;
+      position: relative;
+      z-index: 20;
+    }
+
+    .grid-1-center {
+      display: flex;
+      justify-content: center;
+      position: relative;
+      z-index: 20;
+    }
+
+    .swarm-node {
+      background: var(--node-bg);
+      backdrop-filter: blur(14px);
+      border: 1.5px solid var(--node-border);
+      border-radius: 16px;
+      padding: 16px 20px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.75);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+    }
+
+    .swarm-node:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.9);
+      border-color: #64748b;
+    }
+
+    .swarm-node.active-cyan {
+      border-color: var(--cyan-neon);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
+    }
+
+    .swarm-node.active-purple {
+      border-color: var(--purple-neon);
+      box-shadow: 0 0 20px rgba(192, 132, 252, 0.35);
+    }
+
+    .swarm-node.active-gold {
+      border-color: var(--gold-neon);
+      box-shadow: 0 0 20px rgba(250, 204, 21, 0.35);
+    }
+
+    .swarm-node.active-green {
+      border-color: var(--green-neon);
+      box-shadow: 0 0 22px rgba(74, 222, 128, 0.4);
+    }
+
+    .node-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .node-title {
+      font-size: 0.94rem;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.01em;
+    }
+
+    .node-pill-status {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .node-pill-status.cyan { background: rgba(56, 189, 248, 0.15); color: var(--cyan-neon); border: 1px solid rgba(56, 189, 248, 0.4); }
+    .node-pill-status.purple { background: rgba(192, 132, 252, 0.15); color: var(--purple-neon); border: 1px solid rgba(192, 132, 252, 0.4); }
+    .node-pill-status.gold { background: rgba(250, 204, 21, 0.15); color: var(--gold-neon); border: 1px solid rgba(250, 204, 21, 0.4); }
+    .node-pill-status.green { background: rgba(74, 222, 128, 0.15); color: var(--green-neon); border: 1px solid rgba(74, 222, 128, 0.4); }
+
+    .node-subtitle {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    .node-metrics-bar {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.72rem;
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      color: #cbd5e1;
+    }
+
+    .node-metrics-bar span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .node-metrics-bar span strong {
+      color: #fff;
+    }
+
+    /* Rombo de Decisión Canónico en SVG/CSS */
+    .decision-card {
+      max-width: 620px;
+      width: 100%;
+      background: rgba(17, 24, 39, 0.96);
+      border: 2px solid var(--purple-neon);
+      border-radius: 20px;
+      padding: 20px 28px;
+      text-align: center;
+      box-shadow: 0 0 35px rgba(192, 132, 252, 0.35);
+      position: relative;
+    }
+
+    .decision-badge {
+      display: inline-block;
+      background: rgba(192, 132, 252, 0.18);
+      color: var(--purple-neon);
+      border: 1px solid var(--purple-neon);
+      padding: 4px 14px;
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+
+    .decision-question {
+      font-size: 1.12rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    .decision-subtext {
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      margin-bottom: 12px;
+    }
+
+    .decision-threshold-chips {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      font-size: 0.76rem;
+      font-family: 'JetBrains Mono', Consolas, monospace;
+    }
+
+    .decision-chip {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 4px 12px;
+      border-radius: 6px;
+    }
+
+    /* Píldoras de Conector Bézier */
+    .edge-pill {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      background: rgba(8, 10, 15, 0.94);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 9999px;
+      padding: 4px 12px;
+      font-size: 0.70rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      pointer-events: auto;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.85);
+      transition: all 0.2s ease;
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      color: #cbd5e1;
+    }
+
+    .edge-pill:hover {
+      transform: translate(-50%, -50%) scale(1.08);
+      border-color: #fff;
+    }
+
+    .edge-pill.cyan { border-color: var(--cyan-neon); color: var(--cyan-neon); box-shadow: 0 0 12px rgba(56, 189, 248, 0.4); }
+    .edge-pill.purple { border-color: var(--purple-neon); color: var(--purple-neon); box-shadow: 0 0 12px rgba(192, 132, 252, 0.4); }
+    .edge-pill.gold { border-color: var(--gold-neon); color: var(--gold-neon); box-shadow: 0 0 12px rgba(250, 204, 21, 0.4); }
+    .edge-pill.green { border-color: var(--green-neon); color: var(--green-neon); box-shadow: 0 0 14px rgba(74, 222, 128, 0.4); }
+
+    /* SVG Conectores */
+    .svg-connector {
+      fill: none;
+      transition: stroke-width 0.2s ease, opacity 0.2s ease;
+    }
+
+    @keyframes laserDash {
+      to {
+        stroke-dashoffset: -40;
+      }
+    }
+
+    .laser-animated {
+      animation: laserDash 1.4s linear infinite;
+    }
+
+    /* Inspector Lateral / Modal Informativo */
+    .inspector-card {
+      background: rgba(14, 18, 28, 0.96);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-top: 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .inspector-title {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: var(--cyan-neon);
+      margin-bottom: 4px;
+    }
+
+    .inspector-desc {
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      max-width: 800px;
+      line-height: 1.4;
+    }
+
+    .inspector-btn {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .inspector-btn:hover {
+      background: linear-gradient(135deg, #0369a1, #075985);
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== TICKER SUPERIOR EN VIVO ==================== -->
+  <header class="top-ticker-section">
+    <div class="ticker-header-bar">
+      <div class="ticker-title-group">
+        <div class="status-pulse-dot"></div>
+        <div class="ticker-main-badge">
+          ⚡ PROTOCOLO HITL CANÓNICO & CBR TRUST MODE (HERD T6 · STITCH UI)
+        </div>
+      </div>
+      <div class="ticker-metrics-badges">
+        <div class="metric-pill">MGET Upstash: <strong>12.4ms</strong></div>
+        <div class="metric-pill">GPU FPS: <strong>60.0 FPS</strong></div>
+        <div class="metric-pill">Colisiones: <strong>0 detectadas</strong></div>
+        <div class="metric-pill model">Modelos: <strong>Llama 3.3 70B + Gemini 1.5 Pro</strong></div>
+      </div>
+    </div>
+
+    <!-- Feed de eventos en tiempo real -->
+    <div class="ticker-feed-window">
+      <div class="ticker-line">
+        <span class="ticker-time">22:28:48</span>
+        <span class="ticker-tag tag-t6">HERD T6 (UI/UX)</span>
+        <span>Mapeo de tokens Obsidian (#080a0f) completado vía Figma MCP. Curvas Bézier paramétricas calculadas (0 colisiones).</span>
+      </div>
+      <div class="ticker-line">
+        <span class="ticker-time">22:28:49</span>
+        <span class="ticker-tag tag-sre">WATCHDOG SRE</span>
+        <span>Auditoría de Rendimiento OK: 0% Tailwind CDN, WCAG 2.1 AA contraste superado (4.8:1), latencia sub-35ms confirmada.</span>
+      </div>
+      <div class="ticker-line">
+        <span class="ticker-time">22:28:50</span>
+        <span class="ticker-tag tag-hitl">HITL GATEWAY</span>
+        <span>Propuesta UI_MOD_20261101_01 enviada a #back-office-y-backend con Block Kit interactivo. Estado: Pendiente de Aprobación.</span>
+      </div>
+      <div class="ticker-line">
+        <span class="ticker-time">22:28:51</span>
+        <span class="ticker-tag tag-cbr">MEMORIA CBR</span>
+        <span>Índice de Confiabilidad: 98.2% (+1 acierto en system_memory/latest_cbr). Umbral hacia Trust Mode: 1/20 aprobaciones.</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== LIENZO PRINCIPAL DEL DIAGRAMA ==================== -->
+  <main>
+    <div id="diagram-canvas">
+      
+      <!-- Capa SVG Dinámica para Tubos y Conectores Bézier Paramétricos -->
+      <svg id="svg-layer">
+        <defs>
+          <marker id="arrow-cyan" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+            <path d="M 0 0 L 8 4 L 0 8 z" fill="#38bdf8" />
+          </marker>
+          <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+            <path d="M 0 0 L 8 4 L 0 8 z" fill="#c084fc" />
+          </marker>
+          <marker id="arrow-gold" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+            <path d="M 0 0 L 8 4 L 0 8 z" fill="#facc15" />
+          </marker>
+          <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+            <path d="M 0 0 L 8 4 L 0 8 z" fill="#4ade80" />
+          </marker>
+        </defs>
+      </svg>
+
+      <!-- Capa de Píldoras Interactivas sobre los Conectores -->
+      <div id="edge-pills-layer"></div>
+
+      <!-- =========================================================================
+           CAPA 1: MODELADO Y DISEÑO ATÓMICO (CHAT 03 / HERD T6)
+           ========================================================================= -->
+      <section class="layer-section">
+        <div class="layer-title">
+          <span class="badge-num">CAPA 1</span>
+          <span>MODELADO & DISEÑO ATÓMICO (CHAT 03 / HERD T6 STITCH)</span>
+        </div>
+
+        <div class="grid-3">
+          <div class="swarm-node active-cyan" id="node-figma" onclick="focusNode('node-figma')">
+            <div class="node-header">
+              <span class="node-title">figma_mcp_tokens</span>
+              <span class="node-pill-status cyan">Validado OK</span>
+            </div>
+            <div class="node-subtitle">Extracción de tokens institucionales Dark Obsidian (#080a0f), radios y sombras vía Figma MCP.</div>
+            <div class="node-metrics-bar">
+              <span>Tokens: <strong>32 CSS vars</strong></span>
+              <span>Acceso: <strong>Directo</strong></span>
+            </div>
+          </div>
+
+          <div class="swarm-node active-purple" id="node-herd-t6" onclick="focusNode('node-herd-t6')">
+            <div class="node-header">
+              <span class="node-title">Chat 03 / Herd T6 Diseña Propuesta</span>
+              <span class="node-pill-status purple">Generador UI</span>
+            </div>
+            <div class="node-subtitle">Construcción en HTML5 semántico, CSS Grid/Flexbox y Vanilla JS (cero CDNs externas pesadas).</div>
+            <div class="node-metrics-bar">
+              <span>Stack: <strong>HTML5 + SVG</strong></span>
+              <span>Librerías: <strong>0% CDN</strong></span>
+            </div>
+          </div>
+
+          <div class="swarm-node active-cyan" id="node-bezier-router" onclick="focusNode('node-bezier-router')">
+            <div class="node-header">
+              <span class="node-title">svg_bezier_router</span>
+              <span class="node-pill-status cyan">Anti-Colisión</span>
+            </div>
+            <div class="node-subtitle">Cálculo matemático de curvas Bézier cúbicas ortogonales con separación de 45px libre de colisiones.</div>
+            <div class="node-metrics-bar">
+              <span>Tangente: <strong>45px</strong></span>
+              <span>Colisiones: <strong>0</strong></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           CAPA 2: AUDITORÍA TÉCNICA & SUPERVISOR WATCHDOG
+           ========================================================================= -->
+      <section class="layer-section">
+        <div class="layer-title">
+          <span class="badge-num">CAPA 2</span>
+          <span>AUDITORÍA TÉCNICA Y AUDITORÍA DE RENDIMIENTO (SUPERVISOR WATCHDOG)</span>
+        </div>
+
+        <div class="grid-3">
+          <div class="swarm-node active-cyan" id="node-watchdog-audit" onclick="focusNode('node-watchdog-audit')">
+            <div class="node-header">
+              <span class="node-title">Supervisor Watchdog Audita</span>
+              <span class="node-pill-status cyan">SRE Gatekeeper</span>
+            </div>
+            <div class="node-subtitle">Auditoría de 0 colisiones en bounding boxes, WCAG 2.1 AA contraste y 60 FPS garantizados.</div>
+            <div class="node-metrics-bar">
+              <span>Contraste: <strong>4.8:1 (AA)</strong></span>
+              <span>Veto: <strong>Inmediato</strong></span>
+            </div>
+          </div>
+
+          <div class="swarm-node active-purple" id="node-collision-detector" onclick="focusNode('node-collision-detector')">
+            <div class="node-header">
+              <span class="node-title">collision_detection_audit</span>
+              <span class="node-pill-status purple">GPU Inspector</span>
+            </div>
+            <div class="node-subtitle">Comprueba que ningún láser vectorial ni etiqueta se solape sobre títulos de capa o tarjetas.</div>
+            <div class="node-metrics-bar">
+              <span>Overlaps: <strong>0 detectados</strong></span>
+              <span>Margen: <strong>> 20px</strong></span>
+            </div>
+          </div>
+
+          <div class="swarm-node active-cyan" id="node-mobile-codegen" onclick="focusNode('node-mobile-codegen')">
+            <div class="node-header">
+              <span class="node-title">mobile_codegen_transform</span>
+              <span class="node-pill-status cyan">Flutter / Native</span>
+            </div>
+            <div class="node-subtitle">Transpila vistas y curvas para clientes móviles en Android e iOS (CustomPainter & react-native-svg).</div>
+            <div class="node-metrics-bar">
+              <span>Plataformas: <strong>Web + Móvil</strong></span>
+              <span>Touch: <strong>Nativo</strong></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           CAPA 3: PREVISUALIZACIÓN ANTES VS DESPUÉS (STITCH PREVIEW)
+           ========================================================================= -->
+      <section class="layer-section">
+        <div class="layer-title">
+          <span class="badge-num">CAPA 3</span>
+          <span>PREVISUALIZACIÓN ANTES VS DESPUÉS (CACHE_PENDING_OPS_APPROVALS)</span>
+        </div>
+
+        <div class="grid-2">
+          <div class="swarm-node active-gold" id="node-preview-diff" onclick="focusNode('node-preview-diff')">
+            <div class="node-header">
+              <span class="node-title">Previsualización Antes vs Después</span>
+              <span class="node-pill-status gold">Contrafactual T6</span>
+            </div>
+            <div class="node-subtitle">Contraste visual en /dashboard/preview: Before (cajas secas/colisiones) vs After (Cyber-Dashboard).</div>
+            <div class="node-metrics-bar">
+              <span>Ruta: <strong>/dashboard/preview</strong></span>
+              <span>Inspección: <strong>Contrafactual</strong></span>
+            </div>
+          </div>
+
+          <div class="swarm-node active-gold" id="node-pending-approvals" onclick="focusNode('node-pending-approvals')">
+            <div class="node-header">
+              <span class="node-title">cache_pending_ops_approvals</span>
+              <span class="node-pill-status gold">Cola Upstash</span>
+            </div>
+            <div class="node-subtitle">Registro JSON inmutable en Redis Upstash esperando validación humana con timeout seguro.</div>
+            <div class="node-metrics-bar">
+              <span>Slot: <strong>cache_pending...</strong></span>
+              <span>Latencia: <strong>sub-15ms</strong></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           CAPA 4: GOBERNANZA HITL & VALIDACIÓN HUMANA
+           ========================================================================= -->
+      <section class="layer-section">
+        <div class="layer-title">
+          <span class="badge-num">CAPA 4</span>
+          <span>APROBACIÓN HUMANA HITL (SLACK #BACK-OFFICE-Y-BACKEND / DASHBOARD)</span>
+        </div>
+
+        <div class="grid-2">
+          <div class="swarm-node active-purple" id="node-slack-blockkit" onclick="focusNode('node-slack-blockkit')">
+            <div class="node-header">
+              <span class="node-title">Aprobación Humana (HITL)</span>
+              <span class="node-pill-status purple">Interactivo</span>
+            </div>
+            <div class="node-subtitle">Mensaje interactivo Slack con Block Kit: Botones Aprobar Acción ✅ y Rechazar / Cancelar ⛔.</div>
+            <div class="node-metrics-bar">
+              <span>Canal: <strong>#back-office...</strong></span>
+              <span>Mandato: <strong>HITL Estricto</strong></span>
+            </div>
+          </div>
+
+          <div class="swarm-node active-green" id="node-cbr-register" onclick="focusNode('node-cbr-register')">
+            <div class="node-header">
+              <span class="node-title">Registro en Memoria CBR (+1 Acierto)</span>
+              <span class="node-pill-status green">CBR Learning</span>
+            </div>
+            <div class="node-subtitle">Sincronización en system_memory/latest_cbr y mia_trading_learning_history tras clic humano positivo.</div>
+            <div class="node-metrics-bar">
+              <span>Acierto: <strong>+1 Caso Éxito</strong></span>
+              <span>Aprendizaje: <strong>Permanente</strong></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           CAPA 5: EVALUACIÓN DE CONMUTACIÓN TRUST MODE (ROMBO DE DECISIÓN)
+           ========================================================================= -->
+      <section class="layer-section">
+        <div class="layer-title">
+          <span class="badge-num">CAPA 5</span>
+          <span>EVALUACIÓN DE CONMUTACIÓN DE AUTONOMÍA (DECISIÓN DE CONFIANZA)</span>
+        </div>
+
+        <div class="grid-1-center">
+          <div class="decision-card" id="node-decision-diamond" onclick="focusNode('node-decision-diamond')">
+            <div class="decision-badge">ROMBO DE DECISIÓN COGNITIVA</div>
+            <div class="decision-question">¿20 Aprobaciones Consecutivas con Score ≥ 95%?</div>
+            <div class="decision-subtext">Verifica solidez estadística y consistencia visual en producción antes de habilitar autonomía.</div>
+            <div class="decision-threshold-chips">
+              <span class="decision-chip">Aprobaciones: <strong>Actual / 20</strong></span>
+              <span class="decision-chip">Score Mínimo: <strong>≥ 95%</strong></span>
+              <span class="decision-chip">Vetos SRE: <strong>0 permitidos</strong></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           CAPA 6: RAMAS DE SALIDA (AUTONOMÍA TRUST MODE VS SUPERVISIÓN HITL)
+           ========================================================================= -->
+      <section class="layer-section">
+        <div class="layer-title">
+          <span class="badge-num">CAPA 6</span>
+          <span>ESTADO FINAL OPERATIVO (RAMIFICACIÓN DE DESPLIEGUE)</span>
+        </div>
+
+        <div class="grid-2">
+          <div class="swarm-node active-green" id="node-trust-mode" onclick="focusNode('node-trust-mode')">
+            <div class="node-header">
+              <span class="node-title">🚀 ACTIVACIÓN TRUST MODE</span>
+              <span class="node-pill-status green">SÍ: Score ≥ 95%</span>
+            </div>
+            <div class="node-subtitle">Autonomía plena en despliegues visuales sin requerir confirmación humana para micro-mejoras.</div>
+            <div class="node-metrics-bar">
+              <span>Flag: <strong>trust_mode_ready = true</strong></span>
+              <span>Estado: <strong>Autónomo</strong></span>
+            </div>
+          </div>
+
+          <div class="swarm-node active-gold" id="node-continue-hitl" onclick="focusNode('node-continue-hitl')">
+            <div class="node-header">
+              <span class="node-title">Continuar Supervisión HITL</span>
+              <span class="node-pill-status gold">NO: Score &lt; 95%</span>
+            </div>
+            <div class="node-subtitle">El sistema permanece en Modo Aprendiz bajo supervisión humana estricta hasta consolidar las 20 victorias.</div>
+            <div class="node-metrics-bar">
+              <span>Seguridad: <strong>100% Blindado</strong></span>
+              <span>Riesgo: <strong>0% No Autorizado</strong></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel Inspector Lateral -->
+      <div class="inspector-card">
+        <div>
+          <div class="inspector-title" id="insp-title">Inspección de Nodo Activo</div>
+          <div class="inspector-desc" id="insp-desc">Haz clic en cualquier nodo o conector para auditar sus dependencias, contratos JSON y estado en tiempo real.</div>
+        </div>
+        <a href="/dashboard" class="inspector-btn">Ir al Dashboard Central</a>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ==================== SCRIPT VANILLA JS (BÉZIER WIRING & RENDERING) ==================== -->
+  <script>
+    const EDGES_CONFIG = [
+      // Capa 1 a Capa 2
+      { from: 'node-figma', to: 'node-herd-t6', color: 'cyan', label: 'tokens_mcp' },
+      { from: 'node-herd-t6', to: 'node-bezier-router', color: 'purple', label: 'layout_grid' },
+      { from: 'node-bezier-router', to: 'node-watchdog-audit', color: 'cyan', label: 'propuesta_vectorizada' },
+      
+      // Capa 2 a Capa 3
+      { from: 'node-watchdog-audit', to: 'node-collision-detector', color: 'cyan', label: 'audit_0_colisiones' },
+      { from: 'node-watchdog-audit', to: 'node-mobile-codegen', color: 'cyan', label: 'cross_platform' },
+      { from: 'node-watchdog-audit', to: 'node-preview-diff', color: 'gold', label: 'antes_vs_despues' },
+      { from: 'node-preview-diff', to: 'node-pending-approvals', color: 'gold', label: 'cola_pendientes' },
+
+      // Capa 3 a Capa 4
+      { from: 'node-pending-approvals', to: 'node-slack-blockkit', color: 'purple', label: 'check_humano_slack' },
+      { from: 'node-slack-blockkit', to: 'node-cbr-register', color: 'green', label: 'aprobado_exito' },
+
+      // Capa 4 a Capa 5
+      { from: 'node-cbr-register', to: 'node-decision-diamond', color: 'purple', label: 'acumulador_score' },
+
+      // Capa 5 a Capa 6 (Ramas Sí y No)
+      { from: 'node-decision-diamond', to: 'node-trust-mode', color: 'green', label: 'SÍ: 20 Aciertos ≥95%' },
+      { from: 'node-decision-diamond', to: 'node-continue-hitl', color: 'gold', label: 'NO: Calibrando' }
+    ];
+
+    const NODE_INFO = {
+      'node-figma': {
+        title: 'figma_mcp_tokens',
+        desc: 'Conexión verificada con Figma MCP (usuario ivan garcia, ecybermas@gmail.com). Lee paleta Dark Obsidian (#080a0f), radios y sombras sin intermediarios.'
+      },
+      'node-herd-t6': {
+        title: 'Chat 03 / Herd T6 Diseña Propuesta',
+        desc: 'Especialista en frontend institucional. Construye interfaces y flujos en HTML5 semántico, SVG paramétrico, CSS Grid/Flexbox y Vanilla JS (cero CDNs externas).'
+      },
+      'node-bezier-router': {
+        title: 'svg_bezier_router',
+        desc: 'Enrutador paramétrico que calcula puntos de control tangenciales para que las curvas láser jamás crucen títulos de capa ni textos de tarjetas.'
+      },
+      'node-watchdog-audit': {
+        title: 'Supervisor Watchdog Audita',
+        desc: 'Garantiza que la propuesta cumpla los estándares institucionales de 60 FPS, ratio de contraste WCAG 2.1 AA (4.5:1) y cero colisiones geométricas.'
+      },
+      'node-collision-detector': {
+        title: 'collision_detection_audit',
+        desc: 'Audita el árbol DOM en tiempo de compilación para certificar que el margen mínimo de separación entre elementos sea superior a 20 píxeles.'
+      },
+      'node-mobile-codegen': {
+        title: 'mobile_codegen_transform',
+        desc: 'Genera layouts y componentes en Flutter Dart (CustomPainter) y React Native para sincronizar la experiencia en tablets y teléfonos Android/iOS.'
+      },
+      'node-preview-diff': {
+        title: 'Previsualización Antes vs Después',
+        desc: 'Renderiza una comparativa contrafactual en /dashboard/preview permitiendo al operador humano inspeccionar los cambios antes de autorizarlos.'
+      },
+      'node-pending-approvals': {
+        title: 'cache_pending_ops_approvals',
+        desc: 'Cola FIFO en Upstash Redis (sub-15ms) donde se alojan las propuestas formales JSON con timeout y firmas criptográficas de auditoría.'
+      },
+      'node-slack-blockkit': {
+        title: 'Aprobación Humana (HITL)',
+        desc: 'Despacho hacia #back-office-y-backend con botones interactivos Block Kit. Ningún cambio va a producción sin clic humano explícito.'
+      },
+      'node-cbr-register': {
+        title: 'Registro en Memoria CBR (+1 Acierto)',
+        desc: 'Cada aprobación suma +1 punto de crédito en system_memory/latest_cbr y mia_trading_learning_history, nutriendo la base de conocimiento de Mia.'
+      },
+      'node-decision-diamond': {
+        title: 'Rombo de Decisión Cognitiva (Trust Mode)',
+        desc: 'Condición matemática de autonomía: Se requieren 20 propuestas consecutivas aprobadas con Score ≥ 95% y cero regresiones en producción.'
+      },
+      'node-trust-mode': {
+        title: '🚀 ACTIVACIÓN TRUST MODE (Autonomía Plena)',
+        desc: 'La bandera trust_mode_ready conmuta a true. Herd T6 adquiere privilegios de auto-despliegue para optimizaciones continuas de interfaz.'
+      },
+      'node-continue-hitl': {
+        title: 'Continuar Supervisión HITL',
+        desc: 'Si no se alcanza el umbral de 20 aciertos o el score cae bajo 95%, el sistema se mantiene en Modo Aprendiz con supervisión humana estricta.'
+      }
+    };
+
+    function renderConnections() {
+      const svg = document.getElementById('svg-layer');
+      const pillsContainer = document.getElementById('edge-pills-layer');
+      const canvas = document.getElementById('diagram-canvas');
+      const canvasRect = canvas.getBoundingClientRect();
+
+      // Limpiar SVG y píldoras previas
+      while (svg.firstChild && svg.firstChild.tagName !== 'defs') {
+        svg.removeChild(svg.firstChild);
+      }
+      pillsContainer.innerHTML = '';
+
+      EDGES_CONFIG.forEach(edge => {
+        const fromEl = document.getElementById(edge.from);
+        const toEl = document.getElementById(edge.to);
+        if (!fromEl || !toEl) return;
+
+        const fromRect = fromEl.getBoundingClientRect();
+        const toRect = toEl.getBoundingClientRect();
+
+        // Coordenadas relativas al canvas
+        const x1 = fromRect.left - canvasRect.left + fromRect.width / 2;
+        const y1 = fromRect.top - canvasRect.top + fromRect.height;
+        const x2 = toRect.left - canvasRect.left + toRect.width / 2;
+        const y2 = toRect.top - canvasRect.top;
+
+        // Curva Bézier cúbica paramétrica
+        const deltaY = Math.max(Math.abs(y2 - y1) * 0.5, 45);
+        const cp1x = x1;
+        const cp1y = y1 + deltaY;
+        const cp2x = x2;
+        const cp2y = y2 - deltaY;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const d = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+
+        let strokeColor = '#38bdf8';
+        let marker = 'url(#arrow-cyan)';
+        if (edge.color === 'purple') { strokeColor = '#c084fc'; marker = 'url(#arrow-purple)'; }
+        if (edge.color === 'gold') { strokeColor = '#facc15'; marker = 'url(#arrow-gold)'; }
+        if (edge.color === 'green') { strokeColor = '#4ade80'; marker = 'url(#arrow-green)'; }
+
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', strokeColor);
+        path.setAttribute('stroke-width', '2.2');
+        path.setAttribute('stroke-dasharray', '7 5');
+        path.setAttribute('marker-end', marker);
+        path.setAttribute('class', 'svg-connector laser-animated');
+        path.style.opacity = '0.85';
+
+        svg.appendChild(path);
+
+        // Píldora descriptiva en el punto medio de la curva Bézier (t = 0.5)
+        const t = 0.5;
+        const midX = Math.pow(1 - t, 3) * x1 + 3 * Math.pow(1 - t, 2) * t * cp1x + 3 * (1 - t) * Math.pow(t, 2) * cp2x + Math.pow(t, 3) * x2;
+        const midY = Math.pow(1 - t, 3) * y1 + 3 * Math.pow(1 - t, 2) * t * cp1y + 3 * (1 - t) * Math.pow(t, 2) * cp2y + Math.pow(t, 3) * y2;
+
+        const pill = document.createElement('div');
+        pill.className = `edge-pill ${edge.color}`;
+        pill.style.left = `${midX}px`;
+        pill.style.top = `${midY}px`;
+        pill.textContent = edge.label;
+        pill.onclick = (e) => {
+          e.stopPropagation();
+          document.getElementById('insp-title').textContent = `Conector: ${edge.label}`;
+          document.getElementById('insp-desc').textContent = `Enrutamiento Bézier paramétrico entre [${edge.from}] y [${edge.to}]. Latencia de transmisión: sub-5ms.`;
+        };
+        pillsContainer.appendChild(pill);
+      });
+    }
+
+    function focusNode(nodeId) {
+      const info = NODE_INFO[nodeId];
+      if (!info) return;
+
+      document.getElementById('insp-title').textContent = info.title;
+      document.getElementById('insp-desc').textContent = info.desc;
+
+      // Resaltar temporalmente el nodo seleccionado
+      document.querySelectorAll('.swarm-node, .decision-card').forEach(n => {
+        n.style.transform = 'none';
+      });
+      const el = document.getElementById(nodeId);
+      if (el) {
+        el.style.transform = 'scale(1.03)';
+      }
+    }
+
+    // Dibujar conexiones al cargar y al redimensionar
+    window.addEventListener('load', renderConnections);
+    window.addEventListener('resize', renderConnections);
+    setTimeout(renderConnections, 200);
+  </script>
+</body>
+</html>

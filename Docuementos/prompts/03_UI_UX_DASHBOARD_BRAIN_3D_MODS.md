@@ -40,6 +40,7 @@ Actúa como el Lead Frontend, 3D WebGL Designer y Arquitecto Mobile de Mia (Herd
   * Nodos con bordes neón brillantes semánticos (Cian `#38bdf8`, Púrpura `#c084fc`, Verde `#4ade80`, Oro `#facc15`).
   * Conectores dinámicos en SVG con curvas Bézier cúbicas auto-enrutadas que respetan márgenes y NUNCA tapan títulos de capa ni textos.
   * Aceleración por hardware GPU (60 FPS estables) y compatibilidad táctil nativa.
+  * **Ruta de Guardado Obligatoria:** Todo diagrama o flujo generado en cualquiera de los 7 chats DEBE guardarse en `C:\Users\ecybe\OneDrive\Documentos\Trading\Diagramas\`.
 
 ---
 
