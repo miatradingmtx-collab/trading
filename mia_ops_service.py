@@ -226,6 +226,165 @@ def trigger_vectorization(payload: Optional[Dict[str, Any]] = None):
 # ====================================================================
 # CHATOPS SLACK WEBHOOKS (DESACOPLADOS DE MT5)
 # ====================================================================
+
+def build_watchdog_chat_blocks(reply_text: str) -> list:
+    """
+    Construye los bloques interactivos completos para Slack (#back-office-y-backend):
+    - Sanitización estricta de mrkdwn (convierte ** en * y elimina numeraciones en Herds).
+    - Checkboxes para selección quirúrgica de propuestas T1-T10.
+    - Botón 'Aprobar Seleccionadas ☑️' + 'Aprobar Todas ✅' + 'Rechazar ⛔' + 'Forzar Resync 🔄'.
+    - Comparativo 'Antes vs Después' (/dashboard/preview) y enlaces a Diagramas T6.
+    - Footer persistente con los 5 dashboards en vivo.
+    """
+    import re, json, requests
+    # 1. Sanitizar texto
+    clean = re.sub(r'\*\*(.*?)\*\*', r'*\1*', reply_text)
+    clean = re.sub(r'(?m)^\s*\d+\.\s*([•🗄️💻📡⚡💳💰🎨📐🛡️💬🧠])', r'• \1', clean)
+    clean = clean.replace("💰 *HERD T5", "💳 *HERD T5").replace("💰 HERD T5", "💳 HERD T5")
+    msg_formatted = f"🛡️ *MIA Watchdog (Supervisor / 10 Herds T1-T10)*:\n{clean}"
+
+    # 2. Extraer propuestas pendientes para Checkboxes
+    options_checkboxes = []
+    try:
+        up_url = "https://firm-koi-93555.upstash.io"
+        up_h = {"Authorization": "Bearer gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg"}
+        r_p = requests.get(f"{up_url}/get/cache_pending_ops_approvals", headers=up_h, timeout=2)
+        if r_p.status_code == 200 and r_p.json().get("result"):
+            raw_p = r_p.json().get("result")
+            p_items = json.loads(raw_p) if isinstance(raw_p, str) else (raw_p or [])
+            for i, pa in enumerate(p_items[:7]):
+                sc = pa.get('score', 90)
+                act_label = pa.get('accion') or pa.get('modulo', f'PROPUESTA_{i+1}')
+                desc_label = (pa.get('detalle') or pa.get('propuesta', ''))[:45]
+                options_checkboxes.append({
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*{i+1}. [{sc}/100] {act_label}*: {desc_label}"[:75]
+                    },
+                    "value": f"propuesta_{i}"
+                })
+    except Exception:
+        pass
+
+    blocks = [
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": msg_formatted}
+        }
+    ]
+
+    # 3. Checkboxes y botones de acción HITL
+    if options_checkboxes:
+        blocks.append({
+            "type": "section",
+            "block_id": "proposals_selection_block",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*☑️ Selecciona qué propuestas específicas autorizas aplicar:*"
+            },
+            "accessory": {
+                "type": "checkboxes",
+                "action_id": "selected_proposals_checkbox",
+                "options": options_checkboxes
+            }
+        })
+        blocks.append({
+            "type": "actions",
+            "block_id": "watchdog_chat_actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "Aprobar Seleccionadas ☑️", "emoji": True},
+                    "style": "primary",
+                    "value": "approve_selected",
+                    "action_id": "approve_selected_action"
+                },
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "Aprobar Todas ✅", "emoji": True},
+                    "style": "primary",
+                    "value": "approve_all_pending",
+                    "action_id": "approve_triage_action"
+                },
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "Rechazar / Mantener Actual ⛔", "emoji": True},
+                    "style": "danger",
+                    "value": "reject_all_pending",
+                    "action_id": "reject_triage_action"
+                },
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "Forzar Resync 🔄", "emoji": True},
+                    "value": "force_resync",
+                    "action_id": "resync_action"
+                }
+            ]
+        })
+    else:
+        blocks.append({
+            "type": "actions",
+            "block_id": "watchdog_chat_actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "Aprobar Todas ✅", "emoji": True},
+                    "style": "primary",
+                    "value": "approve_all_pending",
+                    "action_id": "approve_triage_action"
+                },
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "Rechazar / Mantener Actual ⛔", "emoji": True},
+                    "style": "danger",
+                    "value": "reject_all_pending",
+                    "action_id": "reject_triage_action"
+                },
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "Forzar Resync 🔄", "emoji": True},
+                    "value": "force_resync",
+                    "action_id": "resync_action"
+                }
+            ]
+        })
+
+    # 4. Inspección Visual 'Antes vs Después' (T6) y Enlace a Diagramas High-Fidelity
+    blocks.append({
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": (
+                "🎨 *Inspección Visual Requerida (Antes vs Después - HERD T6):*\n"
+                "👉 <https://trading-production-927a.up.railway.app/dashboard/preview|*Haga clic aquí para Ver Previsualización Interactiva (Antes vs Después)*>\n\n"
+                "📐 *Diagramas Institucionales High-Fidelity (HERD T6 & T7):*\n"
+                "• *Web en Vivo:* <https://trading-production-927a.up.railway.app/diagramas/flujo_conectividad_figma_mcp.html|🌐 Flujo Conectividad Figma MCP & T6>\n"
+                "• *Ruta Local:* `file:///C:/Users/ecybe/OneDrive/Documentos/Trading/Diagramas/flujo_conectividad_figma_mcp.html`"
+            )
+        }
+    })
+
+    # 5. Footer persistente con los 5 Dashboards
+    blocks.append({
+        "type": "context",
+        "elements": [
+            {
+                "type": "mrkdwn",
+                "text": (
+                    "🔗 *Dashboards:* "
+                    "<https://trading-production-1fd4.up.railway.app/brain|🧠 Red Neuronal> | "
+                    "<https://trading-production-1fd4.up.railway.app/|🌐 Enjambres 3D> | "
+                    "<https://trading-production-927a.up.railway.app/dashboard|📊 Dashboard MT5> | "
+                    "<https://trading-production-927a.up.railway.app/dashboard/preview|🎨 Visual Diff> | "
+                    "<https://trading-production-1fd4.up.railway.app/mods|🧩 Mods Catalog>"
+                )
+            }
+        ]
+    })
+
+    return blocks
+
+
 @app.post("/api/slack/events")
 async def slack_events_endpoint(request: Request, background_tasks: BackgroundTasks):
     """
@@ -274,41 +433,9 @@ async def slack_events_endpoint(request: Request, background_tasks: BackgroundTa
         def process_chat_response():
             try:
                 reply = chat_with_mia(text, force_engine="openrouter")
-                msg_formatted = f"🛡️ *MIA Watchdog (Supervisor / 10 Herds T1-T10)*:\n{reply}"
-                chat_blocks = [
-                    {
-                        "type": "section",
-                        "text": {"type": "mrkdwn", "text": msg_formatted}
-                    },
-                    {
-                        "type": "actions",
-                        "block_id": "watchdog_chat_actions",
-                        "elements": [
-                            {
-                                "type": "button",
-                                "text": {"type": "plain_text", "text": "Aprobar Todas ✅", "emoji": True},
-                                "style": "primary",
-                                "value": "approve_all_pending",
-                                "action_id": "approve_triage_action"
-                            },
-                            {
-                                "type": "button",
-                                "text": {"type": "plain_text", "text": "Rechazar / Mantener Actual ⛔", "emoji": True},
-                                "style": "danger",
-                                "value": "reject_all_pending",
-                                "action_id": "reject_triage_action"
-                            },
-                            {
-                                "type": "button",
-                                "text": {"type": "plain_text", "text": "Forzar Resync 🔄", "emoji": True},
-                                "value": "force_resync",
-                                "action_id": "resync_action"
-                            }
-                        ]
-                    }
-                ]
+                chat_blocks = build_watchdog_chat_blocks(reply)
                 slack_bridge.send_channel_message(
-                    msg_formatted,
+                    reply,
                     channel=channel_id,
                     username="MIA Watchdog",
                     icon_emoji=":shield:",

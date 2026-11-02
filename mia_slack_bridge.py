@@ -199,6 +199,17 @@ class MiaSlackBridge:
 
         # Construcción de Checkboxes para TODAS las propuestas accionables (Fase 1 Human-in-the-Loop)
         todas_propuestas = validadas_85 + [p for p in observadas_sub85 if p not in validadas_85]
+        # Integrar propuestas existentes en cache_pending_ops_approvals de Upstash Redis
+        try:
+            r_pend = requests.get(f"{self.UPSTASH_URL}/get/cache_pending_ops_approvals", headers=self.UPSTASH_HEADERS, timeout=2).json()
+            if r_pend.get("result"):
+                raw_p = r_pend.get("result")
+                p_items = json.loads(raw_p) if isinstance(raw_p, str) else (raw_p or [])
+                for pi in p_items:
+                    if pi not in todas_propuestas:
+                        todas_propuestas.append(pi)
+        except Exception:
+            pass
         options_checkboxes = []
         for i, pa in enumerate(todas_propuestas[:7]):
             sc = pa.get('score', 85)
@@ -333,15 +344,20 @@ class MiaSlackBridge:
                 ]
             })
 
-        # Agregar enlace de inspección previa si hay propuestas visuales
-        if any("PLOTLY" in str(p) or "DASHBOARD" in str(p) or "STITCH" in str(p) for p in validadas_85):
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "🎨 *Inspección Visual Requerida:* Puedes comparar los cambios de interfaz antes de aprobar:\n👉 <https://trading-production-927a.up.railway.app/dashboard/preview|*Haga clic aquí para Ver Previsualización Interactiva (Antes vs Después)*>"
-                }
-            })
+        # Inspección Visual 'Antes vs Después' y Enlaces a Diagramas T6 & T7
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    "🎨 *Inspección Visual Requerida (Antes vs Después - HERD T6):*\n"
+                    "👉 <https://trading-production-927a.up.railway.app/dashboard/preview|*Haga clic aquí para Ver Previsualización Interactiva (Antes vs Después)*>\n\n"
+                    "📐 *Diagramas Institucionales High-Fidelity (HERD T6 & T7):*\n"
+                    "• *Web en Vivo:* <https://trading-production-927a.up.railway.app/diagramas/flujo_conectividad_figma_mcp.html|🌐 Flujo Conectividad Figma MCP & T6>\n"
+                    "• *Ruta Local:* `file:///C:/Users/ecybe/OneDrive/Documentos/Trading/Diagramas/flujo_conectividad_figma_mcp.html`"
+                )
+            }
+        })
 
         blocks.append({
             "type": "context",
@@ -353,7 +369,7 @@ class MiaSlackBridge:
                         "<https://trading-production-1fd4.up.railway.app/brain|🧠 Red Neuronal> | "
                         "<https://trading-production-1fd4.up.railway.app/|🌐 Enjambres 3D> | "
                         "<https://trading-production-927a.up.railway.app/dashboard|📊 Dashboard MT5> | "
-                        "<https://trading-production-927a.up.railway.app/dashboard/preview|🎨 Visual Diff>"
+                        "<https://trading-production-927a.up.railway.app/dashboard/preview|🎨 Visual Diff> | <https://trading-production-1fd4.up.railway.app/mods|🧩 Mods Catalog>"
                     )
                 }
             ]

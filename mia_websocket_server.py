@@ -109,7 +109,25 @@ if os.path.exists(build_dir):
 
     @app.get("/flujo/figma-mcp")
     @app.get("/flujo_figma")
-    @app.get("/diagramas/figma-mcp")
+    
+    @app.get("/diagramas/{filename:path}", response_class=HTMLResponse)
+    async def serve_diagram_file(filename: str):
+        """Sirve dinámicamente cualquier diagrama HTML institucional en /Diagramas o en la raíz."""
+        base_dir = os.path.dirname(__file__)
+        candidates = [
+            os.path.join(base_dir, "Diagramas", filename),
+            os.path.join(base_dir, "Diagramas", f"{filename}.html"),
+            os.path.join(base_dir, filename),
+            os.path.join(base_dir, f"{filename}.html")
+        ]
+        for c in candidates:
+            if os.path.exists(c) and os.path.isfile(c):
+                with open(c, "r", encoding="utf-8", errors="replace") as f_d:
+                    return f_d.read()
+        raise HTTPException(status_code=404, detail=f"Diagrama '{filename}' no encontrado.")
+
+
+@app.get("/diagramas/figma-mcp")
     async def render_flujo_figma_mcp():
         """Sirve el flujo interactivo de conectividad Figma MCP en 1fd4"""
         try:
