@@ -107,9 +107,6 @@ if os.path.exists(build_dir):
 
     # Las rutas de API y WebSocket se registran primero; el catch-all estático al final
 
-    @app.get("/flujo/figma-mcp")
-    @app.get("/flujo_figma")
-    
     @app.get("/diagramas/{filename:path}", response_class=HTMLResponse)
     async def serve_diagram_file(filename: str):
         """Sirve dinámicamente cualquier diagrama HTML institucional en /Diagramas o en la raíz."""
@@ -126,8 +123,9 @@ if os.path.exists(build_dir):
                     return f_d.read()
         raise HTTPException(status_code=404, detail=f"Diagrama '{filename}' no encontrado.")
 
-
-@app.get("/diagramas/figma-mcp")
+    @app.get("/flujo/figma-mcp")
+    @app.get("/flujo_figma")
+    @app.get("/diagramas/figma-mcp")
     async def render_flujo_figma_mcp():
         """Sirve el flujo interactivo de conectividad Figma MCP en 1fd4"""
         try:
