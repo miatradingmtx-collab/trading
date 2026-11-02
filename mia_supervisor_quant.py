@@ -828,7 +828,7 @@ class MiaQuantSupervisor:
         return payload_cbr
 
     def analyze_recent_losses(self):
-        """Escanea trades perdedores recientes para su procesamiento post-mortem."""
+        """Escanea trades perdedores recientes del día operativo para su procesamiento post-mortem."""
         print("| QUANT SUPERVISOR | Iniciando escaneo post-mortem con Gemini...")
         try:
             r = requests.get(f"{self.UPSTASH_URL}/get/cache_hist_mt5", headers=self.UPSTASH_HEADERS, timeout=5)
@@ -836,20 +836,44 @@ class MiaQuantSupervisor:
         except Exception:
             hist = []
 
-        perdedores = [t for t in hist if float(t.get('profit', 0)) < 0]
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        cutoff_24h = now_utc - datetime.timedelta(hours=24)
+
+        perdedores = []
+        for t in hist:
+            pnl = float(t.get('profit', 0) or 0)
+            if pnl < 0:
+                ts_str = str(t.get('timestamp') or t.get('fecha') or t.get('time_out') or '')
+                es_reciente = True
+                if ts_str:
+                    try:
+                        ts_clean = ts_str.replace('Z', '+00:00')
+                        t_dt = datetime.datetime.fromisoformat(ts_clean)
+                        if t_dt.tzinfo is None:
+                            t_dt = t_dt.replace(tzinfo=datetime.timezone.utc)
+                        if t_dt < cutoff_24h:
+                            es_reciente = False
+                    except Exception:
+                        pass
+                if es_reciente:
+                    perdedores.append(t)
+
         if not perdedores:
-            perdedores = [{
-                "ticket": "999999", "symbol": "EURUSD", "type": "BUY", "profit": -15.50,
-                "time_out": datetime.datetime.now().isoformat()
-            }]
+            print("| QUANT SUPERVISOR | Cero pérdidas recientes pendientes de autopsia. Cero trades ficticios.")
+            return
 
         for trade in perdedores:
             self.process_trade_post_mortem(trade)
             break
 
-    def reconcile_and_process_daily_trades(self, days_back: int = 2):
-        """Reconciliador diario anti-pérdida de trades."""
-        print(f"| QUANT RECONCILER | Reconciliando trades de los últimos {days_back} días...")
+    def reconcile_and_process_daily_trades(self, days_back: int = 1):
+        """
+        Reconciliador diario anti-pérdida de trades estrictamente acotado al día operativo actual.
+        Bloquea el reprocesamiento de operaciones de días o semanas anteriores.
+        """
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        cutoff_dt = now_utc - datetime.timedelta(days=max(1, days_back))
+        print(f"| QUANT RECONCILER | Reconciliando trades operativos desde {cutoff_dt.strftime('%Y-%m-%d %H:%M UTC')}...")
         closed_trades = []
         try:
             r_hist = requests.get(f"{self.UPSTASH_URL}/get/cache_hist_mt5", headers=self.UPSTASH_HEADERS, timeout=5)
@@ -863,16 +887,30 @@ class MiaQuantSupervisor:
                         accion = data.get('accion', '')
                         pnl = float(data.get('pnl', 0.0) or 0.0)
                         if accion in ['CIERRE_TOTAL', 'CERRAR_TP', 'CIERRE_PARCIAL', 'TRAILING_STOP', 'PROTECCION_BE'] or pnl != 0.0:
-                            closed_trades.append({
-                                'ticket': ticket,
-                                'symbol': data.get('activo', 'EURUSD'),
-                                'profit': pnl,
-                                'type': accion,
-                                'motivo': data.get('motivo', 'Cierre MT5'),
-                                'timestamp': data.get('timestamp', ''),
-                                'detalle_setup': data.get('detalle_setup', ''),
-                                'score': data.get('score', 75.0)
-                            })
+                            ts_raw = str(data.get('timestamp') or data.get('fecha') or '')
+                            es_vigente = True
+                            if ts_raw:
+                                try:
+                                    ts_clean = ts_raw.replace('Z', '+00:00')
+                                    t_dt = datetime.datetime.fromisoformat(ts_clean)
+                                    if t_dt.tzinfo is None:
+                                        t_dt = t_dt.replace(tzinfo=datetime.timezone.utc)
+                                    if t_dt < cutoff_dt:
+                                        es_vigente = False
+                                except Exception:
+                                    pass
+
+                            if es_vigente:
+                                closed_trades.append({
+                                    'ticket': ticket,
+                                    'symbol': data.get('activo', 'EURUSD'),
+                                    'profit': pnl,
+                                    'type': accion,
+                                    'motivo': data.get('motivo', 'Cierre MT5'),
+                                    'timestamp': data.get('timestamp', ''),
+                                    'detalle_setup': data.get('detalle_setup', ''),
+                                    'score': data.get('score', 75.0)
+                                })
         except Exception as e:
             print(f"| QUANT RECONCILER WARN | Error leyendo Upstash cache_hist_mt5: {e}")
 
@@ -899,24 +937,41 @@ class MiaQuantSupervisor:
         except Exception as e_tf:
             print(f"| QUANT RECONCILER WARN | Error sincronizando TF: {e_tf}")
 
-        # Reconciliación con CBR
+        # Reconciliación con CBR y Deduplicación Inmutable de Tickets
         cbr_list = []
+        cbr_processed_set = set()
         try:
             r_cbr = requests.get(f"{self.UPSTASH_URL}/get/cache_trading_learning_kb", headers=self.UPSTASH_HEADERS, timeout=5)
             if r_cbr.status_code == 200 and r_cbr.json().get('result'):
                 cbr_list = json.loads(r_cbr.json().get('result'))
+            r_proc = requests.get(f"{self.UPSTASH_URL}/get/cache_cbr_processed_tickets", headers=self.UPSTASH_HEADERS, timeout=5)
+            if r_proc.status_code == 200 and r_proc.json().get('result'):
+                cbr_processed_set = set(json.loads(r_proc.json().get('result')))
         except Exception:
             pass
 
-        cbr_tickets = {str(c.get('ticket')) for c in cbr_list if c.get('ticket')}
+        cbr_tickets = {str(c.get('ticket')) for c in cbr_list if c.get('ticket')}.union(cbr_processed_set)
         new_cases = 0
         for t in closed_trades:
-            if t['ticket'] not in cbr_tickets:
+            t_id = str(t['ticket'])
+            if t_id not in cbr_tickets:
                 self.process_trade_post_mortem(t)
-                cbr_tickets.add(t['ticket'])
+                cbr_tickets.add(t_id)
+                cbr_processed_set.add(t_id)
                 new_cases += 1
 
-        print(f"| QUANT RECONCILER | Finalizado: {new_cases} casos registrados en CBR.")
+        if new_cases > 0:
+            try:
+                requests.post(
+                    f"{self.UPSTASH_URL}/set/cache_cbr_processed_tickets",
+                    headers=self.UPSTASH_HEADERS,
+                    data=json.dumps(list(cbr_processed_set)),
+                    timeout=5
+                )
+            except Exception as e_set:
+                print(f"| QUANT RECONCILER WARN | No se pudo actualizar cache_cbr_processed_tickets: {e_set}")
+
+        print(f"| QUANT RECONCILER | Finalizado: {new_cases} casos registrados en CBR del día operativo actual.")
         return {"status": "success", "closed_trades": len(closed_trades), "new_cases": new_cases}
 
     def generate_daily_quant_summary_report(self):

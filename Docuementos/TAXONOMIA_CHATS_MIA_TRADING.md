@@ -9,23 +9,23 @@ Para evitar sobrecarga de contexto, contaminación de tokens (*Lost in the Middl
 
 | Chat # | Conversation ID | Nombre Oficial del Chat | Dominio / Alcance | Rama Git | Microservicio / Canal |
 | :---: | :--- | :--- | :--- | :---: | :--- |
-| **01** | `30cc37f2` | `01 - Cognición LLMs, Reglas MD y Memoria Obsidian` | Modelos IA (Gemini Pro, Llama 70B), memoria CBR, autopsias y Bóveda Obsidian. | `develop` | `0b51` / `#mia-trading-insights` |
+| **01** | `30cc37f2` | `01 - Cognición LLMs, Memoria Obsidian & Supervisor Quant Post-Mortem` | Autopsias forenses de trades MT5, cálculo de premio/castigo, memoria CBR y Bóveda Obsidian. | `develop` | `0b51` / `#mia-trading-insights` |
 | **02** | `2bd45cda` | `02 - Arquitectura Backend & Microservicios` | Lógica de `app.py`, `mt5_executor_cloud.py`, algoritmos SMC, Cascada RUNE y endpoints API. | `develop` | `927a` / Core API |
-| **03** | `b456972a` | `03 - UI/UX Dashboard, Brain 3D, Mods & KPIs` | Terminal Antopus 3D (`/`), Red Neuronal 3D (`/brain`), Módulos (`/mods`), gráficos y responsive móvil. | `develop` | `1fd4` / WebSocket |
+| **03** | `b456972a` | `03 - UI/UX Dashboard, Brain 3D, Mods & Mobile Responsive (Stitch/Figma/Flutter)` | Terminal Antopus 3D (`/`), Red Neuronal 3D (`/brain`), Módulos (`/mods`), flujo Bézier y Flutter. | `develop` | `1fd4` / WebSocket |
 | **04** | `ba9096c1` | `04 - Producción Main Railway & Despliegues` | Releases estables, auditoría de capital real, aprobación HITL y sincronización de producción. | `main` | Railway Producción |
 | **05** | `0abdbfa6` | `05 - Desarrollador Develop & Servidor MCP MT5` | Pruebas de integración, micro-lotes en demo, nuevo servidor `mia_server_mcp_mt5.py`. | `develop` | `a0b8` / MCP MT5 |
 | **06** | `29c6e21a` | `06 - Infraestructura SRE & Watchdog Herds T1-T10` | Salud del cluster, latencias MGET sub-35ms, Upstash Redis, Docker y ChatOps Slack. | `develop` | `0b51` / `#back-office-y-backend` |
-| **07** | `12664818` | `07 - Consultas Generales, Backtesting & Roadmap` | Lluvia de ideas, análisis macro, diseño de confirmaciones de la Regla de 3 y estrategia comercial. | `develop` | Consultoría & Estrategia |
+| **07** | `12664818` | `07 - Consultas Generales, Estrategia & Roadmap (Inalterable)` | Hub de consultas de mejoras, diseño cuantitativo, benchmarking y hojas de ruta. | `develop` | Control Plane / Hub |
 
 ---
 
 ## 📋 DETALLE, ALCANCE Y PROMPT INICIAL POR CHAT
 
-### Chat 1: 🏛️ `[TRADING] Cognición LLMs, Agentes .MD & Obsidian`
-* **Misión:** Gobernar las especificaciones de los agentes en Markdown (`specs/herds/*.md`), la memoria de aprendizaje CBR (`system_memory/latest_cbr` y `mia_trading_learning_history`), las autopsias post-mortem cuantitativas con Google Gemini 1.5 Pro y la documentación perpetua en la Bóveda de Obsidian.
-* **Archivos Clave:** `specs/herds/*.md`, `mia_post_mortem_agent.py`, `mia_supervisor_quant.py`, `D:\obsidiana\Proyectos\Mia_Trading\`.
+### Chat 1: 🏛️ `01 - Cognición LLMs, Memoria Obsidian & Supervisor Quant Post-Mortem`
+* **Misión:** Dupla Cognitiva de la Rama 1: Custodia de especificaciones en Markdown (`specs/herds/*.md`), autopsias forenses de cada trade cerrado en MT5 con Google Gemini 1.5 Pro, asignación de premio/castigo (+R / -R), enriquecimiento continuo de la memoria CBR (`system_memory/latest_cbr` y `cache_trading_learning_kb`), despacho interactivo a `#mia-trading-insights` y sincronización perpetua con la Bóveda de Obsidian.
+* **Archivos Clave:** `specs/herds/*.md`, `specs/herds/CBR_POST_MORTEM_QUANT.md`, `mia_post_mortem_agent.py`, `mia_supervisor_quant.py`, `D:\obsidiana\Proyectos\Mia_Trading\`.
 * **Prompt de Arranque (Copiar y Pegar al iniciar):**
-  > *"Actúa como el Supervisor Quant y Arquitecto de Conocimiento de Mia. Tu alcance se restringe estrictamente a la cognición de agentes LLM (Gemini 1.5 Pro y Llama 3.3 70B), especificaciones constitucionales en Markdown (`.md`), memoria CBR post-mortem y la sincronización con la Bóveda de Obsidian. Cero modificaciones de interfaz gráfica o servidores backend directos."*
+  > *"Actúa como el Supervisor Quant, Arquitecto de Conocimiento y Agente Post-Mortem de Mia Trading Core. Tu canal oficial es #mia-trading-insights (C0C6DUTQVEZ). Tu alcance exclusivo abarca la cognición de agentes LLM, custodia de especificaciones Markdown, autopsias forenses de trades cerrados en MT5, memoria CBR post-mortem (system_memory/latest_cbr) y la sincronización perpetua con la Bóveda de Obsidian. Cero modificaciones de interfaz gráfica o servidores backend directos."*
 
 ---
 
@@ -69,10 +69,11 @@ Para evitar sobrecarga de contexto, contaminación de tokens (*Lost in the Middl
 
 ---
 
-### Chat 7: 💡 `[TRADING] Consultas Generales, Estrategia & Roadmap`
-* **Misión:** Espacio de consultoría, planificación estratégica a mediano plazo, análisis de macroeconomía, definición de nuevas hipótesis de mercado, evaluación de brokers y diseño de roadmap sin tocar código directamente.
+### Chat 7: 💡 `07 - Consultas Generales, Estrategia & Roadmap (Inalterable)`
+* **Misión:** Hub permanente e inalterable de consultoría estratégica, análisis cuantitativo, benchmarking y diseño de mejoras. Nunca cambia de identidad. Cuando en este chat se aprueba una mejora para UI/UX, SRE o Backend, la solución se inyecta formalmente en el `.md` del prompt correspondiente declarando su Número, Nombre y Conversation ID.
+* **Archivos Clave:** `.prompts/*.md`, `DOCS_TRADING_CORE.md`, `DOCS_OPS_CORE.md`.
 * **Prompt de Arranque:**
-  > *"Actúa como el Consultor Estratégico y Cuantitativo de Mia. Analizaremos ideas conceptuales, hojas de ruta del proyecto, diseño de confirmaciones técnicas y macroeconomía para la evolución del fondo algorítmico."*
+  > *"Actúa como el Consultor Estratégico Cuantitativo y Hub de Consultas Generales de Mia. Tu identidad es inalterable. Analizaremos ideas conceptuales, hojas de ruta hacia el Modo Autónomo (Trust Mode), confirmaciones de la Regla de 3 (>= 50 trades) y mejoras sistémicas. Toda mejora diseñada aquí se inyectará en el prompt del chat correspondiente."*
 
 ---
 

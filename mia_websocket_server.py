@@ -95,7 +95,27 @@ if os.path.exists(build_dir):
         except Exception as e:
             return {"error": str(e)}
 
+    @app.get("/flujo/hitl-trust-mode")
+    @app.get("/flujo_hitl")
+    @app.get("/diagramas/hitl-trust-mode")
+    async def render_flujo_hitl_trust_mode():
+        """Sirve el flujo interactivo de Aprobacion HITL, CBR y Trust Mode en 1fd4"""
+        try:
+            return FileResponse(os.path.join(os.path.dirname(__file__), "flujo_aprobacion_hitl_cbr_t6.html"))
+        except Exception as e:
+            return {"error": str(e)}
+
     # Las rutas de API y WebSocket se registran primero; el catch-all estático al final
+
+    @app.get("/flujo/figma-mcp")
+    @app.get("/flujo_figma")
+    @app.get("/diagramas/figma-mcp")
+    async def render_flujo_figma_mcp():
+        """Sirve el flujo interactivo de conectividad Figma MCP en 1fd4"""
+        try:
+            return FileResponse(os.path.join(os.path.dirname(__file__), "flujo_conectividad_figma_mcp.html"))
+        except Exception as e:
+            return {"error": str(e)}
 
     @app.get("/mods")
     async def render_mods_war_room():
