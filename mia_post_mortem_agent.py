@@ -43,9 +43,11 @@ class MiaPostMortemAgent:
         self.UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg")
         self.UPSTASH_HEADERS = {"Authorization": f"Bearer {self.UPSTASH_TOKEN}"}
 
-    def fetch_recent_closed_trades(self, limit: int = 20) -> List[Dict[str, Any]]:
-        """Extrae trades cerrados recientes desde Upstash Redis (Zero Firestore Read Quota)."""
+    def fetch_recent_closed_trades(self, limit: int = 20, max_hours_lookback: int = 24) -> List[Dict[str, Any]]:
+        """Extrae trades cerrados del día operativo reciente desde Upstash Redis."""
         closed = []
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        cutoff_dt = now_utc - datetime.timedelta(hours=max(1, max_hours_lookback))
         try:
             r = requests.get(f"{self.UPSTASH_URL}/get/cache_hist_mt5", headers=self.UPSTASH_HEADERS, timeout=4)
             if r.status_code == 200 and r.json().get("result"):
@@ -58,16 +60,31 @@ class MiaPostMortemAgent:
                         pnl = float(data.get("pnl", 0.0) or 0.0)
                         accion = data.get("accion", "")
                         if accion in ["CIERRE_TOTAL", "CERRAR_TP", "CIERRE_PARCIAL", "TRAILING_STOP", "PROTECCION_BE"] or pnl != 0.0:
-                            closed.append({
-                                "ticket": ticket,
-                                "symbol": data.get("activo", "EURUSD"),
-                                "profit": pnl,
-                                "type": accion,
-                                "motivo": data.get("motivo", "Cierre MT5"),
-                                "timestamp": data.get("timestamp", datetime.datetime.now().isoformat()),
-                                "score": data.get("score", 75.0),
-                                "detalle_setup": data.get("detalle_setup", "")
-                            })
+                            # Filtro estricto de antigüedad temporal: Omitir trades previos a la ventana de 24h
+                            ts_raw = str(data.get("timestamp") or data.get("fecha") or "")
+                            es_reciente = True
+                            if ts_raw:
+                                try:
+                                    ts_clean = ts_raw.replace('Z', '+00:00')
+                                    t_dt = datetime.datetime.fromisoformat(ts_clean)
+                                    if t_dt.tzinfo is None:
+                                        t_dt = t_dt.replace(tzinfo=datetime.timezone.utc)
+                                    if t_dt < cutoff_dt:
+                                        es_reciente = False
+                                except Exception:
+                                    pass
+
+                            if es_reciente:
+                                closed.append({
+                                    "ticket": ticket,
+                                    "symbol": data.get("activo", "EURUSD"),
+                                    "profit": pnl,
+                                    "type": accion,
+                                    "motivo": data.get("motivo", "Cierre MT5"),
+                                    "timestamp": data.get("timestamp", datetime.datetime.now().isoformat()),
+                                    "score": data.get("score", 75.0),
+                                    "detalle_setup": data.get("detalle_setup", "")
+                                })
         except Exception as e:
             print(f"| POST-MORTEM AGENT WARN | Error leyendo Upstash cache_hist_mt5: {e}")
         return closed[:limit]
