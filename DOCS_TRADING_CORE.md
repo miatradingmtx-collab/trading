@@ -630,6 +630,17 @@ Cada trade cerrado en MetaTrader 5 genera un caso inmutable `TRADE_CASE_<ticket>
 - **Asignación de Crédito ($\Delta W_i$):** Premios a los Herds que validaron la confluencia ganadora y castigos a los que votaron a favor de trampas de liquidez.
 - **Persistencia Dual:** Guardado en Firebase Firestore (`mia_trading_learning_history`) y en Upstash Redis (`cache_trading_learning_kb` con los 50 casos más recientes para k-NN similitude sub-35ms).
 
+### 7.1 Clasificación Temporal de Holding (Swing Interdiario & Fin de Semana) y Filtro de Cierre
+- **Criterio Estricto de Timestamp de Cierre:** El reconciliador diario y los analizadores forenses filtran operaciones basándose **exclusivamente en la fecha/hora de cierre (`time_close` / `timestamp_cierre`)**, jamás en la apertura. Toda operación abierta días previos que cierre en la sesión actual es capturada y reportada de inmediato.
+- **Categorización Canónica de Holding:**
+  1. `INTRADIA`: Apertura y cierre dentro de la misma jornada operativa ($T_{cierre} - T_{apertura} < 18\text{h}$ sin cruce de día).
+  2. `SWING_INTERDIARIO`: Posiciones abiertas un día y liquidadas al día siguiente (ej. apertura jueves $\to$ cierre viernes), con duración explícita en horas.
+  3. `SWING_FIN_DE_SEMANA`: Posiciones abiertas el viernes (o antes) que se mantienen abiertas durante el fin de semana hasta la reapertura del mercado el domingo (21:00/22:00 UTC) o lunes (`mantuvo_fin_de_semana: True`).
+- **Ventana Adaptativa Anti-Pérdida:** Los domingos y lunes la ventana de lookback se expande automáticamente a **72 horas** para auditar y reconciliar sin pérdidas las operaciones de fin de semana y reapertura dominical.
+- **Auditoría Forense Específica en Enjambre:**
+  - *TIDAL:* Evalúa el impacto del gap de reapertura dominical en la estructura de sesiones y Killzones.
+  - *RUNE:* Audita si la cascada institucional (BE defensivo + buffer +2.5 pips) protegió la posición contra la expansión de spreads en la reapertura.
+
 ## 8. Catálogo Completo de los 11 Slots Canónicos en Upstash Redis (`firm-koi-93555.upstash.io`)
 1. `cache_mt5`: Telemetría contable en vivo, balance actual ($3,688.80 USD), equity ($3,696.78 USD), drawdown base $5,000 y factor de asimetría.
 2. `cache_trading_matrix`: Matriz institucional con los 6 pares canónicos autorizados.

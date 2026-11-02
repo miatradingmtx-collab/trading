@@ -609,6 +609,11 @@ class MiaQuantSupervisor:
             "cluster": cluster_tag,
             "profit": profit,
             "r_multiplo": r_multiplo,
+            "duracion_horas": forensic_report.get("duracion_horas"),
+            "categoria_holding": forensic_report.get("categoria_holding", "INTRADIA"),
+            "mantuvo_fin_de_semana": forensic_report.get("mantuvo_fin_de_semana", False),
+            "fecha_apertura": forensic_report.get("fecha_apertura"),
+            "fecha_cierre": forensic_report.get("fecha_cierre"),
             "diagnostico_forense_post_mortem": forensic_report.get("diagnostico_forense", ""),
             "diagnostico_supervisor_quant": diagnostico,
             "solucion_aprendida": sugerencia_trading,
@@ -699,9 +704,15 @@ class MiaQuantSupervisor:
 
         if slack_bridge and (slack_bridge.bot_token or slack_bridge.quant_bot_token):
             msg_fallback = f"MIA Quant: Análisis para {ticket} en {symbol}"
+            dur_val = forensic_report.get("duracion_horas")
+            dur_str = f"{dur_val:.1f}h" if dur_val is not None else "N/A"
+            cat_hold = forensic_report.get("categoria_holding", "INTRADIA")
+            weekend_txt = " | ⚠️ *HOLD FIN DE SEMANA (GAP)*" if forensic_report.get("mantuvo_fin_de_semana") else ""
+
             sec1_text = (
                 f"*Símbolo:* {symbol} ({cluster_tag})\n"
                 f"*Resultado MT5:* `{profit_fmt}` ({r_multiplo:+.2f}R) | *RL Score:* `{recompensa_neta:+.2f}R` ({tipo_resultado})\n"
+                f"*Holding / Duración:* `{dur_str}` ({cat_hold}){weekend_txt}\n"
                 f"*Factor Asimetría D/(1-D):* `{factor_asimetria:.2f}x` | *CBR Case:* `{case_id}`\n\n"
                 f"*🔍 Agente Post-Mortem (Autopsia Forense):*\n{diagnostico_forense}\n\n"
                 f"*🧠 Supervisor Quant (Validación Gemini 1.5 Pro):*\n{diagnostico}"
@@ -837,24 +848,18 @@ class MiaQuantSupervisor:
             hist = []
 
         now_utc = datetime.datetime.now(datetime.timezone.utc)
-        cutoff_24h = now_utc - datetime.timedelta(hours=24)
+        eff_hours = 72 if now_utc.weekday() in [0, 6] else 24
+        cutoff_dt = now_utc - datetime.timedelta(hours=eff_hours)
 
         perdedores = []
         for t in hist:
             pnl = float(t.get('profit', 0) or 0)
             if pnl < 0:
-                ts_str = str(t.get('timestamp') or t.get('fecha') or t.get('time_out') or '')
+                ts_close_raw = str(t.get('time_close') or t.get('fecha_cierre') or t.get('timestamp_cierre') or t.get('timestamp') or t.get('fecha') or t.get('time_out') or '')
+                close_dt = self.post_mortem_agent._parse_datetime(ts_close_raw)
                 es_reciente = True
-                if ts_str:
-                    try:
-                        ts_clean = ts_str.replace('Z', '+00:00')
-                        t_dt = datetime.datetime.fromisoformat(ts_clean)
-                        if t_dt.tzinfo is None:
-                            t_dt = t_dt.replace(tzinfo=datetime.timezone.utc)
-                        if t_dt < cutoff_24h:
-                            es_reciente = False
-                    except Exception:
-                        pass
+                if close_dt and close_dt < cutoff_dt:
+                    es_reciente = False
                 if es_reciente:
                     perdedores.append(t)
 
@@ -872,8 +877,9 @@ class MiaQuantSupervisor:
         Bloquea el reprocesamiento de operaciones de días o semanas anteriores.
         """
         now_utc = datetime.datetime.now(datetime.timezone.utc)
-        cutoff_dt = now_utc - datetime.timedelta(days=max(1, days_back))
-        print(f"| QUANT RECONCILER | Reconciliando trades operativos desde {cutoff_dt.strftime('%Y-%m-%d %H:%M UTC')}...")
+        effective_days = max(3 if now_utc.weekday() in [0, 6] else 1, days_back)
+        cutoff_dt = now_utc - datetime.timedelta(days=effective_days)
+        print(f"| QUANT RECONCILER | Reconciliando trades con CIERRE operativo desde {cutoff_dt.strftime('%Y-%m-%d %H:%M UTC')}...")
         closed_trades = []
         try:
             r_hist = requests.get(f"{self.UPSTASH_URL}/get/cache_hist_mt5", headers=self.UPSTASH_HEADERS, timeout=5)
@@ -887,18 +893,12 @@ class MiaQuantSupervisor:
                         accion = data.get('accion', '')
                         pnl = float(data.get('pnl', 0.0) or 0.0)
                         if accion in ['CIERRE_TOTAL', 'CERRAR_TP', 'CIERRE_PARCIAL', 'TRAILING_STOP', 'PROTECCION_BE'] or pnl != 0.0:
-                            ts_raw = str(data.get('timestamp') or data.get('fecha') or '')
+                            # Filtro estricto por TIMESTAMP DE CIERRE (time_close / fecha_cierre / timestamp)
+                            ts_close_raw = str(data.get('time_close') or data.get('fecha_cierre') or data.get('timestamp_cierre') or data.get('timestamp') or data.get('fecha') or '')
+                            close_dt = self.post_mortem_agent._parse_datetime(ts_close_raw)
                             es_vigente = True
-                            if ts_raw:
-                                try:
-                                    ts_clean = ts_raw.replace('Z', '+00:00')
-                                    t_dt = datetime.datetime.fromisoformat(ts_clean)
-                                    if t_dt.tzinfo is None:
-                                        t_dt = t_dt.replace(tzinfo=datetime.timezone.utc)
-                                    if t_dt < cutoff_dt:
-                                        es_vigente = False
-                                except Exception:
-                                    pass
+                            if close_dt and close_dt < cutoff_dt:
+                                es_vigente = False
 
                             if es_vigente:
                                 closed_trades.append({
@@ -908,6 +908,8 @@ class MiaQuantSupervisor:
                                     'type': accion,
                                     'motivo': data.get('motivo', 'Cierre MT5'),
                                     'timestamp': data.get('timestamp', ''),
+                                    'time_close': ts_close_raw,
+                                    'open_time': data.get('open_time') or data.get('fecha_apertura') or data.get('time_open'),
                                     'detalle_setup': data.get('detalle_setup', ''),
                                     'score': data.get('score', 75.0)
                                 })
