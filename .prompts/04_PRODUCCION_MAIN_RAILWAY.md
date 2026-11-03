@@ -71,6 +71,13 @@ Para mantener la integridad operativa del fondo y erradicar cualquier riesgo de 
 
 ## 📦 MANIFEST DE RELEASES Y COMMITS ACTIVOS EN PRODUCCIÓN (MAIN)
 
+### 🏷️ Release v2.4.2 (2026-11-03) — Cascada RUNE v2 & Doble Anillo de Autocuración Post-Sleep
+- **Misión:** Erradicación de fallos por latencia/timeout en MT5 (AUDUSD/GBPUSD) y blindaje con doble anillo de ejecución.
+- **Anillo 1 MT5 (Instancia `927a`):** Memoria High-Water Mark (`price_max_favor`), desacoplamiento total de SL ante fallos de parciales (cero `continue`), catch-up retroactivo y protección anti-retroceso violento.
+- **Anillo 2 Swarm (Instancia `1fd4`):** HERD 5 (RUNE) y Master Orchestrator ejecutan `auditar_y_autocurar_posiciones_post_sleep()` cada 30s al despertar del sleep. Despacha autocuración a `cache_mt5_pending_execution`, notifica en Slack (`#back-office-y-backend` y `#mia-trading-insights`) y suma casos al CBR para la Prueba de Confianza del Humano.
+- **Depuración v1:** Erradicación total y definitiva de la regla v1 (25%/50%) en todo el ecosistema.
+- **Archivos Modificados:** `mt5_executor_cloud.py`, `mia_master_swarm_rest.py`, `.agents/AGENTS.md`, `GEMINI.md`, `GEMINI_TRADING.md`, `DOCS_TRADING_CORE.md`, `specs/herds/HERD_5_RUNE.md`, `.prompts/07_CONSULTAS_ESTRATEGIA_ROADMAP.md`.
+
 ### 🏷️ Release v2.4.1 (2026-11-02) — Post-Mortem Holding Duration & Close Timestamp Parsing
 - **Head Commit en `main`:** `4b40104` (Sincronizado con `develop` `11230b5`)
 - **Commits Integrados:**

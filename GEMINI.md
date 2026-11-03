@@ -137,6 +137,8 @@ Toda mejora o corrección sobre los parámetros del bot DEBE ser enviada como un
    - **Fase 4 (Front-Run TP):** Cierre del 100% de la posición remanente al **95%** de la distancia proyectada para erradicar pérdidas por retrocesos violentos a milímetros del objetivo.
 2. **Límite Canasta USD:** Máximo 2 operaciones simultáneas en pares que contengan USD (`EURUSD`, `GBPUSD`, `AUDUSD`, `XAUUSD`) para prevenir sobreexposición al dólar estadounidense.
 3. **Filtro Anti-Caza All-Time High en Oro (XAUUSD):** Prohibido abrir compras en Oro si el precio se ubica dentro del 0.5% del All-Time High sin un retroceso interbancario previo de al menos 30 a 50 pips.
+4. **Doble Anillo de Redundancia y Autocuración Post-Sleep (RUNE & Master Orchestrator):**
+   Al despertar de cada ciclo de reposo (30s) en `mia_master_swarm_rest.py`, HERD 5 (RUNE) audita las órdenes vivas en MT5 (`cache_mt5`). Si detecta desvíos por latencia, timeouts o caídas en la instancia de ejecución `927a` (parciales no cobrados tras el 50%, SL en pérdida original o retrocesos violentos penetrando Trailing Locks), despacha una orden correctiva inmediata a `cache_mt5_pending_execution` con candado atómico de 60s, alerta en `#back-office-y-backend` (`C0C4ZMFCMJ8`) y `#mia-trading-insights` (`C0C6DUTQVEZ`), y asienta el evento en el CBR.
 
 # 🔡 REGLA DE ORO DE ACTUALIZACIÓN, HOMOLOGACIÓN Y DEPURACIÓN PERPETUA DE DOCUMENTACIÓN CORE (ANTI-DISCREPANCIAS Y ANTI-ALUCINACIÓN)
 **MANDATO PERPETUO PARA TODOS LOS AGENTES LLM (POST-MORTEM, QUANT, WATCHDOG T1-T10, 7 HERDS) Y DESARROLLADORES:**

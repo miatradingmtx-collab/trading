@@ -52,3 +52,12 @@ Antes de aplicar cualquier modificación a otro prompt o archivo del ecosistema,
 3. **Comparativa 'Antes vs Después' (Visual Diff):** Toda propuesta de interfaz en dashboards (`/brain`, `/`, `/mods`, `/dashboard`) debe incluir la comparativa 'Antes vs Después' y el enlace interactivo:
    `👉 https://trading-production-927a.up.railway.app/dashboard/preview`
    junto con la barra de enlaces persistente a los 5 dashboards en el pie de mensaje.
+
+
+---
+
+## 🏆 Hito Canónico Vigente: Cascada RUNE v2 & Doble Anillo de Autocuración Post-Sleep
+- **Fecha:** `2026-11-03` | **Release:** `v2.4.2-rune-v2-post-sleep-watchdog`
+- **Anillo 1 MT5 (Instancia `927a`):** Memoria High-Water Mark (`price_max_favor`), desacoplamiento total de SL ante fallos de parciales (cero `continue`), catch-up retroactivo y protección anti-retroceso violento.
+- **Anillo 2 Swarm (Instancia `1fd4`):** HERD 5 (RUNE) y Master Orchestrator ejecutan `auditar_y_autocurar_posiciones_post_sleep()` cada 30s al despertar del sleep. Despacha autocuración a `cache_mt5_pending_execution`, notifica en Slack (`#back-office-y-backend` y `#mia-trading-insights`) y suma casos al CBR para la Prueba de Confianza del Humano.
+- **Depuración v1:** Erradicación total y definitiva de la regla v1 (25%/50%) en todo el ecosistema.
