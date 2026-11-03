@@ -1383,6 +1383,19 @@ egla_de_3 deben ser consultados 100% mediante Upstash Redis (cache_regla_de_3). 
   3. `lux_algo_ob_2h` (106 trades | 61.32% WR | +$113.76 PnL | Peso 25).
 - **Código en Producción:** Actualizados `app.py` y `mia_supervisor_agent.py` para consultar tanto `indicadores_impacto` como `patrones_ict_smc` bajo el umbral mínimo de 50 trades reales.
 
+### [Update 2026-11-03] - Protocolo Autónomo de Observabilidad SRE (HERD T3) y Notificación Reactiva Inmediata de Incidencias en Microservicios Railway (1fd4, 927a, 0b51)
+- **Causa Raíz Identificada:** Anteriormente, `HerdObservabilitySRE` solo acumulaba fallos de red en variables internas y el bucle en `app.py` corría con `notify_slack=False` (restringido a un solo reporte al día a las 11:30 AM). Si una instancia como `1fd4` sufría un crash en Railway, ninguna alerta era despachada a Slack `#back-office-y-backend`.
+- **Arquitectura de Detección Reactiva Inmediata:**
+  1. **Monitoreo Continuo Autónomo (Bucle cada 60s):** Se incorporó `sre_observability_watchdog_loop` en `@app.on_event("startup")` dentro de `mia_ops_service.py` (instancia `0b51` - Control Plane) y como soporte redundante en `app.py` (`927a`).
+  2. **Rastreo de Transiciones de Estado en Redis (`cache_sre_endpoints_state`):** Se mantiene el registro de estado (`ONLINE` vs `OFFLINE`) para cada microservicio (`1fd4`, `927a`, `0b51`, `upstash`).
+  3. **Despacho Inmediato de Incidencia SRE:** Ante la transición `ONLINE -> OFFLINE / CRASHED`, HERD T3 dispara instantáneamente una alerta roja `🚨 INCIDENCIA CRÍTICA SRE` a `#back-office-y-backend` (`C0C4ZMFCMJ8`) detallando:
+     - Microservicio afectado y URL.
+     - Diagnóstico exacto (Timeout, Error 5xx, Conexión rechazada).
+     - Servicios impactados (Terminal Antopus 3D, Brain Neuronal 3D, Mods War Room, WebSockets `/ws`).
+     - Acción correctiva y enlace a consola de Railway.
+  4. **Propuesta HITL de Alta Prioridad:** Genera automáticamente una propuesta de Score 98 (`REINICIAR SERVICIO {INSTANCIA}`) en `por_aprobar` para aprobación rápida por el operador.
+  5. **Notificación Automática de Recuperación:** Ante la transición `OFFLINE -> ONLINE`, despacha la alerta verde `✅ RECUPERACIÓN SRE` notificando el restablecimiento del servicio y su latencia.
+
 
 ---
 name: regla_oro_balance_base_5000

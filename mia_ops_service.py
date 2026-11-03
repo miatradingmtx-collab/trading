@@ -129,6 +129,30 @@ def redirect_to_dashboard():
     """Redirige al Dashboard Central Gold Standard en el microservicio 927a."""
     return RedirectResponse(url="https://trading-production-927a.up.railway.app/dashboard", status_code=307)
 
+# ====================================================================
+# BUCLE CONTINUO DE VIGILANCIA OBSERVABILITY SRE (HERD T3 & WATCHDOG)
+# ====================================================================
+async def sre_observability_watchdog_loop():
+    """
+    Bucle continuo autónomo de Observabilidad SRE (HERD T3):
+    - Corre cada 60 segundos vigilando activamente los microservicios Railway (1fd4, 927a, 0b51) y Upstash Redis.
+    - Si detecta que un endpoint pasa a OFFLINE / CRASHED, emite inmediatamente una alerta crítica a Slack (#back-office-y-backend).
+    - Si el endpoint se recupera, emite inmediatamente la notificación de recuperación.
+    - Garantiza que ninguna caída pase inadvertida.
+    """
+    print("| SRE WATCHDOG 0b51 | Iniciando bucle autónomo de vigilancia SRE (ciclo cada 60s)...")
+    await asyncio.sleep(15)
+    while True:
+        try:
+            system_ops_supervisor.t3_sre.execute()
+        except Exception as e_sre:
+            print(f"| SRE WATCHDOG 0b51 ERROR | Error en ciclo de vigilancia: {e_sre}")
+        await asyncio.sleep(60)
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(sre_observability_watchdog_loop())
+
 @app.post("/api/ops/audit")
 async def trigger_ops_audit(background_tasks: BackgroundTasks):
     """Dispara un ciclo de auditoría completo y notifica a Slack."""

@@ -120,6 +120,123 @@ class MiaSlackBridge:
 
         return self.send_raw_message(text)
 
+    def send_sre_incident_alert(self, incident: Dict[str, Any]) -> bool:
+        """
+        Notifica de forma inmediata y prioritaria a #back-office-y-backend (C0C4ZMFCMJ8)
+        cuando un microservicio o endpoint crítico entra en estado OFFLINE / CRASHED.
+        """
+        nombre = incident.get("endpoint_nombre", "Microservicio")
+        url = incident.get("url", "")
+        instancia = incident.get("instancia", "Railway")
+        error = incident.get("error", "Timeout / Conexión rechazada")
+        impacto = incident.get("impacto", "Servicios del endpoint no disponibles")
+        ts = incident.get("timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat())
+
+        text = (
+            f"🚨 *[INCIDENCIA CRÍTICA SRE - HERD T3 OBSERVABILITY]* 🚨\n"
+            f"*Microservicio Afectado:* `{nombre}`\n"
+            f"*URL:* <{url}>\n"
+            f"*Estado:* `OFFLINE / CRASHED EN RAILWAY` ❌\n"
+            f"*Diagnóstico:* `{error}`\n"
+            f"*Impacto Operativo:* {impacto}\n"
+            f"*Instancia:* `{instancia}` | *Timestamp:* `{ts}`\n"
+            f"*Acción Requerida:* Chat 4 / Operador debe inspeccionar el despliegue en Railway y aplicar `Restart` en el servicio.\n"
+            f"🔗 <https://railway.com|Abrir Consola Railway>"
+        )
+
+        blocks = [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f"🚨 INCIDENCIA SRE: {instancia.upper()} CAÍDO / CRASHED",
+                    "emoji": True
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": (
+                        f"• *Microservicio Afectado:* `{nombre}`\n"
+                        f"• *URL:* <{url}>\n"
+                        f"• *Estado:* `OFFLINE / CRASHED EN RAILWAY` ❌\n"
+                        f"• *Diagnóstico:* `{error}`\n"
+                        f"• *Impacto Operativo:* {impacto}\n"
+                        f"• *Timestamp:* `{ts}`"
+                    )
+                }
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"⚠️ *Alerta disparada automáticamente por HERD T3 (Observability SRE) hacia #back-office-y-backend.*"
+                    }
+                ]
+            }
+        ]
+
+        return self.send_channel_message(
+            text=text,
+            blocks=blocks,
+            channel="C0C4ZMFCMJ8",
+            username="HERD T3 (Observability SRE)",
+            icon_emoji=":rotating_light:"
+        )
+
+    def send_sre_recovery_alert(self, recovery: Dict[str, Any]) -> bool:
+        """
+        Notifica a #back-office-y-backend (C0C4ZMFCMJ8) cuando un microservicio recupera su estado ONLINE.
+        """
+        nombre = recovery.get("endpoint_nombre", "Microservicio")
+        url = recovery.get("url", "")
+        instancia = recovery.get("instancia", "Railway")
+        latencia_ms = recovery.get("latencia_ms", 0.0)
+        ts = recovery.get("timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat())
+
+        text = (
+            f"✅ *[RECUPERACIÓN SRE - HERD T3 OBSERVABILITY]*\n"
+            f"*Microservicio Reestablecido:* `{nombre}`\n"
+            f"*Estado:* `ONLINE` 🟢 (Latencia: `{latencia_ms} ms`)\n"
+            f"*URL:* <{url}>\n"
+            f"*Timestamp:* `{ts}`\n"
+            f"*Telemetría:* Tráfico HTTP y servicios normalizados en Railway."
+        )
+
+        blocks = [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f"✅ RECUPERACIÓN SRE: {instancia.upper()} ONLINE",
+                    "emoji": True
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": (
+                        f"• *Microservicio Reestablecido:* `{nombre}`\n"
+                        f"• *URL:* <{url}>\n"
+                        f"• *Estado:* `ONLINE` 🟢 (Latencia: `{latencia_ms} ms`)\n"
+                        f"• *Timestamp:* `{ts}`\n"
+                        f"• *Telemetría:* Tráfico HTTP, WebSockets y servicios normalizados."
+                    )
+                }
+            }
+        ]
+
+        return self.send_channel_message(
+            text=text,
+            blocks=blocks,
+            channel="C0C4ZMFCMJ8",
+            username="HERD T3 (Observability SRE)",
+            icon_emoji=":white_check_mark:"
+        )
+
 
     def send_senior_ops_report(self, summary: Dict[str, Any]) -> bool:
         """

@@ -59,6 +59,16 @@ build_dir = os.path.join(os.path.dirname(__file__), "mia_3d_ui", "build")
 if os.path.exists(build_dir):
     app.mount("/static", StaticFiles(directory=os.path.join(build_dir, "static")), name="static")
     
+    @app.get("/health")
+    def health_check():
+        return {
+            "microservicio": "mia-websocket-server",
+            "instancia": "1fd4",
+            "estado": "ONLINE",
+            "rol": "Neural Cluster, Antopus 3D, Brain 3D y WebSockets",
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+        }
+
     @app.get("/")
     async def serve_react_app():
         return FileResponse(os.path.join(build_dir, "index.html"))

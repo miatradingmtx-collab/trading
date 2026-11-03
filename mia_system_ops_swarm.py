@@ -344,16 +344,57 @@ class HerdSeniorDev:
 # ==============================================================================
 class HerdObservabilitySRE:
     name = "HERD T3 (OBSERVABILITY_SRE)"
-    role = "Monitoreo activo de endpoints de Railway, OpenRouter, MCP, Upstash y GitHub"
+    role = "Monitoreo activo de endpoints de Railway, OpenRouter, MCP, Upstash y GitHub con alertas reactivas inmediatas"
+
+    def __init__(self):
+        self.endpoint_states = {}
 
     def execute(self) -> Dict[str, Any]:
+        # Cargar estados previos de endpoints desde Upstash Redis para detectar transiciones
+        try:
+            r_st = requests.get(f"{UPSTASH_URL}/get/cache_sre_endpoints_state", headers=UPSTASH_HEADERS, timeout=3)
+            if r_st.status_code == 200 and r_st.json().get("result"):
+                raw_st = r_st.json().get("result")
+                loaded_st = json.loads(raw_st) if isinstance(raw_st, str) else raw_st
+                if isinstance(loaded_st, dict):
+                    self.endpoint_states.update(loaded_st)
+        except Exception:
+            pass
+
         endpoints = [
-            {"nombre": "Railway App (1fd4 - Swarm)", "url": "https://trading-production-1fd4.up.railway.app/health", "timeout": 3},
-            {"nombre": "Railway App (927a - MT5 Execution)", "url": "https://trading-production-927a.up.railway.app/health", "timeout": 3},
-            {"nombre": "Railway App (0b51 - Terminator Ops)", "url": "https://trading-production-0b51.up.railway.app/health", "timeout": 3},
-            {"nombre": "Servidor MCP Trading", "url": "https://trading-production-1fd4.up.railway.app/mcp", "timeout": 3},
-            {"nombre": "Servidor MCP Ops", "url": "https://trading-production-0b51.up.railway.app/api/mcp/ops/health", "timeout": 3},
-            {"nombre": "Upstash Redis Gateway", "url": f"{UPSTASH_URL}/ping", "headers": UPSTASH_HEADERS, "timeout": 3}
+            {
+                "id": "1fd4",
+                "nombre": "Railway App (1fd4 - Neural Cluster & 3D Terminal)",
+                "url": "https://trading-production-1fd4.up.railway.app/",
+                "instancia": "1fd4",
+                "impacto": "Terminal Antopus 3D (/), Brain Neuronal (/brain), Catálogo Mods (/mods) y WebSocket (/ws) fuera de línea.",
+                "timeout": 4
+            },
+            {
+                "id": "927a",
+                "nombre": "Railway App (927a - MT5 Execution & Data Plane)",
+                "url": "https://trading-production-927a.up.railway.app/health",
+                "instancia": "927a",
+                "impacto": "Data Plane MT5, Ingesta de Ticks, Streaming de Precios y Dashboard MT5.",
+                "timeout": 4
+            },
+            {
+                "id": "0b51",
+                "nombre": "Railway App (0b51 - Ops Control Plane & ChatOps)",
+                "url": "https://trading-production-0b51.up.railway.app/health",
+                "instancia": "0b51",
+                "impacto": "Control Plane SRE, Servidor MCP Ops (/mcp/ops) y Webhooks de Slack.",
+                "timeout": 4
+            },
+            {
+                "id": "upstash",
+                "nombre": "Upstash Redis Gateway",
+                "url": f"{UPSTASH_URL}/ping",
+                "headers": UPSTASH_HEADERS,
+                "instancia": "upstash",
+                "impacto": "Caché en memoria compartida, MGET de slots y sincronización de enjambres.",
+                "timeout": 4
+            }
         ]
 
         resultados = []
@@ -364,41 +405,130 @@ class HerdObservabilitySRE:
         session = requests.Session()
         session.trust_env = False
 
+        now_ts = time.time()
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
         for ep in endpoints:
             t0 = time.time()
             headers = ep.get("headers", {})
+            ep_id = ep["id"]
+            is_down = False
+            err_desc = ""
+            status_code = None
+            lat_ms = 999.0
+
             try:
                 r = session.get(ep["url"], headers=headers, timeout=ep["timeout"])
                 lat_ms = round((time.time() - t0) * 1000, 1)
-                estado = "ONLINE" if r.status_code in [200, 404, 405] else f"HTTP_{r.status_code}"
-                resultados.append({
-                    "nombre": ep["nombre"],
-                    "estado": estado,
-                    "status_code": r.status_code,
-                    "latencia_ms": lat_ms
-                })
-                if r.status_code >= 500:
-                    fallos.append(f"{ep['nombre']} devolvió código 5xx ({r.status_code})")
-                elif r.status_code == 402:
-                    fallos.append(f"{ep['nombre']} devolvió 402 Payment Required")
+                status_code = r.status_code
+                if r.status_code >= 500 or r.status_code == 402:
+                    is_down = True
+                    err_desc = f"HTTP {r.status_code}"
+                else:
+                    estado = "ONLINE"
+                    resultados.append({
+                        "nombre": ep["nombre"],
+                        "estado": estado,
+                        "status_code": r.status_code,
+                        "latencia_ms": lat_ms
+                    })
             except Exception as e:
+                is_down = True
+                lat_ms = round((time.time() - t0) * 1000, 1)
+                err_desc = str(e)[:90]
                 resultados.append({
                     "nombre": ep["nombre"],
                     "estado": "OFFLINE / TIMEOUT",
-                    "error": str(e)[:60]
+                    "error": err_desc,
+                    "latencia_ms": lat_ms
                 })
-                if "1fd4" in ep["url"] or "Upstash" in ep["nombre"]:
-                    fallos.append(f"{ep['nombre']} inalcanzable ({str(e)[:40]})")
+
+            prev_rec = self.endpoint_states.get(ep_id, {})
+            prev_status = prev_rec.get("estado", "ONLINE")
+            last_alert_ts = prev_rec.get("last_alert_ts", 0)
+
+            if is_down:
+                fallo_msg = f"{ep['nombre']} inalcanzable ({err_desc})"
+                fallos.append(fallo_msg)
+
+                # Transición ONLINE -> OFFLINE o recordatorio cada 30 minutos (1800s)
+                debe_alertar = (prev_status == "ONLINE") or ((now_ts - last_alert_ts) >= 1800)
+                if debe_alertar:
+                    try:
+                        from mia_slack_bridge import slack_bridge
+                        incident_data = {
+                            "endpoint_nombre": ep["nombre"],
+                            "url": ep["url"],
+                            "instancia": ep["instancia"],
+                            "estado": "OFFLINE / CRASHED",
+                            "status_code": status_code,
+                            "error": err_desc,
+                            "impacto": ep["impacto"],
+                            "timestamp": now_iso
+                        }
+                        slack_bridge.send_sre_incident_alert(incident_data)
+                        print(f"| SRE ALERTA DISPARADA | Incidencia en {ep['nombre']} enviada a Slack #back-office-y-backend.")
+                    except Exception as e_slack:
+                        print(f"| SRE ALERTA ERROR | Error despachando incidencia a Slack: {e_slack}")
+
+                self.endpoint_states[ep_id] = {
+                    "estado": "OFFLINE",
+                    "ultimo_fallo": now_iso,
+                    "last_alert_ts": now_ts if debe_alertar else last_alert_ts,
+                    "error": err_desc,
+                    "nombre": ep["nombre"]
+                }
+
+                por_aprobar.append({
+                    "score": 98,
+                    "accion": f"REINICIAR SERVICIO {ep['instancia'].upper()}",
+                    "detalle": f"HERD T3 detectó que {ep['nombre']} está OFFLINE/CRASHED en Railway ({err_desc}).",
+                    "antes": f"{ep['nombre']} en estado OFFLINE",
+                    "despues": f"Reinicio aplicado en instancia {ep['instancia']}",
+                    "justificacion_ia": f"Incidencia crítica de infraestructura: {ep['impacto']}"
+                })
+
+            else:
+                # Transición OFFLINE -> ONLINE (Recuperación)
+                if prev_status == "OFFLINE":
+                    try:
+                        from mia_slack_bridge import slack_bridge
+                        recovery_data = {
+                            "endpoint_nombre": ep["nombre"],
+                            "url": ep["url"],
+                            "instancia": ep["instancia"],
+                            "estado": "ONLINE",
+                            "latencia_ms": lat_ms,
+                            "timestamp": now_iso
+                        }
+                        slack_bridge.send_sre_recovery_alert(recovery_data)
+                        print(f"| SRE RECUPERACIÓN DISPARADA | {ep['nombre']} ONLINE reportado a Slack #back-office-y-backend.")
+                    except Exception as e_rec:
+                        print(f"| SRE RECUPERACIÓN ERROR | Error despachando recuperación a Slack: {e_rec}")
+
+                self.endpoint_states[ep_id] = {
+                    "estado": "ONLINE",
+                    "ultimo_ok": now_iso,
+                    "last_alert_ts": 0,
+                    "latencia_ms": lat_ms,
+                    "nombre": ep["nombre"]
+                }
+
+        # Persistir estados en Upstash Redis
+        try:
+            requests.post(f"{UPSTASH_URL}/set/cache_sre_endpoints_state", headers=UPSTASH_HEADERS, data=json.dumps(self.endpoint_states), timeout=3)
+        except Exception:
+            pass
 
         return {
             "herd": self.name,
-            "status": "HEALTHY" if not fallos else "DEGRADED",
+            "status": "HEALTHY" if not fallos else "CRITICAL_OFFLINE",
             "servicios_auditados": len(endpoints),
             "telemetria": resultados,
             "fallos": fallos,
             "auto_corregidos": auto_corregidos,
             "por_aprobar": por_aprobar,
-            "resumen": "Todos los servicios críticos responden en tiempo de ejecución." if not fallos else f"{len(fallos)} advertencias de red."
+            "resumen": "Todos los servicios críticos responden en tiempo de ejecución." if not fallos else f"🚨 {len(fallos)} servicio(s) offline: {'; '.join(fallos)}"
         }
 
 
@@ -1255,13 +1385,18 @@ Responde ÚNICAMENTE un JSON con la clave 'evaluaciones': [ ... ]. Cero texto ad
         validadas_85 = cognitive_eval.get("propuestas_validadas_score_85", [])
         observadas_sub85 = cognitive_eval.get("propuestas_observadas_score_menor_85", [])
 
+        # Asegurar que incidencias críticas SRE (Score >= 95) siempre estén al frente de validadas_85
+        for p_raw in total_por_aprobar_raw:
+            if p_raw.get("score", 0) >= 95 and p_raw not in validadas_85:
+                validadas_85.insert(0, p_raw)
+
         kb_summary = self.learning_kb.get_summary()
         summary = {
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "swarm": "MIA_SYSTEM_OPS_SWARM",
             "supervisor": "MIA_WATCHDOG_MASTER (Senior Lead Architect)",
             "total_execution_ms": total_time_ms,
-            "estado_general": "OPTIMAL_HEALTH" if not res_t3.get("fallos") else "DEGRADED_PERFORMANCE",
+            "estado_general": "OPTIMAL_HEALTH" if not res_t3.get("fallos") else "CRITICAL_SRE_INCIDENT",
             "herds_results": {
                 "herd_t1_dba": res_t1,
                 "herd_t2_senior_dev": res_t2,
