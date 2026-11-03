@@ -1075,24 +1075,40 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             
         es_buy = str(pos.get('type')) in ['POSITION_TYPE_BUY', '0']
         
-        # A. Tomar Parciales Escalonados (TP1: 25%, TP2: 50% o Parcial Fijo por Ganancia)
+        # A. Cascada Asimetrica RUNE v2 (TP1: 50% volumen al 50% dist / +1.0R, BE +2.5 pips, Locks 75%/85%, Front-Run 95%)
         import math
         nivel_parcial = POSICIONES_ACTIVAS[ticket].get("nivel_parcial", 0)
         
         if entry_price > 0.0 and volume >= 0.01:
+            # Memoria High-Water Mark del Trade (Pico mas favorable alcanzado)
+            p_max = POSICIONES_ACTIVAS[ticket].get("price_max_favor", entry_price)
+            if es_buy:
+                p_max = max(p_max, current_price)
+            else:
+                p_max = min(p_max, current_price) if p_max > 0.0 else current_price
+            POSICIONES_ACTIVAS[ticket]["price_max_favor"] = p_max
+
             distancia_total = abs(tp - entry_price) if tp > 0.0 else 0.0
-            distancia_recorrida = abs(current_price - entry_price)
+            distancia_recorrida_actual = abs(current_price - entry_price)
+            distancia_recorrida_pico = abs(p_max - entry_price)
             en_ganancia = (es_buy and current_price > entry_price) or (not es_buy and current_price < entry_price)
             
-            porcentaje_recorrido = distancia_recorrida / distancia_total if distancia_total > 0 else 0.0
-            
+            porcentaje_actual = (distancia_recorrida_actual / distancia_total) if distancia_total > 0 else 0.0
+            porcentaje_pico = (distancia_recorrida_pico / distancia_total) if distancia_total > 0 else 0.0
+            porcentaje_recorrido = max(porcentaje_actual, porcentaje_pico)
+
+            # --- PROTECCION ANTI-RETROCESO TRAS TRAILING LOCK GANADO ---
+            if porcentaje_pico >= 0.75 and porcentaje_actual < 0.40 and nivel_parcial >= 1:
+                print(f"| GESTOR RIESGO ALERTA | Retroceso violento en {ticket} tras pico {porcentaje_pico*100:.1f}%. Cierre de Emergencia con Ganancia.")
+                try:
+                    await connection.close_position(ticket)
+                    POSICIONES_ACTIVAS.pop(ticket, None)
+                    continue
+                except Exception as e_close:
+                    print(f"| GESTOR RIESGO ERROR | Fallo cierre de emergencia en {ticket}: {e_close}")
+
             toca_parcial = 0
-            if en_ganancia:
-                # Damos respiro (oxígeno) institucional al trade - Cascada de 4 Fases v2:
-                # 1. Front-Run TP (95% dist): Cierre 100% remanente para evitar rebotes de último pip
-                # 2. Trailing Lock 2 (85% dist): SL al +65% de distancia (20% holgura)
-                # 3. Trailing Lock 1 (75% dist): SL al +40% de distancia (35% holgura)
-                # 4. TP1 Parcial (50% dist / +1.0R): Cierra 50% de volumen (+1.0R en caja) y mueve SL a BE (+2.5 pips buffer)
+            if en_ganancia or porcentaje_pico >= 0.50:
                 if distancia_total > 0 and porcentaje_recorrido >= 0.95:
                     toca_parcial = 4
                 elif distancia_total > 0 and porcentaje_recorrido >= 0.85 and nivel_parcial < 3:
@@ -1193,17 +1209,17 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                             
                         await asyncio.sleep(1) # Breve pausa antes de modificar SL
                     except Exception as e:
-                        print(f"| GESTOR PARCIALES ERROR | Falló cierre parcial para {ticket}: {e}")
-                        continue
+                        print(f"| GESTOR PARCIALES ERROR | Fallo cierre parcial para {ticket}: {e}")
+                        # IMPORTANTE: NO hacer continue para que el Stop Loss siempre se mueva y proteja capital
                 else:
                     if porcentaje_a_cerrar > 0.0:
-                        print(f"| GESTOR PARCIALES INFO | Volumen muy pequeño para partir ({volume}). Se asegurará con SL.")
+                        print(f"| GESTOR PARCIALES INFO | Volumen muy pequeno para partir ({volume}). Se asegurara con SL.")
                     cobro_exitoso = True # Avanza a mover el SL
                     
                 # --- 2. MOVER STOP LOSS SIEMPRE (Excepto Cierre Total Front-Run) ---
                 desc_sl = "N/A"
                 nuevo_sl = sl
-                if cobro_exitoso and toca_parcial != 4:
+                if toca_parcial != 4:
                     buffer_be = 0.00025 if not pos.get('symbol', '').endswith("JPY") and "XAU" not in pos.get('symbol', '') else 0.025
                     if "XAU" in pos.get('symbol', ''):
                         buffer_be = 0.25 # 25 centavos en oro
@@ -1683,6 +1699,52 @@ async def procesar_cola_ejecucion_pending(account, connection, balance: float):
             if not isinstance(order, dict) or not order.get("activo"):
                 return
                 
+            # --- 0. SOPORTE DE ORDENES DE AUTOCURACION DE RUNE (Watchdog & Post-Sleep) ---
+            if order.get("tipo_orden") == "SELF_HEALING_RECOVERY":
+                ticket_target = str(order.get("ticket", ""))
+                accion_curativa = order.get("accion_autocuracion", "")
+                lote_cerrar = float(order.get("lote_a_cerrar", 0.0))
+                nuevo_sl = float(order.get("nuevo_sl", 0.0))
+                tp_val = float(order.get("tp", 0.0))
+                
+                positions = await connection.get_positions()
+                target_pos = next((p for p in positions if str(getattr(p, 'id', p.get('id', ''))) == ticket_target), None)
+                
+                if not target_pos:
+                    print(f"| AUTOCURACION MT5 | Ticket {ticket_target} ya no esta abierto. Purgando cola.")
+                    await client.get(f"{UPSTASH_URL}/del/cache_mt5_pending_execution", headers=headers, timeout=2.0)
+                    return
+                
+                vol_actual = float(target_pos.get('volume', getattr(target_pos, 'volume', 0.0)))
+                sl_actual = float(target_pos.get('stopLoss', getattr(target_pos, 'stopLoss', 0.0)))
+                
+                if accion_curativa == "AUTO_EMERGENCY_PROFIT_CLOSE":
+                    print(f"| AUTOCURACION MT5 | Ejecutando Cierre de Emergencia para {ticket_target} por retroceso penetrado...")
+                    try:
+                        await connection.close_position(ticket_target)
+                        print(f"| AUTOCURACION MT5 | Cierre total completado para {ticket_target}.")
+                    except Exception as err_c:
+                        print(f"| AUTOCURACION MT5 ERROR | Fallo cierre total: {err_c}")
+                else:
+                    if lote_cerrar > 0.0 and vol_actual > lote_cerrar:
+                        print(f"| AUTOCURACION MT5 | Ejecutando cobro parcial correctivo ({lote_cerrar} lotes) en {ticket_target}...")
+                        try:
+                            await connection.close_position_partially(ticket_target, lote_cerrar)
+                            print(f"| AUTOCURACION MT5 | Cobro parcial completado en {ticket_target}.")
+                        except Exception as err_p:
+                            print(f"| AUTOCURACION MT5 ERROR | Fallo cobro parcial en autocuracion: {err_p}")
+                    
+                    if nuevo_sl > 0.0 and abs(sl_actual - nuevo_sl) > 0.00001:
+                        print(f"| AUTOCURACION MT5 | Ajustando Stop Loss de proteccion a {nuevo_sl} en {ticket_target}...")
+                        try:
+                            await connection.modify_position(ticket_target, stop_loss=nuevo_sl, take_profit=tp_val if tp_val > 0.0 else None)
+                            print(f"| AUTOCURACION MT5 | SL actualizado con exito en {ticket_target}.")
+                        except Exception as err_m:
+                            print(f"| AUTOCURACION MT5 ERROR | Fallo modify_position en autocuracion: {err_m}")
+                            
+                await client.get(f"{UPSTASH_URL}/del/cache_mt5_pending_execution", headers=headers, timeout=2.0)
+                return
+
             activo = order.get("activo", "")
             accion = order.get("accion", "COMPRA").upper()
             lote = float(order.get("lote", 0.1))

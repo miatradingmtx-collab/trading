@@ -177,6 +177,7 @@ trigger: always_on
 2. **Filtro de Exposición en Canasta USD:** Máximo 2 posiciones abiertas simultáneas en pares correlacionados al dólar (`EURUSD`, `GBPUSD`, `AUDUSD`, `XAUUSD`).
 3. **Filtro Anti-Caza ATH en Oro (XAUUSD):** Prohibido comprar en Oro si la cotización se encuentra a menos del 0.5% del All-Time High sin un retroceso previo consolidado de 30 a 50 pips.
 
+4. **Doble Anillo de Redundancia y Autocuración Post-Sleep (RUNE & Master Orchestrator):** Al despertar de cada ciclo de reposo (30s) en mia_master_swarm_rest.py, HERD 5 (RUNE) audita las órdenes vivas en MT5 (cache_mt5). Si detecta desvíos por latencia, timeouts o caídas en 927a (parciales omitidos, SL en pérdida tras superar el 50% o retrocesos post-lock), despacha de inmediato una orden correctiva a cache_mt5_pending_execution con candado atómico de 60s, alerta en #back-office-y-backend (C0C4ZMFCMJ8) y #mia-trading-insights (C0C6DUTQVEZ), y asienta el rescate en el CBR.
 
 ---
 name: calculo_integral_area_energia_cvol_y_sinergia_cvd

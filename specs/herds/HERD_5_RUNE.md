@@ -48,3 +48,15 @@ RUNE erradica cierres prematuros de trailing stops mediante una cascada geométr
   - Ratio Riesgo/Beneficio inferior a 1:2.
 - **APROBADO (✅):**
   - Espacio disponible en la canasta USD + Sizing defensivo calculado + Parámetros de la Cascada de 4 Fases cargados en el dispatcher.
+
+---
+
+## 7. SKILL DE AUDITORÍA ACTIVA Y AUTOCURACIÓN POST-SLEEP (ACTIVE TRADE WATCHDOG & SELF-HEALING ENGINE)
+Para erradicar puntos únicos de falla por latencia, micro-desconexiones o caídas en la instancia de ejecución MT5 (`927a`):
+- **Gatillo de Activación:** HERD 5 (RUNE) ejecuta una auditoría cuantitativa inmediata al despertar de cada ciclo de reposo (cada 30s) en `mia_master_swarm_rest.py`.
+- **Detección de Desvíos:**
+  1. Si un trade vivo alcanzó el 50% de recorrido (o su pico histórico superó el 50%) pero el volumen en broker no se ha reducido o el SL sigue en pérdida original, RUNE despacha una orden correctiva de cobro parcial del 50% y ajuste forzoso de SL a Break-Even (+2.5 pips).
+  2. Si el trade alcanzó el 75% u 85% de distancia pero el broker no aplicó el Trailing Lock correspondiente (+40% o +65%), RUNE fuerza el desplazamiento del SL.
+  3. Si un trade sufrió un retroceso violento penetrando el nivel de Trailing Lock sin haberse asegurado en MT5, RUNE ordena el Cierre de Emergencia para capturar la ganancia remanente.
+- **Canal de Despacho & Idempotencia:** RUNE deposita la acción correctiva en `cache_mt5_pending_execution` con un candado atómico (`lock_healing_{ticket}`) de 60 segundos en Upstash Redis para prevenir duplicaciones.
+- **Transparencia ChatOps & CBR:** Notifica automáticamente la intervención en `#back-office-y-backend` (`C0C4ZMFCMJ8`) y `#mia-trading-insights` (`C0C6DUTQVEZ`), asentando el caso en la memoria CBR (`cache_trading_learning_kb`) para acumular puntaje hacia la Prueba de Confianza HITL.

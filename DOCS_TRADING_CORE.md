@@ -238,7 +238,7 @@ El "Stored Procedure" (SP) programado en el Backend (`app.py`, lnea 1228) que ti
 
 ### [2026-09-15] Psicologia Algoritmica y Optimizacion de Rentabilidad (Cero SL Flotantes)
 
-- **Eliminacion de Riesgo Flotante (BE Acelerado):** Con la implementacion estricta del cobro de Parciales al 25% y 50%, la cuenta entra en un estado de 'Cero Stop Loss Negativos Flotantes'. Al tocar el primer hito, el trade queda asegurado (+1 pip de comision). La cuenta sube constantemente protegiendo el capital desde la primera fraccion de movimiento.
+- **Eliminacion de Riesgo Flotante (Cascada RUNE v2 Institucional):** Con la implementacion estricta de la Cascada RUNE v2 (Cobro obligado del 50% de volumen al 50% de distancia, Break-Even inmediato a +2.5 pips, Trailing Locks al 75% y 85%, y Doble Anillo de Autocuracion Post-Sleep), la cuenta entra en un estado de 'Cero Stop Loss Negativos Flotantes'. Al tocar el 50% del recorrido, el trade asegura +1.0R neto y el restante corre protegido para la recuperacion asimetrica del capital hacia los $5,000 USD.
 
 - **Preparacion para Slot 2 (Scalping HFT):** Toda la estructura de metricas (metrics_dump y cache de Upstash) ha sido sanitizada: redondeo a 2 decimales y preparacion de llaves historicas de 'partials' y 'trailing_stops'. Esta estandarizacion asegura que cuando se active el Segundo Slot dedicado a Scalping (1m, 5m, 15m), MIA Cerebro herede la misma base de datos de aprendizaje. Podra ejecutar estrategias de Alta Frecuencia (Lotajes Altos con TPs cortos) basados puramente en la estadistica de Fuerza de Liquidez por Sesion.
 

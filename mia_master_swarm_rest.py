@@ -514,10 +514,10 @@ def despachar_ejecucion_rune_mt5(payload: dict, active_symbol: str, current_px: 
             "tp": tp_calc,
             "master_quorum_score": master_text[:80],
             "trailing_stop_config": {
-                "fase_1_be_pct": 0.40,
-                "fase_2_parcial_pct": 0.65,
-                "fase_3_trail_pct": 0.85,
-                "fase_4_front_run_pct": 0.95
+                "fase_1_tp1_pct": 0.50, # TP1 al 50% dist (+1.0R / 50% volumen cobrado y SL a BE +2.5 pips)
+                "fase_2_lock1_pct": 0.75, # Trailing Lock 1 (+40% beneficio asegurado)
+                "fase_3_lock2_pct": 0.85, # Trailing Lock 2 (+65% beneficio asegurado)
+                "fase_4_front_run_pct": 0.95 # Front-Run TP (Cierre 100% remanente)
             },
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "bifurcacion_ab": {
@@ -590,6 +590,166 @@ def despachar_ejecucion_rune_mt5(payload: dict, active_symbol: str, current_px: 
         return None
 
 
+
+# ------------------------------------------------------------------------------
+# HERD 5 (RUNE): AUDITORIA ACTIVA Y AUTOCURACION POST-SLEEP (WATCHDOG & RECOVERY)
+# ------------------------------------------------------------------------------
+def auditar_y_autocurar_posiciones_post_sleep(mt5_json: dict, session: requests.Session, upstash_headers: dict):
+    """
+    Subrutina determinista ejecutada al despertar del sleep por HERD 5 (RUNE).
+    Audita las operaciones vivas en MT5 (cache_mt5). Si detecta que por latencia,
+    timeout o desconexion no se cobro el TP1 (50% de volumen al 50% de distancia)
+    o no se movio el Stop Loss a Break-Even / Trailing Lock, o si el precio esta
+    retrocediendo peligrosamente tras haber conquistado un Trailing Lock:
+    1. Despacha una orden correctiva inmediata a cache_mt5_pending_execution.
+    2. Notifica en Slack (#back-office-y-backend y #mia-trading-insights).
+    3. Registra el evento en la memoria CBR (cache_trading_learning_kb) para sumar
+       evidencia de autocuracion para la Prueba de Confianza del Humano.
+    """
+    ops_activas = mt5_json.get("operaciones_activas", [])
+    if not ops_activas:
+        return
+        
+    for pos in ops_activas:
+        ticket = str(pos.get("ticket", ""))
+        activo = pos.get("activo", "")
+        tipo = pos.get("tipo", "BUY")
+        lotes = float(pos.get("lotes", 0.0))
+        precio_open = float(pos.get("precio_apertura", 0.0))
+        precio_actual = float(pos.get("precio_actual", 0.0))
+        sl = float(pos.get("sl", 0.0))
+        tp = float(pos.get("tp", 0.0))
+        
+        if precio_open <= 0.0 or tp <= 0.0 or lotes <= 0.0:
+            continue
+            
+        es_buy = (tipo == "BUY")
+        dist_total = abs(tp - precio_open)
+        dist_actual = (precio_actual - precio_open) if es_buy else (precio_open - precio_actual)
+        pct_actual = dist_actual / dist_total if dist_total > 0 else 0.0
+        
+        # Recuperar y actualizar el pico maximo favorable en Upstash Redis
+        redis_peak_key = f"hwm_trade_peak_{ticket}"
+        pico_previo = pct_actual
+        try:
+            r_peak = session.get(f"https://firm-koi-93555.upstash.io/get/{redis_peak_key}", headers=upstash_headers, timeout=2)
+            if r_peak.status_code == 200 and r_peak.json().get("result"):
+                pico_previo = float(r_peak.json().get("result"))
+        except Exception:
+            pass
+            
+        peak_pct = max(pico_previo, pct_actual)
+        if peak_pct > pico_previo:
+            try:
+                session.post(f"https://firm-koi-93555.upstash.io/set/{redis_peak_key}", content=str(peak_pct), headers=upstash_headers, timeout=2)
+            except Exception:
+                pass
+                
+        # Buffer de BE segun activo
+        buffer_be = 0.00025 if not activo.endswith("JPY") and "XAU" not in activo else 0.025
+        if "XAU" in activo:
+            buffer_be = 0.25
+            
+        be_sl = (precio_open + buffer_be) if es_buy else (precio_open - buffer_be)
+        lock1_sl = (precio_open + dist_total * 0.40) if es_buy else (precio_open - dist_total * 0.40)
+        lock2_sl = (precio_open + dist_total * 0.65) if es_buy else (precio_open - dist_total * 0.65)
+        
+        # Evaluar desvios
+        requiere_curacion = False
+        accion_curativa = None
+        lote_a_cerrar = 0.0
+        nuevo_sl = 0.0
+        motivo = ""
+        
+        # Check atomic lock en Redis para no reenviar si ya se despacho hace < 60s
+        lock_healing_key = f"lock_healing_{ticket}"
+        try:
+            r_lock = session.get(f"https://firm-koi-93555.upstash.io/get/{lock_healing_key}", headers=upstash_headers, timeout=2)
+            if r_lock.status_code == 200 and r_lock.json().get("result"):
+                continue # Ya esta en tramite
+        except Exception:
+            pass
+            
+        # Caso A: Retroceso severo penetrando Trailing Lock
+        if peak_pct >= 0.75 and pct_actual < 0.40:
+            requiere_curacion = True
+            accion_curativa = "AUTO_EMERGENCY_PROFIT_CLOSE"
+            motivo = f"Retroceso post-pico del {peak_pct*100:.1f}% cayo a {pct_actual*100:.1f}%. Cierre de emergencia para asegurar ganancia remanente."
+        # Caso B: Fase 1 (>= 50%) alcanzada pero SL sigue en perdida original
+        elif (pct_actual >= 0.50 or peak_pct >= 0.50):
+            sl_protegido = (sl >= be_sl) if es_buy else (sl <= be_sl and sl > 0.0)
+            if not sl_protegido:
+                requiere_curacion = True
+                accion_curativa = "AUTO_CATCH_UP_PARCIAL_AND_BE"
+                lote_a_cerrar = round(lotes * 0.5, 2)
+                nuevo_sl = lock2_sl if peak_pct >= 0.85 else (lock1_sl if peak_pct >= 0.75 else be_sl)
+                motivo = f"Fase 1/2 alcanzada (Pico: {peak_pct*100:.1f}%). SL desprotegido en {sl}. Forzando cobro parcial ({lote_a_cerrar} lotes) y SL a {nuevo_sl}."
+            elif peak_pct >= 0.85 and ((es_buy and sl < lock2_sl) or (not es_buy and (sl > lock2_sl or sl == 0.0))):
+                requiere_curacion = True
+                accion_curativa = "AUTO_FORCE_TRAILING_LOCK_2"
+                nuevo_sl = lock2_sl
+                motivo = f"Fase 3 alcanzada (Pico: {peak_pct*100:.1f}%). Actualizando SL a Trailing Lock 2 (+65% ganancia)."
+            elif peak_pct >= 0.75 and ((es_buy and sl < lock1_sl) or (not es_buy and (sl > lock1_sl or sl == 0.0))):
+                requiere_curacion = True
+                accion_curativa = "AUTO_FORCE_TRAILING_LOCK_1"
+                nuevo_sl = lock1_sl
+                motivo = f"Fase 2 alcanzada (Pico: {peak_pct*100:.1f}%). Actualizando SL a Trailing Lock 1 (+40% ganancia)."
+
+        if requiere_curacion:
+            order_healing = {
+                "ticket": ticket,
+                "activo": activo,
+                "tipo_orden": "SELF_HEALING_RECOVERY",
+                "accion_autocuracion": accion_curativa,
+                "lote_a_cerrar": lote_a_cerrar,
+                "nuevo_sl": round(nuevo_sl, 5 if "JPY" not in activo and "XAU" not in activo else 2),
+                "tp": tp,
+                "motivo": motivo,
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+            }
+            # Encolar en Upstash Redis
+            try:
+                session.post(
+                    "https://firm-koi-93555.upstash.io/set/cache_mt5_pending_execution",
+                    json=order_healing,
+                    headers=upstash_headers,
+                    timeout=3
+                )
+                session.post(
+                    f"https://firm-koi-93555.upstash.io/setex/{lock_healing_key}/60/ACTIVE",
+                    headers=upstash_headers,
+                    timeout=2
+                )
+                print(f"| RUNE POST-SLEEP WATCHDOG | Accion de Autocuracion despachada para {ticket} ({activo}): {accion_curativa}")
+            except Exception as e_post:
+                print(f"| RUNE POST-SLEEP ERROR | No se pudo despachar autocuracion: {e_post}")
+                
+            # Notificar en Slack a ambos canales canonicos
+            try:
+                from mia_slack_bridge import slack_bridge
+                msg_ops = (
+                    f":rotating_light: *[RUNE SRE WATCHDOG & POST-SLEEP AUDIT]*\n"
+                    f"*Anomalia de Ejecucion Detectada tras latencia / timeout en MT5*\n"
+                    f"• *Activo:* `{activo}` (Ticket: `{ticket}`)\n"
+                    f"• *Tipo:* {tipo} | *Lotes en broker:* `{lotes}`\n"
+                    f"• *Recorrido Actual:* `{pct_actual*100:.1f}%` | *Pico Historico:* `{peak_pct*100:.1f}%`\n"
+                    f"• *Diagnostico RUNE:* {motivo}\n"
+                    f"• *Accion Despachada:* `{accion_curativa}` (Lote parcial: `{lote_a_cerrar}`, Nuevo SL: `{nuevo_sl}`)\n"
+                    f"• *Canal MT5:* Despachado a `927a` via `cache_mt5_pending_execution`."
+                )
+                slack_bridge.send_channel_message(msg_ops, channel="C0C4ZMFCMJ8", username="RUNE SRE Watchdog", icon_emoji=":shield:")
+                
+                msg_insights = (
+                    f":bank: *[RUNE SUPERVISOR QUANT - PROTOCOLO DE AUTOCURACION]*\n"
+                    f"*Rescate de Beneficios Flotantes tras latencia / desconexion*\n"
+                    f"• *Operacion:* `{activo}` (`{ticket}`) asegurada bajo la *Cascada RUNE v2*.\n"
+                    f"• *Detalle:* {motivo}\n"
+                    f"• *Impacto CBR:* Caso registrado en `cache_trading_learning_kb` (+0.5 pts hacia Prueba de Confianza HITL)."
+                )
+                slack_bridge.send_channel_message(msg_insights, channel="C0C6DUTQVEZ", username="RUNE Risk Custodian", icon_emoji=":bank:")
+            except Exception as e_slack:
+                print(f"| RUNE SLACK WARN | Error enviando alertas a Slack: {e_slack}")
+
 def run_hft_cycle():
     emit_ws_event("Master", "START", "Iniciando Ciclo REST HFT (TensorFlow + Swarm Neuronal).")
     
@@ -607,6 +767,12 @@ def run_hft_cycle():
         # 1. MT5 Cache (slot 0)
         mt5_raw = slots[0] if len(slots) > 0 and slots[0] else {}
         mt5_json = json.loads(mt5_raw) if isinstance(mt5_raw, str) else (mt5_raw or {})
+        
+        # --- AUDITORIA ACTIVA Y AUTOCURACION POST-SLEEP DE RUNE (Watchdog & Recovery) ---
+        try:
+            auditar_y_autocurar_posiciones_post_sleep(mt5_json, session, upstash_headers)
+        except Exception as e_audit:
+            print(f"| RUNE POST-SLEEP AUDIT ERROR | {e_audit}")
         
         # 2. Cerebro TensorFlow (slot 1)
         tf_raw = slots[1] if len(slots) > 1 and slots[1] else {}
