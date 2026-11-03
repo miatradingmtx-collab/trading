@@ -4518,7 +4518,7 @@ def api_open_trades():
             acc = str(l.get("accion", "")).upper()
             res = str(l.get("resultado_salida", "")).upper()
             mot = str(l.get("motivo", "")).upper()
-            if "CIERRE" in acc or "CERRAD" in mot or res in ["SL_ORIGINAL", "TP_ORIGINAL", "PARCIAL_BE", "CIERRE_TOTAL", "TRAILING_STOP"]:
+            if ("CIERRE" in acc and "PARCIAL" not in acc) or "CERRAD" in mot or res in ["SL_ORIGINAL", "TP_ORIGINAL", "PARCIAL_BE", "CIERRE_TOTAL", "TRAILING_STOP"]:
                 closed_tickets.add(t)
                 
         for l in GLOBAL_AUDIT_LOGS:
@@ -4543,6 +4543,10 @@ def get_trade_tp(ticket: str):
     try:
         tp = 0.0
         estrategia = "MANUAL"
+        activo = ""
+        precio = 0.0
+        lotaje = 0.0
+        open_time = ""
         encontrado = False
         
         if GLOBAL_AUDIT_LOGS:
@@ -4552,10 +4556,18 @@ def get_trade_tp(ticket: str):
                         tp = float(l.get("tp"))
                     if l.get("estrategia") and l.get("estrategia") != "MANUAL":
                         estrategia = l.get("estrategia")
+                    if l.get("activo") and l.get("activo") != "UNKNOWN":
+                        activo = l.get("activo")
+                    if l.get("precio_ejecucion") or l.get("precio"):
+                        precio = float(l.get("precio_ejecucion") or l.get("precio") or 0.0)
+                    if l.get("lotaje") or l.get("volume"):
+                        lotaje = float(l.get("lotaje") or l.get("volume") or 0.0)
+                    if l.get("open_time") or l.get("fecha"):
+                        open_time = str(l.get("open_time") or l.get("fecha") or "")
                     
                     if l.get("accion") in ["COMPRA", "VENTA", "EJECUTADO"]:
                         encontrado = True
-                        if tp > 0 and estrategia != "MANUAL":
+                        if tp > 0 and estrategia != "MANUAL" and activo:
                             break
                             
         # 2. Si no estÃ¡ en RAM, consultar Upstash Redis cache_mia_audit_logs (0 costo Firebase)
@@ -4622,10 +4634,19 @@ def get_trade_tp(ticket: str):
                     parcial_tomado = True
             except: pass
                 
-        return {"status": "success", "tp": float(tp), "parcial_tomado": parcial_tomado, "estrategia": estrategia}
+        return {
+            "status": "success",
+            "tp": float(tp),
+            "parcial_tomado": parcial_tomado,
+            "estrategia": estrategia,
+            "activo": activo,
+            "precio": float(precio),
+            "lotaje": float(lotaje),
+            "open_time": open_time
+        }
     except Exception as e:
         print(f"| API ERROR | Fallo al buscar TP para ticket {ticket}: {e}")
-    return {"status": "error", "tp": 0.0, "parcial_tomado": False, "estrategia": "MANUAL"}
+    return {"status": "error", "tp": 0.0, "parcial_tomado": False, "estrategia": "MANUAL", "activo": "", "precio": 0.0, "lotaje": 0.0, "open_time": ""}
 
 @app.get("/api/export_audit_csv")
 def export_audit_csv():

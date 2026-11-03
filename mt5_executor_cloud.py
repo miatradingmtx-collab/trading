@@ -973,12 +973,12 @@ FB_OPEN_CACHE = []
 ES_PRIMERA_EJECUCION = True
 
 async def gestionar_posiciones_activas(account, connection, balance: float):
-    global POSICIONES_ACTIVAS, ULTIMA_SINC_FB, FB_OPEN_CACHE, ES_PRIMERA_EJECUCION
+    global POSICIONES_ACTIVAS, ULTIMA_SINC_FB, FB_OPEN_CACHE, ES_PRIMERA_EJECUCION, TICKETS_SINCRONIZADOS
     
-    # 0. Obtener tickets abiertos en Firebase para validaciÃ³n cruzada y autocuraciÃ³n
+    # 0. Obtener tickets abiertos en Firebase para validación cruzada y autocuración (cada 180s / 3 min)
     from time import time
     ahora = time()
-    if ahora - ULTIMA_SINC_FB >= 900:  # Consultar la nube solo cada 15 min (900s)
+    if (ahora - ULTIMA_SINC_FB >= 180) or not FB_OPEN_CACHE:
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 r = await client.get(f"{FASTAPI_URL}/api/open_trades")
@@ -1427,18 +1427,28 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
         info = POSICIONES_ACTIVAS[ticket]
         print(f"| SEGUIMIENTO | PosiciÃ³n cerrada detectada. Ticket: {ticket}")
         
-        # Intentamos obtener la ganancia real del deal desde el historial del broker vÃ­a MetaAPI
+        # Intentamos obtener la ganancia real del deal desde el historial del broker vía MetaAPI
         pnl_final = 0.0
         precio_cierre = info["price_open"]
+        deals = []
         try:
-            # Traer deals de las últimas 24 horas para encontrar el deal de cierre de este ticket
-            desde = datetime.datetime.now() - datetime.timedelta(days=1)
-            deals_resp = await connection.get_deals_by_ticket(str(ticket))
-            deals = []
-            if isinstance(deals_resp, dict):
-                deals = deals_resp.get('deals', [])
-            elif isinstance(deals_resp, list):
-                deals = deals_resp
+            # 1. Intentar por get_deals_by_position (estándar canónico en MT5 para posiciones)
+            try:
+                deals_resp = await connection.get_deals_by_position(str(ticket))
+                if isinstance(deals_resp, dict):
+                    deals = deals_resp.get('deals', [])
+                elif isinstance(deals_resp, list):
+                    deals = deals_resp
+            except Exception as e_pos:
+                print(f"| GESTOR COBROS | get_deals_by_position({ticket}) fallo: {e_pos}. Intentando por ticket...")
+            
+            # 2. Fallback secundario a get_deals_by_ticket si no devolvió deals
+            if not deals:
+                deals_resp = await connection.get_deals_by_ticket(str(ticket))
+                if isinstance(deals_resp, dict):
+                    deals = deals_resp.get('deals', [])
+                elif isinstance(deals_resp, list):
+                    deals = deals_resp
                 
             if deals:
                 # Filtrar el deal de salida o acumular PnL excluyendo depósitos/retiros de balance
@@ -1446,18 +1456,24 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 if not trade_deals:
                     trade_deals = deals
                 pnl_calc = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in trade_deals)
-                vol_chk = float(info.get("volume", 0.01) or 0.01)
+                vol_chk = float(info.get("initial_volume", info.get("volume", 0.01)) or 0.01)
                 max_pnl_allowed = max(200.0, vol_chk * 4000.0)
                 if abs(pnl_calc) > max_pnl_allowed:
                     print(f"| GESTOR COBROS WARNING | PnL anómalo detectado (${pnl_calc:.2f}) para volumen {vol_chk}. Recalculando con pips...")
                     raise ValueError("PnL anómalo fuera de escala")
                 pnl_final = pnl_calc
-                precio_cierre = float(trade_deals[-1].get('price', info["price_open"]))
+                
+                # Extraer precio de cierre del último deal de salida
+                exit_deals = [d for d in trade_deals if str(d.get('entryType', '')).upper() in ['DEAL_ENTRY_OUT', '1', 'OUT']]
+                if exit_deals:
+                    precio_cierre = float(exit_deals[-1].get('price', info["price_open"]))
+                else:
+                    precio_cierre = float(trade_deals[-1].get('price', info["price_open"]))
                 print(f"| GESTOR COBROS | PnL real obtenido del Broker para Ticket {ticket}: ${pnl_final:.2f} (Precio salida: {precio_cierre})")
             else:
                 raise ValueError("No deals found")
         except Exception:
-            # Fallback a estimaciÃ³n manual exacta
+            # Fallback a estimación manual exacta
             try:
                 price = await connection.get_symbol_price(info["symbol"])
                 precio_cierre = price.get('bid' if info["type"] == 'POSITION_TYPE_BUY' else 'ask', info["price_open"])
@@ -1468,56 +1484,127 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             if info["type"] == 'POSITION_TYPE_SELL' or info["type"] == '1':
                 distancia = -distancia
                 
-            # Forex convencional = 100,000 unidades por lote, JPY = 100,000 unidades (pero cotizaciÃ³n en centenas /100), Oro = 100 oz.
             sym = info["symbol"].upper()
+            vol_actual = float(info.get('volume', 0.01) or 0.01)
             if "JPY" in sym:
-                pnl_final = distancia * info["volume"] * 100000 / precio_cierre  # Ajuste de divisa JPY a USD aprox
+                pnl_final = distancia * vol_actual * 100000 / precio_cierre  # Ajuste de divisa JPY a USD aprox
             elif "XAU" in sym or "GOLD" in sym:
-                pnl_final = distancia * info["volume"] * 100 # $100 por dÃ³lar de movimiento por lote
+                pnl_final = distancia * vol_actual * 100 # $100 por dólar de movimiento por lote
             else:
-                pnl_final = distancia * info["volume"] * 100000  # $10 por pip en Forex estÃ¡ndar
+                pnl_final = distancia * vol_actual * 100000  # $10 por pip en Forex estándar
                 
             print(f"| GESTOR COBROS WARNING | Usando PnL estimado para Ticket {ticket}: ${pnl_final:.2f}")
             
-        await reportar_evento_trade(info['symbol'], ticket, info['type'], "CIERRE_TOTAL", info['price_open'], 0.0, 0.0, pnl=pnl_final, comentario="Cerrado en MT5", estrategia_original=info.get("estrategia", "MANUAL"), open_time=info.get("open_time", ""), lotaje=info.get('volume', 0.0))
+        comentario_cierre = "Cerrado en MT5"
+        if info.get("nivel_parcial", 0) >= 1:
+            comentario_cierre = f"Cerrado en MT5 (Post-Parcial Niv {info.get('nivel_parcial')})"
+            
+        vol_total = float(info.get("initial_volume", info.get("volume", 0.0)))
+        await reportar_evento_trade(
+            info['symbol'],
+            ticket,
+            info['type'],
+            "CIERRE_TOTAL",
+            precio_cierre,
+            0.0,
+            0.0,
+            pnl=pnl_final,
+            comentario=comentario_cierre,
+            estrategia_original=info.get("estrategia", "MANUAL"),
+            open_time=info.get("open_time", ""),
+            lotaje=vol_total,
+            volumen_cerrado=float(info.get("volume", 0.0))
+        )
         del POSICIONES_ACTIVAS[ticket]
 
     for t in fb_open:
         if str(t) not in POSICIONES_ACTIVAS and str(t) not in tickets_actuales and str(t) not in TICKETS_SINCRONIZADOS:
-            print(f"| GESTOR RIESGO | Sincronizando cierre faltante para ticket {t}")
-            # Intentamos recuperar el PnL del deal histÃ³rico antes de poner 0.0
+            print(f"| GESTOR RIESGO | Reconciliando cierre faltante para ticket {t}...")
             pnl_sinc = 0.0
+            precio_in = 0.0
+            precio_out = 0.0
+            volumen_sinc = 0.0
+            sym_sinc = "UNKNOWN"
+            tipo_sinc = "UNKNOWN"
+            open_time_sinc = ""
+            
+            deals = []
             try:
-                deals_resp = await connection.get_deals_by_ticket(str(t))
-                deals = []
+                # 1. Intentar recuperar deals por posición (canónico MT5)
+                deals_resp = await connection.get_deals_by_position(str(t))
                 if isinstance(deals_resp, dict):
                     deals = deals_resp.get('deals', [])
                 elif isinstance(deals_resp, list):
                     deals = deals_resp
+            except Exception:
+                try:
+                    deals_resp = await connection.get_deals_by_ticket(str(t))
+                    if isinstance(deals_resp, dict):
+                        deals = deals_resp.get('deals', [])
+                    elif isinstance(deals_resp, list):
+                        deals = deals_resp
+                except Exception:
+                    pass
                     
-                if deals:
-                    trade_deals = [d for d in deals if str(d.get('type', '')).upper() not in ['DEAL_TYPE_BALANCE', 'DEAL_TYPE_CREDIT', '2', 'BALANCE']]
-                    if not trade_deals:
-                        trade_deals = deals
-                    pnl_calc = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in trade_deals)
-                    if abs(pnl_calc) <= 500.0:
-                        pnl_sinc = pnl_calc
-                    else:
-                        print(f"| GESTOR RIESGO WARNING | PnL anómalo ignorado en deal sinc ticket {t}: {pnl_calc}")
-            except:
-                pass
+            if deals:
+                trade_deals = [d for d in deals if str(d.get('type', '')).upper() not in ['DEAL_TYPE_BALANCE', 'DEAL_TYPE_CREDIT', '2', 'BALANCE']]
+                if not trade_deals:
+                    trade_deals = deals
+                pnl_calc = sum(float(d.get('profit', 0.0)) + float(d.get('commission', 0.0)) + float(d.get('swap', 0.0)) for d in trade_deals)
+                if abs(pnl_calc) <= 500.0:
+                    pnl_sinc = pnl_calc
+                else:
+                    print(f"| GESTOR RIESGO WARNING | PnL anómalo ignorado en deal sinc ticket {t}: {pnl_calc}")
+                
+                # Extraer metadatos reales del deal de entrada y salida
+                entry_deals = [d for d in trade_deals if str(d.get('entryType', '')).upper() in ['DEAL_ENTRY_IN', '0', 'IN']]
+                entry_deal = entry_deals[0] if entry_deals else trade_deals[0]
+                exit_deals = [d for d in trade_deals if str(d.get('entryType', '')).upper() in ['DEAL_ENTRY_OUT', '1', 'OUT']]
+                exit_deal = exit_deals[-1] if exit_deals else trade_deals[-1]
+                
+                sym_sinc = entry_deal.get('symbol', 'UNKNOWN')
+                tipo_sinc = str(entry_deal.get('type', 'UNKNOWN'))
+                precio_in = float(entry_deal.get('price', 0.0))
+                precio_out = float(exit_deal.get('price', precio_in))
+                volumen_sinc = float(entry_deal.get('volume', 0.0))
+                open_time_sinc = str(entry_deal.get('time', ''))
                         
-            # Buscar estrategia real en FB antes de enviar MANUAL
+            # 2. Reconciliar metadatos desde Firebase / RAM si quedaron campos incompletos
             est_sinc = "MANUAL"
             try:
-
                 async with httpx.AsyncClient() as client:
                     rr = await client.get(f"{FASTAPI_URL}/api/get_trade_tp/{t}", timeout=5)
-                    if rr.status_code == 200 and rr.json().get("status") == "success":
-                        est_sinc = rr.json().get("estrategia", "MANUAL")
-            except: pass
+                    if rr.status_code == 200:
+                        fb_res = rr.json()
+                        if fb_res.get("status") == "success":
+                            est_sinc = fb_res.get("estrategia", "MANUAL")
+                            if sym_sinc == "UNKNOWN" and fb_res.get("activo"):
+                                sym_sinc = fb_res.get("activo")
+                            if precio_in == 0.0 and fb_res.get("precio"):
+                                precio_in = float(fb_res.get("precio"))
+                            if volumen_sinc == 0.0 and fb_res.get("lotaje"):
+                                volumen_sinc = float(fb_res.get("lotaje"))
+                            if not open_time_sinc and fb_res.get("open_time"):
+                                open_time_sinc = str(fb_res.get("open_time"))
+            except Exception as e_fb_sinc:
+                print(f"| GESTOR RIESGO WARN | Error consultando get_trade_tp en sinc {t}: {e_fb_sinc}")
             
-            await reportar_evento_trade("UNKNOWN", str(t), "UNKNOWN", "CIERRE_TOTAL", 0.0, 0.0, 0.0, pnl=pnl_sinc, comentario="Sincronizado por desapariciÃ³n en MT5", estrategia_original=est_sinc, lotaje=0.0)
+            precio_reporte = precio_out if precio_out > 0.0 else precio_in
+            print(f"| GESTOR RIESGO RECONCILIADO | Ticket {t} cerrado. Activo: {sym_sinc} | PnL: ${pnl_sinc:.2f} | Vol: {volumen_sinc}")
+            await reportar_evento_trade(
+                sym_sinc,
+                str(t),
+                tipo_sinc,
+                "CIERRE_TOTAL",
+                precio_reporte,
+                0.0,
+                0.0,
+                pnl=pnl_sinc,
+                comentario="Sincronizado por desaparición en MT5 (Reconciliado)",
+                estrategia_original=est_sinc,
+                open_time=open_time_sinc,
+                lotaje=volumen_sinc
+            )
             TICKETS_SINCRONIZADOS.add(str(t))
 
     ES_PRIMERA_EJECUCION = False
