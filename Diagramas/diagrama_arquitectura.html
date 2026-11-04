@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Groktopus / Mia Trading - Diagrama de Conectividad</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body { background-color: #0b0c10; color: #c5c6c7; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        h1 { color: #66fcf1; text-transform: uppercase; letter-spacing: 2px; }
+        p { color: #45a29e; max-width: 800px; text-align: center; }
+        .mermaid { background-color: #1f2833; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(102, 252, 241, 0.2); margin-top: 20px; width: 100%; max-width: 900px; display: flex; justify-content: center; }
+    </style>
+</head>
+<body>
+    <h1>Arquitectura de Conectividad</h1>
+    <p>Diagrama de flujo de datos (Best Practices) separando Base de Datos (Firebase) y Caché (Upstash).</p>
+    <div class="mermaid">
+        graph TD
+            classDef mt5 fill:#1f2833,stroke:#66fcf1,stroke-width:2px,color:#fff
+            classDef railway fill:#1f2833,stroke:#e91e63,stroke-width:2px,color:#fff
+            classDef upstash fill:#1f2833,stroke:#ffeb3b,stroke-width:2px,color:#fff
+            classDef firebase fill:#1f2833,stroke:#ff9800,stroke-width:2px,color:#fff
+            classDef metaapi fill:#1f2833,stroke:#4caf50,stroke-width:2px,color:#fff
+            A[MT5 Executor Script / Local]:::mt5
+            B[MetaApi Cloud]:::metaapi
+            C[Railway Webhooks & WebSockets API]:::railway
+            D[Upstash Redis / Caché Alta Velocidad]:::upstash
+            E[Firebase Firestore / Historial Permanente]:::firebase
+            F[Groktopus Swarm / AI Agents]:::railway
+            G[React 3D Dashboard / Cliente UI]:::railway
+            A <-->|Envía órdenes| B
+            B <-->|Ejecuta operaciones| Broker((Broker Forex))
+            A -->|Sube Contexto y KPIs| D
+            F -->|Lee Contexto de mercado| D
+            A -->|Sube Trades Cerrados| C
+            C -->|Almacena Historial de Logs| E
+            C -.->|Autocuración Tickets| A
+            F -->|Dictamen de Ejecución| C
+            C -->|Eventos WS en vivo| G
+    </div>
+    <script>mermaid.initialize({ theme: "dark", startOnLoad: true, flowchart: { curve: "basis" } });</script>
+</body>
+</html>

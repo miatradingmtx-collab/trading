@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2866.7249999999995 497.29999999999995" width="2866.7249999999995" height="497.29999999999995" style="--bg:#18181B;--fg:#F4F4F5;--line:#71717A;--muted:#A1A1AA;--surface:#27272A;--border:#3F3F46;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="Control_Plane" data-label="Control Plane &amp; ChatOps (Instancia 0b51)">
+  <rect x="40" y="47.099999999999994" width="848.1459999999998" height="267" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="40" y="47.099999999999994" width="848.1459999999998" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="52" y="61.099999999999994" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Control Plane &amp; ChatOps (Instancia 0b51)</text>
+</g>
+<g class="subgraph" data-id="Data_Plane" data-label="MT5 Data Plane &amp; HFT Execution (Instancia 927a)">
+  <rect x="916.1459999999997" y="40" width="790.348" height="250.1" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="916.1459999999997" y="40" width="790.348" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="928.1459999999997" y="54" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">MT5 Data Plane &amp; HFT Execution (Instancia 927a)</text>
+</g>
+<g class="subgraph" data-id="Neural_Plane" data-label="Neural Cluster &amp; 3D Terminal (Instancia 1fd4)">
+  <rect x="1734.4939999999997" y="64" width="1092.2309999999998" height="250.1" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="1734.4939999999997" y="64" width="1092.2309999999998" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="1746.4939999999997" y="78" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Neural Cluster &amp; 3D Terminal (Instancia 1fd4)</text>
+</g>
+<polyline class="edge" data-from="Control_Plane" data-to="Redis" data-style="solid" data-arrow-start="true" data-arrow-end="true" data-label="Slots Atómicos Sub-35ms" points="464.0729999999999,314.1 464.07299999999987,394.4 1268.2284999999997,394.4 1268.2284999999997,406.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+<polyline class="edge" data-from="Data_Plane" data-to="Redis" data-style="solid" data-arrow-start="true" data-arrow-end="true" data-label="Slots Atómicos Sub-35ms" points="1311.3199999999997,290.1 1311.3199999999997,406.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+<polyline class="edge" data-from="Neural_Plane" data-to="Redis" data-style="solid" data-arrow-start="true" data-arrow-end="true" data-label="Slots Atómicos Sub-35ms" points="2280.6094999999996,314.1 2280.6094999999996,394.4 1354.4114999999997,394.4 1354.4114999999997,406.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+<polyline class="edge" data-from="A" data-to="S1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="POST /api/slack/*" points="432.2099999999999,132.9 432.2099999999999,249.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="A" data-to="S2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="POST /api/slack/*" points="499.3839999999999,132.9 499.3839999999999,140 738.1684999999999,140 738.1684999999999,249.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="A" data-to="M1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="/mcp/ops" points="365.03599999999994,132.9 365.03599999999994,140 158.11449999999996,140 158.11449999999996,249.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="B" data-to="MT5" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="FastAPI / Webhooks" points="1310.2084999999997,132.9 1310.2084999999997,249.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="B" data-to="D1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="/dashboard" points="1378.4939999999997,132.9 1378.4939999999997,132.9 1585.4154999999996,132.9 1585.4154999999996,249.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="B" data-to="M2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="/mcp" points="1241.9229999999998,132.9 1241.9229999999998,132.9 1036.1129999999998,132.9 1036.1129999999998,249.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="C" data-to="U1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="/" points="2256.7779999999993,132.9 2256.7779999999993,168.9 2150.4159999999997,168.9 2150.4159999999997,249.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="C" data-to="U2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="/brain" points="2309.6279999999997,132.9 2309.6279999999997,168.9 2415.99,168.9 2415.99,249.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="C" data-to="U3" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="/mods" points="2203.9279999999994,132.9 2203.9279999999994,156.9 1875.5794999999996,156.9 1875.5794999999996,249.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="C" data-to="TF" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="Deep Learning" points="2362.4779999999996,132.9 2362.4779999999996,156.9 2685.2689999999993,156.9 2685.2689999999993,249.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="Control_Plane" data-to="Redis" data-label="Slots Atómicos Sub-35ms">
+  <rect x="396.57299999999987" y="357.1" width="134.668" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="463.90699999999987" y="372.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Slots Atómicos Sub-35ms</text>
+</g>
+<g class="edge-label" data-from="Data_Plane" data-to="Redis" data-label="Slots Atómicos Sub-35ms">
+  <rect x="1243.8199999999997" y="333.1" width="134.668" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1311.1539999999998" y="348.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Slots Atómicos Sub-35ms</text>
+</g>
+<g class="edge-label" data-from="Neural_Plane" data-to="Redis" data-label="Slots Atómicos Sub-35ms">
+  <rect x="2213.1094999999996" y="357.1" width="134.668" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2280.4434999999994" y="372.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Slots Atómicos Sub-35ms</text>
+</g>
+<g class="edge-label" data-from="A" data-to="S1" data-label="POST /api/slack/*">
+  <rect x="380.2099999999999" y="171" width="103.18600000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="431.80299999999994" y="186.15" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">POST /api/slack/*</text>
+</g>
+<g class="edge-label" data-from="A" data-to="S2" data-label="POST /api/slack/*">
+  <rect x="686.1684999999999" y="171" width="103.18600000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="737.7614999999998" y="186.15" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">POST /api/slack/*</text>
+</g>
+<g class="edge-label" data-from="A" data-to="M1" data-label="/mcp/ops">
+  <rect x="127.61449999999996" y="171" width="60.418000000000006" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="157.82349999999997" y="186.15" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">/mcp/ops</text>
+</g>
+<g class="edge-label" data-from="B" data-to="MT5" data-label="FastAPI / Webhooks">
+  <rect x="1253.7084999999997" y="163.9" width="112.69000000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1310.0534999999998" y="179.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">FastAPI / Webhooks</text>
+</g>
+<g class="edge-label" data-from="B" data-to="D1" data-label="/dashboard">
+  <rect x="1548.9154999999996" y="163.9" width="72.89200000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1585.3614999999995" y="179.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">/dashboard</text>
+</g>
+<g class="edge-label" data-from="B" data-to="M2" data-label="/mcp">
+  <rect x="1016.1129999999997" y="163.9" width="39.628" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1035.9269999999997" y="179.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">/mcp</text>
+</g>
+<g class="edge-label" data-from="C" data-to="U1" data-label="/">
+  <rect x="2139.9159999999997" y="187.9" width="20.62" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2150.2259999999997" y="203.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">/</text>
+</g>
+<g class="edge-label" data-from="C" data-to="U2" data-label="/brain">
+  <rect x="2392.9899999999993" y="187.9" width="45.568" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2415.7739999999994" y="203.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">/brain</text>
+</g>
+<g class="edge-label" data-from="C" data-to="U3" data-label="/mods">
+  <rect x="1852.5794999999996" y="187.9" width="45.568" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1875.3634999999997" y="203.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">/mods</text>
+</g>
+<g class="edge-label" data-from="C" data-to="TF" data-label="Deep Learning">
+  <rect x="2640.7689999999993" y="187.9" width="88.33600000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="2684.9369999999994" y="203.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Deep Learning</text>
+</g>
+<g class="node" data-id="Redis" data-label="Upstash Redis Central" data-shape="cylinder">
+  <rect x="1225.1369999999997" y="413.4" width="172.36599999999996" height="36.900000000000006" fill="var(--_node-fill)" stroke="none" />
+  <line x1="1225.1369999999997" y1="413.4" x2="1225.1369999999997" y2="450.29999999999995" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="1397.5029999999997" y1="413.4" x2="1397.5029999999997" y2="450.29999999999995" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <ellipse cx="1311.3199999999997" cy="450.29999999999995" rx="86.18299999999998" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <ellipse cx="1311.3199999999997" cy="413.4" rx="86.18299999999998" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1311.3199999999997" y="431.84999999999997" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Upstash Redis Central</text>
+</g>
+<g class="node" data-id="A" data-label="trading-production-0b51.up.railway.app" data-shape="rectangle">
+  <rect x="297.86199999999997" y="96" width="268.6959999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="432.2099999999999" y="114.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">trading-production-0b51.up.railway.app</text>
+</g>
+<g class="node" data-id="S1" data-label="#back-office-y-backend (C0C4ZMFCMJ8)
+Herds T1-T10 + Watchdog" data-shape="rectangle">
+  <rect x="288.2289999999999" y="249.2" width="287.962" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="432.2099999999999" y="276.09999999999997" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="432.2099999999999" dy="-3.9000000000000012">#back-office-y-backend (C0C4ZMFCMJ8)</tspan><tspan x="432.2099999999999" dy="16.900000000000002">Herds T1-T10 + Watchdog</tspan></text>
+</g>
+<g class="node" data-id="S2" data-label="#mia-trading-insights (C0C6DUTQVEZ)
+Post-Mortem + Supervisor Quant" data-shape="rectangle">
+  <rect x="604.1909999999999" y="249.2" width="267.9549999999999" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="738.1684999999999" y="276.09999999999997" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="738.1684999999999" dy="-3.9000000000000012">#mia-trading-insights (C0C6DUTQVEZ)</tspan><tspan x="738.1684999999999" dy="16.900000000000002">Post-Mortem + Supervisor Quant</tspan></text>
+</g>
+<g class="node" data-id="M1" data-label="Servidor MCP Back-Office
+Llama 3.3 70B (OpenRouter)" data-shape="rectangle">
+  <rect x="56" y="249.2" width="204.22899999999996" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="158.11449999999996" y="276.09999999999997" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="158.11449999999996" dy="-3.9000000000000012">Servidor MCP Back-Office</tspan><tspan x="158.11449999999996" dy="16.900000000000002">Llama 3.3 70B (OpenRouter)</tspan></text>
+</g>
+<g class="node" data-id="B" data-label="trading-production-927a.up.railway.app" data-shape="rectangle">
+  <rect x="1173.6374999999998" y="96" width="273.14199999999994" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1310.2084999999997" y="114.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">trading-production-927a.up.railway.app</text>
+</g>
+<g class="node" data-id="MT5" data-label="MetaTrader 5 Bridge &amp; Trailing Sub-50ms" data-shape="rectangle">
+  <rect x="1168.0799999999997" y="249.2" width="284.25699999999995" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1310.2084999999997" y="267.65" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">MetaTrader 5 Bridge &amp; Trailing Sub-50ms</text>
+</g>
+<g class="node" data-id="D1" data-label="Dashboard Institucional MT5" data-shape="rectangle">
+  <rect x="1480.3369999999998" y="249.2" width="210.15699999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1585.4154999999998" y="267.65" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Dashboard Institucional MT5</text>
+</g>
+<g class="node" data-id="M2" data-label="Servidor MCP Trading Core" data-shape="rectangle">
+  <rect x="932.1459999999997" y="249.2" width="207.93399999999997" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1036.1129999999998" y="267.65" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Servidor MCP Trading Core</text>
+</g>
+<g class="node" data-id="C" data-label="trading-production-1fd4.up.railway.app" data-shape="rectangle">
+  <rect x="2151.0779999999995" y="96" width="264.2499999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="2283.2029999999995" y="114.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">trading-production-1fd4.up.railway.app</text>
+</g>
+<g class="node" data-id="U1" data-label="Antopus 3D Floor (WebSocket /ws)" data-shape="rectangle">
+  <rect x="2028.6649999999995" y="249.2" width="243.50199999999995" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="2150.4159999999993" y="267.65" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Antopus 3D Floor (WebSocket /ws)</text>
+</g>
+<g class="node" data-id="U2" data-label="Visualizador Neuronal 3D &amp; CBR" data-shape="rectangle">
+  <rect x="2300.1669999999995" y="249.2" width="231.64599999999996" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="2415.9899999999993" y="267.65" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Visualizador Neuronal 3D &amp; CBR</text>
+</g>
+<g class="node" data-id="U3" data-label="Catálogo de Módulos &amp; Extensiones" data-shape="rectangle">
+  <rect x="1750.4939999999997" y="249.2" width="250.17099999999994" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1875.5794999999996" y="267.65" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Catálogo de Módulos &amp; Extensiones</text>
+</g>
+<g class="node" data-id="TF" data-label="TensorFlow 4 Capas (687+ Trades)" data-shape="rectangle">
+  <rect x="2559.8129999999996" y="249.2" width="250.91199999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="2685.269" y="267.65" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">TensorFlow 4 Capas (687+ Trades)</text>
+</g>
+</svg>

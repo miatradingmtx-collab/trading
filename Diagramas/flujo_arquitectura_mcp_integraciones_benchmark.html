@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>MIA Core — Arquitectura de Servidores MCP & Validador Continuo de Benchmark UI/UX</title>
+  <style>
+    :root {
+      --bg-obsidian: #080a0f;
+      --node-bg: rgba(14, 18, 28, 0.94);
+      --node-border: #283347;
+      --cyan-neon: #38bdf8;
+      --blue-neon: #60a5fa;
+      --purple-neon: #c084fc;
+      --magenta-neon: #e879f9;
+      --green-neon: #4ade80;
+      --red-neon: #f87171;
+      --gold-neon: #facc15;
+      --figma-orange: #ff7262;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-obsidian);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.14), transparent 50%),
+        radial-gradient(circle at 10% 40%, rgba(192, 132, 252, 0.12), transparent 45%),
+        radial-gradient(circle at 90% 70%, rgba(74, 222, 128, 0.10), transparent 45%),
+        radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 100% 100%, 28px 28px;
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ==================== TICKER SUPERIOR EN VIVO ==================== */
+    .top-ticker-section {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(8, 10, 15, 0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.85);
+      padding: 10px 24px;
+    }
+
+    .ticker-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .ticker-title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pulse-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--cyan-neon);
+      box-shadow: 0 0 10px var(--cyan-neon);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .ticker-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--cyan-neon);
+    }
+
+    .ticker-badges-row {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      font-size: 11px;
+    }
+
+    .badge-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .badge-label { color: var(--text-muted); }
+    .badge-value { font-weight: 600; }
+    .badge-value.cyan { color: var(--cyan-neon); }
+    .badge-value.purple { color: var(--purple-neon); }
+    .badge-value.green { color: var(--green-neon); }
+    .badge-value.gold { color: var(--gold-neon); }
+    .badge-value.red { color: var(--red-neon); }
+
+    .live-stream-box {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      border-left: 2px solid var(--cyan-neon);
+      padding-left: 8px;
+    }
+
+    /* ==================== CANVAS Y CAPAS ==================== */
+    .flow-canvas-container {
+      position: relative;
+      max-width: 1480px;
+      width: 100%;
+      margin: 20px auto 40px auto;
+      padding: 0 24px;
+      flex-grow: 1;
+    }
+
+    .svg-routing-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .laser-line-base {
+      fill: none;
+      stroke-width: 2px;
+      opacity: 0.28;
+    }
+
+    .laser-pulse-run {
+      fill: none;
+      stroke-width: 2.5px;
+      stroke-dasharray: 10 18;
+      animation: laserDash 2.4s linear infinite;
+    }
+
+    @keyframes laserDash {
+      to { stroke-dashoffset: -56; }
+    }
+
+    .layer-horizontal-strip {
+      background: rgba(14, 20, 32, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 40px;
+      position: relative;
+      z-index: 20;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    }
+
+    .layer-header-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .layer-header-title::after {
+      content: "";
+      flex-grow: 1;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.12), transparent);
+    }
+
+    .cards-flex-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 16px;
+    }
+
+    /* ==================== TARJETAS DE ARQUITECTURA ==================== */
+    .arch-card-node {
+      background: var(--node-bg);
+      border: 1px solid var(--node-border);
+      border-radius: 12px;
+      padding: 18px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+    }
+
+    .arch-card-node:hover {
+      transform: translateY(-3px);
+      border-color: rgba(56, 189, 248, 0.6);
+      box-shadow: 0 10px 32px rgba(56, 189, 248, 0.15);
+    }
+
+    .arch-card-node.active-inspect {
+      border-color: var(--cyan-neon) !important;
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.3) !important;
+    }
+
+    .card-top-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .card-node-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-pill {
+      font-size: 9px;
+      text-transform: uppercase;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+    }
+
+    .pill-green { background: rgba(74, 222, 128, 0.16); color: var(--green-neon); border: 1px solid rgba(74, 222, 128, 0.3); }
+    .pill-cyan { background: rgba(56, 189, 248, 0.16); color: var(--cyan-neon); border: 1px solid rgba(56, 189, 248, 0.3); }
+    .pill-purple { background: rgba(192, 132, 252, 0.16); color: var(--purple-neon); border: 1px solid rgba(192, 132, 252, 0.3); }
+    .pill-gold { background: rgba(250, 204, 21, 0.16); color: var(--gold-neon); border: 1px solid rgba(250, 204, 21, 0.3); }
+    .pill-red { background: rgba(248, 113, 113, 0.16); color: var(--red-neon); border: 1px solid rgba(248, 113, 113, 0.3); }
+
+    .card-description-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .card-metric-strip {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      font-family: ui-monospace, monospace;
+    }
+
+    /* ==================== INSPECTOR INFERIOR ==================== */
+    .inspector-panel {
+      position: sticky;
+      bottom: 0;
+      z-index: 60;
+      background: rgba(8, 10, 15, 0.95);
+      border-top: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 14px 24px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 -8px 32px rgba(0,0,0,0.8);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .inspector-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .inspector-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--cyan-neon);
+      font-weight: 700;
+    }
+
+    .inspector-detail {
+      font-size: 12px;
+      color: var(--text-main);
+    }
+
+    .inspector-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .action-btn {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: var(--cyan-neon);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+      background: var(--cyan-neon);
+      color: #080a0f;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TICKER SUPERIOR EN VIVO -->
+  <header class="top-ticker-section">
+    <div class="ticker-header-bar">
+      <div class="ticker-title-group">
+        <div class="pulse-dot"></div>
+        <div class="ticker-title">MIA ARQUITECTURA MCP & BENCHMARK AUDITOR SENTINEL</div>
+      </div>
+      <div class="ticker-badges-row">
+        <div class="badge-item"><span class="badge-label">Mobbin Free:</span> <span class="badge-value red">PAYWALL MCP (402)</span></div>
+        <div class="badge-item"><span class="badge-label">Figma MCP:</span> <span class="badge-value green">ACTIVO (ivan garcia)</span></div>
+        <div class="badge-item"><span class="badge-label">Estructura MCP:</span> <span class="badge-value cyan">DESACOPLADA (Ops vs App)</span></div>
+        <div class="badge-item"><span class="badge-label">Auditor Sentinel:</span> <span class="badge-value purple">AUTO-BENCHMARK 60 FPS</span></div>
+        <div class="badge-item"><span class="badge-label">Capital Base:</span> <span class="badge-value gold">$5,000 USD</span></div>
+      </div>
+    </div>
+    <div class="live-stream-box" id="liveTickerStream">
+      [00:43:10] SENTINEL AUDIT: Verificación de Mobbin MCP: Autenticado pero bloqueado para consultas Free (Requiere Pro). Failover automático a Figma MCP + Extractor Web nativo activo.
+    </div>
+  </header>
+
+  <!-- CANVAS Y FLUJO DE CAPAS -->
+  <main class="flow-canvas-container" id="canvasContainer">
+    
+    <svg class="svg-routing-layer" id="svgRoutingLayer">
+      <defs>
+        <linearGradient id="gradCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#38bdf8" />
+          <stop offset="100%" stop-color="#818cf8" />
+        </linearGradient>
+        <linearGradient id="gradPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#c084fc" />
+          <stop offset="100%" stop-color="#f472b6" />
+        </linearGradient>
+        <linearGradient id="gradGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#4ade80" />
+          <stop offset="100%" stop-color="#38bdf8" />
+        </linearGradient>
+      </defs>
+    </svg>
+
+    <!-- CAPA 1: FUENTES EXTERNAS & PROVEEDORES DE DATOS -->
+    <section class="layer-horizontal-strip" style="border-color: rgba(255, 114, 98, 0.35);">
+      <div class="layer-header-title" style="color: var(--figma-orange);">
+        <span>CAPA 1: FUENTES EXTERNAS & SERVICIOS DE DISEÑO Y MERCADO</span>
+      </div>
+      <div class="cards-flex-grid">
+        <div class="arch-card-node" id="nodeMobbin" onclick="selectNode('nodeMobbin')">
+          <div class="card-top-header">
+            <span class="card-node-title">🎨 Mobbin MCP API</span>
+            <span class="status-pill pill-red">Free Blocked</span>
+          </div>
+          <p class="card-description-text">
+            OAuth conectado exitosamente, pero las queries MCP están cerradas bajo paywall Pro (Error: "Mobbin MCP requires a paid plan"). No bloquea el sistema.
+          </p>
+          <div class="card-metric-strip">
+            <span>Auth: OAuth 2.0</span>
+            <span style="color: var(--red-neon);">Fallback: Web Scraper</span>
+          </div>
+        </div>
+
+        <div class="arch-card-node" id="nodeFigma" onclick="selectNode('nodeFigma')">
+          <div class="card-top-header">
+            <span class="card-node-title">📐 Figma MCP Nativo</span>
+            <span class="status-pill pill-green">100% Conectado</span>
+          </div>
+          <p class="card-description-text">
+            Conectado con cuenta Starter Team (ivan garcia). Code Layers y Design Tokens habilitados para generación de código de producción hacia Dashboards.
+          </p>
+          <div class="card-metric-strip">
+            <span>Tokens: Color/AutoLayout</span>
+            <span style="color: var(--green-neon);">Status: 200 OK</span>
+          </div>
+        </div>
+
+        <div class="arch-card-node" id="nodeMacroFeeds" onclick="selectNode('nodeMacroFeeds')">
+          <div class="card-top-header">
+            <span class="card-node-title">📰 Macro Feeds & Calendario</span>
+            <span class="status-pill pill-gold">High Impact FX</span>
+          </div>
+          <p class="card-description-text">
+            ForexFactory / FXStreet / DailyFX feeds sub-100ms. Ingesta de noticias NFP, FOMC, CPI y discursos de banqueros centrales para Herd 1 (TIDAL).
+          </p>
+          <div class="card-metric-strip">
+            <span>Filtro: Killzones NY/LDN</span>
+            <span style="color: var(--gold-neon);">Impact: Alto/Medio</span>
+          </div>
+        </div>
+
+        <div class="arch-card-node" id="nodeBenchmarkLeaders" onclick="selectNode('nodeBenchmarkLeaders')">
+          <div class="card-top-header">
+            <span class="card-node-title">🏆 Benchmark vs Líderes</span>
+            <span class="status-pill pill-cyan">Referencias UI</span>
+          </div>
+          <p class="card-description-text">
+            Comparativa contra TradingView (gráficos ligeros), Bloomberg Terminal (densidad HUD), Linear (atajos de teclado) y TensorBoard (red 3D).
+          </p>
+          <div class="card-metric-strip">
+            <span>Patrones: 5 Dimensiones</span>
+            <span style="color: var(--cyan-neon);">Cero CDNs</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CAPA 2: ARQUITECTURA DE SERVIDORES MCP (SEPARACIÓN CANÓNICA) -->
+    <section class="layer-horizontal-strip" style="border-color: rgba(56, 189, 248, 0.35);">
+      <div class="layer-header-title" style="color: var(--cyan-neon);">
+        <span>CAPA 2: CLÚSTER DE SERVIDORES MCP DESACOPLADOS (MICROSERVICIOS INDEPENDIENTES)</span>
+      </div>
+      <div class="cards-flex-grid">
+        <div class="arch-card-node" id="nodeOpsMcp" onclick="selectNode('nodeOpsMcp')">
+          <div class="card-top-header">
+            <span class="card-node-title">🛠️ mia_ops_mcp_server.py</span>
+            <span class="status-pill pill-purple">Instancia 0b51</span>
+          </div>
+          <p class="card-description-text">
+            <strong>Exclusivo Back-Office & ChatOps:</strong> Gobierna Slack (#back-office-y-backend), Herds T1 al T10, latencias Upstash Redis MGET sub-35ms y salud de Docker.
+          </p>
+          <div class="card-metric-strip">
+            <span>Modelo: Llama 3.3 70B</span>
+            <span style="color: var(--purple-neon);">Cero Tráfico Trading</span>
+          </div>
+        </div>
+
+        <div class="arch-card-node" id="nodeAppMcp" onclick="selectNode('nodeAppMcp')" style="border-color: rgba(56, 189, 248, 0.8);">
+          <div class="card-top-header">
+            <span class="card-node-title">🚀 mia_app_mcp_server.py (NUEVO)</span>
+            <span class="status-pill pill-cyan">Recomendado</span>
+          </div>
+          <p class="card-description-text">
+            <strong>Servidor MCP de Aplicación e Integraciones:</strong> Diseñado para albergar herramientas de diseño Figma, parser de tokens, calendarios económicos, noticias TIDAL y auditor Sentinel.
+          </p>
+          <div class="card-metric-strip">
+            <span>Aislamiento: Blindaje 429</span>
+            <span style="color: var(--cyan-neon);">Prompt Context: Óptimo</span>
+          </div>
+        </div>
+
+        <div class="arch-card-node" id="nodeTradingMcp" onclick="selectNode('nodeTradingMcp')">
+          <div class="card-top-header">
+            <span class="card-node-title">⚡ Trading Core Data Plane</span>
+            <span class="status-pill pill-green">Instancia 927a</span>
+          </div>
+          <p class="card-description-text">
+            <strong>Ejecución MT5 & Ticks:</strong> Trailing stop asimétrico de RUNE sub-50ms, /dashboard, /dashboard/preview y conexión de libro de órdenes. Cero Slack.
+          </p>
+          <div class="card-metric-strip">
+            <span>Latencia: Sub-50ms</span>
+            <span style="color: var(--green-neon);">MT5 Real Broker</span>
+          </div>
+        </div>
+
+        <div class="arch-card-node" id="nodeMt5Staging" onclick="selectNode('nodeMt5Staging')">
+          <div class="card-top-header">
+            <span class="card-node-title">🧪 MT5 MCP Pro Staging</span>
+            <span class="status-pill pill-gold">Instancia a0b8</span>
+          </div>
+          <p class="card-description-text">
+            Servidor de pruebas aislado. Se mantiene intacto en sandbox experimental para evaluaciones futuras sin tocar los entornos productivos.
+          </p>
+          <div class="card-metric-strip">
+            <span>Entorno: Staging</span>
+            <span style="color: var(--gold-neon);">Estado: Congelado</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CAPA 3: VALIDADOR / AUDITOR SENTINEL CONTINUO AUTOMÁTICO -->
+    <section class="layer-horizontal-strip" style="border-color: rgba(192, 132, 252, 0.35);">
+      <div class="layer-header-title" style="color: var(--purple-neon);">
+        <span>CAPA 3: VALIDADOR & SENTINEL DE BENCHMARK CONTINUO (AUTO-AUDITORÍA)</span>
+      </div>
+      <div class="cards-flex-grid">
+        <div class="arch-card-node" id="nodeAuditFps" onclick="selectNode('nodeAuditFps')">
+          <div class="card-top-header">
+            <span class="card-node-title">⏱️ Auditor FPS & Render</span>
+            <span class="status-pill pill-green">60 FPS Meta</span>
+          </div>
+          <p class="card-description-text">
+            Monitorea que los dashboards (`/brain`, `/dashboard`, `/mods`) mantengan 60 FPS estables, con 0% dependencias de CDNs externas y payload sub-50 KB.
+          </p>
+          <div class="card-metric-strip">
+            <span>Métrica: Frame Budget &lt; 16.6ms</span>
+            <span style="color: var(--green-neon);">GPU Local</span>
+          </div>
+        </div>
+
+        <div class="arch-card-node" id="nodeAuditWcag" onclick="selectNode('nodeAuditWcag')">
+          <div class="card-top-header">
+            <span class="card-node-title">👁️ Auditor WCAG & Contraste</span>
+            <span class="status-pill pill-cyan">Ratio &ge; 4.8:1</span>
+          </div>
+          <p class="card-description-text">
+            Evalúa la legibilidad de textos sobre fondo Dark Obsidian (#080a0f). Garantiza contraste institucional para sesiones nocturnas sin fatiga ocular.
+          </p>
+          <div class="card-metric-strip">
+            <span>Estándar: WCAG 2.1 AA</span>
+            <span style="color: var(--cyan-neon);">Anti-Glow Halo</span>
+          </div>
+        </div>
+
+        <div class="arch-card-node" id="nodeAuditBezier" onclick="selectNode('nodeAuditBezier')">
+          <div class="card-top-header">
+            <span class="card-node-title">📐 Auditor Bézier Anti-Colisión</span>
+            <span class="status-pill pill-purple">Tangente &Delta;y &ge; 45px</span>
+          </div>
+          <p class="card-description-text">
+            Calcula la separación geométrica de los láseres SVG. Veta automáticamente cualquier diagrama que cruce o solape tarjetas o títulos de capa.
+          </p>
+          <div class="card-metric-strip">
+            <span>Geometría: SVG Paramétrico</span>
+            <span style="color: var(--purple-neon);">0 Colisiones</span>
+          </div>
+        </div>
+
+        <div class="arch-card-node" id="nodeAuditFinance" onclick="selectNode('nodeAuditFinance')">
+          <div class="card-top-header">
+            <span class="card-node-title">🛡️ Auditor Verdad Financiera</span>
+            <span class="status-pill pill-gold">Ley D / (1 - D)</span>
+          </div>
+          <p class="card-description-text">
+            Verifica que ningún dashboard o LLM muestre balances "saludables" bajo $5,000 USD y valida el portafolio hermético (5 Live MT5 + 1 NZDCAD Sandbox).
+          </p>
+          <div class="card-metric-strip">
+            <span>Base: $5,000.00 USD</span>
+            <span style="color: var(--gold-neon);">Asimetría Activa</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CAPA 4: COLA HITL & MEMORIA CBR HACIA EL TRUST MODE -->
+    <section class="layer-horizontal-strip" style="border-color: rgba(74, 222, 128, 0.35);">
+      <div class="layer-header-title" style="color: var(--green-neon);">
+        <span>CAPA 4: CANAL DE APROBACIÓN HITL EN SLACK & COGNICIÓN CBR</span>
+      </div>
+      <div class="cards-flex-grid">
+        <div class="arch-card-node" id="nodeHitlProposal" onclick="selectNode('nodeHitlProposal')">
+          <div class="card-top-header">
+            <span class="card-node-title">📋 Propuesta Antes vs Después</span>
+            <span class="status-pill pill-cyan">JSON Canónico</span>
+          </div>
+          <p class="card-description-text">
+            Cada mejora de UI/UX detectada por el Sentinel se empaqueta en `cache_pending_ops_approvals` con comparativa visual interactiva en `/dashboard/preview`.
+          </p>
+          <div class="card-metric-strip">
+            <span>Slot: Upstash Redis</span>
+            <span style="color: var(--cyan-neon);">Audit Trail</span>
+          </div>
+        </div>
+
+        <div class="arch-card-node" id="nodeSlackInteractive" onclick="selectNode('nodeSlackInteractive')">
+          <div class="card-top-header">
+            <span class="card-node-title">💬 Slack Block Kit Dispatch</span>
+            <span class="status-pill pill-green">#back-office-y-backend</span>
+          </div>
+          <p class="card-description-text">
+            Notificación en tiempo real con 4 botones de acción ([Aprobar Seleccionadas], [Aprobar Todas], [Rechazar], [Forzar Resync]) y checkboxes de selección quirúrgica.
+          </p>
+          <div class="card-metric-strip">
+            <span>Canal: C0C4ZMFCMJ8</span>
+            <span style="color: var(--green-neon);">HITL Gobernado</span>
+          </div>
+        </div>
+
+        <div class="arch-card-node" id="nodeCbrMemory" onclick="selectNode('nodeCbrMemory')">
+          <div class="card-top-header">
+            <span class="card-node-title">🧠 Memoria CBR & Trust Mode</span>
+            <span class="status-pill pill-purple">Meta: &ge;20 Aprobaciones</span>
+          </div>
+          <p class="card-description-text">
+            Los aciertos aprobados se archivan en `system_memory/latest_cbr` y `mia_trading_learning_history`. Al llegar a 20 con score &ge;95%, habilita despliegue autónomo.
+          </p>
+          <div class="card-metric-strip">
+            <span>Progreso: En Construcción</span>
+            <span style="color: var(--purple-neon);">Trust Mode</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- INSPECTOR INFERIOR DE METADATOS -->
+  <footer class="inspector-panel">
+    <div class="inspector-left">
+      <div class="inspector-title" id="inspTitle">ARQUITECTURA DE INTEGRACIONES MCP</div>
+      <div class="inspector-detail" id="inspDesc">Haz clic en cualquier nodo para auditar sus dependencias técnicas, microservicio anfitrión y contrato de comunicación.</div>
+    </div>
+    <div class="inspector-actions">
+      <a href="flujo_conectividad_figma_mcp.html" class="action-btn">📐 Ver Figma MCP</a>
+      <a href="flujo_aprobacion_hitl_cbr_t6.html" class="action-btn">🛡️ Ver Flujo HITL</a>
+      <a href="benchmark_exhaustivo_ui_ux_dashboards.html" class="action-btn">📊 Ver Matriz Benchmark</a>
+    </div>
+  </footer>
+
+  <script>
+    const nodeDetails = {
+      nodeMobbin: {
+        title: "MOBBIN MCP API — PAYWALL RESTRICTION & MITIGACIÓN",
+        desc: "Diagnóstico: El plugin OAuth está conectado en Antigravity, pero la API remota de Mobbin bloquea las consultas directas de MCP en el plan Free (HTTP 402/403). Mitigación: Usamos Figma MCP oficial + Extractor Web nativo para patrones de diseño sin requerir pagar Mobbin Pro."
+      },
+      nodeFigma: {
+        title: "FIGMA MCP NATIVO — STARTER TEAM (IVAN GARCIA)",
+        desc: "Servidor oficial de Figma MCP totalmente operativo. Permite leer variables de diseño, auto-layout, componentes y generar código de producción en HTML5/SVG Bézier sin costo adicional."
+      },
+      nodeMacroFeeds: {
+        title: "MACRO FEEDS & CALENDARIO ECONÓMICO (TIDAL)",
+        desc: "Ingesta de eventos de alto impacto (NFP, CPI, Tasas de Interés) para Herd 1. Se desacopla en mia_app_mcp_server para que las llamadas HTTP a APIs de noticias no degraden los hilos de Slack."
+      },
+      nodeBenchmarkLeaders: {
+        title: "BENCHMARK EXTERNO VS LÍDERES INSTITUCIONALES",
+        desc: "Matriz de comparación continua contra Bloomberg (densidad de información), TradingView (render ultra-rápido de velas), Linear (ergonomía de comandos) y TensorBoard (red 3D)."
+      },
+      nodeOpsMcp: {
+        title: "MIA_OPS_MCP_SERVER.PY — INSTANCIA 0b51 (CONTROL PLANE)",
+        desc: "Servidor MCP dedicado exclusivamente a Back-Office, SRE, Herds T1-T10, latencias Upstash Redis MGET sub-35ms y ChatOps con Slack. Blindado de llamadas de UI y mercado."
+      },
+      nodeAppMcp: {
+        title: "MIA_APP_MCP_SERVER.PY — NUEVO SERVIDOR DE APLICACIÓN E INTEGRACIONES",
+        desc: "Mejor práctica canónica: Desacopla herramientas de diseño, feeds macroeconómicos y el Sentinel de Benchmark continuo. Evita sobrecargar el prompt de Llama 3.3 70B y aisla fallos de red externos."
+      },
+      nodeTradingMcp: {
+        title: "TRADING DATA PLANE — INSTANCIA 927a",
+        desc: "Microservicio de HFT y ejecución MT5. Gestiona trailing stops asimétricos sub-50ms de RUNE, endpoints /dashboard y streaming de precios. CERO tráfico de Slack para latencia ultra-baja."
+      },
+      nodeMt5Staging: {
+        title: "MT5 MCP PRO STAGING — INSTANCIA a0b8",
+        desc: "Servidor de pruebas MT5 en sandbox experimental. Permanece aislado y congelado para pruebas futuras sin poner en riesgo la operativa real."
+      },
+      nodeAuditFps: {
+        title: "AUDITOR DE RENDIMIENTO & FRAME BUDGET (60 FPS)",
+        desc: "Verificación automatizada en local: tiempo de frame < 16.6ms, 0% dependencias de CDNs externas pesadas (cero Tailwind CDN bloqueante), payload HTML+CSS+JS < 50 KB."
+      },
+      nodeAuditWcag: {
+        title: "AUDITOR DE CONTRASTE & ACCESIBILIDAD (WCAG 2.1 AA)",
+        desc: "Garantiza ratio de contraste mínimo de 4.8:1 en textos y 3:1 en gráficos sobre fondo Obsidian (#080a0f). Erradica resplandores excesivos que causen fatiga visual en traders."
+      },
+      nodeAuditBezier: {
+        title: "AUDITOR GEOMÉTRICO BÉZIER ANTI-COLISIÓN",
+        desc: "Calcula tangentes paramétricas libres de colisión (holgura tangencial vertical Delta y >= 45px). Veta automáticamente cualquier diagrama que cruce o solape títulos o tarjetas."
+      },
+      nodeAuditFinance: {
+        title: "AUDITOR DE VERDAD FINANCIERA & PORTAFOLIO HERMÉTICO",
+        desc: "Supervisa que ningún dashboard o prompt califique la cuenta como 'saludable' mientras el saldo sea < $5,000 USD y audita que solo operen los 5 pares oficiales Live + 1 NZDCAD Sandbox."
+      },
+      nodeHitlProposal: {
+        title: "COLA DE PROPUESTAS HITL (CACHE_PENDING_OPS_APPROVALS)",
+        desc: "Formato JSON estricto con bloque 'before' y 'after' para cada sugerencia de rediseño o ajuste técnico. Publicado en Upstash Redis para auditoría inmutable."
+      },
+      nodeSlackInteractive: {
+        title: "DISPATCH INTERACTIVO A SLACK (#BACK-OFFICE-Y-BACKEND)",
+        desc: "Notificaciones estructuradas con Block Kit, checkboxes de selección quirúrgica y los 4 botones canónicos ([Aprobar Seleccionadas], [Aprobar Todas], [Rechazar], [Forzar Resync])."
+      },
+      nodeCbrMemory: {
+        title: "MEMORIA CASE-BASED REASONING (CBR) HACIA EL TRUST MODE",
+        desc: "Cada decisión humana aprobada incrementa el índice de confianza agéntica. Al acumular 20 aprobaciones consecutivas con score >= 95%, el sistema conmuta a Trust Mode autónomo."
+      }
+    };
+
+    function selectNode(nodeId) {
+      document.querySelectorAll('.arch-card-node').forEach(n => n.classList.remove('active-inspect'));
+      const card = document.getElementById(nodeId);
+      if (card) card.classList.add('active-inspect');
+      if (nodeDetails[nodeId]) {
+        document.getElementById('inspTitle').innerText = nodeDetails[nodeId].title;
+        document.getElementById('inspDesc').innerText = nodeDetails[nodeId].desc;
+      }
+    }
+
+    // Dibujo de conectores SVG Bézier sin colisiones
+    function drawLaserConnections() {
+      const svg = document.getElementById('svgRoutingLayer');
+      const container = document.getElementById('canvasContainer');
+      const rectC = container.getBoundingClientRect();
+      svg.setAttribute('viewBox', `0 0 ${rectC.width} ${rectC.height}`);
+      
+      // Limpiar paths previos excepto defs
+      const defs = svg.querySelector('defs');
+      svg.innerHTML = '';
+      svg.appendChild(defs);
+
+      const pairs = [
+        { from: 'nodeFigma', to: 'nodeAppMcp', color: 'url(#gradCyan)' },
+        { from: 'nodeMacroFeeds', to: 'nodeAppMcp', color: 'url(#gradCyan)' },
+        { from: 'nodeBenchmarkLeaders', to: 'nodeAppMcp', color: 'url(#gradCyan)' },
+        { from: 'nodeAppMcp', to: 'nodeAuditFps', color: 'url(#gradPurple)' },
+        { from: 'nodeAppMcp', to: 'nodeAuditWcag', color: 'url(#gradPurple)' },
+        { from: 'nodeAppMcp', to: 'nodeAuditBezier', color: 'url(#gradPurple)' },
+        { from: 'nodeOpsMcp', to: 'nodeSlackInteractive', color: 'url(#gradGreen)' },
+        { from: 'nodeAuditFps', to: 'nodeHitlProposal', color: 'url(#gradGreen)' },
+        { from: 'nodeHitlProposal', to: 'nodeSlackInteractive', color: 'url(#gradGreen)' },
+        { from: 'nodeSlackInteractive', to: 'nodeCbrMemory', color: 'url(#gradPurple)' }
+      ];
+
+      pairs.forEach(pair => {
+        const elA = document.getElementById(pair.from);
+        const elB = document.getElementById(pair.to);
+        if (!elA || !elB) return;
+
+        const rA = elA.getBoundingClientRect();
+        const rB = elB.getBoundingClientRect();
+
+        const x1 = (rA.left + rA.right) / 2 - rectC.left;
+        const y1 = rA.bottom - rectC.top;
+        const x2 = (rB.left + rB.right) / 2 - rectC.left;
+        const y2 = rB.top - rectC.top;
+
+        // Tangente paramétrica con holgura mínima de 45px
+        const dy = Math.max(Math.abs(y2 - y1) * 0.5, 45);
+        const cp1x = x1;
+        const cp1y = y1 + dy;
+        const cp2x = x2;
+        const cp2y = y2 - dy;
+
+        const d = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+
+        // Línea base
+        const pBase = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        pBase.setAttribute('d', d);
+        pBase.setAttribute('class', 'laser-line-base');
+        pBase.setAttribute('stroke', pair.color);
+        svg.appendChild(pBase);
+
+        // Láser animado
+        const pLaser = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        pLaser.setAttribute('d', d);
+        pLaser.setAttribute('class', 'laser-pulse-run');
+        pLaser.setAttribute('stroke', pair.color);
+        svg.appendChild(pLaser);
+      });
+    }
+
+    window.addEventListener('resize', drawLaserConnections);
+    window.addEventListener('DOMContentLoaded', () => {
+      drawLaserConnections();
+      selectNode('nodeAppMcp');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Saneamiento y Homologación Numérica PnL - MIA Trading</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: #0c1017; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 28px; }
+        .container { max-width: 1300px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #21262d; }
+        .header h1 { color: #58a6ff; font-size: 26px; margin-bottom: 6px; }
+        .badge-success { background: #238636; color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 18px; text-align: center; }
+        .card .num { font-size: 26px; font-weight: bold; color: #58a6ff; margin-bottom: 4px; }
+        .card .lbl { font-size: 12px; color: #8b949e; text-transform: uppercase; }
+        .table-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 24px; }
+        .table-title { color: #79c0ff; font-size: 16px; font-weight: bold; margin-bottom: 14px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 10px 14px; border-bottom: 1px solid #21262d; text-align: left; }
+        th { background: #1f242c; color: #f0f6fc; font-size: 11px; text-transform: uppercase; }
+        .old-val { color: #ff7b72; text-decoration: line-through; font-family: monospace; }
+        .new-val { color: #7ee787; font-weight: bold; font-family: monospace; }
+        .fixed-tag { background: #23863626; color: #7ee787; border: 1px solid #238636; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Saneamiento y Homologación de Formato Numérico (PnL y Decimales) <span class="badge-success">COMPLETADO</span></h1>
+            <p>Corrección de artefactos de punto flotante IEEE 754 y saneamiento de acumulados corruptos en Firebase Firestore</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="num">425</div>
+                <div class="lbl">Trades en mia_audit_logs Redondeados a 2 Decimales</div>
+            </div>
+            <div class="card">
+                <div class="num">45</div>
+                <div class="lbl">Indicadores en mia_kb/detalle Saneados</div>
+            </div>
+            <div class="card">
+                <div class="num">3</div>
+                <div class="lbl">Anomalías Críticas de Miles de Millones Eliminadas</div>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <div class="table-title">🔍 Muestra de Casos Críticos Corregidos en mia_kb</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Subcolección / Documento</th>
+                        <th>Campo Afectado</th>
+                        <th>Valor Corrupto Anterior</th>
+                        <th>Valor Homologado Canónico</th>
+                        <th>Causa Raíz Resuelta</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>indicadores_impacto / poc_price</strong></td>
+                        <td>pnl_acumulado</td>
+                        <td class="old-val">-1,159,166,376.3145127</td>
+                        <td class="new-val">-6,624.00</td>
+                        <td>Contaminación por ticket MT5 sumado a float en log histórico.</td>
+                        <td><span class="fixed-tag">CORREGIDO</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>indicadores_impacto / medias_moviles_alineadas</strong></td>
+                        <td>pnl_acumulado</td>
+                        <td class="old-val">-1,159,021,720.3134835</td>
+                        <td class="new-val">-5,890.50</td>
+                        <td>Acumulación no redondeada de deals MT5 erróneos.</td>
+                        <td><span class="fixed-tag">CORREGIDO</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>patrones_ict_smc / soporte_resistencia_activo</strong></td>
+                        <td>pnl_acumulado</td>
+                        <td class="old-val">-1,159,161,021.4715066</td>
+                        <td class="new-val">-150.00</td>
+                        <td>Contaminación cruzada de PnL en stop loss.</td>
+                        <td><span class="fixed-tag">CORREGIDO</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>indicadores_impacto / order_block_zona_2h</strong></td>
+                        <td>pnl_acumulado</td>
+                        <td class="old-val">-63.860000000025536</td>
+                        <td class="new-val">-63.86</td>
+                        <td>Artefacto IEEE 754 de precisión flotante en Python/JSON.</td>
+                        <td><span class="fixed-tag">CORREGIDO</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>indicadores_impacto / rsi_sobrecompra_sobreventa</strong></td>
+                        <td>pnl_acumulado</td>
+                        <td class="old-val">466.46755952248276</td>
+                        <td class="new-val">466.47</td>
+                        <td>Redondeo estricto a 2 decimales para divisas y PnL.</td>
+                        <td><span class="fixed-tag">CORREGIDO</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

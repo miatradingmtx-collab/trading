@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>MIA — Preview /mods (War Room Táctico & Enrutamiento Bézier)</title>
+  <style>
+    :root {
+      --bg-obsidian: #080a0f;
+      --card-bg: rgba(14, 18, 28, 0.94);
+      --card-border: #283347;
+      --cyan-neon: #38bdf8;
+      --purple-neon: #c084fc;
+      --green-neon: #4ade80;
+      --red-neon: #f87171;
+      --gold-neon: #facc15;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background-color: var(--bg-obsidian);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(192, 132, 252, 0.16), transparent 55%),
+        radial-gradient(circle at 10% 60%, rgba(56, 189, 248, 0.10), transparent 45%),
+        radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 28px 28px;
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Ticker Superior */
+    .ticker-bar {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(8, 10, 15, 0.94);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(192, 132, 252, 0.25);
+      padding: 10px 24px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+    .ticker-title {
+      font-size: 0.85rem; font-weight: 800; color: var(--purple-neon);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pulse-dot {
+      width: 10px; height: 10px; background: var(--purple-neon); border-radius: 50%;
+      box-shadow: 0 0 10px var(--purple-neon); animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.3); } }
+
+    /* Canvas Central de los Herds */
+    .war-room-container {
+      position: relative;
+      flex: 1;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Grilla de las 7 Estaciones de los Herds */
+    .herds-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      position: relative;
+      z-index: 20;
+    }
+    @media (max-width: 1000px) { .herds-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .herds-grid { grid-template-columns: 1fr; } }
+
+    .herd-station {
+      background: var(--card-bg);
+      border: 1.5px solid var(--card-border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex; flex-direction: column; gap: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .herd-station:hover {
+      transform: translateY(-2px);
+      border-color: var(--cyan-neon);
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.25);
+    }
+    .station-header {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .station-name { font-weight: 800; font-size: 0.88rem; color: #fff; }
+    .station-weight {
+      font-size: 0.70rem; padding: 2px 8px; border-radius: 9999px; font-weight: 700;
+      background: rgba(56, 189, 248, 0.15); color: var(--cyan-neon); border: 1px solid var(--cyan-neon);
+    }
+    .station-role { font-size: 0.72rem; color: var(--text-muted); }
+    .station-status {
+      display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--green-neon);
+      border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px; margin-top: 4px;
+    }
+
+    /* Panel HITL Director & Quórum */
+    .hitl-panel {
+      background: rgba(17, 24, 39, 0.95);
+      border: 2px solid var(--gold-neon);
+      border-radius: 16px;
+      padding: 18px 24px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
+      box-shadow: 0 0 30px rgba(250, 204, 21, 0.2);
+    }
+    .hitl-info { display: flex; flex-direction: column; gap: 4px; max-width: 650px; }
+    .hitl-badge {
+      display: inline-block; background: rgba(250, 204, 21, 0.15); color: var(--gold-neon);
+      border: 1px solid var(--gold-neon); padding: 2px 10px; border-radius: 9999px;
+      font-size: 0.70rem; font-weight: 800; width: fit-content;
+    }
+    .hitl-title { font-size: 0.95rem; font-weight: 800; color: #fff; }
+    .hitl-desc { font-size: 0.76rem; color: #cbd5e1; line-height: 1.4; }
+    .hitl-buttons { display: flex; gap: 12px; }
+    .btn-approve {
+      background: linear-gradient(135deg, #10b981, #059669);
+      border: none; color: #fff; padding: 10px 20px; border-radius: 8px;
+      font-weight: 800; font-size: 0.78rem; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-approve:hover { transform: scale(1.04); box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+    .btn-reject {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      border: none; color: #fff; padding: 10px 20px; border-radius: 8px;
+      font-weight: 800; font-size: 0.78rem; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-reject:hover { transform: scale(1.04); box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+
+    /* SVG Bézier Overlay */
+    #war-svg {
+      position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ticker Superior -->
+  <header class="ticker-bar">
+    <div class="ticker-title">
+      <div class="pulse-dot"></div>
+      <span>HUD TÁCTICO MODO GUERRA · DELIBERACIÓN DE LOS 7 HERDS EN TIEMPO REAL</span>
+    </div>
+    <div style="font-size:0.76rem; color:var(--text-muted);">
+      Quórum Maestro: <strong style="color:var(--green-neon);">0.88 ≥ 0.70 (APROBADO)</strong> · Upstash MGET: <strong>12.4ms</strong>
+    </div>
+  </header>
+
+  <div class="war-room-container">
+    
+    <!-- Grilla de los 7 Herds + Master -->
+    <div class="herds-grid">
+      
+      <div class="herd-station" id="station-tidal">
+        <div class="station-header">
+          <span class="station-name">1. TIDAL</span>
+          <span class="station-weight">W: 1.15</span>
+        </div>
+        <div class="station-role">Macro &amp; Killzones (Londres/NY)</div>
+        <div class="station-status">● Sesión Activa · DXY Bearish</div>
+      </div>
+
+      <div class="herd-station" id="station-noro">
+        <div class="station-header">
+          <span class="station-name">2. NORO</span>
+          <span class="station-weight">W: 1.05</span>
+        </div>
+        <div class="station-role">POC, CVOL &amp; Markov Regimes</div>
+        <div class="station-status">● Volatilidad 14.2 OK</div>
+      </div>
+
+      <div class="herd-station" id="station-zephr">
+        <div class="station-header">
+          <span class="station-name">3. ZEPHR</span>
+          <span class="station-weight">W: 1.20</span>
+        </div>
+        <div class="station-role">Expected Value (EV) &amp; Asimetría</div>
+        <div class="station-status">● Ratio EV +1.85R</div>
+      </div>
+
+      <div class="herd-station" id="station-lumen">
+        <div class="station-header">
+          <span class="station-name">4. LUMEN</span>
+          <span class="station-weight">W: 1.30</span>
+        </div>
+        <div class="station-role">SMC, Order Blocks 2H &amp; FVG</div>
+        <div class="station-status">● Mitigación OB 2H Confirmada</div>
+      </div>
+
+      <div class="herd-station" id="station-rune">
+        <div class="station-header">
+          <span class="station-name">5. RUNE</span>
+          <span class="station-weight">W: 1.40</span>
+        </div>
+        <div class="station-role">Gestor de Riesgo &amp; Cascada 4 Fases</div>
+        <div class="station-status">● Buffer BE +2.5 pips Listo</div>
+      </div>
+
+      <div class="herd-station" id="station-tensorflow">
+        <div class="station-header">
+          <span class="station-name">6. TENSORFLOW</span>
+          <span class="station-weight">W: 1.25</span>
+        </div>
+        <div class="station-role">Inferencia Tensorial 22D Keras</div>
+        <div class="station-status">● Confianza 88.4% (BUY)</div>
+      </div>
+
+      <div class="herd-station" id="station-atlas">
+        <div class="station-header">
+          <span class="station-name">7. ATLAS</span>
+          <span class="station-weight">W: 1.35</span>
+        </div>
+        <div class="station-role">CME/COMEX DOM L3 &amp; CVD Delta</div>
+        <div class="station-status">● Absorción $2.5M (+420 CVD)</div>
+      </div>
+
+      <div class="herd-station" style="border-color:var(--gold-neon);">
+        <div class="station-header">
+          <span class="station-name" style="color:var(--gold-neon);">MASTER ORCHESTRATOR</span>
+          <span class="station-weight" style="background:rgba(250,204,21,0.2); color:var(--gold-neon); border-color:var(--gold-neon);">QUÓRUM</span>
+        </div>
+        <div class="station-role">Consenso Agéntico Ponderado</div>
+        <div class="station-status" style="color:var(--gold-neon);">★ Consenso 7/7 Herds OK</div>
+      </div>
+
+    </div>
+
+    <!-- Panel HITL Interactivo -->
+    <div class="hitl-panel">
+      <div class="hitl-info">
+        <span class="hitl-badge">MANDATO HITL ACTIVO (HUMAN-IN-THE-LOOP)</span>
+        <div class="hitl-title">Alerta de Entrada Institucional: EURUSD (COMPRA) @ 1.0845</div>
+        <div class="hitl-desc">
+          Confluencia SMC + DOM CME validada por 7 Herds. Score: 88.2%. Riesgo: 1.0R ($34.33 USD).
+          Cascada RUNE armada con TP1 Parcial al 50% y Break-Even +2.5 pips.
+        </div>
+      </div>
+      <div class="hitl-buttons">
+        <button class="btn-approve" onclick="alert('Orden Aprobada y Despachada a MT5')">Aprobar Orden ✅</button>
+        <button class="btn-reject" onclick="alert('Orden Vetada. Capital Preservado.')">Vetar / Rechazar ⛔</button>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

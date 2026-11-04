@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1062.118 1061.963" width="1062.118" height="1061.963" style="--bg:#1F1F1F;--fg:#CCCCCC;--line:#CCCCCC;--accent:#0078D4;--muted:#CCCCCCCC;--surface:#181818;--border:#CCCCCC;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="MTF" data-label="Escaneo Continuo MTF (1H, 2H, 3H, 4H, 8H)">
+  <rect x="40" y="40" width="982.1179999999999" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="40" y="40" width="982.1179999999999" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="52" y="54" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Escaneo Continuo MTF (1H, 2H, 3H, 4H, 8H)</text>
+</g>
+<g class="subgraph" data-id="MACRO_FILTER" data-label="Filtro Institucional de Liquidez Macro (4H / 8H)">
+  <rect x="85.4597500000001" y="360.70000000000005" width="851.5549999999998" height="570.3629999999999" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="85.4597500000001" y="360.70000000000005" width="851.5549999999998" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="97.4597500000001" y="374.70000000000005" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Filtro Institucional de Liquidez Macro (4H / 8H)</text>
+</g>
+<polyline class="edge" data-from="MTF" data-to="EVAL" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="531.059,136.9 531.059,184.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="EVAL" data-to="CAND" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="531.059,221.8 531.059,269.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CAND" data-to="CHECK1" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="531.059,306.70000000000005 531.059,404.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PASS" data-to="EXEC" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="742.9477499999999,915.063 742.9477499999999,985.063" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CHECK1" data-to="BLOCK" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="SÍ, Liquidez Macro SIN barrer" points="471.53183333333334,702.3358333333334 471.53183333333334,773.863 319.17025,773.863 319.17025,878.163" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CHECK1" data-to="PASS" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="NO, o Macro YA fue barrido (Sweep Macro Confirmado)" points="590.5861666666666,702.3358333333334 590.5861666666666,773.863 742.9477499999999,773.863 742.9477499999999,878.163" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="CHECK1" data-to="BLOCK" data-label="SÍ, Liquidez Macro SIN barrer">
+  <rect x="238.17025" y="804.8629999999999" width="161.99200000000005" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="319.16625000000005" y="820.0129999999999" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">SÍ, Liquidez Macro SIN barrer</text>
+</g>
+<g class="edge-label" data-from="CHECK1" data-to="PASS" data-label="NO, o Macro YA fue barrido (Sweep Macro Confirmado)">
+  <rect x="605.9477499999999" y="804.8629999999999" width="273.07" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="742.4827499999999" y="820.0129999999999" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">NO, o Macro YA fue barrido (Sweep Macro Confirmado)</text>
+</g>
+<g class="node" data-id="EVAL" data-label="analizar_smc_ict(df, tf) para TODOS los marcos" data-shape="rectangle">
+  <rect x="373.3695" y="184.9" width="315.3789999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="531.059" y="203.35000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">analizar_smc_ict(df, tf) para TODOS los marcos</text>
+</g>
+<g class="node" data-id="CAND" data-label="¿Señal de Entrada Candidata en 3H / 2H / 1H?" data-shape="rectangle">
+  <rect x="381.52049999999997" y="269.8" width="299.077" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="531.059" y="288.25" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">¿Señal de Entrada Candidata en 3H / 2H / 1H?</text>
+</g>
+<g class="node" data-id="EXEC" data-label="Ejecución en MT5 con Presupuesto Seguro" data-shape="rectangle">
+  <rect x="593.7797499999999" y="985.063" width="298.33599999999996" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="742.9477499999999" y="1003.513" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Ejecución en MT5 con Presupuesto Seguro</text>
+</g>
+<g class="node" data-id="TF1" data-label="1H (Gatillo Micro)" data-shape="rectangle">
+  <rect x="256.366" y="84" width="136.05700000000002" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="324.3945" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">1H (Gatillo Micro)</text>
+</g>
+<g class="node" data-id="TF2" data-label="2H (Estructura Intradía)" data-shape="rectangle">
+  <rect x="420.423" y="84" width="182.74" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="511.793" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">2H (Estructura Intradía)</text>
+</g>
+<g class="node" data-id="TF3" data-label="3H (Intermedia / Swing)" data-shape="rectangle">
+  <rect x="56" y="84" width="172.36599999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="142.183" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">3H (Intermedia / Swing)</text>
+</g>
+<g class="node" data-id="TF4" data-label="4H (Macro BSL / SSL)" data-shape="rectangle">
+  <rect x="631.163" y="84" width="170.88399999999996" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="716.605" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">4H (Macro BSL / SSL)</text>
+</g>
+<g class="node" data-id="TF8" data-label="8H (Macro Tendencial)" data-shape="rectangle">
+  <rect x="830.047" y="84" width="176.07099999999997" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="918.0825" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">8H (Macro Tendencial)</text>
+</g>
+<g class="node" data-id="CHECK1" data-label="¿Hay Swing High/Low Macro pendiente a &lt; 0.35%?" data-shape="diamond">
+  <polygon points="531.059,404.70000000000005 709.6405,583.2815 531.059,761.863 352.47749999999996,583.2815" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="531.059" y="583.2815" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">¿Hay Swing High/Low Macro pendiente a &lt; 0.35%?</text>
+</g>
+<g class="node" data-id="BLOCK" data-label="⛔ BLOQUEO: Entrada Prematura Evitada (Riesgo Stop Hunt Macro)" data-shape="rectangle">
+  <rect x="101.4597500000001" y="878.163" width="435.4209999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="319.17025" y="896.613" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">⛔ BLOQUEO: Entrada Prematura Evitada (Riesgo Stop Hunt Macro)</text>
+</g>
+<g class="node" data-id="PASS" data-label="✅ LUZ VERDE A++: Confluencia Macro + Gatillo 3H/1H" data-shape="rectangle">
+  <rect x="564.88075" y="878.163" width="356.1339999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="742.94775" y="896.613" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">✅ LUZ VERDE A++: Confluencia Macro + Gatillo 3H/1H</text>
+</g>
+</svg>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taxonomía Canónica Homologada - Firebase Firestore MIA Trading</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #0b0f19;
+            color: #d1d5db;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 28px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #1f2937;
+        }
+        .header h1 {
+            color: #38bdf8;
+            font-size: 26px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        .header p {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+        .status-badge {
+            background: #059669;
+            color: #ffffff;
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-card .val {
+            font-size: 24px;
+            font-weight: 700;
+            color: #38bdf8;
+            margin-bottom: 4px;
+        }
+        .stat-card .lbl {
+            font-size: 12px;
+            color: #9ca3af;
+            text-transform: uppercase;
+        }
+        .table-card {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            margin-bottom: 24px;
+        }
+        .table-title {
+            color: #7dd3fc;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th, td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #1f2937;
+            text-align: left;
+        }
+        th {
+            background: #1e293b;
+            color: #f1f5f9;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+        tr:hover {
+            background: #1e293b55;
+        }
+        .field-canonical {
+            color: #38bdf8;
+            font-weight: 700;
+            font-family: monospace;
+        }
+        .type-tag {
+            background: #334155;
+            color: #cbd5e1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: monospace;
+        }
+        .field-deprecated {
+            color: #f87171;
+            text-decoration: line-through;
+            font-family: monospace;
+        }
+        .badge-homologado {
+            background: #065f46;
+            color: #34d399;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <span>💎 Taxonomía Canónica Homologada</span>
+                <span class="status-badge">100% HOMOLOGADO EN FIRESTORE</span>
+            </h1>
+            <p>Resultado del saneamiento y unificación de campos sinónimos en toda la base de datos de Mia Trading</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="val">9,550</div>
+                <div class="lbl">mia_audit_logs saneados</div>
+            </div>
+            <div class="stat-card">
+                <div class="val">21</div>
+                <div class="lbl">trading_matrix saneados</div>
+            </div>
+            <div class="stat-card">
+                <div class="val">6</div>
+                <div class="lbl">trading_alerts saneados</div>
+            </div>
+            <div class="stat-card">
+                <div class="val">0</div>
+                <div class="lbl">Conflictos residuales</div>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <div class="table-title">📑 Tabla Maestra de Homologación de Taxonomía</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Campo Canónico Oficial</th>
+                        <th>Tipo de Dato</th>
+                        <th>Colecciones Aplicadas</th>
+                        <th>Campos Anteriores Depurados</th>
+                        <th>Acción Realizada</th>
+                        <th>Estado de Homologación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="field-canonical">sl</td>
+                        <td><span class="type-tag">float</span></td>
+                        <td>mia_audit_logs, trading_alerts</td>
+                        <td><span class="field-deprecated">stop_loss</span></td>
+                        <td>Unificado a 'sl' numérico. Eliminado 'stop_loss' redundante en 9,550 registros.</td>
+                        <td><span class="badge-homologado">APLICADO</span></td>
+                    </tr>
+                    <tr>
+                        <td class="field-canonical">tp</td>
+                        <td><span class="type-tag">float</span></td>
+                        <td>mia_audit_logs, trading_alerts</td>
+                        <td><span class="field-deprecated">take_profit</span></td>
+                        <td>Unificado a 'tp' numérico. Eliminado 'take_profit' redundante en 9,550 registros.</td>
+                        <td><span class="badge-homologado">APLICADO</span></td>
+                    </tr>
+                    <tr>
+                        <td class="field-canonical">score</td>
+                        <td><span class="type-tag">float</span></td>
+                        <td>mia_audit_logs, trading_matrix</td>
+                        <td><span class="field-deprecated">score_porcentaje</span>, score(int)</td>
+                        <td>Forzado a flotante continuo (0.0 - 100.0). Eliminado 'score_porcentaje'.</td>
+                        <td><span class="badge-homologado">APLICADO</span></td>
+                    </tr>
+                    <tr>
+                        <td class="field-canonical">timestamp</td>
+                        <td><span class="type-tag">str (ISO-8601)</span></td>
+                        <td>mia_audit_logs, trading_alerts, system_memory</td>
+                        <td><span class="field-deprecated">fecha</span>, Timestamp Google</td>
+                        <td>Estandarizado a formato ISO universal UTC. Eliminado campo plano 'fecha'.</td>
+                        <td><span class="badge-homologado">APLICADO</span></td>
+                    </tr>
+                    <tr>
+                        <td class="field-canonical">poc_price</td>
+                        <td><span class="type-tag">float</span></td>
+                        <td>mia_audit_logs</td>
+                        <td>poc_price (booleano mixto)</td>
+                        <td>Separado estrictamente: precio real del POC como flotante.</td>
+                        <td><span class="badge-homologado">APLICADO</span></td>
+                    </tr>
+                    <tr>
+                        <td class="field-canonical">poc_validado</td>
+                        <td><span class="type-tag">bool</span></td>
+                        <td>mia_audit_logs</td>
+                        <td>poc_price = True/False</td>
+                        <td>Creado nuevo campo booleano explícito (True/False si tocó el POC).</td>
+                        <td><span class="badge-homologado">APLICADO</span></td>
+                    </tr>
+                    <tr>
+                        <td class="field-canonical">ultima_actualizacion</td>
+                        <td><span class="type-tag">str (ISO-8601)</span></td>
+                        <td>trading_matrix, mia_kb, system_memory</td>
+                        <td><span class="field-deprecated">ultimo_update</span></td>
+                        <td>Unificado a 'ultima_actualizacion' en toda la matriz viva.</td>
+                        <td><span class="badge-homologado">APLICADO</span></td>
+                    </tr>
+                    <tr>
+                        <td class="field-canonical">balance_actual</td>
+                        <td><span class="type-tag">float</span></td>
+                        <td>system_memory</td>
+                        <td>live_balance vs balance_actual</td>
+                        <td>Homologado valor en vivo del broker MT5 ($3,889.88) sobre el viejo ($4,325.09).</td>
+                        <td><span class="badge-homologado">APLICADO</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            Base de datos Firebase Firestore verificada · Auditoría libre de duplicidades · Mia Trading 2026
+        </div>
+    </div>
+</body>
+</html>

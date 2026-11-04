@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>MIA — Preview /dashboard (KPIs Institucionales & Cascada RUNE)</title>
+  <style>
+    :root {
+      --bg-obsidian: #080a0f;
+      --card-bg: rgba(14, 18, 28, 0.94);
+      --card-border: #283347;
+      --cyan-neon: #38bdf8;
+      --purple-neon: #c084fc;
+      --green-neon: #4ade80;
+      --red-neon: #f87171;
+      --gold-neon: #facc15;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background-color: var(--bg-obsidian);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.15), transparent 55%),
+        radial-gradient(circle at 10% 50%, rgba(250, 204, 21, 0.08), transparent 45%),
+        radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 28px 28px;
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Ticker Superior */
+    .ticker-bar {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(8, 10, 15, 0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 10px 24px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+    .ticker-title {
+      font-size: 0.85rem; font-weight: 800; color: var(--cyan-neon);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pulse-dot {
+      width: 10px; height: 10px; background: var(--green-neon); border-radius: 50%;
+      box-shadow: 0 0 10px var(--green-neon); animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.3); } }
+
+    /* Banner de Verdad Financiera */
+    .financial-truth-banner {
+      background: linear-gradient(90deg, rgba(239, 68, 68, 0.12) 0%, rgba(250, 204, 21, 0.08) 50%, rgba(56, 189, 248, 0.10) 100%);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      border-radius: 12px;
+      margin: 16px 24px 0 24px;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .truth-status {
+      display: flex; align-items: center; gap: 10px; font-size: 0.82rem; font-weight: 700;
+    }
+    .truth-pill {
+      background: rgba(239, 68, 68, 0.2); border: 1px solid var(--red-neon); color: var(--red-neon);
+      padding: 3px 10px; border-radius: 9999px; font-size: 0.70rem; text-transform: uppercase;
+    }
+    .truth-metrics {
+      display: flex; gap: 16px; font-size: 0.78rem; font-family: 'JetBrains Mono', Consolas, monospace;
+    }
+
+    /* Grilla de KPIs */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      padding: 16px 24px;
+    }
+    @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 550px) { .kpi-grid { grid-template-columns: 1fr; } }
+
+    .kpi-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex; flex-direction: column; gap: 6px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      transition: transform 0.2s;
+    }
+    .kpi-card:hover { transform: translateY(-2px); border-color: var(--cyan-neon); }
+    .kpi-title { font-size: 0.72rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
+    .kpi-value { font-size: 1.35rem; font-weight: 800; color: #fff; }
+    .kpi-sub { font-size: 0.72rem; color: #64748b; }
+
+    /* Layout Central: Gráfico + Cascada RUNE */
+    .content-split {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      padding: 0 24px 24px 24px;
+      flex: 1;
+    }
+    @media (max-width: 1000px) { .content-split { grid-template-columns: 1fr; } }
+
+    .chart-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .panel-header {
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+    }
+    .pair-selector { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pair-btn {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+      color: #cbd5e1; padding: 4px 12px; border-radius: 6px; font-size: 0.74rem; font-weight: 700;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .pair-btn.active {
+      background: rgba(56, 189, 248, 0.2); border-color: var(--cyan-neon); color: var(--cyan-neon);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+    }
+    .pair-btn.sandbox {
+      border-color: var(--purple-neon); color: var(--purple-neon);
+    }
+
+    /* Widget Cascada RUNE */
+    .rune-widget {
+      background: var(--card-bg);
+      border: 1.5px solid rgba(192, 132, 252, 0.35);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex; flex-direction: column; gap: 14px;
+      box-shadow: 0 0 25px rgba(192, 132, 252, 0.15);
+    }
+    .rune-title {
+      font-size: 0.85rem; font-weight: 800; color: var(--purple-neon);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .cascade-steps { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+    .cascade-step {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.76rem;
+      transition: all 0.2s;
+    }
+    .cascade-step.active {
+      border-color: var(--green-neon);
+      background: rgba(74, 222, 128, 0.08);
+      box-shadow: 0 0 14px rgba(74, 222, 128, 0.2);
+    }
+    .step-name { font-weight: 700; color: #fff; }
+    .step-desc { color: var(--text-muted); font-size: 0.70rem; }
+    .step-badge {
+      background: rgba(74, 222, 128, 0.2); color: var(--green-neon); border: 1px solid var(--green-neon);
+      padding: 2px 8px; border-radius: 9999px; font-size: 0.68rem; font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ticker Superior -->
+  <header class="ticker-bar">
+    <div class="ticker-title">
+      <div class="pulse-dot"></div>
+      <span>MIA DASHBOARD CENTRAL v2.4.0 · TRADING & GESTIÓN INSTITUCIONAL</span>
+    </div>
+    <div style="font-size:0.76rem; color:var(--text-muted);">
+      MetaTrader 5 Demo <strong>112472341</strong> · Broker Latency: <strong>32ms</strong> · 0% CDNs Externas
+    </div>
+  </header>
+
+  <!-- Banner de Verdad Financiera -->
+  <div class="financial-truth-banner">
+    <div class="truth-status">
+      <span class="truth-pill">En Recuperación Activa</span>
+      <span>ESTADO DE LA CUENTA: DRAWDOWN ESTRUCTURAL VS BASE $5,000 USD</span>
+    </div>
+    <div class="truth-metrics">
+      <span>Base Inicial: <strong>$5,000.00</strong></span>
+      <span>Balance Actual: <strong>$3,791.83</strong></span>
+      <span>Drawdown: <strong style="color:var(--red-neon);">-24.16% (-$1,208.17)</strong></span>
+      <span>Recuperación Req. (Ley Asimétrica): <strong style="color:var(--gold-neon);">+31.86%</strong></span>
+    </div>
+  </div>
+
+  <!-- Grilla de KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-title">Balance MT5</div>
+      <div class="kpi-value">$3,791.83</div>
+      <div class="kpi-sub">Sincronizado vía MetaAPI Cloud</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Equidad en Vivo</div>
+      <div class="kpi-value" style="color:var(--green-neon);">$3,840.03</div>
+      <div class="kpi-sub">PnL Flotante: +$48.20 USD</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Win Rate Canónico (≥50 Trades)</div>
+      <div class="kpi-value" style="color:var(--cyan-neon);">83.58%</div>
+      <div class="kpi-sub">Top 1: rsi_sobrecompra (67 trades)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Canasta USD</div>
+      <div class="kpi-value" style="color:var(--gold-neon);">1 / 2 Órdenes</div>
+      <div class="kpi-sub">EURUSD abierta · Límite seguro</div>
+    </div>
+  </div>
+
+  <!-- Split Central -->
+  <div class="content-split">
+    
+    <!-- Gráfico Interactivo Simulado -->
+    <div class="chart-panel">
+      <div class="panel-header">
+        <span style="font-size:0.85rem; font-weight:800; color:#fff;">CURVA DE EQUITY & ACTIVOS MONITOREADOS</span>
+        <div class="pair-selector">
+          <button class="pair-btn active">EURUSD</button>
+          <button class="pair-btn">GBPUSD</button>
+          <button class="pair-btn">AUDUSD</button>
+          <button class="pair-btn">GBPJPY</button>
+          <button class="pair-btn">XAUUSD</button>
+          <button class="pair-btn sandbox">NZDCAD (Sandbox)</button>
+        </div>
+      </div>
+      <canvas id="equity-canvas" style="width:100%; height:260px;"></canvas>
+    </div>
+
+    <!-- Widget Cascada RUNE 4 Fases -->
+    <div class="rune-widget">
+      <div class="rune-title">
+        <span>CASCADA RUNE 4 FASES</span>
+        <span style="font-size:0.72rem; color:var(--green-neon);">ARMADA</span>
+      </div>
+      <div style="font-size:0.72rem; color:var(--text-muted); line-height:1.4;">
+        Protocolo asimétrico de preservación de beneficios y reducción de riesgo residual:
+      </div>
+
+      <div class="cascade-steps">
+        <div class="cascade-step active">
+          <div>
+            <div class="step-name">FASE 1: TP1 Parcial (50%)</div>
+            <div class="step-desc">Cobro obligado al 50% del recorrido (+1.0R mínimo)</div>
+          </div>
+          <span class="step-badge">EJECUTADA</span>
+        </div>
+
+        <div class="cascade-step active">
+          <div>
+            <div class="step-name">FASE 2: Break-Even Defensivo</div>
+            <div class="step-desc">SL movido a BE con buffer institucional +2.5 pips</div>
+          </div>
+          <span class="step-badge">ACTIVO</span>
+        </div>
+
+        <div class="cascade-step">
+          <div>
+            <div class="step-name">FASE 3: Trailing Locks</div>
+            <div class="step-desc">75% recorrido ──> +40% Lock | 85% ──> +65% Lock</div>
+          </div>
+          <span style="font-size:0.70rem; color:var(--text-muted);">Pendiente</span>
+        </div>
+
+        <div class="cascade-step">
+          <div>
+            <div class="step-name">FASE 4: Front-Run TP (95%)</div>
+            <div class="step-desc">Cierre del 100% remanente para erradicar retrocesos</div>
+          </div>
+          <span style="font-size:0.70rem; color:var(--text-muted);">Pendiente</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const canvas = document.getElementById("equity-canvas");
+    const ctx = canvas.getContext("2d");
+
+    function renderEquityChart() {
+      canvas.width = canvas.parentElement.clientWidth - 40;
+      canvas.height = 260;
+
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Línea de base $5,000 USD
+      const yBase = h * 0.25;
+      ctx.beginPath();
+      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle = "rgba(250, 204, 21, 0.4)";
+      ctx.moveTo(0, yBase);
+      ctx.lineTo(w, yBase);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = "rgba(250, 204, 21, 0.8)";
+      ctx.font = "11px 'JetBrains Mono', monospace";
+      ctx.fillText("Base Inicial: $5,000.00 USD", 10, yBase - 6);
+
+      // Curva de Equity simulada
+      const points = [
+        { x: 0, y: h * 0.25 },
+        { x: w * 0.2, y: h * 0.45 },
+        { x: w * 0.4, y: h * 0.60 },
+        { x: w * 0.6, y: h * 0.55 },
+        { x: w * 0.8, y: h * 0.48 },
+        { x: w, y: h * 0.42 }
+      ];
+
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Relleno degradado
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, yBase, 0, h);
+      grad.addColorStop(0, "rgba(56, 189, 248, 0.25)");
+      grad.addColorStop(1, "rgba(56, 189, 248, 0.0)");
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    window.addEventListener("resize", renderEquityChart);
+    renderEquityChart();
+  </script>
+</body>
+</html>

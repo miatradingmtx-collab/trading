@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esquema Entidad-Relación - Base de Datos MIA Trading</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 24px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #30363d;
+        }
+        .header h1 {
+            color: #58a6ff;
+            font-size: 26px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .header p {
+            color: #8b949e;
+            font-size: 14px;
+        }
+        .badge {
+            background: #238636;
+            color: #ffffff;
+            font-size: 12px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .diagram-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            overflow-x: auto;
+        }
+        .diagram-title {
+            color: #79c0ff;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .table-section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+        th, td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #21262d;
+        }
+        th {
+            background: #21262d;
+            color: #f0f6fc;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+        tr:hover {
+            background: #1f242c;
+        }
+        .pk {
+            color: #f2cc60;
+            font-weight: 700;
+            font-family: monospace;
+        }
+        .fk {
+            color: #ff7b72;
+            font-weight: 600;
+            font-family: monospace;
+        }
+        .entity-name {
+            color: #58a6ff;
+            font-weight: 600;
+            font-family: monospace;
+        }
+        .rel-badge {
+            background: #388bfd26;
+            color: #58a6ff;
+            border: 1px solid #388bfd4d;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-top: 16px;
+            font-size: 12px;
+            color: #8b949e;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .dot-pk { background: #f2cc60; }
+        .dot-fk { background: #ff7b72; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <span>🏛️ Esquema Entidad-Relación (ERD)</span>
+                <span class="badge">Firebase Firestore & NoSQL Schema</span>
+            </h1>
+            <p>Mapeo relacional de colecciones, llaves primarias (PK), foráneas lógicas (FK) y cardinalidad de Mia Trading Bot</p>
+        </div>
+
+        <div class="diagram-card">
+            <div class="diagram-title">📊 Diagrama Visual Interactivo (ERD)</div>
+            <div class="mermaid">
+erDiagram
+    TRADING_MATRIX ||--o{ MIA_AUDIT_LOGS : "genera trades (1:N)"
+    MIA_KB ||--o{ MIA_AUDIT_LOGS : "regula estrategia (1:N)"
+    TRADING_MATRIX ||--o{ TRADING_ALERTS : "emite alertas (1:N)"
+    TRADING_ALERTS |o--o| MIA_AUDIT_LOGS : "se convierte en (1:1)"
+    SYSTEM_MEMORY ||--o{ TRADING_MATRIX : "calibra score (1:N)"
+    CACHE_PENDING_OPS_APPROVALS }o--|| MIA_KB : "propone regla (N:1)"
+    CACHE_PENDING_OPS_APPROVALS }o--|| SYSTEM_MEMORY : "propone peso (N:1)"
+    MIA_OPS_AUDIT_HISTORY }o--|| PERFORMANCE_METRICS : "vincula log (N:1)"
+
+    MIA_AUDIT_LOGS {
+        string ticket PK "ID de Orden MT5"
+        string activo FK "Ref: trading_matrix"
+        string estrategia FK "Ref: mia_kb"
+        float precio_ejecucion "Precio fill"
+        float sl "Stop Loss"
+        float tp "Take Profit"
+        float pnl "Ganancia / Pérdida"
+        float score "Score de Confluencia"
+        string resultado_salida "PARCIAL_BE | SL | TP"
+        datetime timestamp "Fecha y hora de ejecución"
+    }
+
+    TRADING_MATRIX {
+        string activo PK "Símbolo (XAUUSD, EURUSD)"
+        map confirmaciones_tecnicas "OB, FVG, RSI, S/R"
+        map fundamentales "Sentimiento Noticias"
+        float score_total "Puntaje consolidado"
+        boolean ejecutada_mt5 "Bandera de ejecución"
+    }
+
+    TRADING_ALERTS {
+        string alerta_id PK "UUID / Hash"
+        string activo FK "Ref: trading_matrix"
+        string tipo "BUY | SELL"
+        float precio_alerta "Precio de detección"
+        float stop_loss "SL sugerido"
+        float take_profit "TP sugerido"
+        boolean aprobada_juez "Filtro de Semáforo"
+    }
+
+    MIA_KB {
+        string regla_id PK "ID de regla (regla_de_3)"
+        string categoria "SMC | LUX | GESTION"
+        float peso_inicial "Ponderación inicial"
+        int min_trades_ajuste "Umbral de calibración"
+        map condiciones "Lógica de activación"
+    }
+
+    SYSTEM_MEMORY {
+        string version_id PK "v1_latest / Snapshot"
+        map dynamic_weights "Pesos dinámicos ML"
+        float win_rate_global "Accuracy consolidado"
+        datetime fecha_calibracion "Último reentrenamiento"
+    }
+
+    CACHE_PENDING_OPS_APPROVALS {
+        string propuesta_id PK "UUID Propuesta"
+        string target_coleccion FK "mia_kb | system_memory"
+        json propuesta_json "Payload técnico a aplicar"
+        string estado "PENDIENTE | APROBADO"
+        string revisor_humano "HITL Check"
+    }
+
+    MIA_OPS_AUDIT_HISTORY {
+        string log_id PK "Timestamp Unix"
+        string componente "Watchdog | Herd_T1..T10"
+        string accion_ejecutada "Reporte / Verificación"
+        string status "SUCCESS | ERROR"
+    }
+
+    PERFORMANCE_METRICS {
+        string snapshot_id PK "Timestamp ISO"
+        string git_hash FK "Commit de código Git"
+        float health_score "Puntaje de salud (0-100)"
+        float balance_broker "Balance MT5 en vivo"
+        float win_rate_cache "Win Rate medido"
+    }
+            </div>
+            <div class="legend">
+                <div class="legend-item"><div class="dot dot-pk"></div><span>PK = Primary Key (Document ID o Identificador Único)</span></div>
+                <div class="legend-item"><div class="dot dot-fk"></div><span>FK = Foreign Key Lógica (Referencia Cruzada NoSQL)</span></div>
+            </div>
+        </div>
+
+        <div class="table-section">
+            <div class="diagram-title">📋 Diccionario de Entidades y Radiografía de Relaciones</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Colección / Entidad</th>
+                        <th>Equivalente SQL</th>
+                        <th>Primary Key (PK)</th>
+                        <th>Foreign Keys (FK)</th>
+                        <th>Entidad Relacionada</th>
+                        <th>Cardinalidad</th>
+                        <th>Función en el Sistema</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="entity-name">mia_audit_logs</td>
+                        <td>tbl_trades_audit</td>
+                        <td class="pk">ticket (MT5)</td>
+                        <td class="fk">activo, estrategia</td>
+                        <td>trading_matrix, mia_kb</td>
+                        <td><span class="rel-badge">N : 1</span></td>
+                        <td>Historial inmutable oficial de trades ejecutados, cerrados y en breakeven.</td>
+                    </tr>
+                    <tr>
+                        <td class="entity-name">trading_matrix</td>
+                        <td>tbl_activos_live</td>
+                        <td class="pk">activo (Símbolo)</td>
+                        <td class="fk">ticket_activo</td>
+                        <td>trading_alerts, mia_audit_logs</td>
+                        <td><span class="rel-badge">1 : N</span></td>
+                        <td>Estado en vivo de cada par: confirmaciones técnicas, DOM y confluencias.</td>
+                    </tr>
+                    <tr>
+                        <td class="entity-name">trading_alerts</td>
+                        <td>tbl_senales_raw</td>
+                        <td class="pk">alerta_id</td>
+                        <td class="fk">activo, ticket_generado</td>
+                        <td>trading_matrix, mia_audit_logs</td>
+                        <td><span class="rel-badge">1 : 1</span></td>
+                        <td>Registro de señales tempranas detectadas antes de pasar por el juez de riesgo.</td>
+                    </tr>
+                    <tr>
+                        <td class="entity-name">mia_kb</td>
+                        <td>tbl_reglas_conocimiento</td>
+                        <td class="pk">regla_id</td>
+                        <td><em>Ninguna (Maestra)</em></td>
+                        <td>mia_audit_logs, system_memory</td>
+                        <td><span class="rel-badge">1 : N</span></td>
+                        <td>Base de conocimiento institucional, reglas de oro y umbrales de confluencia.</td>
+                    </tr>
+                    <tr>
+                        <td class="entity-name">system_memory</td>
+                        <td>tbl_red_neuronal_weights</td>
+                        <td class="pk">version_id</td>
+                        <td><em>Ninguna (Singleton)</em></td>
+                        <td>trading_matrix, mia_kb</td>
+                        <td><span class="rel-badge">1 : N</span></td>
+                        <td>Cerebro y memoria de pesos dinámicos de TensorFlow y Machine Learning.</td>
+                    </tr>
+                    <tr>
+                        <td class="entity-name">cache_pending_ops_approvals</td>
+                        <td>tbl_cola_hitl</td>
+                        <td class="pk">propuesta_id</td>
+                        <td class="fk">target_coleccion</td>
+                        <td>mia_kb, system_memory</td>
+                        <td><span class="rel-badge">N : 1</span></td>
+                        <td>Cola obligatoria de autorización humana (Human-In-The-Loop) antes de mutar reglas.</td>
+                    </tr>
+                    <tr>
+                        <td class="entity-name">mia_ops_audit_history</td>
+                        <td>tbl_logs_infra</td>
+                        <td class="pk">log_id</td>
+                        <td class="fk">task_id</td>
+                        <td>performance_metrics</td>
+                        <td><span class="rel-badge">N : 1</span></td>
+                        <td>Auditoría append-only de los agentes de enjambre (T1-T10) y supervisor watchdog.</td>
+                    </tr>
+                    <tr>
+                        <td class="entity-name">performance_metrics</td>
+                        <td>tbl_snapshots_telemetria</td>
+                        <td class="pk">snapshot_id</td>
+                        <td class="fk">git_hash</td>
+                        <td>Código Git / Broker MT5</td>
+                        <td><span class="rel-badge">1 : 1</span></td>
+                        <td>Puntos de control históricos para evaluar si cambios mejoran o requieren rollback.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            er: {
+                useMaxWidth: true,
+                diagramPadding: 20,
+                layoutDirection: 'TB',
+                minEntityWidth: 100,
+                minEntityHeight: 75,
+                entityPadding: 15,
+                stroke: '#58a6ff',
+                fill: '#161b22',
+                fontSize: 12
+            }
+        });
+    </script>
+</body>
+</html>

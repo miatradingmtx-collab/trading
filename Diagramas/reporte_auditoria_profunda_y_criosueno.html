@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoría Profunda de Calidad de Datos & Estado de Criosueño - MIA Trading</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: #0b0f19; color: #d1d5db; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 28px; }
+        .container { max-width: 1300px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #1f2937; }
+        .header h1 { color: #38bdf8; font-size: 26px; margin-bottom: 6px; }
+        .badge { padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px; }
+        .badge-standby { background: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6; }
+        .badge-success { background: #065f46; color: #34d399; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .card { background: #111827; border: 1px solid #1f2937; border-radius: 8px; padding: 18px; text-align: center; }
+        .card .num { font-size: 24px; font-weight: bold; color: #38bdf8; margin-bottom: 4px; }
+        .card .lbl { font-size: 12px; color: #9ca3af; text-transform: uppercase; }
+        .section { background: #111827; border: 1px solid #1f2937; border-radius: 8px; padding: 20px; margin-bottom: 24px; }
+        .section-title { color: #7dd3fc; font-size: 16px; font-weight: bold; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 10px 14px; border-bottom: 1px solid #1f2937; text-align: left; }
+        th { background: #1e293b; color: #f1f5f9; font-size: 11px; text-transform: uppercase; }
+        .status-ok { color: #34d399; font-weight: bold; }
+        .callout-box { background: #1e293b55; border-left: 4px solid #3b82f6; padding: 14px; border-radius: 4px; font-size: 13px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Auditoría Profunda de Calidad de Datos & Dictamen de Criosueño</h1>
+            <p>Barrido integral en Firebase Firestore & Upstash Redis · Cierre Semanal Viernes 9 de Octubre 2026</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="num">$3,905.35</div>
+                <div class="lbl">Balance Broker MT5 (+$15.47 Semanal)</div>
+            </div>
+            <div class="card">
+                <div class="num">0</div>
+                <div class="lbl">Valores NaN en Toda la Base</div>
+            </div>
+            <div class="card">
+                <div class="num">707 / 707</div>
+                <div class="lbl">Trades TF Saneados en Upstash</div>
+            </div>
+            <div class="card">
+                <div class="num"><span class="badge badge-standby">STANDBY DOM 21:00 UTC</span></div>
+                <div class="lbl">Estado Criosueño Enjambres</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">
+                <span>🛡️ Estado de Homologación Ejecutada por Capa</span>
+                <span class="badge badge-success">4/4 ACCIONES COMPLETADAS</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Capa / Colección</th>
+                        <th>Problema Diagnosticado</th>
+                        <th>Acción Correctiva Aplicada</th>
+                        <th>Estado Actual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Código app.py</strong></td>
+                        <td>Escribía <code>score_porcentaje</code> y <code>ultimo_update</code> en caliente.</td>
+                        <td>Homologado a <code>score</code> y <code>ultima_actualizacion</code>. Subido a Railway (Commit 4129314).</td>
+                        <td><span class="status-ok">HOMOLOGADO</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>trading_matrix (Firestore)</strong></td>
+                        <td>Documentos con campos de doble nomenclatura.</td>
+                        <td>Purgados <code>score_porcentaje</code> y <code>ultimo_update</code> en los 21 activos.</td>
+                        <td><span class="status-ok">100% CANÓNICO</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Upstash Redis (cache_mia_dataset_tf)</strong></td>
+                        <td>689 de 707 registros tenían <code>stop_loss</code>, <code>take_profit</code> y <code>fecha</code>.</td>
+                        <td>Dataset reescrito con <code>sl</code>, <code>tp</code> y <code>pnl</code> a 2 decimales limpios.</td>
+                        <td><span class="status-ok">DATASET PURO</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>trading_alerts (Firestore)</strong></td>
+                        <td>9 campos con valor <code>null</code> en precios de yahoo/google.</td>
+                        <td>Normalizados a <code>0.0</code> y redondeados sin valores null.</td>
+                        <td><span class="status-ok">CERO NULLS</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>mia_audit_logs (Firestore)</strong></td>
+                        <td>Colas residuales de punto flotante en SL/TP (ej. 4287.179999999999).</td>
+                        <td>Normalizados a 2 y 5 decimales exactos.</td>
+                        <td><span class="status-ok">SANEADO</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <div class="section-title">
+                <span>🛑 Dictamen de Criosueño de los Enjambres (Herds + TensorFlow + ATLAS)</span>
+            </div>
+            <div class="callout-box">
+                <p><strong>Decisión Técnica: MANTENER EN CRIOSUEÑO HASTA EL DOMINGO 21:00 UTC (15:00 MEX).</strong></p>
+                <p>1. <strong>Mercado Cerrado:</strong> El mercado de divisas está cerrado durante el fin de semana. No hay cotizaciones vivas, no hay libro de órdenes ni volumen para que los 7 Herds analicen.</p>
+                <p>2. <strong>Ahorro de Cuota y Tokens:</strong> Despertar a los agentes en fin de semana provocaría llamadas estériles a OpenRouter (Llama 3.3 70B), consumiendo tokens innecesariamente.</p>
+                <p>3. <strong>Protección de Flotante:</strong> Las 3 posiciones abiertas en MT5 (AUDUSD -$28.94, EURUSD -$8.80, GBPUSD -$4.92, total -$42.66) tienen sus Stop Loss fijos ya colocados en el servidor del broker.</p>
+                <p>4. <strong>Reactivación Automática:</strong> El servidor WebSocket y el orquestador entrarán automáticamente en modo <code>LIVE</code> el domingo a las 21:00 UTC cuando Tokio y Sydney abran la sesión de trading.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

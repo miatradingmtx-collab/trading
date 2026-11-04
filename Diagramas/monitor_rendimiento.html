@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIA Performance Monitor</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0a0f; color:#fff; font-family:'Segoe UI',monospace; }
+.container { max-width:1400px; margin:0 auto; padding:20px; }
+h1 { color:#0ff; text-align:center; margin-bottom:5px; text-shadow:0 0 20px rgba(0,255,255,0.5); }
+.subtitle { text-align:center; color:#666; font-size:13px; margin-bottom:25px; }
+
+.cards { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:25px; }
+@media(max-width:900px) { .cards { grid-template-columns:repeat(2,1fr); } }
+.card { background:linear-gradient(135deg,#1a1a2e,#16213e); border-radius:10px; padding:18px; text-align:center; border:1px solid #333; }
+.card .label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:1px; }
+.card .value { font-size:28px; font-weight:bold; margin:8px 0; }
+.card .delta { font-size:12px; }
+.green { color:#00e676; }
+.red { color:#ef5350; }
+.cyan { color:#0ff; }
+.yellow { color:#ffc107; }
+
+.charts { display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:25px; }
+@media(max-width:900px) { .charts { grid-template-columns:1fr; } }
+.chart-box { background:rgba(0,0,0,0.4); border:1px solid #222; border-radius:10px; padding:15px; }
+.chart-box h3 { color:#0ff; font-size:14px; margin-bottom:10px; text-align:center; }
+
+.full-width { grid-column: 1 / -1; }
+
+.version-tags { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:20px; }
+.vtag { background:rgba(0,255,255,0.1); border:1px solid #0ff; border-radius:15px; padding:4px 12px; font-size:11px; color:#0ff; }
+
+.footer { text-align:center; color:#444; font-size:11px; margin-top:30px; border-top:1px solid #222; padding-top:15px; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>📊 MIA Performance Monitor</h1>
+<p class="subtitle">Trazabilidad de Rendimiento · Snapshots Comparativos · Rollback Points</p>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">Health Score</div>
+    <div class="value green">95/100</div>
+  </div>
+  <div class="card">
+    <div class="label">Balance Broker</div>
+    <div class="value cyan">$4,209.38</div>
+  </div>
+  <div class="card">
+    <div class="label">PnL Flotante</div>
+    <div class="value green">$66.55</div>
+  </div>
+  <div class="card">
+    <div class="label">Win Rate</div>
+    <div class="value green">92.0%</div>
+  </div>
+  <div class="card">
+    <div class="label">Posiciones Abiertas</div>
+    <div class="value cyan">4</div>
+  </div>
+</div>
+<div class="version-tags"><span class="vtag">#1 baseline_v1_pre_groktopus</span><span class="vtag">#2 snapshot_2_post_monitor_setup</span></div>
+<div class="charts">
+  <div class="chart-box">
+    <h3>📈 Health Score (Evolución)</h3>
+    <canvas id="healthChart"></canvas>
+  </div>
+  <div class="chart-box">
+    <h3>💰 Balance & Equity</h3>
+    <canvas id="balanceChart"></canvas>
+  </div>
+  <div class="chart-box">
+    <h3>🎯 Win Rate</h3>
+    <canvas id="wrChart"></canvas>
+  </div>
+  <div class="chart-box">
+    <h3>⚡ API Latency (ms)</h3>
+    <canvas id="latencyChart"></canvas>
+  </div>
+  <div class="chart-box">
+    <h3>📊 PnL Flotante</h3>
+    <canvas id="pnlChart"></canvas>
+  </div>
+  <div class="chart-box">
+    <h3>🧠 ML Avg Weight</h3>
+    <canvas id="mlChart"></canvas>
+  </div>
+</div>
+
+<div class="footer">
+  MIA Trading Performance Monitor · Snapshots: 2 · Último: 2026-10-01 22:55
+</div>
+</div>
+
+<script>
+const labels = ["2026-10-01 22:49", "2026-10-01 22:55"];
+const commonOpts = {
+  responsive:true,
+  plugins:{legend:{labels:{color:'#888',font:{size:11}}}},
+  scales:{x:{ticks:{color:'#555',font:{size:9},maxRotation:45},grid:{color:'rgba(255,255,255,0.05)'}},y:{ticks:{color:'#888'},grid:{color:'rgba(255,255,255,0.08)'}}}
+};
+
+new Chart(document.getElementById('healthChart'),{type:'line',data:{labels,datasets:[{label:'Health Score',data:[100, 95],borderColor:'#0ff',backgroundColor:'rgba(0,255,255,0.1)',fill:true,tension:0.3}]},options:commonOpts});
+new Chart(document.getElementById('balanceChart'),{type:'line',data:{labels,datasets:[{label:'Balance',data:[4209.38, 4209.38],borderColor:'#4caf50',tension:0.3},{label:'Equity',data:[4183.84, 4183.11],borderColor:'#ff9800',tension:0.3}]},options:commonOpts});
+new Chart(document.getElementById('wrChart'),{type:'line',data:{labels,datasets:[{label:'Win Rate %',data:[92.0, 92.0],borderColor:'#e91e63',backgroundColor:'rgba(233,30,99,0.1)',fill:true,tension:0.3}]},options:commonOpts});
+new Chart(document.getElementById('latencyChart'),{type:'bar',data:{labels,datasets:[{label:'Latency ms',data:[1102.5, 2809.8],backgroundColor:'rgba(156,39,176,0.6)',borderColor:'#9c27b0'}]},options:commonOpts});
+new Chart(document.getElementById('pnlChart'),{type:'line',data:{labels,datasets:[{label:'PnL Flotante',data:[65.7, 66.55],borderColor:'#00e676',backgroundColor:'rgba(0,230,118,0.1)',fill:true,tension:0.3}]},options:commonOpts});
+new Chart(document.getElementById('mlChart'),{type:'line',data:{labels,datasets:[{label:'ML Avg Weight',data:[1.1911, 1.1911],borderColor:'#ffc107',tension:0.3}]},options:commonOpts});
+</script>
+</body></html>
