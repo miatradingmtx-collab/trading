@@ -7,8 +7,8 @@ microservice: "Tríada Railway (0b51, 927a, 1fd4, a0b8)"
 llm_engine: "Master Orchestrator / Release Manager"
 channel: "Railway Cloud Production CI/CD"
 sources: "Dockerfile*, Railway Deployments, DOCS_OPS_CORE.md, DOCS_TRADING_CORE.md"
-current_production_head: "4b40104"
-release_active: "v2.4.1-quant-holding-postmortem"
+current_production_head: "60d54c1"
+release_active: "v2.4.3-fix-reconciliacion-cierres-manuales-mt5-y-purga-cache"
 ---
 
 # 🏛️ PROMPT OFICIAL: CHAT 04 - PRODUCCIÓN (RAMA MAIN) & DESPLIEGUES RAILWAY
@@ -70,6 +70,25 @@ Para mantener la integridad operativa del fondo y erradicar cualquier riesgo de 
 ---
 
 ## 📦 MANIFEST DE RELEASES Y COMMITS ACTIVOS EN PRODUCCIÓN (MAIN)
+
+### 🏷️ Release v2.4.3 (2026-11-03) — Reconciliación Cierres Manuales MT5, Purga Caché & Clúster High-Fidelity T6
+- **Head Commit en `main`:** Pendiente de merge desde `develop` (`60d54c1`)
+- **Commits Integrados:**
+  * `9d6c190`: `fix(reconciliation)`: optimizar reconciliación en `mt5_executor_cloud.py` con `get_deals_by_position` y erradicación de UNKNOWN.
+  * `54de4a3`: `fix(sre)`: alertas reactivas de caídas en microservicios railway (`1fd4`, `927a`, `0b51`) y bucle 60s en Slack backoffice.
+  * `b834f80`: `merge(develop)`: reconciliación `mt5_executor_cloud` con `get_deals_by_position` y protección de parciales.
+  * `60d54c1`: `feat(ui)`: homologación de diagramas institucionales high-fidelity y mapa de arquitectura MCP (`flujo_arquitectura_mcp_integraciones_benchmark.html`).
+- **Comandos DevOps Canónicos en Chat 04:**
+  ```bash
+  git checkout main
+  git merge develop -m "release: v2.4.3 - fix reconciliacion cierres manuales mt5 y purga cache"
+  git push origin main
+  git checkout develop
+  ```
+- **Componentes y Microservicios Impactados:**
+  * `927a`: Reconciliador MT5 de posiciones cerradas manualmente con preservación de profit y comisiones.
+  * `0b51`: SRE Watchdog reactivo y servicio de diagramas High-Fidelity `/diagramas`.
+  * `1fd4`: Servidor de WebSocket con rutas canónicas de diagramas `/flujo/figma-mcp` y visualizadores 3D.
 
 ### 🏷️ Release v2.4.2 (2026-11-03) — Cascada RUNE v2 & Doble Anillo de Autocuración Post-Sleep
 - **Misión:** Erradicación de fallos por latencia/timeout en MT5 (AUDUSD/GBPUSD) y blindaje con doble anillo de ejecución.
