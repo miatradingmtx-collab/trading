@@ -1495,9 +1495,19 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
                 
             print(f"| GESTOR COBROS WARNING | Usando PnL estimado para Ticket {ticket}: ${pnl_final:.2f}")
             
+        # Detección de razón de cierre (Manual vs Algorítmico)
+        exit_deals = [d for d in trade_deals if str(d.get('entryType', '')).upper() in ['DEAL_ENTRY_OUT', '1', 'OUT']]
+        es_cierre_manual = False
+        if exit_deals:
+            deal_reason = str(exit_deals[-1].get('reason', '')).upper()
+            if deal_reason in ['DEAL_REASON_CLIENT', 'CLIENT', '0']:
+                es_cierre_manual = True
+
         comentario_cierre = "Cerrado en MT5"
         if info.get("nivel_parcial", 0) >= 1:
             comentario_cierre = f"Cerrado en MT5 (Post-Parcial Niv {info.get('nivel_parcial')})"
+        elif es_cierre_manual:
+            comentario_cierre = "Cierre Manual en MT5 (Purga Total)"
             
         vol_total = float(info.get("initial_volume", info.get("volume", 0.0)))
         await reportar_evento_trade(
@@ -1515,7 +1525,51 @@ async def gestionar_posiciones_activas(account, connection, balance: float):
             lotaje=vol_total,
             volumen_cerrado=float(info.get("volume", 0.0))
         )
+
+        # Purga de raíz de locks y cola pending en Upstash para evitar ejecuciones huérfanas
+        try:
+            UPSTASH_URL_CLOUD = os.getenv("UPSTASH_URL", "https://firm-koi-93555.upstash.io")
+            UPSTASH_TOKEN_CLOUD = os.getenv("UPSTASH_TOKEN", "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg")
+            h_up = {"Authorization": f"Bearer {UPSTASH_TOKEN_CLOUD}"}
+            async with httpx.AsyncClient(timeout=2.0) as uclient:
+                await uclient.get(f"{UPSTASH_URL_CLOUD}/del/lock_healing_{ticket}", headers=h_up)
+                rp = await uclient.get(f"{UPSTASH_URL_CLOUD}/get/cache_mt5_pending_execution", headers=h_up)
+                if rp.status_code == 200 and rp.json().get("result"):
+                    r_raw = rp.json().get("result")
+                    p_data = json.loads(r_raw) if isinstance(r_raw, str) else (r_raw or {})
+                    if str(p_data.get("ticket", "")) == str(ticket):
+                        await uclient.get(f"{UPSTASH_URL_CLOUD}/del/cache_mt5_pending_execution", headers=h_up)
+                        print(f"| PURGA ROOT MT5 | Purgada cola pending execution para ticket {ticket}.")
+        except Exception:
+            pass
+
         del POSICIONES_ACTIVAS[ticket]
+        TICKETS_SINCRONIZADOS.add(str(ticket))
+
+    # Purga atómica inmediata en cache_mt5 de Upstash si hubo posiciones cerradas en este ciclo
+    if tickets_cerrados:
+        try:
+            UPSTASH_URL_CLOUD = os.getenv("UPSTASH_URL", "https://firm-koi-93555.upstash.io")
+            UPSTASH_TOKEN_CLOUD = os.getenv("UPSTASH_TOKEN", "gQAAAAAAAW1zAAIgcDFmZGI5MGViNWY4Mjc0MGE1Yjg3NDZiOTdiN2MyMjg5Yg")
+            h_up = {"Authorization": f"Bearer {UPSTASH_TOKEN_CLOUD}"}
+            async with httpx.AsyncClient(timeout=3.0) as uclient:
+                r_c = await uclient.get(f"{UPSTASH_URL_CLOUD}/get/cache_mt5", headers=h_up)
+                if r_c.status_code == 200 and r_c.json().get("result"):
+                    raw_c = r_c.json().get("result")
+                    c_dict = json.loads(raw_c) if isinstance(raw_c, str) else (raw_c or {})
+                    curr_ops = c_dict.get("operaciones_activas", [])
+                    cleaned_ops = [op for op in curr_ops if str(op.get("ticket", "")) not in [str(tc) for tc in tickets_cerrados]]
+                    if len(cleaned_ops) != len(curr_ops):
+                        c_dict["operaciones_activas"] = cleaned_ops
+                        c_dict["floating_pnl"] = round(sum(float(o.get("pnl", 0.0) or 0.0) for o in cleaned_ops), 2)
+                        c_dict["equity"] = round(float(c_dict.get("balance", c_dict.get("balance_actual", 0.0))) + c_dict["floating_pnl"], 2)
+                        c_dict["margen"] = round(len(cleaned_ops) * 274.60, 2)
+                        c_dict["margen_libre"] = round(c_dict["equity"] - c_dict["margen"], 2)
+                        c_dict["ultima_actualizacion"] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+                        await uclient.post(f"{UPSTASH_URL_CLOUD}/set/cache_mt5", json=c_dict, headers=h_up)
+                        print(f"| PURGA ROOT MT5 | cache_mt5 purgado de raíz sin órdenes huérfanas: {tickets_cerrados}")
+        except Exception as e_purg_mt5:
+            print(f"| PURGA ROOT MT5 WARN | Error purgando cache_mt5 en ciclo: {e_purg_mt5}")
 
     for t in fb_open:
         if str(t) not in POSICIONES_ACTIVAS and str(t) not in tickets_actuales and str(t) not in TICKETS_SINCRONIZADOS:

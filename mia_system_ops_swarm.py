@@ -148,7 +148,7 @@ class HerdDBAExpert:
         warnings = []
         
         try:
-            # 1. Auditar cache_mt5 (Paridad y Anti-Null)
+            # 1. Auditar cache_mt5 (Paridad, Anti-Null y Reconciliación contra Broker MT5)
             r = requests.get(f"{UPSTASH_URL}/get/cache_mt5", headers=UPSTASH_HEADERS, timeout=4)
             if r.status_code == 200 and r.json().get("result"):
                 raw = r.json().get("result")
@@ -159,20 +159,68 @@ class HerdDBAExpert:
                 eliminadas = []
                 campos_sanitizados = 0
 
+                # Reconciliación con Data Plane MT5 (927a) e Historial Reciente de Cierres
+                open_tickets_broker = None
+                try:
+                    r_broker = requests.get("https://trading-production-927a.up.railway.app/api/open_trades", timeout=3)
+                    if r_broker.status_code == 200:
+                        open_tickets_broker = set(str(t) for t in r_broker.json().get("open_tickets", []))
+                except Exception:
+                    pass
+
+                closed_tickets_recent = set()
+                try:
+                    r_h = requests.get(f"{UPSTASH_URL}/get/cache_hist_mt5", headers=UPSTASH_HEADERS, timeout=3)
+                    if r_h.status_code == 200 and r_h.json().get("result"):
+                        raw_h = r_h.json().get("result")
+                        d_h = json.loads(raw_h) if isinstance(raw_h, str) else (raw_h or {})
+                        for log_h in d_h.get("recent_logs", []):
+                            t_id = str(log_h.get("ticket", "")).strip()
+                            acc_h = str(log_h.get("accion", "")).upper()
+                            res_h = str(log_h.get("resultado_salida", "")).upper()
+                            if ("CIERRE" in acc_h and "PARCIAL" not in acc_h) or res_h in ["SL_ORIGINAL", "TP_ORIGINAL", "PARCIAL_BE", "CIERRE_TOTAL", "TRAILING_STOP", "MANUAL_CLOSE"]:
+                                closed_tickets_recent.add(t_id)
+                except Exception:
+                    pass
+
                 for op in ops_activas:
                     for k in ["pnl", "sl", "take_profit", "precio_apertura"]:
                         if op.get(k) is None or op.get(k) == "NaN":
                             op[k] = 0.0
                             campos_sanitizados += 1
                     
-                    activo = str(op.get("activo", "")).upper()
-                    if "XAU" in activo and op.get("estado") != "EN_VIVO" and float(op.get("pnl", 0)) <= -20:
-                        eliminadas.append(op.get("ticket"))
+                    t_op = str(op.get("ticket", "")).strip()
+                    estado_op = str(op.get("estado", "")).upper()
+                    
+                    # Detección exhaustiva de órdenes huérfanas / cerradas manualmente
+                    es_huerfana = False
+                    
+                    # Criterio 1: Ticket corrupto o vacío
+                    if not t_op or t_op in ["0", "NONE", "NULL", "UNKNOWN", "DESC", "N/A"]:
+                        es_huerfana = True
+                    # Criterio 2: Estado no vivo
+                    elif estado_op not in ["EN_VIVO", "LIVE", "ACTIVO", "OPEN"]:
+                        es_huerfana = True
+                    # Criterio 3: Registrada como cerrada en cache_hist_mt5 reciente
+                    elif t_op in closed_tickets_recent:
+                        es_huerfana = True
+                    # Criterio 4: Desaparición en el broker confirmada por Data Plane (open_trades vacío o sin este ticket)
+                    elif open_tickets_broker is not None and t_op not in open_tickets_broker and len(open_tickets_broker) == 0:
+                        es_huerfana = True
+
+                    if es_huerfana:
+                        eliminadas.append(t_op)
+                        # Purga de raíz de locks y cola pending en Upstash para el ticket huérfano
+                        try:
+                            requests.get(f"{UPSTASH_URL}/del/lock_healing_{t_op}", headers=UPSTASH_HEADERS, timeout=2)
+                        except Exception:
+                            pass
                         continue
+
                     ops_vivas.append(op)
 
                 if eliminadas:
-                    auto_corregidos.append(f"Depuradas {len(eliminadas)} órdenes fantasma en MT5 (Tickets: {eliminadas})")
+                    auto_corregidos.append(f"DBA Sentinel: Purgadas de raíz {len(eliminadas)} órdenes huérfanas/cerradas manualmente en MT5 (Tickets: {eliminadas})")
                 if campos_sanitizados > 0:
                     auto_corregidos.append(f"Sanitizados {campos_sanitizados} campos null/NaN en operaciones activas")
 
