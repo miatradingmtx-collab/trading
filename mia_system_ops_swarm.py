@@ -205,7 +205,10 @@ class HerdDBAExpert:
                     elif t_op in closed_tickets_recent:
                         es_huerfana = True
                     # Criterio 4: Desaparición en el broker confirmada por Data Plane (open_trades vacío o sin este ticket)
-                    elif open_tickets_broker is not None and t_op not in open_tickets_broker and len(open_tickets_broker) == 0:
+                    elif open_tickets_broker is not None and t_op not in open_tickets_broker:
+                        es_huerfana = True
+                    # Criterio 5: Cierres manuales de emergencia reportados por operador
+                    elif t_op in ["11188322336", "11190199097"]:
                         es_huerfana = True
 
                     if es_huerfana:

@@ -2516,8 +2516,11 @@ async def run_escaner_loop():
                 ops_activas = []
                 for p in positions:
                     pos = p if isinstance(p, dict) else getattr(p, '__dict__', {})
+                    t_id_str = str(pos.get('id', ''))
+                    if t_id_str in ["11188322336", "11190199097"]:
+                        continue
                     ops_activas.append({
-                        "ticket": str(pos.get('id', '')),
+                        "ticket": t_id_str,
                         "activo": pos.get('symbol', ''),
                         "tipo": "BUY" if pos.get('type') == 'POSITION_TYPE_BUY' else "SELL",
                         "lotes": pos.get('volume', 0.0),
