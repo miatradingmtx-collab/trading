@@ -7,7 +7,7 @@ microservice: "Tríada Railway (0b51, 927a, 1fd4, a0b8)"
 llm_engine: "Master Orchestrator / Release Manager"
 channel: "Railway Cloud Production CI/CD"
 sources: "Dockerfile*, Railway Deployments, DOCS_OPS_CORE.md, DOCS_TRADING_CORE.md"
-current_production_head: "60d54c1"
+current_production_head: "f3c5d2d"
 release_active: "v2.4.3-fix-reconciliacion-cierres-manuales-mt5-y-purga-cache"
 ---
 
@@ -71,13 +71,16 @@ Para mantener la integridad operativa del fondo y erradicar cualquier riesgo de 
 
 ## 📦 MANIFEST DE RELEASES Y COMMITS ACTIVOS EN PRODUCCIÓN (MAIN)
 
-### 🏷️ Release v2.4.3 (2026-11-03) — Reconciliación Cierres Manuales MT5, Purga Caché & Clúster High-Fidelity T6
-- **Head Commit en `main`:** Pendiente de merge desde `develop` (`60d54c1`)
+### 🏷️ Release v2.4.3 (2026-11-04) — Reconciliación Cierres Manuales MT5, Purga Caché & Clúster High-Fidelity T6
+- **Head Commit en `main`:** `f3c5d2d` (Sincronizado desde `develop`)
+- **Conversation ID (Antigravity):** `ba9096c1-cf45-423a-a60f-dfbfbb62faf6`
 - **Commits Integrados:**
   * `9d6c190`: `fix(reconciliation)`: optimizar reconciliación en `mt5_executor_cloud.py` con `get_deals_by_position` y erradicación de UNKNOWN.
   * `54de4a3`: `fix(sre)`: alertas reactivas de caídas en microservicios railway (`1fd4`, `927a`, `0b51`) y bucle 60s en Slack backoffice.
   * `b834f80`: `merge(develop)`: reconciliación `mt5_executor_cloud` con `get_deals_by_position` y protección de parciales.
   * `60d54c1`: `feat(ui)`: homologación de diagramas institucionales high-fidelity y mapa de arquitectura MCP (`flujo_arquitectura_mcp_integraciones_benchmark.html`).
+  * `6fb3d3a`: `docs(release)`: actualizar manifest de release v2.4.3 para Chat 04 Producción.
+  * `f3c5d2d`: `fix(reconciliation)`: purga de raíz de órdenes cerradas manualmente y reconciliación broker en `mt5_executor_cloud.py` y `mia_system_ops_swarm.py`.
 - **Comandos DevOps Canónicos en Chat 04:**
   ```bash
   git checkout main
