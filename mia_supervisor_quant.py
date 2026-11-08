@@ -688,6 +688,47 @@ class MiaQuantSupervisor:
         except Exception as e_w:
             print(f"| QUANT SUPERVISOR WARN | Error actualizando cache_herd_rl_weights: {e_w}")
 
+        # 3.9 MÓDULO CALIBRADOR RLCD (Instancia 0b51 - Calibración Continua de Decisión)
+        recientes_cbr = cbr_top_50[:20]
+        wins_recientes = sum(1 for c in recientes_cbr if float(c.get("profit", 0.0) or 0.0) > 0.0)
+        total_recientes = len(recientes_cbr)
+        precision_calibrada = round((wins_recientes / total_recientes * 100), 1) if total_recientes > 0 else 90.0
+
+        if precision_calibrada >= 95.0:
+            banda_rlcd = "🟢 BANDA VERDE (≥95%) — ALTA CONVICCIÓN"
+            accion_rlcd = "Quórum preferente sin objeción. Multiplicador de TensorFlow en 1.25x."
+        elif precision_calibrada >= 90.0:
+            banda_rlcd = "🟡 BANDA AMARILLA (90%-95%) — MARGEN ADMISIBLE"
+            accion_rlcd = "Protegido por Cascada RUNE v2 (TP1 al 50% dist + BE defensivo con +2.5 pips)."
+        else:
+            banda_rlcd = "🔴 BANDA ROJA (<90%) — GATILLO RECALIBRACIÓN"
+            accion_rlcd = "Deriva detectada. Dispara reentrenamiento iterativo con corpus CBR y Ley D/(1-D)."
+
+        # Guardar estado en Upstash Redis para los Dashboards
+        try:
+            rlcd_state = {
+                "timestamp": datetime.datetime.now().isoformat(),
+                "precision_calibrada_pct": precision_calibrada,
+                "banda_activa": banda_rlcd,
+                "accion_recomendada": accion_rlcd,
+                "muestreo": f"{wins_recientes}/{total_recientes} wins",
+                "evaluacion_dual": {
+                    "via_hitl_oficial": {
+                        "modo": "ASISTIDO_HITL_CON_APROBACION_HUMANA",
+                        "trades_auditados": total_resueltos,
+                        "win_rate_aprobado_pct": tasa_confianza
+                    },
+                    "via_shadow_autonoma": {
+                        "modo": "CHALLENGER_AUTOCALIBRADO_SIN_APROBACION",
+                        "precision_teorica_pct": precision_calibrada
+                    },
+                    "trust_divergence_delta_wr": round(precision_calibrada - tasa_confianza, 2)
+                }
+            }
+            requests.post(f"{self.UPSTASH_URL}/set/cache_rlcd_calibrator_state", headers=self.UPSTASH_HEADERS, data=json.dumps(rlcd_state), timeout=3)
+        except Exception as e_rlcd:
+            print(f"| QUANT SUPERVISOR WARN | Error actualizando cache_rlcd_calibrator_state: {e_rlcd}")
+
         # 4. Notificar a Slack (#mia-trading-insights) con Block Kit RLHF (Idéntico a Imagen 1)
         profit_fmt = f"${profit:.2f} USD" if profit >= 0 else f"-${abs(profit):.2f} USD"
         
@@ -720,7 +761,10 @@ class MiaQuantSupervisor:
             sec2_text = f"*🎯 Propuestas Validadas en Loop para los 7 Herds (RL & CBR):*\n{sugerencia_trading}"
             sec3_text = (
                 f"*📊 Pesos RL en Caliente (cache_herd_rl_weights):*\n{weights_summary}\n\n"
-                f"*🛡️ Prueba de Confianza (Hacia la Autonomía):*\n`{estado_confianza}` ({aprobados_hitl} aprobados / {rechazados_hitl} rechazados | Meta: 20 seguidos)"
+                f"*🎯 Calibrador RLCD (Instancia 0b51):*\n`{banda_rlcd}` (`{precision_calibrada}%` ECE | {accion_rlcd})\n"
+                f"*🔄 Evaluación Dual:* Vía HITL: `{tasa_confianza}%` WR | Vía Shadow: `{precision_calibrada}%` WR (Δ: `{precision_calibrada - tasa_confianza:+.1f}%`)\n\n"
+                f"*🛡️ Prueba de Confianza (Hacia la Autonomía):*\n`{estado_confianza}` ({aprobados_hitl} aprobados / {rechazados_hitl} rechazados | Meta: 20 seguidos)\n"
+                f"*🔗 Dashboard RLCD 3D:* <https://trading-production-927a.up.railway.app/diagramas/dashboard_calibrador_rlcd_3d.html|Ver Calibrador RLCD>"
             )
             blocks = [
                 {

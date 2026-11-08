@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>MIA — Dashboard Calibrador RLCD 3D (Instancia 0b51)</title>
+  <style>
+    :root {
+      --bg-obsidian: #080a0f;
+      --card-bg: rgba(14, 18, 28, 0.94);
+      --card-border: #283347;
+      --cyan-neon: #38bdf8;
+      --purple-neon: #c084fc;
+      --green-neon: #4ade80;
+      --red-neon: #f87171;
+      --gold-neon: #facc15;
+      --amber-neon: #fb923c;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background-color: var(--bg-obsidian);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.18), transparent 55%),
+        radial-gradient(circle at 90% 80%, rgba(192, 132, 252, 0.12), transparent 45%),
+        radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 28px 28px;
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Ticker Superior */
+    .ticker-bar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(8, 10, 15, 0.94);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 10px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.8);
+    }
+    .ticker-title {
+      font-size: 0.85rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      color: var(--cyan-neon);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pulse-dot {
+      width: 10px; height: 10px;
+      background: var(--cyan-neon);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--cyan-neon);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.3); } }
+    .badge-pills { display: flex; gap: 8px; font-size: 0.74rem; flex-wrap: wrap; }
+    .pill {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 3px 10px;
+      border-radius: 9999px;
+      color: var(--text-muted);
+    }
+    .pill strong { color: var(--green-neon); }
+    .pill.warn strong { color: var(--gold-neon); }
+    .pill.alert strong { color: var(--red-neon); }
+
+    /* Layout Principal */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 310px 1fr 350px;
+      gap: 20px;
+      padding: 20px 24px;
+      flex: 1;
+    }
+    @media (max-width: 1200px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--card-bg);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+    }
+    .panel-title {
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding-bottom: 8px;
+    }
+
+    /* Tacómetro / Gauge */
+    .gauge-wrapper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 0;
+    }
+    .gauge-svg {
+      width: 260px;
+      height: 140px;
+      overflow: visible;
+    }
+    .gauge-needle {
+      transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform-origin: 130px 120px;
+    }
+    .gauge-val-display {
+      font-size: 2.2rem;
+      font-weight: 800;
+      font-family: monospace;
+      color: var(--cyan-neon);
+      text-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+      margin-top: -15px;
+    }
+    .gauge-band-tag {
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 6px;
+      margin-top: 4px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .band-green { background: rgba(74, 222, 128, 0.15); color: var(--green-neon); border: 1px solid var(--green-neon); }
+    .band-yellow { background: rgba(250, 204, 21, 0.15); color: var(--gold-neon); border: 1px solid var(--gold-neon); }
+    .band-red { background: rgba(248, 113, 113, 0.15); color: var(--red-neon); border: 1px solid var(--red-neon); }
+
+    /* Bandas de Precisión */
+    .band-card {
+      background: rgba(255,255,255,0.03);
+      border-radius: 10px;
+      border-left: 4px solid #475569;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .band-card:hover { background: rgba(255,255,255,0.06); transform: translateX(3px); }
+    .band-card.active-green { border-left-color: var(--green-neon); background: rgba(74, 222, 128, 0.08); }
+    .band-card.active-yellow { border-left-color: var(--gold-neon); background: rgba(250, 204, 21, 0.08); }
+    .band-card.active-red { border-left-color: var(--red-neon); background: rgba(248, 113, 113, 0.08); }
+
+    .band-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+    .band-desc { font-size: 0.72rem; color: var(--text-muted); line-height: 1.3; }
+
+    /* Diagrama SVG Interactivo Central */
+    .canvas-container {
+      position: relative;
+      background: radial-gradient(circle at center, rgba(14, 22, 38, 0.95), rgba(8, 10, 15, 0.98));
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 520px;
+    }
+    .canvas-svg {
+      width: 100%;
+      height: 100%;
+      min-height: 500px;
+    }
+
+    /* Tarjetas del Canvas */
+    .node-box {
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .node-box:hover rect {
+      stroke-width: 2.5;
+      filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.6));
+    }
+
+    /* Animación Láser */
+    @keyframes laserDash {
+      to { stroke-dashoffset: -40; }
+    }
+    .laser-line {
+      stroke-dasharray: 6, 6;
+      animation: laserDash 1.2s linear infinite;
+    }
+
+    /* Comparativa A/B */
+    .ab-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: rgba(0,0,0,0.4);
+      padding: 4px;
+      border-radius: 10px;
+    }
+    .ab-tab {
+      padding: 8px 10px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-align: center;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+    .ab-tab.active {
+      background: rgba(56, 189, 248, 0.18);
+      color: var(--cyan-neon);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+    .ab-tab.shadow-active {
+      background: rgba(192, 132, 252, 0.18);
+      color: var(--purple-neon);
+      border: 1px solid rgba(192, 132, 252, 0.4);
+    }
+
+    .kpi-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.02);
+      font-size: 0.76rem;
+    }
+    .kpi-row span { color: var(--text-muted); }
+    .kpi-row strong { font-family: monospace; font-size: 0.88rem; }
+
+    /* Barra de Progreso Confianza */
+    .trust-bar-bg {
+      height: 10px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .trust-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--gold-neon), var(--green-neon));
+      border-radius: 6px;
+      transition: width 0.8s ease;
+    }
+
+    /* Inspector Inferior */
+    .inspector-bar {
+      margin: 0 24px 20px 24px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 0.78rem;
+    }
+    .inspector-label { color: var(--text-muted); }
+    .inspector-value { font-family: monospace; color: var(--cyan-neon); font-weight: 700; }
+
+    /* Botones de Acción */
+    .btn-action {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid var(--cyan-neon);
+      color: var(--cyan-neon);
+      font-size: 0.76rem;
+      font-weight: 700;
+      padding: 7px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-action:hover {
+      background: var(--cyan-neon);
+      color: #04070d;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.4);
+    }
+
+    /* Pie con Enlaces Persistentes */
+    .footer-nav {
+      background: rgba(8, 10, 15, 0.98);
+      border-top: 1px solid var(--card-border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 0.76rem;
+    }
+    .footer-nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .footer-nav a:hover, .footer-nav a.active-link {
+      color: var(--cyan-neon);
+      background: rgba(56, 189, 248, 0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ticker Superior -->
+  <header class="ticker-bar">
+    <div class="ticker-title">
+      <div class="pulse-dot"></div>
+      MIA RLCD DUAL-ENGINE 3D — CALIBRACIÓN CONTINUA DE CONFIANZA & CBR
+    </div>
+    <div class="badge-pills">
+      <div class="pill">Host: <strong>0b51 (Control Plane)</strong></div>
+      <div class="pill">Neural Core: <strong>1fd4 (22D HFT)</strong></div>
+      <div class="pill">Execution: <strong>927a (MT5 Plane)</strong></div>
+      <div class="pill">Base: <strong>$5,000 USD</strong></div>
+      <div class="pill alert">Actual: <strong>$3,791.83 USD (-24.16%)</strong></div>
+      <div class="pill warn">Ley Asimétrica Req: <strong>+31.86% ($1,208.17)</strong></div>
+    </div>
+  </header>
+
+  <!-- Layout Principal -->
+  <main class="main-grid">
+
+    <!-- Panel Izquierdo: Medidor de Calibración -->
+    <aside class="panel">
+      <div class="panel-title">
+        <span>Medidor de Confianza RLCD</span>
+        <span style="color: var(--cyan-neon); font-size: 0.7rem;">ECE Audit</span>
+      </div>
+
+      <!-- Tacómetro SVG -->
+      <div class="gauge-wrapper">
+        <svg class="gauge-svg" viewBox="0 0 260 140">
+          <defs>
+            <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#f87171" />
+              <stop offset="45%" stop-color="#facc15" />
+              <stop offset="70%" stop-color="#4ade80" />
+              <stop offset="100%" stop-color="#00f0ff" />
+            </linearGradient>
+          </defs>
+          <!-- Arco de Fondo -->
+          <path d="M 30 120 A 100 100 0 0 1 230 120" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="20" stroke-linecap="round" />
+          <!-- Arco Gradiente -->
+          <path d="M 30 120 A 100 100 0 0 1 230 120" fill="none" stroke="url(#gaugeGrad)" stroke-width="18" stroke-linecap="round" />
+          <!-- Marcas de Umbral -->
+          <!-- 90% (~144 deg), 95% (~162 deg) -->
+          <circle cx="130" cy="120" r="12" fill="#0e121c" stroke="var(--card-border)" stroke-width="3" />
+          <!-- Aguja -->
+          <g id="needleGroup" class="gauge-needle" style="transform: rotate(54deg);">
+            <line x1="130" y1="120" x2="130" y2="35" stroke="#f1f5f9" stroke-width="3" stroke-linecap="round" />
+            <circle cx="130" cy="35" r="4" fill="var(--cyan-neon)" />
+          </g>
+        </svg>
+        <div id="gaugeValDisplay" class="gauge-val-display">93.4%</div>
+        <div id="gaugeBandTag" class="gauge-band-tag band-yellow">🟡 BANDA AMARILLA (90% - 95%)</div>
+      </div>
+
+      <!-- Selector Interactivo de Bandas -->
+      <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-top: 4px;">
+        Bandas de Precisión Objetivo
+      </div>
+
+      <!-- Banda Verde -->
+      <div class="band-card" id="cardGreen" onclick="setSimulatedConfidence(96.8)">
+        <div class="band-header">
+          <span style="color: var(--green-neon);">🟢 BANDA VERDE (≥ 95%)</span>
+          <span style="font-family: monospace;">ALTA CONVICCIÓN</span>
+        </div>
+        <div class="band-desc">Quórum pleno para los 7 Herds. Sin objeción en inferencia. Multiplicador de TensorFlow en 1.25x.</div>
+      </div>
+
+      <!-- Banda Amarilla -->
+      <div class="band-card active-yellow" id="cardYellow" onclick="setSimulatedConfidence(93.4)">
+        <div class="band-header">
+          <span style="color: var(--gold-neon);">🟡 BANDA AMARILLA (90% - 95%)</span>
+          <span style="font-family: monospace;">MARGEN ADMISIBLE</span>
+        </div>
+        <div class="band-desc">Protegido por Cascada RUNE v2: TP1 obligatorio al 50% distancia y Stop a BE con +2.5 pips.</div>
+      </div>
+
+      <!-- Banda Roja -->
+      <div class="band-card" id="cardRed" onclick="setSimulatedConfidence(86.2)">
+        <div class="band-header">
+          <span style="color: var(--red-neon);">🔴 BANDA ROJA (&lt; 90%)</span>
+          <span style="font-family: monospace;">GATILLO RECALIBRACIÓN</span>
+        </div>
+        <div class="band-desc">Deriva detectada. Dispara reentrenamiento iterativo con corpus histórico (N ≥ 500) y aprendizaje CBR.</div>
+      </div>
+
+      <div style="margin-top: auto; padding-top: 8px;">
+        <button class="btn-action" style="width: 100%;" onclick="simularCicloAuditoria()">
+          ⚡ Forzar Ciclo de Calibración RLCD
+        </button>
+      </div>
+    </aside>
+
+    <!-- Panel Central: Visualizador del Bucle RLCD (Canvas SVG) -->
+    <section class="canvas-container">
+      <div style="padding: 14px 20px; border-bottom: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em; color: var(--cyan-neon); text-transform: uppercase;">
+          Bucle RLCD: Aprendizaje de Decisión Calibrada (22D + Post-Mortem + CBR)
+        </div>
+        <span style="font-size: 0.72rem; color: var(--green-neon); font-family: monospace;">Estado: SINCRONIZADO EN UPSTASH</span>
+      </div>
+
+      <svg class="canvas-svg" viewBox="0 0 760 480">
+        <defs>
+          <linearGradient id="gradCard" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#121826" />
+            <stop offset="100%" stop-color="#0a0e17" />
+          </linearGradient>
+          <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="6" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
+        <!-- Conexiones Curvas Bézier -->
+        <!-- Entrada -> Red 22D -->
+        <path d="M 120 100 C 180 100, 200 100, 240 100" fill="none" stroke="var(--cyan-neon)" stroke-width="2.5" class="laser-line" />
+        
+        <!-- Red 22D -> Medidor RLCD -->
+        <path d="M 380 100 C 440 100, 460 100, 500 100" fill="none" stroke="var(--purple-neon)" stroke-width="2.5" class="laser-line" />
+
+        <!-- Medidor RLCD -> Salidas Calibradas -->
+        <path d="M 640 100 C 680 100, 690 100, 710 100" fill="none" stroke="var(--green-neon)" stroke-width="2.5" class="laser-line" />
+
+        <!-- Salidas -> Retroalimentación MT5 -->
+        <path d="M 640 130 C 670 200, 660 300, 590 350" fill="none" stroke="var(--amber-neon)" stroke-width="2" stroke-dasharray="5,5" />
+
+        <!-- Retroalimentación MT5 -> Recompensa Asimétrica -->
+        <path d="M 450 370 C 400 370, 360 370, 310 370" fill="none" stroke="var(--amber-neon)" stroke-width="2" class="laser-line" />
+
+        <!-- Recompensa Asimétrica -> Ajuste Iterativo -->
+        <path d="M 170 370 C 90 370, 70 280, 70 140" fill="none" stroke="var(--red-neon)" stroke-width="2" stroke-dasharray="6,6" />
+
+        <!-- Nodos Interactivos -->
+        <!-- Nodo 1: Datos de Entrada (22D) -->
+        <g class="node-box" onclick="selectNode('ENTRADA_22D', 'Vector MTF AMD 22D + Confirmaciones Institucionales', '1fd4')">
+          <rect x="20" y="60" width="100" height="80" rx="10" fill="url(#gradCard)" stroke="var(--cyan-neon)" stroke-width="1.5" />
+          <text x="70" y="90" fill="var(--cyan-neon)" font-size="11" font-weight="800" text-anchor="middle">DATOS</text>
+          <text x="70" y="105" fill="#f1f5f9" font-size="10" font-weight="700" text-anchor="middle">ENTRADA 22D</text>
+          <text x="70" y="122" fill="#94a3b8" font-size="8" text-anchor="middle">MTF, AMD, RSI</text>
+        </g>
+
+        <!-- Nodo 2: Red Neural Preliminar (TensorFlow) -->
+        <g class="node-box" onclick="selectNode('RED_22D', 'TensorFlow Keras Sequential (Dense 32 -> Dense 16 -> Dense 1)', '1fd4')">
+          <rect x="240" y="50" width="140" height="100" rx="12" fill="url(#gradCard)" stroke="var(--purple-neon)" stroke-width="1.8" />
+          <text x="310" y="80" fill="var(--purple-neon)" font-size="11" font-weight="800" text-anchor="middle">RED NEURAL 22D</text>
+          <text x="310" y="96" fill="#f1f5f9" font-size="9" text-anchor="middle">Aprendizaje Base</text>
+          <text x="310" y="112" fill="#94a3b8" font-size="8" text-anchor="middle">764 Trades Canónicos</text>
+          <text x="310" y="128" fill="var(--green-neon)" font-size="8" font-family="monospace" text-anchor="middle">P(Éxito) = 0.88</text>
+        </g>
+
+        <!-- Nodo 3: Módulo RLCD Calibrador de Confianza -->
+        <g class="node-box" onclick="selectNode('RLCD_CALIBRATOR', 'Calibrador de Decisión RLCD (Temperature Scaling + Expected Calibration Error)', '0b51')">
+          <rect x="500" y="45" width="140" height="110" rx="12" fill="url(#gradCard)" stroke="var(--cyan-neon)" stroke-width="2" filter="url(#neonGlow)" />
+          <text x="570" y="75" fill="var(--cyan-neon)" font-size="12" font-weight="800" text-anchor="middle">MÓDULO RLCD</text>
+          <text x="570" y="92" fill="#f1f5f9" font-size="9" font-weight="700" text-anchor="middle">Calibración Decisión</text>
+          <text x="570" y="110" fill="var(--gold-neon)" font-size="8" font-family="monospace" text-anchor="middle">Bandas: ≥95% | 90-95%</text>
+          <text x="570" y="126" fill="var(--red-neon)" font-size="8" font-family="monospace" text-anchor="middle">Gatillo Deriva: &lt;90%</text>
+        </g>
+
+        <!-- Nodo 4: Salida Calibrada Quórum Swarm -->
+        <g class="node-box" onclick="selectNode('SALIDA_CALIBRADA', 'Salida Calibrada inyectada en cache_herd_debate_latest para los 7 Herds', '927a')">
+          <rect x="710" y="60" width="40" height="80" rx="8" fill="url(#gradCard)" stroke="var(--green-neon)" stroke-width="1.5" />
+          <text x="730" y="95" fill="var(--green-neon)" font-size="9" font-weight="800" text-anchor="middle" transform="rotate(90 730 95)">SWARM</text>
+        </g>
+
+        <!-- Nodo 5: Auditoría Post-Mortem MT5 -->
+        <g class="node-box" onclick="selectNode('POST_MORTEM', 'Agente Post-Mortem + Gemini 1.5 Pro en #mia-trading-insights', '0b51')">
+          <rect x="450" y="320" width="140" height="100" rx="12" fill="url(#gradCard)" stroke="var(--amber-neon)" stroke-width="1.5" />
+          <text x="520" y="348" fill="var(--amber-neon)" font-size="11" font-weight="800" text-anchor="middle">POST-MORTEM</text>
+          <text x="520" y="366" fill="#f1f5f9" font-size="9" text-anchor="middle">Autopsia de Trades</text>
+          <text x="520" y="384" fill="#94a3b8" font-size="8" text-anchor="middle">MT5 Executed Tickets</text>
+          <text x="520" y="402" fill="var(--green-neon)" font-size="8" font-family="monospace" text-anchor="middle">TP Parcial 50% + BE</text>
+        </g>
+
+        <!-- Nodo 6: Métrica de Recompensa Asimétrica (Supervisor Quant & CBR) -->
+        <g class="node-box" onclick="selectNode('RECOMPENSA_ASIMETRICA', 'Ley D / (1 - D): Amplificación matemática de recuperación sobre balance reducido', '0b51')">
+          <rect x="170" y="320" width="140" height="100" rx="12" fill="url(#gradCard)" stroke="var(--red-neon)" stroke-width="1.8" />
+          <text x="240" y="348" fill="var(--red-neon)" font-size="11" font-weight="800" text-anchor="middle">RECOMPENSA RL</text>
+          <text x="240" y="366" fill="#f1f5f9" font-size="9" font-weight="700" text-anchor="middle">Ley D / (1 - D)</text>
+          <text x="240" y="384" fill="#94a3b8" font-size="8" text-anchor="middle">Memoria CBR</text>
+          <text x="240" y="402" fill="var(--gold-neon)" font-size="8" font-family="monospace" text-anchor="middle">Δ_weights Herds</text>
+        </g>
+      </svg>
+    </section>
+
+    <!-- Panel Derecho: Comparativa A/B (HITL vs Shadow Autónomo) -->
+    <aside class="panel">
+      <div class="panel-title">
+        <span>Evaluación A/B: HITL vs Shadow</span>
+        <span style="color: var(--purple-neon); font-size: 0.7rem;">Trust Score</span>
+      </div>
+
+      <!-- Selector Pestañas A/B -->
+      <div class="ab-tabs">
+        <div id="tabHitl" class="ab-tab active" onclick="switchAbView('hitl')">Vía 1: HITL Oficial</div>
+        <div id="tabShadow" class="ab-tab" onclick="switchAbView('shadow')">Vía 2: Shadow RLCD</div>
+      </div>
+
+      <!-- Tarjeta Contenido HITL -->
+      <div id="contentHitl" style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 0.72rem; color: var(--cyan-neon); font-weight: 700;">
+          MODO OFICIAL: APROBACIÓN HUMANA EN SLACK
+        </div>
+        <div class="kpi-row">
+          <span>Canal Slack:</span>
+          <strong style="color: var(--cyan-neon);">#mia-trading-insights</strong>
+        </div>
+        <div class="kpi-row">
+          <span>Trades Auditados HITL:</span>
+          <strong>48 / 50 requeridos</strong>
+        </div>
+        <div class="kpi-row">
+          <span>Win Rate Aprobado:</span>
+          <strong style="color: var(--green-neon);">81.25% (39W / 9L)</strong>
+        </div>
+        <div class="kpi-row">
+          <span>Tiempo Respuesta Humana:</span>
+          <strong style="color: var(--gold-neon);">~14.2 min</strong>
+        </div>
+        <div class="kpi-row">
+          <span>PnL Auditado:</span>
+          <strong style="color: var(--green-neon);">+$342.10 USD</strong>
+        </div>
+      </div>
+
+      <!-- Tarjeta Contenido Shadow -->
+      <div id="contentShadow" style="display: none; flex-direction: column; gap: 8px;">
+        <div style="font-size: 0.72rem; color: var(--purple-neon); font-weight: 700;">
+          MODO CHALLENGER: AUTOCALIBRACIÓN AUTÓNOMA
+        </div>
+        <div class="kpi-row">
+          <span>Ejecución en Memoria:</span>
+          <strong style="color: var(--purple-neon);">RAM Dry-Run (0 Riesgo)</strong>
+        </div>
+        <div class="kpi-row">
+          <span>Recalibraciones Automáticas:</span>
+          <strong style="color: var(--cyan-neon);">6 iteraciones (&lt;90%)</strong>
+        </div>
+        <div class="kpi-row">
+          <span>Win Rate Teórico Autónomo:</span>
+          <strong style="color: var(--green-neon);">83.33% (40W / 8L)</strong>
+        </div>
+        <div class="kpi-row">
+          <span>Tiempo Recalibración:</span>
+          <strong style="color: var(--green-neon);">&lt; 850 ms</strong>
+        </div>
+        <div class="kpi-row">
+          <span>PnL Teórico Proyectado:</span>
+          <strong style="color: var(--green-neon);">+$388.40 USD</strong>
+        </div>
+      </div>
+
+      <!-- Métrica Divergencia de Confianza -->
+      <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.74rem;">
+          <span style="color: var(--text-muted);">Trust Divergence Metric (Δ_Trust):</span>
+          <strong style="color: var(--green-neon); font-family: monospace;">+$46.30 USD (+2.08% WR)</strong>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; font-size: 0.74rem; margin-top: 4px;">
+          <span style="color: var(--text-muted);">Índice Hacia Autonomía Total:</span>
+          <strong id="trustPercent" style="color: var(--gold-neon); font-family: monospace;">78% (39/50)</strong>
+        </div>
+        <div class="trust-bar-bg">
+          <div id="trustFill" class="trust-bar-fill" style="width: 78%;"></div>
+        </div>
+        <div style="font-size: 0.68rem; color: var(--text-muted); line-height: 1.2; margin-top: 4px;">
+          * Condición Inquebrantable: Se requieren 50 trades validados con precisión ≥90% y Δ_Trust ≥ 0 para desbloquear el Trust Mode autónomo.
+        </div>
+      </div>
+
+      <div style="margin-top: auto; padding-top: 8px;">
+        <button class="btn-action" style="width: 100%; border-color: var(--purple-neon); color: var(--purple-neon);" onclick="toggleAbComparison()">
+          🔄 Alternar Vista Comparativa A/B
+        </button>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Inspector Inferior Interactivo -->
+  <section class="inspector-bar">
+    <div>
+      <span class="inspector-label">Nodo Activo: </span>
+      <span id="inspNode" class="inspector-value">RLCD_CALIBRATOR (Instancia 0b51)</span>
+    </div>
+    <div>
+      <span class="inspector-label">Descripción Técnica: </span>
+      <span id="inspDesc" style="color: #cbd5e1;">Calibrador de Decisión RLCD (Temperature Scaling + Expected Calibration Error)</span>
+    </div>
+    <div>
+      <span class="inspector-label">Slot Upstash: </span>
+      <span id="inspSlot" class="inspector-value">cache_trading_learning_kb</span>
+    </div>
+  </section>
+
+  <!-- Pie Persistente con Enlaces a los 5 Dashboards Oficiales -->
+  <footer class="footer-nav">
+    <a href="https://trading-production-1fd4.up.railway.app/" target="_blank">🌐 Antopus 3D (/)</a>
+    <a href="https://trading-production-1fd4.up.railway.app/brain" target="_blank">🧠 Red Neuronal 3D (/brain)</a>
+    <a href="https://trading-production-1fd4.up.railway.app/mods" target="_blank">🧩 Mods & Extensiones (/mods)</a>
+    <a href="https://trading-production-927a.up.railway.app/dashboard" target="_blank">📊 Monitoreo HFT (/dashboard)</a>
+    <a href="https://trading-production-927a.up.railway.app/dashboard/preview" target="_blank">🔬 Previsualización Preview</a>
+    <a href="#" class="active-link">🎯 Calibrador RLCD 3D (0b51)</a>
+  </footer>
+
+  <!-- Lógica JavaScript Vanilla Pura -->
+  <script>
+    function setSimulatedConfidence(val) {
+      const display = document.getElementById('gaugeValDisplay');
+      const tag = document.getElementById('gaugeBandTag');
+      const needle = document.getElementById('needleGroup');
+      
+      const cGreen = document.getElementById('cardGreen');
+      const cYellow = document.getElementById('cardYellow');
+      const cRed = document.getElementById('cardRed');
+
+      // Limpiar clases
+      cGreen.className = 'band-card';
+      cYellow.className = 'band-card';
+      cRed.className = 'band-card';
+
+      display.innerText = val.toFixed(1) + '%';
+
+      // Ángulo de aguja: 80% = -45deg, 90% = 0deg, 95% = 45deg, 100% = 90deg
+      // Mapeo: 80 a 100% -> -45 a 90 (135 grados de rango para 20%)
+      const angle = -45 + ((val - 80) / 20) * 135;
+      needle.style.transform = `rotate(${angle}deg)`;
+
+      if (val >= 95.0) {
+        tag.className = 'gauge-band-tag band-green';
+        tag.innerText = '🟢 BANDA VERDE (≥ 95%) — ALTA CONVICCIÓN';
+        cGreen.className = 'band-card active-green';
+        display.style.color = 'var(--green-neon)';
+      } else if (val >= 90.0) {
+        tag.className = 'gauge-band-tag band-yellow';
+        tag.innerText = '🟡 BANDA AMARILLA (90% - 95%) — MARGEN ADMISIBLE';
+        cYellow.className = 'band-card active-yellow';
+        display.style.color = 'var(--gold-neon)';
+      } else {
+        tag.className = 'gauge-band-tag band-red';
+        tag.innerText = '🔴 BANDA ROJA (< 90%) — GATILLO RECALIBRACIÓN';
+        cRed.className = 'band-card active-red';
+        display.style.color = 'var(--red-neon)';
+      }
+    }
+
+    function switchAbView(mode) {
+      const tabHitl = document.getElementById('tabHitl');
+      const tabShadow = document.getElementById('tabShadow');
+      const contentHitl = document.getElementById('contentHitl');
+      const contentShadow = document.getElementById('contentShadow');
+
+      if (mode === 'hitl') {
+        tabHitl.className = 'ab-tab active';
+        tabShadow.className = 'ab-tab';
+        contentHitl.style.display = 'flex';
+        contentShadow.style.display = 'none';
+      } else {
+        tabHitl.className = 'ab-tab';
+        tabShadow.className = 'ab-tab shadow-active';
+        contentHitl.style.display = 'none';
+        contentShadow.style.display = 'flex';
+      }
+    }
+
+    function toggleAbComparison() {
+      const hitlVisible = document.getElementById('contentHitl').style.display !== 'none';
+      switchAbView(hitlVisible ? 'shadow' : 'hitl');
+    }
+
+    function selectNode(id, desc, host) {
+      document.getElementById('inspNode').innerText = `${id} (Instancia ${host})`;
+      document.getElementById('inspDesc').innerText = desc;
+      if (id === 'RECOMPENSA_ASIMETRICA') {
+        document.getElementById('inspSlot').innerText = 'cache_trading_learning_kb & cache_herd_rl_weights';
+      } else if (id === 'RED_22D') {
+        document.getElementById('inspSlot').innerText = 'cache_mia_tensorflow';
+      } else if (id === 'RLCD_CALIBRATOR') {
+        document.getElementById('inspSlot').innerText = 'cache_rlcd_calibrator_state';
+      } else {
+        document.getElementById('inspSlot').innerText = 'cache_mt5 / cache_hist_mt5';
+      }
+    }
+
+    function simularCicloAuditoria() {
+      const randomVals = [97.2, 94.1, 91.8, 87.5, 96.0, 89.2];
+      const selected = randomVals[Math.floor(Math.random() * randomVals.length)];
+      setSimulatedConfidence(selected);
+    }
+  </script>
+</body>
+</html>
