@@ -81,6 +81,20 @@ if os.path.exists(build_dir):
         except Exception as e:
             return {"error": str(e)}
 
+    @app.get("/rlcd")
+    @app.get("/brain/rlcd")
+    async def render_rlcd_calibrator():
+        """Sirve el Dashboard Calibrador RLCD 3D en la instancia 1fd4"""
+        base_dir = os.path.dirname(__file__)
+        candidates = [
+            os.path.join(base_dir, "Diagramas", "dashboard_calibrador_rlcd_3d.html"),
+            os.path.join(base_dir, "dashboard_calibrador_rlcd_3d.html")
+        ]
+        for c in candidates:
+            if os.path.exists(c) and os.path.isfile(c):
+                return FileResponse(c)
+        return {"error": "Dashboard RLCD no encontrado en Diagramas/dashboard_calibrador_rlcd_3d.html"}
+
     @app.get("/dashboard")
     async def render_dashboard():
         try:
