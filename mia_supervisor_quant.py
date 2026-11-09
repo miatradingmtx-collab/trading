@@ -764,7 +764,7 @@ class MiaQuantSupervisor:
                 f"*🎯 Calibrador RLCD (Instancia 0b51):*\n`{banda_rlcd}` (`{precision_calibrada}%` ECE | {accion_rlcd})\n"
                 f"*🔄 Evaluación Dual:* Vía HITL: `{tasa_confianza}%` WR | Vía Shadow: `{precision_calibrada}%` WR (Δ: `{precision_calibrada - tasa_confianza:+.1f}%`)\n\n"
                 f"*🛡️ Prueba de Confianza (Hacia la Autonomía):*\n`{estado_confianza}` ({aprobados_hitl} aprobados / {rechazados_hitl} rechazados | Meta: 20 seguidos)\n"
-                f"*🔗 Dashboard RLCD 3D:* <https://trading-production-927a.up.railway.app/diagramas/dashboard_calibrador_rlcd_3d.html|Ver Calibrador RLCD>"
+                f"*🔗 Dashboard RLCD 3D (Instancia 1fd4):* <https://trading-production-1fd4.up.railway.app/brain/rlcd|Ver Calibrador RLCD 3D>"
             )
             blocks = [
                 {
