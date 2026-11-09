@@ -90,3 +90,16 @@ Cada trade cerrado genera un ticket estructurado:
 3. **Comparativa 'Antes vs Después' (Visual Diff):** Toda propuesta de interfaz en dashboards (`/brain`, `/`, `/mods`, `/dashboard`) debe incluir la comparativa 'Antes vs Después' y el enlace interactivo:
    `👉 https://trading-production-927a.up.railway.app/dashboard/preview`
    junto con la barra de enlaces persistente a los 5 dashboards en el pie de mensaje.
+
+
+---
+
+## 🏆 Hito Canónico Vigente: Módulo Calibrador RLCD & Evaluación Dual A/B (Chat 01)
+- **Fecha:** `2026-11-08` | **Diseñado en:** Chat 07 (`12664818-f3ed-460f-aab7-3cbb1617d319`) | **Inyectado a:** Chat 01 (`30cc37f2-2f5d-46d8-a82d-2bd797ac5b6d`)
+- **Host Backend:** `trading-production-0b51.up.railway.app` (Supervisor Quant & Post-Mortem en `mia_supervisor_quant.py`).
+- **Calibración RLCD Continua:** Evaluación de ventana móvil de 20 trades en CBR (`cache_trading_learning_kb`) contra el resultado real de MT5:
+  * 🟢 **Banda Verde (≥ 95%):** Alta convicción institucional. Multiplicador de TensorFlow en 1.25x en `cache_herd_rl_weights`.
+  * 🟡 **Banda Amarilla (90% - 95%):** Margen admisible gobernado por Cascada RUNE v2 (TP1 al 50% y Break-Even a +2.5 pips).
+  * 🔴 **Banda Roja (< 90%):** Gatillo de recalibración iterativa sobre corpus CBR con Ley Asimétrica $D/(1-D)$.
+- **Evaluación Dual A/B (Champion vs Challenger en RAM):** Vía 1 (HITL Oficial en vivo con aprobación humana) vs Vía 2 (Shadow Challenger autónomo en RAM con latencia < 850ms).
+- **Métrica de Divergencia:** $\Delta_{\text{Trust}} = \text{PnL}_{\text{Shadow}} - \text{PnL}_{\text{HITL}}$ persistido en `cache_rlcd_calibrator_state` para certificar matemáticamente la Prueba de Confianza.
