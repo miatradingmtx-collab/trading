@@ -3676,6 +3676,32 @@ async def render_brain():
     except Exception as e:
         return HTMLResponse(content=f"Error cargando dashboard neural: {e}", status_code=500)
 
+@app.get("/rlcd", response_class=HTMLResponse)
+@app.get("/brain/rlcd", response_class=HTMLResponse)
+async def render_rlcd_calibrator():
+    """Sirve el Dashboard Calibrador RLCD 3D (Instancia 0b51 / Control Plane)"""
+    base_dir = os.path.dirname(__file__)
+    candidates = [
+        os.path.join(base_dir, "Diagramas", "dashboard_calibrador_rlcd_3d.html"),
+        os.path.join(base_dir, "dashboard_calibrador_rlcd_3d.html")
+    ]
+    for c in candidates:
+        if os.path.exists(c) and os.path.isfile(c):
+            try:
+                with open(c, "r", encoding="utf-8") as f_d:
+                    html_content = f_d.read()
+                return HTMLResponse(
+                    content=html_content,
+                    headers={
+                        "Cache-Control": "no-cache, no-store, must-revalidate",
+                        "Pragma": "no-cache",
+                        "Expires": "0"
+                    }
+                )
+            except Exception as e_r:
+                return HTMLResponse(content=f"Error leyendo dashboard RLCD: {e_r}", status_code=500)
+    return HTMLResponse(content="Dashboard RLCD no encontrado en Diagramas/dashboard_calibrador_rlcd_3d.html", status_code=404)
+
 @app.get("/mods", response_class=HTMLResponse)
 async def render_mods_war_room():
     """Sirve el HUD Táctico Modo Guerra (Videojuego) en /mods"""
