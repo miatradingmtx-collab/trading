@@ -107,3 +107,19 @@ Toda modificación de interfaz debe registrarse como propuesta estructurada en `
 3. **Comparativa 'Antes vs Después' (Visual Diff):** Toda propuesta de interfaz en dashboards (`/brain`, `/`, `/mods`, `/dashboard`) debe incluir la comparativa 'Antes vs Después' y el enlace interactivo:
    `👉 https://trading-production-927a.up.railway.app/dashboard/preview`
    junto con la barra de enlaces persistente a los 5 dashboards en el pie de mensaje.
+
+
+---
+
+## 🏆 Hito Canónico Vigente: Dashboard Calibrador RLCD 3D Cyber-Dark en Instancia 1fd4 (Chat 03)
+- **Fecha:** `2026-11-08` | **Diseñado en:** Chat 07 (`12664818-f3ed-460f-aab7-3cbb1617d319`) | **Inyectado a:** Chat 03 (`b456972a-179a-4c4d-a494-65833c6d54f8`)
+- **Host Frontend:** `trading-production-1fd4.up.railway.app` (Neural Cluster & 3D Terminal).
+- **Rutas Servidas en `mia_websocket_server.py`:**
+  * Endpoint Canónico: `https://trading-production-1fd4.up.railway.app/brain/rlcd`
+  * Alias Directo: `https://trading-production-1fd4.up.railway.app/rlcd`
+  * Archivo Local: `C:\Users\ecybe\OneDrive\Documentos\Trading\Diagramas\dashboard_calibrador_rlcd_3d.html`
+- **Características UI/UX:**
+  * Tacómetro interactivo SVG de Calibración de Confianza con aguja animada.
+  * Selector en tiempo real de Bandas de Precisión (Verde $\ge 95\%$, Amarilla $90-95\%$, Roja $< 90\%$).
+  * Panel de Evaluación Dual A/B (Vía HITL vs Vía Shadow) con barra de progreso de Prueba de Confianza.
+  * Cableado vectorial Bézier anti-colisión animado con pulso láser (`laserDash`) y cero dependencias bloqueantes (cero Tailwind CDN).
