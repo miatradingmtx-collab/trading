@@ -15,6 +15,7 @@ import os
 import time
 import requests
 import json
+import math
 import random
 from datetime import datetime
 
@@ -67,30 +68,33 @@ YF_TICKERS = {
     "EURUSD": "EURUSD=X",
     "GBPUSD": "GBPUSD=X",
     "GBPJPY": "GBPJPY=X",
-    "AUDUSD": "AUDUSD=X"
+    "AUDUSD": "AUDUSD=X",
+    "NZDCAD": "NZDCAD=X"
 }
 
-# Precios base institucionales actualizados (octubre 2026)
+# Precios base institucionales actualizados
 FALLBACK_PRICES = {
-    "XAUUSD": 4199.15,
-    "EURUSD": 1.12120,
-    "GBPUSD": 1.32470,
-    "GBPJPY": 209.680,
-    "AUDUSD": 0.69850
+    "XAUUSD": 3898.60,
+    "EURUSD": 1.10630,
+    "GBPUSD": 1.32330,
+    "GBPJPY": 211.470,
+    "AUDUSD": 0.67920,
+    "NZDCAD": 0.78970
 }
 
 # Configuración de microestructura por instrumento
 INSTRUMENT_SPECS = {
-    "XAUUSD": {"spread_usd": 0.13, "step_usd": 0.25, "digits": 2, "unit": "USD"},
-    "GBPJPY": {"spread_pips": 1.4, "step_pips": 1.5, "digits": 3, "unit": "pips"},
-    "EURUSD": {"spread_pips": 0.8, "step_pips": 1.5, "digits": 5, "unit": "pips"},
-    "GBPUSD": {"spread_pips": 1.1, "step_pips": 1.5, "digits": 5, "unit": "pips"},
-    "AUDUSD": {"spread_pips": 0.9, "step_pips": 1.5, "digits": 5, "unit": "pips"}
+    "XAUUSD": {"spread_usd": 0.25, "step_usd": 0.25, "digits": 2, "unit": "USD"},
+    "GBPJPY": {"spread_pips": 1.5, "step_pips": 1.5, "digits": 3, "unit": "pips"},
+    "EURUSD": {"spread_pips": 1.0, "step_pips": 1.0, "digits": 5, "unit": "pips"},
+    "GBPUSD": {"spread_pips": 1.0, "step_pips": 1.0, "digits": 5, "unit": "pips"},
+    "AUDUSD": {"spread_pips": 1.0, "step_pips": 1.0, "digits": 5, "unit": "pips"},
+    "NZDCAD": {"spread_pips": 1.0, "step_pips": 1.0, "digits": 5, "unit": "pips"}
 }
 
 def get_market_data(symbol="EURUSD", override_price=None):
     sym = symbol.upper().replace("/", "").replace("_", "")
-    specs = INSTRUMENT_SPECS.get(sym, {"spread_pips": 1.0, "step_pips": 1.5, "digits": 5, "unit": "pips"})
+    specs = INSTRUMENT_SPECS.get(sym, {"spread_pips": 1.0, "step_pips": 1.0, "digits": 5, "unit": "pips"})
     digits = specs["digits"]
 
     # 1. Si el usuario pasó un precio manual explícito
@@ -136,7 +140,7 @@ def get_market_data(symbol="EURUSD", override_price=None):
             pass
 
     # 4. Fallback canónico calibrado
-    base = FALLBACK_PRICES.get(sym, 1.12120)
+    base = FALLBACK_PRICES.get(sym, 1.10630)
     return base, specs
 
 def generate_synthetic_dom(symbol="EURUSD", override_price=None):
@@ -144,62 +148,62 @@ def generate_synthetic_dom(symbol="EURUSD", override_price=None):
     digits = specs["digits"]
     sym = symbol.upper().replace("/", "").replace("_", "")
 
-    # Micro-fluctuación dinámica de tick para simulación en vivo
     if "XAU" in sym:
-        jitter = random.choice([-0.04, -0.02, 0.0, 0.02, 0.04])
-        current_price = round(current_price + jitter, digits)
-        spread = specs.get("spread_usd", 0.13)
         step = specs.get("step_usd", 0.25)
+        spread = step
         spread_label = f"{spread:.2f} USD"
     elif "JPY" in sym:
-        jitter = random.choice([-0.003, -0.001, 0.0, 0.001, 0.003])
-        current_price = round(current_price + jitter, digits)
-        spread_pips = specs.get("spread_pips", 1.4)
-        spread = spread_pips * 0.01
-        step = specs.get("step_pips", 1.5) * 0.01
-        spread_label = f"{spread_pips:.1f} pips"
+        step = round(specs.get("step_pips", 1.5) * 0.01, digits)
+        spread = step
+        spread_label = f"{specs.get('spread_pips', 1.5):.1f} pips"
     else:
-        jitter = random.choice([-0.00003, -0.00001, 0.0, 0.00001, 0.00003])
-        current_price = round(current_price + jitter, digits)
-        spread_pips = specs.get("spread_pips", 1.0)
-        spread = spread_pips * 0.0001
-        step = specs.get("step_pips", 1.5) * 0.0001
-        spread_label = f"{spread_pips:.1f} pips"
+        step = round(specs.get("step_pips", 1.0) * 0.00010, digits)
+        spread = step
+        spread_label = f"{specs.get('spread_pips', 1.0):.1f} pips"
 
-    best_bid = round(current_price - (spread / 2.0), digits)
-    best_ask = round(current_price + (spread / 2.0), digits)
+    # Cuantización estricta al grid de ticks
+    ticks_base = math.floor(current_price / step) if step > 0 else 0
+    best_bid = round(ticks_base * step, digits)
+    best_ask = round(best_bid + step, digits)
+
+    if current_price > best_ask:
+        best_bid = round(current_price, digits)
+        best_ask = round(best_bid + step, digits)
+    elif current_price < best_bid:
+        best_ask = round(current_price, digits)
+        best_bid = round(best_ask - step, digits)
 
     levels = 10
-    asks = []
-    bids = []
-
-    # Generación de Asks (Venta por encima del mejor Ask)
+    asks_from_best = []
     cum_ask = 0.0
-    for i in range(levels, 0, -1):
-        step_price = round(best_ask + (i * step), digits)
-        is_wall = (i == 7)  # Zona de Liquidez / Muro Institucional
+    for k in range(levels):
+        step_price = round(best_ask + (k * step), digits)
+        is_wall = (k == 6)
         vol_noise = random.uniform(0.9, 1.1)
-        qty = round((0.45 * (i * 0.8) + (3.8 if is_wall else 0.25)) * vol_noise, 3)
+        qty = round((0.45 * ((k + 1) * 0.8) + (3.8 if is_wall else 0.25)) * vol_noise, 3)
         cum_ask += qty
-        asks.append({
-            "level": i,
+        asks_from_best.append({
+            "level": k + 1,
             "price": step_price,
             "quantity": qty,
             "cumulative": round(cum_ask, 3),
             "is_wall": is_wall
         })
-    asks.reverse()
 
-    # Generación de Bids (Compra por debajo del mejor Bid)
+    # Invertir para que asks[0] sea el más alto y asks[-1] sea Best Ask
+    asks = list(reversed(asks_from_best))
+
+    # Bids desde Best Bid hacia abajo
+    bids = []
     cum_bid = 0.0
-    for i in range(1, levels + 1):
-        step_price = round(best_bid - (i * step), digits)
-        is_wall = (i == 6)  # Soporte de Bloque Institucional
+    for k in range(levels):
+        step_price = round(best_bid - (k * step), digits)
+        is_wall = (k == 5)
         vol_noise = random.uniform(0.9, 1.1)
-        qty = round((0.42 * (i * 0.75) + (4.1 if is_wall else 0.25)) * vol_noise, 3)
+        qty = round((0.42 * ((k + 1) * 0.75) + (4.1 if is_wall else 0.25)) * vol_noise, 3)
         cum_bid += qty
         bids.append({
-            "level": i,
+            "level": k + 1,
             "price": step_price,
             "quantity": qty,
             "cumulative": round(cum_bid, 3),
