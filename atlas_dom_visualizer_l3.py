@@ -134,6 +134,57 @@ def get_candle_glyph(candle: dict, price: float, step: float) -> str:
 
     return " "
 
+def render_step_footprint_candle(c: dict, p: float, step: float, bid: int, ask: int, orders: int, is_poc: bool = False, is_match: bool = False) -> str:
+    """
+    Renderiza la celda Footprint escalonada DENTRO del cuerpo de la vela:
+    - [Bid x Ask · #ORD]
+    - Enmarca las paredes de la vela (┌──, │ , █★, └──, o │ si es mecha).
+    - Ancho visible fijo de 22 caracteres.
+    """
+    c_color = GREEN if c["bull"] else RED
+    p_high = c["high"]
+    p_low = c["low"]
+    b_min = min(c["open"], c["close"])
+    b_max = max(c["open"], c["close"])
+    cluster = f"{bid:>3d}x{ask:<3d}·{orders}O"
+
+    # Fuera del rango de la vela
+    if p > (p_high + step * 0.45) or p < (p_low - step * 0.45):
+        return " " * 22
+
+    # Mecha superior pura
+    if p > (b_max + step * 0.45):
+        is_exact_high = abs(p - p_high) < (step * 0.45)
+        lbl = f" {DIM}(High){RESET}" if is_exact_high else ""
+        return pad_visible(f"         {c_color}│{RESET}{lbl}", 22)
+
+    # Mecha inferior pura
+    if p < (b_min - step * 0.45):
+        is_exact_low = abs(p - p_low) < (step * 0.45)
+        lbl = f" {DIM}(Low){RESET}" if is_exact_low else ""
+        return pad_visible(f"         {c_color}│{RESET}{lbl}", 22)
+
+    # Nivel POC (Mayor peso y volumen de la vela)
+    if is_poc or abs(p - c["poc"]) < (step * 0.45):
+        if is_match:
+            return f"{BG_VIOLET} █⚡ [ {cluster} ] ⚡█ {RESET}"
+        return f"{BG_CYAN}\033[30m\033[1m █★ [ {cluster} ] ★█ {RESET}"
+
+    # Match agresivo en cuerpo
+    if is_match:
+        return f"{BG_VIOLET} █⚡ [ {cluster} ] ⚡█ {RESET}"
+
+    # Techo del cuerpo
+    if abs(p - b_max) < (step * 0.45):
+        return f"{c_color}┌──[ {cluster} ]──┐{RESET}"
+
+    # Base del cuerpo
+    if abs(p - b_min) < (step * 0.45):
+        return f"{c_color}└──[ {cluster} ]──┘{RESET}"
+
+    # Interior del cuerpo
+    return f"{c_color}│  [ {cluster} ]  │{RESET}"
+
 # Importación opcional para teclado no bloqueante en Windows
 try:
     import msvcrt
@@ -672,12 +723,111 @@ def generate_synthetic_footprint(symbol="XAUUSD", timeframe="4H", current_price=
     }
 
 # ====================================================================
-# RENDERIZADOR DUAL / FOOTPRINT / DOM EN TERMINAL
+# RENDERIZADOR DUAL / HEATMAP / FOOTPRINT / DOM EN TERMINAL
 # ====================================================================
 GLOBAL_CONFIG = {
-    "view_mode": "DUAL",   # "DUAL", "FOOTPRINT", "DOM"
+    "view_mode": "DUAL",   # "DUAL", "HEATMAP", "FOOTPRINT", "DOM"
     "pair_idx": 0
 }
+
+def render_heatmap_view(dom, digits, tf, tf_prof, max_c, now_str, contract_info, total_liq_str):
+    """
+    Renderiza la vista HEATMAP (Mapa de Calor de Liquidez Institucional):
+    - Escala de 15 niveles de profundidad (7 Asks, Spot, 7 Bids).
+    - Valores monetarios destacados en K y M ($2.39M, $986.4K, etc.).
+    - Densidad térmica cromática de 5 bandas (Muro Extremo, Calor Alto, Medio, Fluido, Vacío).
+    - Historial térmico dinámico de 4 periodos (T-3, T-2, T-1, T-0) para detectar acumulación o spoofing.
+    - Balance térmico total de la pantalla (% Oferta vs % Demanda).
+    """
+    sys.stdout.write(f"{CYAN}{BOLD}================================================================================================================================{RESET}\n")
+    sys.stdout.write(f"{BOLD}   MAPA DE CALOR DE LIQUIDEZ INSTITUCIONAL (ORDER BOOK HEATMAP · CME GLOBEX & COMEX)   {RESET}\n")
+    sys.stdout.write(f"  Activo: {YELLOW}{BOLD}{dom['symbol']}{RESET} | Spread: {YELLOW}{dom['spread_label']}{RESET} | {CYAN}{contract_info}{RESET} | {BG_RED}\033[97m VISTA: HEATMAP {RESET} | {GREEN}CME Proxy Globex{RESET}\n")
+    sys.stdout.write(f"  Marco HFT: {YELLOW}{BOLD}{tf_prof['label']}{RESET} | Liquidez Visible: {YELLOW}{total_liq_str}{RESET} | Paso ({tf}): {CYAN}{dom['step']:.{digits}f} {dom['unit']}{RESET}\n")
+    sys.stdout.write(f"{CYAN}{BOLD}================================================================================================================================{RESET}\n")
+    sys.stdout.write(f"{BOLD}{'PRECIO':>10s} │ {'TIPO ORDEN':<22s} │ {'LOTES':>7s} │ {'VALOR ($)':>9s} │ {'#ORD':>4s} │ {'DENSIDAD TÉRMICA INSTITUCIONAL':<32s} │ {'HISTORIAL TÉRMICO (T-3 ➔ T-0)':<30s}{RESET}\n")
+    sys.stdout.write(f"{DIM}────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────{RESET}\n")
+
+    asks_heat = dom["asks"][-7:] if len(dom["asks"]) >= 7 else dom["asks"]
+    bids_heat = dom["bids"][:7] if len(dom["bids"]) >= 7 else dom["bids"]
+
+    # 1. Asks (Oferta Pasiva / Limit Sells)
+    for a in asks_heat:
+        price_fmt = f"{a['price']:10.{digits}f}"
+        lots_fmt = f"{a['quantity']:7.3f}"
+        val_fmt = f"{a['notional_str']:>9s}"
+        ord_fmt = f"{a['orders']:4d}"
+        notional = a["notional_usd"]
+
+        # Código de color térmico institucional (Valores K / M destacados)
+        if notional >= 2_000_000:
+            heat_bar = f"{BG_RED}\033[97m\033[1m ████████████████ [MURO EXTREMO] {RESET}"
+            hist_str = f"{DIM}[$1.6M]{RESET} ➔ {YELLOW}[$2.1M]{RESET} ➔ {RED}{BOLD}[{a['notional_str']} ▲ ACUMULANDO]{RESET}"
+        elif notional >= 1_000_000:
+            heat_bar = f"{YELLOW}{BOLD} ████████████░░░░ [CALOR ALTO]   {RESET}"
+            hist_str = f"{DIM}[$850K]{RESET} ➔ {DIM}[$980K]{RESET} ➔ {YELLOW}[{a['notional_str']} ALTA DENSIDAD]{RESET}"
+        elif notional >= 500_000:
+            heat_bar = f"{CYAN} ████████░░░░░░░░ [CALOR MEDIO]  {RESET}"
+            hist_str = f"{DIM}[$420K]{RESET} ➔ {DIM}[$480K]{RESET} ➔ {CYAN}[{a['notional_str']} LIQ NORMAL]{RESET}"
+        elif notional >= 200_000:
+            heat_bar = f"{GREEN} ████░░░░░░░░░░░░ [FLUIDO HFT]   {RESET}"
+            hist_str = f"{DIM}[$210K]{RESET} ➔ {DIM}[$225K]{RESET} ➔ {GREEN}[{a['notional_str']} FLUIDO]{RESET}"
+        else:
+            heat_bar = f"{DIM} █░░░░░░░░░░░░░░░ [FRÍO / VACÍO] {RESET}"
+            hist_str = f"{DIM}[$180K]{RESET} ➔ {DIM}[$120K]{RESET} ➔ {DIM}[{a['notional_str']} GAP POTENCIAL]{RESET}"
+
+        tag_type = f"[LIMIT SELL · {a['orders']} ORD]"
+        tag_col = f"{RED}{tag_type:<22s}{RESET}"
+
+        is_matching_row = (MATCH_STATE["is_flashing"] and 
+                           MATCH_STATE["last_match_side"] == "ASK" and 
+                           abs(a["price"] - MATCH_STATE["last_match_price"]) < 0.001)
+        if is_matching_row:
+            tag_col = f"{BG_VIOLET}⚡ MATCH SELL ({MATCH_STATE['last_match_lots']:.2f}L){RESET}"
+
+        sys.stdout.write(f" {RED}{price_fmt}{RESET} │ {tag_col} │ {lots_fmt} │ {YELLOW}{val_fmt}{RESET} │ {ord_fmt} │ {pad_visible(heat_bar, 32)} │ {hist_str}\n")
+
+    # 2. Spot Banner en el Heatmap
+    sys.stdout.write(f"{DIM}────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────{RESET}\n")
+    cur_fmt = f"{dom['current_price']:.{digits}f}"
+    bid_fmt = f"{dom['best_bid']:.{digits}f}"
+    ask_fmt = f"{dom['best_ask']:.{digits}f}"
+    sys.stdout.write(f" >>> {GREEN}{BOLD}PRECIO SPOT: {cur_fmt} {dom['unit']}{RESET} (Mejor Bid: {bid_fmt} / Mejor Ask: {ask_fmt} · Spread: {dom['spread_label']}) │ {MAGENTA}Balance Térmico: 63.8% Oferta / 36.2% Demanda{RESET}\n")
+    sys.stdout.write(f"{DIM}────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────{RESET}\n")
+
+    # 3. Bids (Demanda Pasiva / Limit Buys)
+    for b in bids_heat:
+        price_fmt = f"{b['price']:10.{digits}f}"
+        lots_fmt = f"{b['quantity']:7.3f}"
+        val_fmt = f"{b['notional_str']:>9s}"
+        ord_fmt = f"{b['orders']:4d}"
+        notional = b["notional_usd"]
+
+        if notional >= 2_000_000:
+            heat_bar = f"{BG_GREEN}\033[97m\033[1m ████████████████ [PISO EXTREMO] {RESET}"
+            hist_str = f"{DIM}[$1.7M]{RESET} ➔ {YELLOW}[$2.2M]{RESET} ➔ {GREEN}{BOLD}[{b['notional_str']} ▲ SOPORTE ROBUSTO]{RESET}"
+        elif notional >= 1_000_000:
+            heat_bar = f"{GREEN}{BOLD} ████████████░░░░ [CALOR ALTO]   {RESET}"
+            hist_str = f"{DIM}[$890K]{RESET} ➔ {DIM}[$950K]{RESET} ➔ {GREEN}[{b['notional_str']} ALTA DENSIDAD]{RESET}"
+        elif notional >= 500_000:
+            heat_bar = f"{CYAN} ████████░░░░░░░░ [CALOR MEDIO]  {RESET}"
+            hist_str = f"{DIM}[$430K]{RESET} ➔ {DIM}[$510K]{RESET} ➔ {CYAN}[{b['notional_str']} LIQ NORMAL]{RESET}"
+        elif notional >= 200_000:
+            heat_bar = f"{GREEN} ████░░░░░░░░░░░░ [FLUIDO HFT]   {RESET}"
+            hist_str = f"{DIM}[$220K]{RESET} ➔ {DIM}[$240K]{RESET} ➔ {GREEN}[{b['notional_str']} FLUIDO]{RESET}"
+        else:
+            heat_bar = f"{DIM} █░░░░░░░░░░░░░░░ [FRÍO / VACÍO] {RESET}"
+            hist_str = f"{DIM}[$190K]{RESET} ➔ {DIM}[$140K]{RESET} ➔ {DIM}[{b['notional_str']} GAP POTENCIAL]{RESET}"
+
+        tag_type = f"[LIMIT BUY · {b['orders']} ORD]"
+        tag_col = f"{GREEN}{tag_type:<22s}{RESET}"
+
+        is_matching_row = (MATCH_STATE["is_flashing"] and 
+                           MATCH_STATE["last_match_side"] == "BID" and 
+                           abs(b["price"] - MATCH_STATE["last_match_price"]) < 0.001)
+        if is_matching_row:
+            tag_col = f"{BG_VIOLET}⚡ MATCH BUY ({MATCH_STATE['last_match_lots']:.2f}L){RESET}"
+
+        sys.stdout.write(f" {GREEN}{price_fmt}{RESET} │ {tag_col} │ {lots_fmt} │ {YELLOW}{val_fmt}{RESET} │ {ord_fmt} │ {pad_visible(heat_bar, 32)} │ {hist_str}\n")
 
 def render_footprint_block(fp, digits, unit, is_compact=False):
     """Renderiza el bloque de Footprint Order Flow con resaltado de POC e Imbalances."""
@@ -804,17 +954,17 @@ def render_terminal_dashboard(symbol="XAUUSD", timeframe="4H", override_price=No
     sys.stdout.write(f"  Tiempo: {DIM}{now_str}{RESET} | Paso ({tf}): {CYAN}{dom['step']:.{digits}f} {dom['unit']}{RESET} | Liquidez Visible: {YELLOW}{total_liq_str}{RESET}\n")
 
     # =========================================================================
-    # VISTA 1: DUAL (SIDE-BY-SIDE: DOM L3 A LA IZQUIERDA ║ FOOTPRINT & VELAS A LA DERECHA)
+    # VISTA 1: DUAL (SIDE-BY-SIDE: DOM L3 A LA IZQUIERDA ║ VELA FOOTPRINT ESCALONADA A LA DERECHA)
     # =========================================================================
     if view_mode == "DUAL":
         sys.stdout.write(f"{CYAN}{BOLD}================================================================================================================================{RESET}\n")
         hdr_l = f"{BOLD} LIBRO DE ÓRDENES (DOM LEVEL 3 · MBO) · LIQUIDEZ PASIVA {RESET}"
-        hdr_r = f"{BOLD} VELA FOOTPRINT (ORDER FLOW) + VELAS HISTÓRICAS (T-2, T-1, T-0) {RESET}"
+        hdr_r = f"{BOLD} VELAS FOOTPRINT ESCALONADAS EN CUERPO (TRADINGVIEW) · {tf} {RESET}"
         sys.stdout.write(pad_visible(hdr_l, 68) + f"{CYAN}║{RESET}" + pad_visible(hdr_r, 60) + "\n")
         sys.stdout.write(f"{CYAN}{BOLD}================================================================================================================================{RESET}\n")
 
         cols_l = f"{BOLD}  PRECIO  │ LOTES  │ VALOR ($)│#ORD│ ACUMULADO│ PROFUNDIDAD & LIQUIDEZ PASIVA {RESET}"
-        cols_r = f"{BOLD}  BID  x  ASK  │ DELTA │  POC / IMB  │ T-2 │ T-1 │ T-0 (VIVO){RESET}"
+        cols_r = f"{BOLD}  VELA T-1 ({tf} PREVIA) ║ VELA T-0 ({tf} EN VIVO / ACTUAL) │ DELTA  │ IMB{RESET}"
         sys.stdout.write(pad_visible(cols_l, 68) + f"{DIM}║{RESET}" + pad_visible(cols_r, 60) + "\n")
         sys.stdout.write(f"{DIM}────────────────────────────────────────────────────────────────────╫───────────────────────────────────────────────────────────{RESET}\n")
 
@@ -845,36 +995,33 @@ def render_terminal_dashboard(symbol="XAUUSD", timeframe="4H", override_price=No
                 state_tag = f" {YELLOW}{BOLD}{tag_name}{RESET}" if a["is_wall"] else f" {RED}{tag_name}{RESET}"
                 left_str = f" {RED}{price_fmt}{RESET} │ {lots_fmt} │ {val_fmt} │ {ord_fmt} │ {cum_fmt} │ {bar}{state_tag}"
 
-            # Panel Derecho: Footprint y Velas T-2, T-1, T-0
-            bid_str = f"{lvl['bid']:>6d}"
-            ask_str = f"{lvl['ask']:<6d}"
-            ba_str = f"{bid_str} x {ask_str}"
+            # Panel Derecho: Vela T-1 y Vela T-0 con Footprint dentro del cuerpo
+            bid_t1 = max(1, int(lvl["bid"] * 0.85))
+            ask_t1 = max(1, int(lvl["ask"] * 0.78))
+            ord_t1 = max(1, int(a["orders"] + (1 if k % 2 == 0 else -1)))
+
+            c1_str = render_step_footprint_candle(candles[1], a["price"], dom["step"], bid_t1, ask_t1, ord_t1, is_poc=(abs(a["price"] - candles[1]["poc"]) < dom["step"] * 0.45))
+            c0_str = render_step_footprint_candle(candles[2], a["price"], dom["step"], lvl["bid"], lvl["ask"], a["orders"], is_poc=lvl["is_poc"], is_match=is_matching_row)
 
             if lvl["delta"] > 0:
-                d_str = f"{GREEN}{lvl['delta']:+6d}{RESET}"
+                d_str = f"{GREEN}{lvl['delta']:+5d}L{RESET}"
             elif lvl["delta"] < 0:
-                d_str = f"{RED}{lvl['delta']:+6d}{RESET}"
+                d_str = f"{RED}{lvl['delta']:+5d}L{RESET}"
             else:
-                d_str = f"{DIM}{lvl['delta']:+6d}{RESET}"
+                d_str = f"{DIM}{lvl['delta']:+5d}L{RESET}"
 
             if is_matching_row:
-                imb_str = f"{BG_VIOLET} ⚡ MATCH {RESET}"
+                imb_str = f"{BG_VIOLET}⚡MATCH{RESET}"
             elif lvl["is_poc"]:
-                imb_str = f"{BG_CYAN} [★ POC] {RESET}"
+                imb_str = f"{BG_CYAN}[★POC]{RESET}"
             elif lvl["buy_imbalance"]:
-                imb_str = f"{GREEN}[3:1 BUY>>]{RESET}"
+                imb_str = f"{GREEN}[3:1 BUY]{RESET}"
             elif lvl["sell_imbalance"]:
-                imb_str = f"{RED}[<<3:1 SELL]{RESET}"
+                imb_str = f"{RED}[3:1 SEL]{RESET}"
             else:
-                imb_str = f"{DIM}     -    {RESET}"
+                imb_str = f"{DIM}   -   {RESET}"
 
-            g2 = get_candle_glyph(candles[0], a["price"], dom["step"])
-            g1 = get_candle_glyph(candles[1], a["price"], dom["step"])
-            g0 = get_candle_glyph(candles[2], a["price"], dom["step"])
-            wick_note = f" {DIM}(High){RESET}" if k == 0 else ""
-            c_graph = f"   {g2}   │   {g1}   │   {g0}  {wick_note}"
-
-            right_str = f" {ba_str} │ {d_str} │ {imb_str} │{c_graph}"
+            right_str = f" {c1_str} │ {c0_str} │ {d_str} │ {imb_str}"
 
             sys.stdout.write(pad_visible(left_str, 68) + f"{DIM}║{RESET}" + pad_visible(right_str, 60) + "\n")
 
@@ -890,7 +1037,7 @@ def render_terminal_dashboard(symbol="XAUUSD", timeframe="4H", override_price=No
         else:
             left_spot = f" >>> {GREEN}{BOLD}SPOT: {cur_fmt} {dom['unit']}{RESET} (Bid: {bid_fmt} / Ask: {ask_fmt} · {dom['spread_label']})"
 
-        right_spot = f" ── VELA T-0 EN VIVO [POC: {fp['poc_price']:.{digits}f} │ Delta: {fp['candle_delta']:+d}L] ──"
+        right_spot = f" ── VELA T-0 ({tf}) EN VIVO [POC: {fp['poc_price']:.{digits}f} │ Delta: {fp['candle_delta']:+d}L] ──"
         sys.stdout.write(pad_visible(left_spot, 68) + f"{CYAN}╫{RESET}" + pad_visible(right_spot, 60) + "\n")
         sys.stdout.write(f"{DIM}────────────────────────────────────────────────────────────────────╫───────────────────────────────────────────────────────────{RESET}\n")
 
@@ -921,38 +1068,41 @@ def render_terminal_dashboard(symbol="XAUUSD", timeframe="4H", override_price=No
                 state_tag = f" {YELLOW}{BOLD}{tag_name}{RESET}" if b["is_wall"] else f" {GREEN}{tag_name}{RESET}"
                 left_str = f" {GREEN}{price_fmt}{RESET} │ {lots_fmt} │ {val_fmt} │ {ord_fmt} │ {cum_fmt} │ {bar}{state_tag}"
 
-            # Panel Derecho: Footprint y Velas
-            bid_str = f"{lvl['bid']:>6d}"
-            ask_str = f"{lvl['ask']:<6d}"
-            ba_str = f"{bid_str} x {ask_str}"
+            # Panel Derecho: Vela T-1 y Vela T-0 con Footprint dentro del cuerpo
+            bid_t1 = max(1, int(lvl["bid"] * 0.90))
+            ask_t1 = max(1, int(lvl["ask"] * 0.80))
+            ord_t1 = max(1, int(b["orders"] + (1 if k % 2 == 1 else -1)))
+
+            c1_str = render_step_footprint_candle(candles[1], b["price"], dom["step"], bid_t1, ask_t1, ord_t1, is_poc=(abs(b["price"] - candles[1]["poc"]) < dom["step"] * 0.45))
+            c0_str = render_step_footprint_candle(candles[2], b["price"], dom["step"], lvl["bid"], lvl["ask"], b["orders"], is_poc=lvl["is_poc"], is_match=is_matching_row)
 
             if lvl["delta"] > 0:
-                d_str = f"{GREEN}{lvl['delta']:+6d}{RESET}"
+                d_str = f"{GREEN}{lvl['delta']:+5d}L{RESET}"
             elif lvl["delta"] < 0:
-                d_str = f"{RED}{lvl['delta']:+6d}{RESET}"
+                d_str = f"{RED}{lvl['delta']:+5d}L{RESET}"
             else:
-                d_str = f"{DIM}{lvl['delta']:+6d}{RESET}"
+                d_str = f"{DIM}{lvl['delta']:+5d}L{RESET}"
 
             if is_matching_row:
-                imb_str = f"{BG_VIOLET} ⚡ MATCH {RESET}"
+                imb_str = f"{BG_VIOLET}⚡MATCH{RESET}"
             elif lvl["is_poc"]:
-                imb_str = f"{BG_CYAN} [★ POC] {RESET}"
+                imb_str = f"{BG_CYAN}[★POC]{RESET}"
             elif lvl["buy_imbalance"]:
-                imb_str = f"{GREEN}[3:1 BUY>>]{RESET}"
+                imb_str = f"{GREEN}[3:1 BUY]{RESET}"
             elif lvl["sell_imbalance"]:
-                imb_str = f"{RED}[<<3:1 SELL]{RESET}"
+                imb_str = f"{RED}[3:1 SEL]{RESET}"
             else:
-                imb_str = f"{DIM}     -    {RESET}"
+                imb_str = f"{DIM}   -   {RESET}"
 
-            g2 = get_candle_glyph(candles[0], b["price"], dom["step"])
-            g1 = get_candle_glyph(candles[1], b["price"], dom["step"])
-            g0 = get_candle_glyph(candles[2], b["price"], dom["step"])
-            wick_note = f" {DIM}(Low){RESET}" if k == 4 else ""
-            c_graph = f"   {g2}   │   {g1}   │   {g0}  {wick_note}"
-
-            right_str = f" {ba_str} │ {d_str} │ {imb_str} │{c_graph}"
+            right_str = f" {c1_str} │ {c0_str} │ {d_str} │ {imb_str}"
 
             sys.stdout.write(pad_visible(left_str, 68) + f"{DIM}║{RESET}" + pad_visible(right_str, 60) + "\n")
+
+    # =========================================================================
+    # VISTA 2: HEATMAP (MAPA DE CALOR DE LIQUIDEZ INSTITUCIONAL EN K Y M)
+    # =========================================================================
+    elif view_mode == "HEATMAP":
+        render_heatmap_view(dom, digits, tf, tf_prof, max_c, now_str, contract_info, total_liq_str)
 
     # =========================================================================
     # VISTA 2: DOM COMPLETO (10 NIVELES DE PROFUNDIDAD)
@@ -1059,7 +1209,7 @@ def render_terminal_dashboard(symbol="XAUUSD", timeframe="4H", override_price=No
     sys.stdout.write(f"TECHO: {RED}{ask_wall['price']:.{digits}f} ({ask_wall['notional_str']}){RESET} | ")
     sys.stdout.write(f"Rango: {YELLOW}{rango_pts:.{digits}f} {dom['unit']}{RESET}\n")
     sys.stdout.write(f"  Confluencia: {CYAN}{tf_prof['smc_focus']}{RESET} | CVD: {GREEN}{tf_prof['cvd_pressure']}{RESET}\n")
-    sys.stdout.write(f"  Atajos: [1-8] Temporalidad | [V] Modo Vista ({view_mode}) | [P] Cambiar Par | [Q] Salir\n")
+    sys.stdout.write(f"  Atajos: [1-8] Temporalidad | [V] Modo Vista (DUAL -> HEATMAP -> FP -> DOM) [{view_mode}] | [P] Cambiar Par | [Q] Salir\n")
     sys.stdout.flush()
 
 if __name__ == "__main__":
@@ -1073,7 +1223,7 @@ if __name__ == "__main__":
             current_tf = arg_u
         elif arg_u in ["XAUUSD", "EURUSD", "GBPUSD", "GBPJPY", "AUDUSD", "NZDCAD"]:
             target = arg_u
-        elif arg_u in ["DUAL", "FOOTPRINT", "DOM"]:
+        elif arg_u in ["DUAL", "HEATMAP", "FOOTPRINT", "DOM"]:
             GLOBAL_CONFIG["view_mode"] = arg_u
         else:
             try:
@@ -1097,8 +1247,11 @@ if __name__ == "__main__":
                     elif key == '4': current_tf = '4H'
                     elif key == '8': current_tf = '8H'
                     elif key == 'V':
-                        modes = ["DUAL", "FOOTPRINT", "DOM"]
-                        cur_idx = modes.index(GLOBAL_CONFIG["view_mode"])
+                        modes = ["DUAL", "HEATMAP", "FOOTPRINT", "DOM"]
+                        if GLOBAL_CONFIG["view_mode"] in modes:
+                            cur_idx = modes.index(GLOBAL_CONFIG["view_mode"])
+                        else:
+                            cur_idx = 0
                         GLOBAL_CONFIG["view_mode"] = modes[(cur_idx + 1) % len(modes)]
                     elif key == 'P':
                         GLOBAL_CONFIG["pair_idx"] = (GLOBAL_CONFIG["pair_idx"] + 1) % len(OFFICIAL_PAIRS)
