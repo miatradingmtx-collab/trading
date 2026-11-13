@@ -1,0 +1,9 @@
+@echo off
+chcp 65001 > nul
+set TF=%1
+if "%TF%"=="" set TF=1H
+title ATLAS CME DOM LEVEL 3 (MBO) · NZDCAD [%TF%]
+cls
+python atlas_dom_visualizer_l3.py NZDCAD %TF%
+echo.
+pause
