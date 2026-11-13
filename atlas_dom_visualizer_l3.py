@@ -25,8 +25,114 @@ import requests
 import json
 import math
 import random
+import re
 import urllib.request
 from datetime import datetime
+
+ANSI_REGEX = re.compile(r'\x1b\[[0-9;]*m')
+
+def visible_len(text: str) -> int:
+    """Calcula la longitud visible en pantalla omitiendo códigos de color ANSI."""
+    return len(ANSI_REGEX.sub('', text))
+
+def pad_visible(text: str, target_width: int, align: str = 'left') -> str:
+    """Rellena un texto con espacios para que su ancho visible sea exactamente target_width."""
+    v_len = visible_len(text)
+    pad = max(0, target_width - v_len)
+    if align == 'right':
+        return (' ' * pad) + text
+    elif align == 'center':
+        left = pad // 2
+        right = pad - left
+        return (' ' * left) + text + (' ' * right)
+    else:
+        return text + (' ' * pad)
+
+class CandleHistoryTracker:
+    """Mantiene el historial de las 3 velas recientes (T-2, T-1, T-0) para el panel lateral de Order Flow."""
+    def __init__(self):
+        self.history = {}
+
+    def get_or_create(self, symbol: str, timeframe: str, current_price: float, step: float, digits: int, tf_profile: dict):
+        key = (symbol, timeframe)
+        vol_mult = tf_profile.get("vol_multiplier", 1.0)
+        poc_base = quantize_price(current_price, step, digits)
+
+        if key not in self.history:
+            # Vela T-2 (2 periodos atrás - Impulso alcista previo)
+            c_t2 = {
+                "name": "T-2",
+                "open": round(poc_base - 2 * step, digits),
+                "close": round(poc_base + 2 * step, digits),
+                "high": round(poc_base + 4 * step, digits),
+                "low": round(poc_base - 3 * step, digits),
+                "poc": round(poc_base + 1 * step, digits),
+                "delta": int(420 * vol_mult),
+                "volume": int(3850 * vol_mult),
+                "bull": True,
+                "is_active": False
+            }
+            # Vela T-1 (Periodo anterior - Sweep bajista y absorción de techo)
+            c_t1 = {
+                "name": "T-1",
+                "open": round(poc_base + 2 * step, digits),
+                "close": round(poc_base - 1 * step, digits),
+                "high": round(poc_base + 3 * step, digits),
+                "low": round(poc_base - 2 * step, digits),
+                "poc": poc_base,
+                "delta": -int(185 * vol_mult),
+                "volume": int(4120 * vol_mult),
+                "bull": False,
+                "is_active": False
+            }
+            # Vela T-0 (Vela en curso activa)
+            c_t0 = {
+                "name": "T-0",
+                "open": round(poc_base - 1 * step, digits),
+                "close": current_price,
+                "high": max(round(poc_base + 3 * step, digits), current_price),
+                "low": min(round(poc_base - 3 * step, digits), current_price),
+                "poc": poc_base,
+                "delta": int(569 * vol_mult),
+                "volume": int(4459 * vol_mult),
+                "bull": (current_price >= round(poc_base - 1 * step, digits)),
+                "is_active": True
+            }
+            self.history[key] = [c_t2, c_t1, c_t0]
+        else:
+            # Actualización en vivo de la vela T-0
+            c_t0 = self.history[key][2]
+            c_t0["close"] = current_price
+            c_t0["high"] = max(c_t0["high"], current_price)
+            c_t0["low"] = min(c_t0["low"], current_price)
+            c_t0["bull"] = (c_t0["close"] >= c_t0["open"])
+
+        return self.history[key]
+
+CANDLE_TRACKER = CandleHistoryTracker()
+
+def get_candle_glyph(candle: dict, price: float, step: float) -> str:
+    """Renderiza el glifo de una vela en un nivel de precio específico (POC ★, Cuerpo █, Mecha │)."""
+    # 1. Nivel del POC
+    if abs(price - candle["poc"]) < (step * 0.45):
+        if candle["is_active"]:
+            return f"{BG_CYAN}\033[30m★\033[0m"
+        else:
+            c_color = GREEN if candle["bull"] else RED
+            return f"{c_color}{BOLD}★{RESET}"
+
+    # 2. Cuerpo de la vela
+    b_min = min(candle["open"], candle["close"])
+    b_max = max(candle["open"], candle["close"])
+    c_color = GREEN if candle["bull"] else RED
+    if (b_min - step * 0.45) <= price <= (b_max + step * 0.45):
+        return f"{c_color}█{RESET}"
+
+    # 3. Mechas
+    if (candle["low"] - step * 0.45) <= price <= (candle["high"] + step * 0.45):
+        return f"{c_color}│{RESET}"
+
+    return " "
 
 # Importación opcional para teclado no bloqueante en Windows
 try:
@@ -669,6 +775,8 @@ def render_terminal_dashboard(symbol="XAUUSD", timeframe="4H", override_price=No
         best_ask=dom["best_ask"]
     )
 
+    candles = CANDLE_TRACKER.get_or_create(dom["symbol"], tf, dom["current_price"], dom["step"], digits, tf_prof)
+
     contract_info = dom.get("specs", {}).get("contract_name", "1 Lote = 100 oz" if "XAU" in dom["symbol"] else "1 Lote = 100k")
     total_liq_str = format_notional(dom["total_liquidity_usd"])
 
@@ -685,27 +793,178 @@ def render_terminal_dashboard(symbol="XAUUSD", timeframe="4H", override_price=No
     view_label = f"{BG_CYAN} VISTA: {view_mode} {RESET}"
 
     sys.stdout.write(CLEAR)
-    sys.stdout.write(f"{CYAN}{BOLD}========================================================================================{RESET}\n")
-    sys.stdout.write(f"{BOLD}   MONITOR CUANTITATIVO ATLAS: DOM LEVEL 3 (MBO) + FOOTPRINT ORDER FLOW   {RESET}\n")
-    sys.stdout.write(f"  Activo: {YELLOW}{BOLD}{dom['symbol']}{RESET} | Spread: {YELLOW}{dom['spread_label']}{RESET} | {CYAN}{contract_info}{RESET} | {view_label} | {GREEN}CME Proxy{RESET}\n")
-    sys.stdout.write(f"  TEMPORALIDAD: [ {tf_bar_str} ] {DIM}(Teclas 1, 2, 3, 4 u 8 | 'V' Cambiar Vista | 'P' Par){RESET}\n")
+    sys.stdout.write(f"{CYAN}{BOLD}================================================================================================================================{RESET}\n")
+    sys.stdout.write(f"{BOLD}   MONITOR CUANTITATIVO ATLAS: DOM LEVEL 3 (MBO) + FOOTPRINT ORDER FLOW INTEGRADO   {RESET}\n")
+    sys.stdout.write(f"  Activo: {YELLOW}{BOLD}{dom['symbol']}{RESET} | Spread: {YELLOW}{dom['spread_label']}{RESET} | {CYAN}{contract_info}{RESET} | {view_label} | {GREEN}CME Proxy Globex{RESET}\n")
+    sys.stdout.write(f"  TEMPORALIDAD: [ {tf_bar_str} ] {DIM}(Teclas 1, 2, 3, 4 u 8 | 'V' Cambiar Vista | 'P' Par | 'Q' Salir){RESET}\n")
     vol_tag = tf_prof.get('cme_vol_regime', 'FXVL NORMAL')
     if "XAU" in dom['symbol'] or "GOLD" in dom['symbol']:
         vol_tag = vol_tag.replace("CME FXVL", "COMEX GVZ / Gold CVOL")
     sys.stdout.write(f"  Marco HFT: {YELLOW}{BOLD}{tf_prof['label']}{RESET} | {MAGENTA}{vol_tag}{RESET}\n")
     sys.stdout.write(f"  Tiempo: {DIM}{now_str}{RESET} | Paso ({tf}): {CYAN}{dom['step']:.{digits}f} {dom['unit']}{RESET} | Liquidez Visible: {YELLOW}{total_liq_str}{RESET}\n")
 
-    # MODO 1: DOM LEVEL 3 (Si la vista es DUAL o DOM)
-    if view_mode in ["DUAL", "DOM"]:
+    # =========================================================================
+    # VISTA 1: DUAL (SIDE-BY-SIDE: DOM L3 A LA IZQUIERDA ║ FOOTPRINT & VELAS A LA DERECHA)
+    # =========================================================================
+    if view_mode == "DUAL":
+        sys.stdout.write(f"{CYAN}{BOLD}================================================================================================================================{RESET}\n")
+        hdr_l = f"{BOLD} LIBRO DE ÓRDENES (DOM LEVEL 3 · MBO) · LIQUIDEZ PASIVA {RESET}"
+        hdr_r = f"{BOLD} VELA FOOTPRINT (ORDER FLOW) + VELAS HISTÓRICAS (T-2, T-1, T-0) {RESET}"
+        sys.stdout.write(pad_visible(hdr_l, 68) + f"{CYAN}║{RESET}" + pad_visible(hdr_r, 60) + "\n")
+        sys.stdout.write(f"{CYAN}{BOLD}================================================================================================================================{RESET}\n")
+
+        cols_l = f"{BOLD}  PRECIO  │ LOTES  │ VALOR ($)│#ORD│ ACUMULADO│ PROFUNDIDAD & LIQUIDEZ PASIVA {RESET}"
+        cols_r = f"{BOLD}  BID  x  ASK  │ DELTA │  POC / IMB  │ T-2 │ T-1 │ T-0 (VIVO){RESET}"
+        sys.stdout.write(pad_visible(cols_l, 68) + f"{DIM}║{RESET}" + pad_visible(cols_r, 60) + "\n")
+        sys.stdout.write(f"{DIM}────────────────────────────────────────────────────────────────────╫───────────────────────────────────────────────────────────{RESET}\n")
+
+        # Renderizado de los 5 niveles de Asks (Venta Pasiva) alineados con Footprint
+        asks_to_render = dom["asks"][-5:]
+        for k in range(5):
+            a = asks_to_render[k]
+            lvl = fp["levels"][1 + k]
+
+            bar_len = int((a["cumulative"] / max_c) * 10)
+            price_fmt = f"{a['price']:9.{digits}f}"
+            lots_fmt = f"{a['quantity']:7.3f}"
+            val_fmt = f"{a['notional_str']:>8s}"
+            ord_fmt = f"{a['orders']:3d}"
+            cum_fmt = f"{a['cumulative']:8.3f}"
+
+            is_matching_row = (MATCH_STATE["is_flashing"] and 
+                               MATCH_STATE["last_match_side"] == "ASK" and 
+                               abs(a["price"] - MATCH_STATE["last_match_price"]) < 0.001)
+
+            if is_matching_row:
+                bar = f"{VIOLET}{'█' * bar_len}{DIM}{'░' * (10 - bar_len)}{RESET}"
+                state_tag = f"{BG_VIOLET} ⚡ MATCH ({MATCH_STATE['last_match_lots']:.2f}L · {a['orders']} ORD) {RESET}"
+                left_str = f" {BOLD_VIOLET}{price_fmt}{RESET} │ {BOLD_VIOLET}{lots_fmt}{RESET} │ {BOLD_VIOLET}{val_fmt}{RESET} │ {BOLD_VIOLET}{ord_fmt}{RESET} │ {cum_fmt} │ {bar} {state_tag}"
+            else:
+                bar = f"{RED}{'█' * bar_len}{DIM}{'░' * (10 - bar_len)}{RESET}"
+                tag_name = f"[TECHO {tf} · {a['orders']} ORD]" if a["is_wall"] else f"[LIMIT SELL · {a['orders']} ORD]"
+                state_tag = f" {YELLOW}{BOLD}{tag_name}{RESET}" if a["is_wall"] else f" {RED}{tag_name}{RESET}"
+                left_str = f" {RED}{price_fmt}{RESET} │ {lots_fmt} │ {val_fmt} │ {ord_fmt} │ {cum_fmt} │ {bar}{state_tag}"
+
+            # Panel Derecho: Footprint y Velas T-2, T-1, T-0
+            bid_str = f"{lvl['bid']:>6d}"
+            ask_str = f"{lvl['ask']:<6d}"
+            ba_str = f"{bid_str} x {ask_str}"
+
+            if lvl["delta"] > 0:
+                d_str = f"{GREEN}{lvl['delta']:+6d}{RESET}"
+            elif lvl["delta"] < 0:
+                d_str = f"{RED}{lvl['delta']:+6d}{RESET}"
+            else:
+                d_str = f"{DIM}{lvl['delta']:+6d}{RESET}"
+
+            if is_matching_row:
+                imb_str = f"{BG_VIOLET} ⚡ MATCH {RESET}"
+            elif lvl["is_poc"]:
+                imb_str = f"{BG_CYAN} [★ POC] {RESET}"
+            elif lvl["buy_imbalance"]:
+                imb_str = f"{GREEN}[3:1 BUY>>]{RESET}"
+            elif lvl["sell_imbalance"]:
+                imb_str = f"{RED}[<<3:1 SELL]{RESET}"
+            else:
+                imb_str = f"{DIM}     -    {RESET}"
+
+            g2 = get_candle_glyph(candles[0], a["price"], dom["step"])
+            g1 = get_candle_glyph(candles[1], a["price"], dom["step"])
+            g0 = get_candle_glyph(candles[2], a["price"], dom["step"])
+            wick_note = f" {DIM}(High){RESET}" if k == 0 else ""
+            c_graph = f"   {g2}   │   {g1}   │   {g0}  {wick_note}"
+
+            right_str = f" {ba_str} │ {d_str} │ {imb_str} │{c_graph}"
+
+            sys.stdout.write(pad_visible(left_str, 68) + f"{DIM}║{RESET}" + pad_visible(right_str, 60) + "\n")
+
+        # Fila Central de Spot / Spread y Estado de la Vela Activa
+        sys.stdout.write(f"{DIM}────────────────────────────────────────────────────────────────────╫───────────────────────────────────────────────────────────{RESET}\n")
+        cur_fmt = f"{dom['current_price']:.{digits}f}"
+        bid_fmt = f"{dom['best_bid']:.{digits}f}"
+        ask_fmt = f"{dom['best_ask']:.{digits}f}"
+
+        if MATCH_STATE["is_flashing"]:
+            side_desc = "COMPRADOR ABSORBIENDO SELL LIMIT" if MATCH_STATE["last_match_side"] == "ASK" else "VENDEDOR ABSORBIENDO BUY LIMIT"
+            left_spot = f" {BG_VIOLET} ⚡ MATCH: {side_desc} [{MATCH_STATE['last_match_lots']:.2f}L] {RESET}"
+        else:
+            left_spot = f" >>> {GREEN}{BOLD}SPOT: {cur_fmt} {dom['unit']}{RESET} (Bid: {bid_fmt} / Ask: {ask_fmt} · {dom['spread_label']})"
+
+        right_spot = f" ── VELA T-0 EN VIVO [POC: {fp['poc_price']:.{digits}f} │ Delta: {fp['candle_delta']:+d}L] ──"
+        sys.stdout.write(pad_visible(left_spot, 68) + f"{CYAN}╫{RESET}" + pad_visible(right_spot, 60) + "\n")
+        sys.stdout.write(f"{DIM}────────────────────────────────────────────────────────────────────╫───────────────────────────────────────────────────────────{RESET}\n")
+
+        # Renderizado de los 5 niveles de Bids (Compra Pasiva) alineados con Footprint
+        bids_to_render = dom["bids"][:5]
+        for k in range(5):
+            b = bids_to_render[k]
+            lvl = fp["levels"][6 + k]
+
+            bar_len = int((b["cumulative"] / max_c) * 10)
+            price_fmt = f"{b['price']:9.{digits}f}"
+            lots_fmt = f"{b['quantity']:7.3f}"
+            val_fmt = f"{b['notional_str']:>8s}"
+            ord_fmt = f"{b['orders']:3d}"
+            cum_fmt = f"{b['cumulative']:8.3f}"
+
+            is_matching_row = (MATCH_STATE["is_flashing"] and 
+                               MATCH_STATE["last_match_side"] == "BID" and 
+                               abs(b["price"] - MATCH_STATE["last_match_price"]) < 0.001)
+
+            if is_matching_row:
+                bar = f"{VIOLET}{'█' * bar_len}{DIM}{'░' * (10 - bar_len)}{RESET}"
+                state_tag = f"{BG_VIOLET} ⚡ MATCH ({MATCH_STATE['last_match_lots']:.2f}L · {b['orders']} ORD) {RESET}"
+                left_str = f" {BOLD_VIOLET}{price_fmt}{RESET} │ {BOLD_VIOLET}{lots_fmt}{RESET} │ {BOLD_VIOLET}{val_fmt}{RESET} │ {BOLD_VIOLET}{ord_fmt}{RESET} │ {cum_fmt} │ {bar} {state_tag}"
+            else:
+                bar = f"{GREEN}{'█' * bar_len}{DIM}{'░' * (10 - bar_len)}{RESET}"
+                tag_name = f"[PISO {tf} · {b['orders']} ORD]" if b["is_wall"] else f"[LIMIT BUY · {b['orders']} ORD]"
+                state_tag = f" {YELLOW}{BOLD}{tag_name}{RESET}" if b["is_wall"] else f" {GREEN}{tag_name}{RESET}"
+                left_str = f" {GREEN}{price_fmt}{RESET} │ {lots_fmt} │ {val_fmt} │ {ord_fmt} │ {cum_fmt} │ {bar}{state_tag}"
+
+            # Panel Derecho: Footprint y Velas
+            bid_str = f"{lvl['bid']:>6d}"
+            ask_str = f"{lvl['ask']:<6d}"
+            ba_str = f"{bid_str} x {ask_str}"
+
+            if lvl["delta"] > 0:
+                d_str = f"{GREEN}{lvl['delta']:+6d}{RESET}"
+            elif lvl["delta"] < 0:
+                d_str = f"{RED}{lvl['delta']:+6d}{RESET}"
+            else:
+                d_str = f"{DIM}{lvl['delta']:+6d}{RESET}"
+
+            if is_matching_row:
+                imb_str = f"{BG_VIOLET} ⚡ MATCH {RESET}"
+            elif lvl["is_poc"]:
+                imb_str = f"{BG_CYAN} [★ POC] {RESET}"
+            elif lvl["buy_imbalance"]:
+                imb_str = f"{GREEN}[3:1 BUY>>]{RESET}"
+            elif lvl["sell_imbalance"]:
+                imb_str = f"{RED}[<<3:1 SELL]{RESET}"
+            else:
+                imb_str = f"{DIM}     -    {RESET}"
+
+            g2 = get_candle_glyph(candles[0], b["price"], dom["step"])
+            g1 = get_candle_glyph(candles[1], b["price"], dom["step"])
+            g0 = get_candle_glyph(candles[2], b["price"], dom["step"])
+            wick_note = f" {DIM}(Low){RESET}" if k == 4 else ""
+            c_graph = f"   {g2}   │   {g1}   │   {g0}  {wick_note}"
+
+            right_str = f" {ba_str} │ {d_str} │ {imb_str} │{c_graph}"
+
+            sys.stdout.write(pad_visible(left_str, 68) + f"{DIM}║{RESET}" + pad_visible(right_str, 60) + "\n")
+
+    # =========================================================================
+    # VISTA 2: DOM COMPLETO (10 NIVELES DE PROFUNDIDAD)
+    # =========================================================================
+    elif view_mode == "DOM":
         sys.stdout.write(f"{CYAN}{BOLD}========================================================================================{RESET}\n")
-        sys.stdout.write(f"{BOLD}   LIBRO DE ÓRDENES (DOM LEVEL 3 · MBO) · LIQUIDEZ PASIVA DE MERCADO   {RESET}\n")
+        sys.stdout.write(f"{BOLD}   LIBRO DE ÓRDENES (DOM LEVEL 3 · MBO) · LIQUIDEZ PASIVA DE MERCADO (10 NIVELES)   {RESET}\n")
         sys.stdout.write(f"{CYAN}{BOLD}========================================================================================{RESET}\n")
-        sys.stdout.write(f"{BOLD}{'PRECIO':>10s} | {'LOTES':>8s} | {'VALOR ($)':>9s} | {'# ORD':>5s} | {'ACUMULADO':>10s} | {'PROFUNDIDAD / ESTADO':<22s}{RESET}\n")
+        sys.stdout.write(f"{BOLD}{'PRECIO':>10s} | {'LOTES':>8s} | {'VALOR ($)':>9s} | {'# ORD':>5s} | {'ACUMULADO':>10s} | {'PROFUNDIDAD & LIQUIDEZ PASIVA':<28s}{RESET}\n")
         sys.stdout.write(f"{DIM}----------------------------------------------------------------------------------------{RESET}\n")
 
-        # Asks
-        asks_to_render = dom["asks"] if view_mode == "DOM" else dom["asks"][-5:]
-        for a in asks_to_render:
+        for a in dom["asks"]:
             bar_len = int((a["cumulative"] / max_c) * 12)
             price_fmt = f"{a['price']:10.{digits}f}"
             lots_fmt = f"{a['quantity']:8.3f}"
@@ -719,31 +978,23 @@ def render_terminal_dashboard(symbol="XAUUSD", timeframe="4H", override_price=No
 
             if is_matching_row:
                 bar = f"{VIOLET}{'█' * bar_len}{DIM}{'░' * (12 - bar_len)}{RESET}"
-                match_txt = f"{BG_VIOLET} ⚡ MATCH: BUY AGG x SELL LIM ({MATCH_STATE['last_match_lots']:.3f}L) {RESET}"
+                match_txt = f"{BG_VIOLET} ⚡ MATCH: BUY AGG x SELL LIM ({MATCH_STATE['last_match_lots']:.3f}L · {a['orders']} ORD) {RESET}"
                 sys.stdout.write(f"{BOLD_VIOLET}{price_fmt}{RESET} | {BOLD_VIOLET}{lots_fmt}{RESET} | {BOLD_VIOLET}{val_fmt}{RESET} | {BOLD_VIOLET}{ord_fmt}{RESET} | {cum_fmt} | {bar} {match_txt}\n")
             else:
                 bar = f"{RED}{'█' * bar_len}{DIM}{'░' * (12 - bar_len)}{RESET}"
-                tag = f" {YELLOW}{BOLD}[TECHO {tf}: {a['notional_str']} | {a['orders']} ORD | EDAD: {tf_prof['wall_age']}]{RESET}" if a["is_wall"] else ""
+                tag_name = f"[TECHO {tf} · {a['orders']} ORD]" if a["is_wall"] else f"[LIMIT SELL · {a['orders']} ORD]"
+                tag = f" {YELLOW}{BOLD}{tag_name}{RESET}" if a["is_wall"] else f" {RED}{tag_name}{RESET}"
                 sys.stdout.write(f"{RED}{price_fmt}{RESET} | {lots_fmt} | {val_fmt} | {ord_fmt} | {cum_fmt} | {bar}{tag}\n")
 
-        # Spread / Spot Banner
+        # Spot
         sys.stdout.write(f"{DIM}----------------------------------------------------------------------------------------{RESET}\n")
         cur_fmt = f"{dom['current_price']:.{digits}f}"
         bid_fmt = f"{dom['best_bid']:.{digits}f}"
         ask_fmt = f"{dom['best_ask']:.{digits}f}"
-
-        if MATCH_STATE["is_flashing"]:
-            side_desc = "COMPRADOR AGRESIVO ABSORBIENDO SELL LIMIT" if MATCH_STATE["last_match_side"] == "ASK" else "VENDEDOR AGRESIVO ABSORBIENDO BUY LIMIT"
-            match_usd_fmt = format_notional(MATCH_STATE["last_match_usd"])
-            match_banner = f"{BG_VIOLET} ⚡ LUZ VIOLETA MATCH: {side_desc} [{MATCH_STATE['last_match_lots']:.3f}L | {match_usd_fmt}] @ {MATCH_STATE['last_match_price']:.{digits}f} {RESET}"
-            sys.stdout.write(f" {match_banner}\n")
-        else:
-            sys.stdout.write(f" >>> {GREEN}{BOLD}PRECIO SPOT: {cur_fmt} {dom['unit']}{RESET} (Mejor Bid: {bid_fmt} / Mejor Ask: {ask_fmt})\n")
+        sys.stdout.write(f" >>> {GREEN}{BOLD}PRECIO SPOT: {cur_fmt} {dom['unit']}{RESET} (Mejor Bid: {bid_fmt} / Mejor Ask: {ask_fmt} · {dom['spread_label']})\n")
         sys.stdout.write(f"{DIM}----------------------------------------------------------------------------------------{RESET}\n")
 
-        # Bids
-        bids_to_render = dom["bids"] if view_mode == "DOM" else dom["bids"][:5]
-        for b in bids_to_render:
+        for b in dom["bids"]:
             bar_len = int((b["cumulative"] / max_c) * 12)
             price_fmt = f"{b['price']:10.{digits}f}"
             lots_fmt = f"{b['quantity']:8.3f}"
@@ -757,19 +1008,46 @@ def render_terminal_dashboard(symbol="XAUUSD", timeframe="4H", override_price=No
 
             if is_matching_row:
                 bar = f"{VIOLET}{'█' * bar_len}{DIM}{'░' * (12 - bar_len)}{RESET}"
-                match_txt = f"{BG_VIOLET} ⚡ MATCH: SELL AGG x BUY LIM ({MATCH_STATE['last_match_lots']:.3f}L) {RESET}"
+                match_txt = f"{BG_VIOLET} ⚡ MATCH: SELL AGG x BUY LIM ({MATCH_STATE['last_match_lots']:.3f}L · {b['orders']} ORD) {RESET}"
                 sys.stdout.write(f"{BOLD_VIOLET}{price_fmt}{RESET} | {BOLD_VIOLET}{lots_fmt}{RESET} | {BOLD_VIOLET}{val_fmt}{RESET} | {BOLD_VIOLET}{ord_fmt}{RESET} | {cum_fmt} | {bar} {match_txt}\n")
             else:
                 bar = f"{GREEN}{'█' * bar_len}{DIM}{'░' * (12 - bar_len)}{RESET}"
-                tag = f" {YELLOW}{BOLD}[PISO {tf}: {b['notional_str']} | {b['orders']} ORD | EDAD: {tf_prof['wall_age']}]{RESET}" if b["is_wall"] else ""
+                tag_name = f"[PISO {tf} · {b['orders']} ORD]" if b["is_wall"] else f"[LIMIT BUY · {b['orders']} ORD]"
+                tag = f" {YELLOW}{BOLD}{tag_name}{RESET}" if b["is_wall"] else f" {GREEN}{tag_name}{RESET}"
                 sys.stdout.write(f"{GREEN}{price_fmt}{RESET} | {lots_fmt} | {val_fmt} | {ord_fmt} | {cum_fmt} | {bar}{tag}\n")
 
-    # MODO 2: FOOTPRINT ORDER FLOW (Si la vista es DUAL o FOOTPRINT)
-    if view_mode in ["DUAL", "FOOTPRINT"]:
-        render_footprint_block(fp, digits, dom["unit"], is_compact=(view_mode == "DUAL"))
+    # =========================================================================
+    # VISTA 3: FOOTPRINT COMPLETO
+    # =========================================================================
+    elif view_mode == "FOOTPRINT":
+        render_footprint_block(fp, digits, dom["unit"], is_compact=False)
+
+    # =========================================================================
+    # TELEMETRÍA Y RESUMEN INSTITUCIONAL AL PIE
+    # =========================================================================
+    sys.stdout.write(f"{CYAN}{BOLD}================================================================================================================================{RESET}\n")
+
+    # Resumen de Vela Activa
+    c_delta = fp["candle_delta"]
+    c_vol = fp["candle_volume"]
+    c_pct = fp["delta_pct"]
+    delta_label = f"{GREEN}{BOLD}{c_delta:+d} Lotes ({c_pct:+.1f}% Comprador){RESET}" if c_delta > 0 else f"{RED}{BOLD}{c_delta:+d} Lotes ({c_pct:+.1f}% Vendedor){RESET}"
+
+    sys.stdout.write(f"{BOLD}RESUMEN VELA T-0:{RESET} Candle Delta: {delta_label} | Vol Total: {YELLOW}{c_vol:,} Lotes{RESET} | POC: {CYAN}{BOLD}{fp['poc_price']:.{digits}f} {dom['unit']}{RESET} ({fp['poc_node']['total']}L · {fp['poc_pct']}%)\n")
+
+    # Historial de Flujo de las 3 Velas
+    c2, c1, c0 = candles[0], candles[1], candles[2]
+    c2_dir = f"{GREEN}Alcista{RESET}" if c2["bull"] else f"{RED}Bajista{RESET}"
+    c1_dir = f"{GREEN}Alcista{RESET}" if c1["bull"] else f"{RED}Sweep Bajista{RESET}"
+    c0_dir = f"{GREEN}Comprador Activo{RESET}" if c0["bull"] else f"{RED}Presión Vendedora{RESET}"
+    sys.stdout.write(f"{BOLD}FLUJO MULTI-VELA:{RESET} [Vela T-2: {c2['delta']:+d}L ({c2_dir})] ➔ [Vela T-1: {c1['delta']:+d}L ({c1_dir})] ➔ [Vela T-0: {c_delta:+d}L ({c0_dir})]\n")
+
+    if fp["absorption_status"] == "ABSORCION_COMPRADORA":
+        sys.stdout.write(f"  {BG_CYAN} 🛡️ ABSORCIÓN EN SOPORTE DETECTADA: Compradores pasivos absorbieron ventas a mercado (Vendedores atrapados) {RESET}\n")
+    elif fp["absorption_status"] == "ABSORCION_VENDEDORA":
+        sys.stdout.write(f"  {BG_YELLOW} 🛡️ ABSORCIÓN EN RESISTENCIA DETECTADA: Vendedores pasivos absorbieron compras a mercado (Compradores atrapados) {RESET}\n")
 
     # Dictamen Institucional ATLAS L3
-    sys.stdout.write(f"{CYAN}{BOLD}========================================================================================{RESET}\n")
     ask_walls = [a for a in dom['asks'] if a['is_wall']]
     bid_walls = [b for b in dom['bids'] if b['is_wall']]
     ask_wall = ask_walls[0] if ask_walls else dom['asks'][0]
