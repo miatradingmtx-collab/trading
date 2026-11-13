@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>MIA — Arquitectura GitFlow CI/CD Dual (Mismo Archivo, Universos Paralelos)</title>
+  <style>
+    :root {
+      --bg-obsidian: #080a0f;
+      --card-bg: rgba(14, 18, 28, 0.94);
+      --card-border: #283347;
+      --cyan-neon: #38bdf8;
+      --purple-neon: #c084fc;
+      --green-neon: #4ade80;
+      --red-neon: #f87171;
+      --gold-neon: #facc15;
+      --amber-neon: #fb923c;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background-color: var(--bg-obsidian);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.16), transparent 55%),
+        radial-gradient(circle at 85% 85%, rgba(192, 132, 252, 0.12), transparent 45%),
+        radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 28px 28px;
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Ticker Superior */
+    .ticker-bar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(8, 10, 15, 0.94);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 10px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.8);
+    }
+    .ticker-title {
+      font-size: 0.85rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      color: var(--cyan-neon);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pulse-dot {
+      width: 10px; height: 10px;
+      background: var(--cyan-neon);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--cyan-neon);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.3); } }
+    .badge-pills { display: flex; gap: 8px; font-size: 0.74rem; flex-wrap: wrap; }
+    .pill {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 3px 10px;
+      border-radius: 9999px;
+      color: var(--text-muted);
+    }
+    .pill strong { color: var(--green-neon); }
+    .pill.warn strong { color: var(--gold-neon); }
+    .pill.purple strong { color: var(--purple-neon); }
+
+    /* Layout Principal */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr 340px;
+      gap: 20px;
+      padding: 20px 24px;
+      flex: 1;
+    }
+    @media (max-width: 1240px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--card-bg);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+    }
+    .panel-title {
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding-bottom: 8px;
+    }
+
+    /* Visor de Código Interactivo */
+    .code-viewer {
+      background: #03060a;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 10px;
+      padding: 12px;
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 0.75rem;
+      line-height: 1.45;
+      color: #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+    }
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding-bottom: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .code-line {
+      display: flex;
+      gap: 8px;
+    }
+    .line-num {
+      color: #475569;
+      user-select: none;
+      min-width: 20px;
+      text-align: right;
+    }
+    .line-text {
+      flex: 1;
+      word-break: break-all;
+    }
+    .highlight-dev {
+      background: rgba(192, 132, 252, 0.15);
+      color: var(--purple-neon);
+      border-left: 2px solid var(--purple-neon);
+      padding-left: 4px;
+    }
+    .highlight-main {
+      background: rgba(74, 222, 128, 0.15);
+      color: var(--green-neon);
+      border-left: 2px solid var(--green-neon);
+      padding-left: 4px;
+    }
+
+    /* Diagrama SVG Central */
+    .canvas-container {
+      position: relative;
+      background: radial-gradient(circle at center, rgba(14, 22, 38, 0.95), rgba(8, 10, 15, 0.98));
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 540px;
+    }
+    .canvas-svg {
+      width: 100%;
+      height: 100%;
+      min-height: 520px;
+    }
+
+    /* Animación Láser */
+    @keyframes laserDash {
+      to { stroke-dashoffset: -40; }
+    }
+    .laser-line-dev {
+      stroke-dasharray: 6, 6;
+      animation: laserDash 1.2s linear infinite;
+      stroke: var(--purple-neon);
+    }
+    .laser-line-main {
+      stroke-dasharray: 6, 6;
+      animation: laserDash 1.2s linear infinite;
+      stroke: var(--green-neon);
+    }
+
+    /* Nodos Interactivos */
+    .node-box {
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .node-box:hover rect {
+      stroke-width: 2.5;
+      filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.7));
+    }
+
+    /* Botones de Control */
+    .btn-action {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid var(--cyan-neon);
+      color: var(--cyan-neon);
+      font-size: 0.76rem;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-action:hover {
+      background: var(--cyan-neon);
+      color: #04070d;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.4);
+    }
+    .btn-action.purple {
+      border-color: var(--purple-neon);
+      color: var(--purple-neon);
+      background: rgba(192, 132, 252, 0.12);
+    }
+    .btn-action.purple:hover {
+      background: var(--purple-neon);
+      color: #04070d;
+      box-shadow: 0 0 14px rgba(192, 132, 252, 0.4);
+    }
+    .btn-action.green {
+      border-color: var(--green-neon);
+      color: var(--green-neon);
+      background: rgba(74, 222, 128, 0.12);
+    }
+    .btn-action.green:hover {
+      background: var(--green-neon);
+      color: #04070d;
+      box-shadow: 0 0 14px rgba(74, 222, 128, 0.4);
+    }
+
+    /* Inspector Inferior */
+    .inspector-bar {
+      margin: 0 24px 20px 24px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 0.78rem;
+    }
+    .inspector-label { color: var(--text-muted); }
+    .inspector-value { font-family: monospace; color: var(--cyan-neon); font-weight: 700; }
+
+    /* Footer Persistente */
+    .footer-nav {
+      background: rgba(8, 10, 15, 0.98);
+      border-top: 1px solid var(--card-border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 0.76rem;
+    }
+    .footer-nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .footer-nav a:hover, .footer-nav a.active-link {
+      color: var(--cyan-neon);
+      background: rgba(56, 189, 248, 0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ticker Superior -->
+  <header class="ticker-bar">
+    <div class="ticker-title">
+      <div class="pulse-dot"></div>
+      GITFLOW CI/CD DUAL — EL MISMO ARCHIVO EN UNIVERSOS PARALELOS
+    </div>
+    <div class="badge-pills">
+      <div class="pill purple">Rama Activa: <strong id="pillBranch">develop (Staging)</strong></div>
+      <div class="pill">Puntero HEAD: <strong id="pillHead">commit fb9152b</strong></div>
+      <div class="pill">Staging Host: <strong>a0b8 (Linux / Backtrader)</strong></div>
+      <div class="pill">Prod Hosts: <strong>0b51 | 1fd4 | 927a</strong></div>
+      <div class="pill">Archivos Duplicados en Repo: <strong>0 (Cero)</strong></div>
+    </div>
+  </header>
+
+  <!-- Layout Principal -->
+  <main class="main-grid">
+
+    <!-- Panel Izquierdo: Simulación en Disco Local (Tu PC) -->
+    <aside class="panel">
+      <div class="panel-title">
+        <span>Tu Disco Local (Workspace)</span>
+        <span style="color: var(--cyan-neon); font-size: 0.7rem;">Puntero HEAD</span>
+      </div>
+
+      <div style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.4;">
+        En tu disco duro existe <strong>un solo archivo</strong> físico llamado <code>mt5_executor_cloud.py</code>. Cuando cambias de rama con <code>git checkout</code>, Git reescribe su contenido instantáneamente en memoria.
+      </div>
+
+      <!-- Selector Interactivo de Rama HEAD -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <button id="btnHeadDev" class="btn-action purple" onclick="switchLocalBranch('develop')">
+          🌿 HEAD -> develop
+        </button>
+        <button id="btnHeadMain" class="btn-action" onclick="switchLocalBranch('main')">
+          🛡️ HEAD -> main
+        </button>
+      </div>
+
+      <!-- Visor de Código en Vivo según la Rama Activa -->
+      <div class="code-viewer">
+        <div class="code-header">
+          <span style="color: var(--cyan-neon);">mt5_executor_cloud.py</span>
+          <span id="codeBranchBadge" style="color: var(--purple-neon); font-family: monospace;">RAMA: develop</span>
+        </div>
+        <div class="code-line">
+          <span class="line-num">58</span>
+          <span class="line-text" style="color: #64748b;"># MODO DE EJECUCION DE TRADING</span>
+        </div>
+        <div class="code-line">
+          <span class="line-num">59</span>
+          <span class="line-text">UPSTASH_URL = os.getenv("UPSTASH_URL")</span>
+        </div>
+        <div class="code-line" id="lineLogic">
+          <span class="line-num">60</span>
+          <span class="line-text highlight-dev">resultado = 2 * 2  # (TEST EXPERIMENTAL EN DEV)</span>
+        </div>
+        <div class="code-line" id="lineMode">
+          <span class="line-num">61</span>
+          <span class="line-text highlight-dev">SHADOW_MODE = True # (BACKTRADER RAM LINUX)</span>
+        </div>
+        <div class="code-line">
+          <span class="line-num">62</span>
+          <span class="line-text">evaluar_cascada_rune_v2()</span>
+        </div>
+      </div>
+
+      <div style="font-size: 0.72rem; color: var(--gold-neon); background: rgba(250, 204, 21, 0.08); padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(250, 204, 21, 0.2);">
+        ⚡ <strong>Magia Git:</strong> Jamás creas <code>mt5_executor_cloud.develop.py</code>. El archivo siempre conserva su nombre canónico y único.
+      </div>
+
+      <div style="margin-top: auto; padding-top: 8px;">
+        <button class="btn-action green" style="width: 100%;" onclick="simulateMergeToMain()">
+          🚀 Simular 'git merge develop' hacia 'main'
+        </button>
+      </div>
+    </aside>
+
+    <!-- Panel Central: Grafo de Objetos Git (DAG) y Conexión Railway -->
+    <section class="canvas-container">
+      <div style="padding: 14px 20px; border-bottom: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em; color: var(--cyan-neon); text-transform: uppercase;">
+          Topología DAG Git & Pipelines CI/CD en Railway (Linux)
+        </div>
+        <span id="statusDeployment" style="font-size: 0.72rem; color: var(--green-neon); font-family: monospace;">STAGING & PROD DESACOPLADOS</span>
+      </div>
+
+      <svg class="canvas-svg" viewBox="0 0 780 500">
+        <defs>
+          <linearGradient id="gradNodeDark" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#121826" />
+            <stop offset="100%" stop-color="#0a0e17" />
+          </linearGradient>
+          <filter id="neonCyan" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="6" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
+        <!-- Conexiones Bézier Láser -->
+        <!-- Commit Base A -> Commit Dev B -->
+        <path d="M 160 180 C 220 180, 240 100, 310 100" fill="none" stroke="var(--purple-neon)" stroke-width="2.5" class="laser-line-dev" />
+
+        <!-- Commit Base A -> Commit Main A -->
+        <path d="M 160 180 C 220 180, 240 260, 310 260" fill="none" stroke="var(--green-neon)" stroke-width="2.5" class="laser-line-main" />
+
+        <!-- Commit Dev B -> Push GitHub develop -->
+        <path d="M 450 100 C 500 100, 520 100, 560 100" fill="none" stroke="var(--purple-neon)" stroke-width="2" class="laser-line-dev" />
+
+        <!-- Commit Main A -> Push GitHub main -->
+        <path d="M 450 260 C 500 260, 520 260, 560 260" fill="none" stroke="var(--green-neon)" stroke-width="2" class="laser-line-main" />
+
+        <!-- GitHub develop -> Railway Staging a0b8 -->
+        <path d="M 680 100 C 720 100, 720 120, 720 150" fill="none" stroke="var(--purple-neon)" stroke-width="2.5" stroke-dasharray="4,4" />
+
+        <!-- GitHub main -> Railway Producción Tríada -->
+        <path d="M 680 260 C 720 260, 720 300, 720 340" fill="none" stroke="var(--green-neon)" stroke-width="2.5" stroke-dasharray="4,4" />
+
+        <!-- Línea de Merge Potencial (Intermitente) -->
+        <path id="mergeCurve" d="M 380 130 C 380 190, 380 200, 380 230" fill="none" stroke="var(--gold-neon)" stroke-width="2.5" stroke-dasharray="6,6" style="opacity: 0.6;" />
+
+        <!-- Nodos Interactivos -->
+
+        <!-- Nodo 1: Commit Base (Pasado Común) -->
+        <g class="node-box" onclick="inspectNode('COMMIT_A', 'Commit Base (SHA: 48d0a7e). mt5_executor_cloud.py original con formula 1+2=3', 'git')">
+          <circle cx="120" cy="180" r="34" fill="url(#gradNodeDark)" stroke="var(--cyan-neon)" stroke-width="2" />
+          <text x="120" y="176" fill="var(--cyan-neon)" font-size="10" font-weight="800" text-anchor="middle">COMMIT A</text>
+          <text x="120" y="190" fill="#94a3b8" font-size="8" font-family="monospace" text-anchor="middle">SHA: 48d0a7e</text>
+        </g>
+
+        <!-- Nodo 2: Commit B (Rama develop - Laboratorio) -->
+        <g class="node-box" onclick="inspectNode('RAMA_DEVELOP', 'Rama develop (SHA: fb9152b). Logica 2*2=4 y Shadow Mode activo en Backtrader', 'develop')">
+          <rect x="310" y="65" width="140" height="70" rx="10" fill="url(#gradNodeDark)" stroke="var(--purple-neon)" stroke-width="2" />
+          <text x="380" y="90" fill="var(--purple-neon)" font-size="11" font-weight="800" text-anchor="middle">🌿 RAMA 'develop'</text>
+          <text x="380" y="106" fill="#f1f5f9" font-size="9" text-anchor="middle">Lógica: 2 * 2 = 4</text>
+          <text x="380" y="122" fill="#94a3b8" font-size="8" font-family="monospace" text-anchor="middle">SHA: fb9152b</text>
+        </g>
+
+        <!-- Nodo 3: Commit A Congelado (Rama main - Producción Sagrada) -->
+        <g class="node-box" onclick="inspectNode('RAMA_MAIN', 'Rama main (SHA: a7a5d4b). Logica 1+2=3 congelada. Protege capital real $5,000 USD', 'main')">
+          <rect x="310" y="225" width="140" height="70" rx="10" fill="url(#gradNodeDark)" stroke="var(--green-neon)" stroke-width="2" />
+          <text x="380" y="250" fill="var(--green-neon)" font-size="11" font-weight="800" text-anchor="middle">🛡️ RAMA 'main'</text>
+          <text x="380" y="266" fill="#f1f5f9" font-size="9" text-anchor="middle">Lógica: 1 + 2 = 3</text>
+          <text x="380" y="282" fill="#94a3b8" font-size="8" font-family="monospace" text-anchor="middle">SHA: a7a5d4b (PROD)</text>
+        </g>
+
+        <!-- Nodo 4: GitHub origin/develop -->
+        <g class="node-box" onclick="inspectNode('GITHUB_DEV', 'Repositorio Remoto: origin/develop. Disparador de Webhooks para Railway Staging', 'github')">
+          <rect x="560" y="70" width="120" height="60" rx="8" fill="url(#gradNodeDark)" stroke="var(--purple-neon)" stroke-width="1.5" />
+          <text x="620" y="94" fill="var(--purple-neon)" font-size="10" font-weight="800" text-anchor="middle">GITHUB</text>
+          <text x="620" y="110" fill="#cbd5e1" font-size="9" text-anchor="middle">origin/develop</text>
+        </g>
+
+        <!-- Nodo 5: GitHub origin/main -->
+        <g class="node-box" onclick="inspectNode('GITHUB_MAIN', 'Repositorio Remoto: origin/main. Disparador de Webhooks para Railway Produccion', 'github')">
+          <rect x="560" y="230" width="120" height="60" rx="8" fill="url(#gradNodeDark)" stroke="var(--green-neon)" stroke-width="1.5" />
+          <text x="620" y="254" fill="var(--green-neon)" font-size="10" font-weight="800" text-anchor="middle">GITHUB</text>
+          <text x="620" y="270" fill="#cbd5e1" font-size="9" text-anchor="middle">origin/main</text>
+        </g>
+
+        <!-- Capa Inferior: Servidores Railway en Linux -->
+        <!-- Servidor Staging a0b8 -->
+        <g class="node-box" onclick="inspectNode('RAILWAY_STAGING', 'Railway Staging Container (a0b8 en Linux). Inyecta Upstash Staging + Backtrader. 0 riesgo.', 'railway')">
+          <rect x="540" y="370" width="220" height="85" rx="12" fill="url(#gradNodeDark)" stroke="var(--purple-neon)" stroke-width="2" />
+          <text x="650" y="395" fill="var(--purple-neon)" font-size="11" font-weight="800" text-anchor="middle">CONTENEDOR STAGING (a0b8)</text>
+          <text x="650" y="412" fill="#cbd5e1" font-size="9" text-anchor="middle">Linux Debian / Docker</text>
+          <text x="650" y="428" fill="var(--gold-neon)" font-size="8" font-family="monospace" text-anchor="middle">ENV: Upstash Staging + Backtrader</text>
+          <text x="650" y="442" fill="#94a3b8" font-size="8" text-anchor="middle">URL: trading-staging-a0b8.up.railway.app</text>
+        </g>
+
+        <!-- Servidor Producción Tríada -->
+        <g class="node-box" onclick="inspectNode('RAILWAY_PROD', 'Railway Production Triada (0b51, 1fd4, 927a). Inyecta Upstash Oficial + MetaAPI Real. Base $5,000 USD.', 'railway')">
+          <rect x="60" y="370" width="420" height="85" rx="12" fill="url(#gradNodeDark)" stroke="var(--green-neon)" stroke-width="2" />
+          <text x="270" y="395" fill="var(--green-neon)" font-size="11" font-weight="800" text-anchor="middle">TRÍADA DE PRODUCCIÓN OFICIAL (0b51 | 1fd4 | 927a)</text>
+          <text x="270" y="412" fill="#cbd5e1" font-size="9" text-anchor="middle">3 Microservicios Linux Desacoplados</text>
+          <text x="270" y="428" fill="var(--green-neon)" font-size="8" font-family="monospace" text-anchor="middle">ENV: Upstash Prod Oficial + MetaAPI MT5 Real</text>
+          <text x="270" y="442" fill="#94a3b8" font-size="8" text-anchor="middle">Saldo Base: $5,000 USD | Cero ejecuciones de Staging</text>
+        </g>
+
+      </svg>
+    </section>
+
+    <!-- Panel Derecho: Explicación y Variables de Entorno -->
+    <aside class="panel">
+      <div class="panel-title">
+        <span>Inyección de Variables (12-Factor)</span>
+        <span style="color: var(--gold-neon); font-size: 0.7rem;">ENV_VARS</span>
+      </div>
+
+      <div style="font-size: 0.73rem; color: var(--text-muted); line-height: 1.4;">
+        Railway inyecta valores distintos a cada contenedor en Linux. El código <code>mt5_executor_cloud.py</code> lee <code>os.getenv()</code> y sabe a dónde apuntar sin ser modificado:
+      </div>
+
+      <!-- Tarjeta Variables Staging -->
+      <div style="background: rgba(192, 132, 252, 0.08); border-left: 3px solid var(--purple-neon); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 4px; font-size: 0.72rem;">
+        <span style="color: var(--purple-neon); font-weight: 700;">CONTENEDOR STAGING (a0b8):</span>
+        <div><code>ENVIRONMENT = "development"</code></div>
+        <div><code>UPSTASH_URL = "...koi-staging.io"</code></div>
+        <div><code>SHADOW_MODE_GLOBAL = "true"</code></div>
+        <div style="color: #94a3b8; font-size: 0.68rem;">* Backtrader simula y aprende sin gastar 1 centavo.</div>
+      </div>
+
+      <!-- Tarjeta Variables Producción -->
+      <div style="background: rgba(74, 222, 128, 0.08); border-left: 3px solid var(--green-neon); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 4px; font-size: 0.72rem;">
+        <span style="color: var(--green-neon); font-weight: 700;">CONTENEDORES PRODUCCIÓN (0b51 / 1fd4 / 927a):</span>
+        <div><code>ENVIRONMENT = "production"</code></div>
+        <div><code>UPSTASH_URL = "...koi-93555.io"</code></div>
+        <div><code>SHADOW_MODE_GLOBAL = "false"</code></div>
+        <div style="color: #94a3b8; font-size: 0.68rem;">* Conecta a cuenta real auditada de $5,000 USD.</div>
+      </div>
+
+      <div style="font-size: 0.72rem; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px;">
+        <strong>Conclusión de Ingeniería:</strong> Con GitFlow tienes <em>aislamiento total en código</em>, y con Railway tienes <em>aislamiento total en infraestructura</em>.
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Inspector Inferior Interactivo -->
+  <section class="inspector-bar">
+    <div>
+      <span class="inspector-label">Elemento Seleccionado: </span>
+      <span id="inspTitle" class="inspector-value">RAMA_DEVELOP (Entorno de Pruebas)</span>
+    </div>
+    <div>
+      <span class="inspector-label">Detalle Técnico: </span>
+      <span id="inspDetail" style="color: #cbd5e1;">Rama develop (SHA: fb9152b). Lógica 2*2=4 y Shadow Mode activo en Backtrader.</span>
+    </div>
+    <div>
+      <span class="inspector-label">Riesgo en Producción: </span>
+      <span id="inspRisk" style="color: var(--green-neon); font-weight: 700;">0.00% (Aislamiento Total)</span>
+    </div>
+  </section>
+
+  <!-- Pie Persistente con Enlaces a los 5 Dashboards Oficiales -->
+  <footer class="footer-nav">
+    <a href="https://trading-production-1fd4.up.railway.app/" target="_blank">🌐 Antopus 3D (/)</a>
+    <a href="https://trading-production-1fd4.up.railway.app/brain" target="_blank">🧠 Red Neuronal 3D (/brain)</a>
+    <a href="https://trading-production-1fd4.up.railway.app/brain/rlcd" target="_blank">🎯 Calibrador RLCD 3D (1fd4)</a>
+    <a href="https://trading-production-1fd4.up.railway.app/mods" target="_blank">🧩 Mods & Extensiones (/mods)</a>
+    <a href="https://trading-production-927a.up.railway.app/dashboard" target="_blank">📊 Monitoreo HFT (/dashboard)</a>
+    <a href="#" class="active-link">🌿 Arquitectura GitFlow Dual</a>
+  </footer>
+
+  <!-- Lógica JavaScript Vanilla Pura -->
+  <script>
+    function switchLocalBranch(branch) {
+      const btnDev = document.getElementById('btnHeadDev');
+      const btnMain = document.getElementById('btnHeadMain');
+      const pillBranch = document.getElementById('pillBranch');
+      const pillHead = document.getElementById('pillHead');
+      const codeBadge = document.getElementById('codeBranchBadge');
+      const lineLogic = document.getElementById('lineLogic');
+      const lineMode = document.getElementById('lineMode');
+
+      if (branch === 'develop') {
+        btnDev.className = 'btn-action purple';
+        btnMain.className = 'btn-action';
+        pillBranch.innerText = 'develop (Staging)';
+        pillBranch.parentElement.className = 'pill purple';
+        pillHead.innerText = 'commit fb9152b';
+        codeBadge.innerText = 'RAMA: develop';
+        codeBadge.style.color = 'var(--purple-neon)';
+
+        lineLogic.innerHTML = '<span class="line-num">60</span><span class="line-text highlight-dev">resultado = 2 * 2  # (TEST EXPERIMENTAL EN DEV)</span>';
+        lineMode.innerHTML = '<span class="line-num">61</span><span class="line-text highlight-dev">SHADOW_MODE = True # (BACKTRADER RAM LINUX)</span>';
+
+        inspectNode('RAMA_DEVELOP', 'Tu espacio de trabajo local conmuta a develop. El archivo mt5_executor_cloud.py muestra la formula experimental 2*2=4.', 'develop');
+      } else {
+        btnDev.className = 'btn-action';
+        btnMain.className = 'btn-action green';
+        pillBranch.innerText = 'main (Producción)';
+        pillBranch.parentElement.className = 'pill';
+        pillHead.innerText = 'commit a7a5d4b';
+        codeBadge.innerText = 'RAMA: main';
+        codeBadge.style.color = 'var(--green-neon)';
+
+        lineLogic.innerHTML = '<span class="line-num">60</span><span class="line-text highlight-main">resultado = 1 + 2  # (LOGICA ORIGINAL CONGELADA EN PROD)</span>';
+        lineMode.innerHTML = '<span class="line-num">61</span><span class="line-text highlight-main">SHADOW_MODE = False # (BROKER MT5 EN VIVO)</span>';
+
+        inspectNode('RAMA_MAIN', 'Tu espacio de trabajo conmuto a main. El archivo fisico mt5_executor_cloud.py regreso instantaneamente a 1+2=3 sin tocar nada mas.', 'main');
+      }
+    }
+
+    function simulateMergeToMain() {
+      const status = document.getElementById('statusDeployment');
+      status.style.color = 'var(--gold-neon)';
+      status.innerText = 'EJECUTANDO: git checkout main && git merge develop && git push origin main...';
+
+      setTimeout(() => {
+        status.style.color = 'var(--green-neon)';
+        status.innerText = 'PRODUCCIÓN ACTUALIZADA EXITOSAMENTE (CI/CD RAILWAY BUILD COMPLETO)';
+        switchLocalBranch('main');
+        inspectNode('PROD_DEPLOYED', 'Merge completado: la logica probada 2*2=4 paso a produccion en 0b51, 1fd4 y 927a. Cero duplicacion de archivos.', 'main');
+      }, 1200);
+    }
+
+    function inspectNode(title, detail, type) {
+      document.getElementById('inspTitle').innerText = title;
+      document.getElementById('inspDetail').innerText = detail;
+      const risk = document.getElementById('inspRisk');
+
+      if (type === 'develop' || type === 'railway') {
+        risk.innerText = '0.00% (Aislamiento Total en Staging)';
+        risk.style.color = 'var(--green-neon)';
+      } else if (type === 'main') {
+        risk.innerText = 'PRODUCCIÓN ACTIVA (Protegida por GitFlow)';
+        risk.style.color = 'var(--gold-neon)';
+      } else {
+        risk.innerText = 'CONTROL DE VERSIONES GIT';
+        risk.style.color = 'var(--cyan-neon)';
+      }
+    }
+  </script>
+</body>
+</html>
