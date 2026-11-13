@@ -23,6 +23,7 @@ import os
 import time
 import requests
 import json
+import math
 import random
 import urllib.request
 from datetime import datetime
@@ -92,27 +93,29 @@ YF_TICKERS = {
     "EURUSD": "EURUSD=X",
     "GBPUSD": "GBPUSD=X",
     "GBPJPY": "GBPJPY=X",
-    "AUDUSD": "AUDUSD=X"
+    "AUDUSD": "AUDUSD=X",
+    "NZDCAD": "NZDCAD=X"
 }
 
 FALLBACK_PRICES = {
-    "XAUUSD": 4025.00,
-    "EURUSD": 1.12040,
-    "GBPUSD": 1.33820,
-    "GBPJPY": 209.950,
-    "AUDUSD": 0.70250,
-    "NZDCAD": 0.82550
+    "XAUUSD": 3898.60,
+    "EURUSD": 1.10630,
+    "GBPUSD": 1.32330,
+    "GBPJPY": 211.470,
+    "AUDUSD": 0.67920,
+    "NZDCAD": 0.78970
 }
 
 INSTRUMENT_SPECS = {
-    "XAUUSD": {"spread_usd": 0.13, "base_step": 0.25, "digits": 2, "unit": "USD", "contract_oz": 100},
-    "GBPJPY": {"spread_pips": 1.4, "base_step": 0.015, "digits": 3, "unit": "pips", "contract_fx": 100000},
-    "EURUSD": {"spread_pips": 0.8, "base_step": 0.00010, "digits": 5, "unit": "pips", "contract_fx": 100000},
-    "GBPUSD": {"spread_pips": 1.1, "base_step": 0.00010, "digits": 5, "unit": "pips", "contract_fx": 100000},
-    "AUDUSD": {"spread_pips": 0.9, "base_step": 0.00010, "digits": 5, "unit": "pips", "contract_fx": 100000}
+    "XAUUSD": {"spread_usd": 0.25, "base_step": 0.25, "digits": 2, "unit": "USD", "contract_oz": 100, "contract_name": "COMEX Gold Futures (GC · 100 oz)"},
+    "GBPJPY": {"spread_pips": 1.5, "base_step": 0.015, "digits": 3, "unit": "pips", "contract_fx": 100000, "contract_name": "CME 6B/6J Sintético Cruzado G5 FX"},
+    "EURUSD": {"spread_pips": 1.0, "base_step": 0.00010, "digits": 5, "unit": "pips", "contract_fx": 100000, "contract_name": "CME 6E Euro FX Futures (125k EUR)"},
+    "GBPUSD": {"spread_pips": 1.0, "base_step": 0.00010, "digits": 5, "unit": "pips", "contract_fx": 100000, "contract_name": "CME 6B British Pound Futures (62.5k GBP)"},
+    "AUDUSD": {"spread_pips": 1.0, "base_step": 0.00010, "digits": 5, "unit": "pips", "contract_fx": 100000, "contract_name": "CME 6A Australian Dollar Futures (100k AUD)"},
+    "NZDCAD": {"spread_pips": 1.0, "base_step": 0.00010, "digits": 5, "unit": "pips", "contract_fx": 100000, "contract_name": "CME 6N/6C Sintético Cruzado Sandbox FX"}
 }
 
-OFFICIAL_PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "GBPJPY", "AUDUSD"]
+OFFICIAL_PAIRS = ["XAUUSD", "EURUSD", "GBPUSD", "GBPJPY", "AUDUSD", "NZDCAD"]
 
 # Perfiles de Temporalidad Institucional para el DOM y Footprint
 TIMEFRAME_PROFILES = {
@@ -242,6 +245,13 @@ MATCH_STATE = {
     "is_flashing": False
 }
 
+def quantize_price(price: float, step: float, digits: int) -> float:
+    """Cuantiza un precio a la grilla de ticks institucional del contrato."""
+    if step <= 0:
+        return round(price, digits)
+    ticks = round(price / step)
+    return round(ticks * step, digits)
+
 def generate_synthetic_dom_l3(symbol="XAUUSD", timeframe="4H", override_price=None):
     current_price, specs = get_market_data(symbol, override_price)
     digits = specs["digits"]
@@ -253,47 +263,56 @@ def generate_synthetic_dom_l3(symbol="XAUUSD", timeframe="4H", override_price=No
     wall_level = tf_profile["wall_distance_level"]
 
     if "XAU" in sym:
-        jitter = random.choice([-0.04, -0.02, 0.0, 0.02, 0.04])
-        current_price = round(current_price + jitter, digits)
-        spread = specs.get("spread_usd", 0.13)
         step = round(specs.get("base_step", 0.25) * step_mult, digits)
+        spread = step  # Spread institucional COMEX mínimo de 1 tick
         spread_label = f"{spread:.2f} USD"
         lot_multiplier = specs.get("contract_oz", 100) * current_price
         unit = "USD"
     elif "JPY" in sym:
-        jitter = random.choice([-0.003, -0.001, 0.0, 0.001, 0.003])
-        current_price = round(current_price + jitter, digits)
-        spread_pips = specs.get("spread_pips", 1.4)
-        spread = spread_pips * 0.01
         step = round(specs.get("base_step", 0.015) * step_mult, digits)
+        spread = step
+        spread_pips = round(spread / 0.01, 1)
         spread_label = f"{spread_pips:.1f} pips"
         lot_multiplier = 100000
         unit = "pips"
     else:
-        jitter = random.choice([-0.00003, -0.00001, 0.0, 0.00001, 0.00003])
-        current_price = round(current_price + jitter, digits)
-        spread_pips = specs.get("spread_pips", 1.0)
-        spread = spread_pips * 0.0001
         step = round(specs.get("base_step", 0.00010) * step_mult, digits)
+        spread = step
+        spread_pips = round(spread / 0.00010, 1)
         spread_label = f"{spread_pips:.1f} pips"
         lot_multiplier = 100000
         unit = "pips"
 
-    best_bid = round(current_price - (spread / 2.0), digits)
-    best_ask = round(current_price + (spread / 2.0), digits)
+    # Cuantización estricta al grid de ticks:
+    # Best Bid es el múltiplo inferior o igual en la grilla
+    # Best Ask es exactamente Best Bid + 1 tick (step)
+    ticks_base = math.floor(current_price / step) if step > 0 else 0
+    best_bid = round(ticks_base * step, digits)
+    best_ask = round(best_bid + step, digits)
+
+    if current_price > best_ask:
+        best_bid = round(current_price, digits)
+        best_ask = round(best_bid + step, digits)
+    elif current_price < best_bid:
+        best_ask = round(current_price, digits)
+        best_bid = round(best_ask - step, digits)
 
     levels = 10
-    asks = []
-    bids = []
 
-    # Generación de Asks (Venta pasiva por encima de Best Ask)
+    # -------------------------------------------------------------
+    # GENERACIÓN DE ASKS (Venta Pasiva: desde Best Ask hacia arriba)
+    # k = 0 es Best Ask (más cercano al Spot)
+    # k = levels - 1 es el Ask más alto/lejano
+    # Profundidad acumulada (Cumulative Depth) desde el Best Ask hacia afuera
+    # -------------------------------------------------------------
+    asks_from_best = []
     cum_ask_qty = 0.0
     cum_ask_usd = 0.0
-    for i in range(levels, 0, -1):
-        step_price = round(best_ask + (i * step), digits)
-        is_wall = (i == wall_level)
+    for k in range(levels):
+        step_price = round(best_ask + (k * step), digits)
+        is_wall = (k == (wall_level - 1))
         vol_noise = random.uniform(0.92, 1.08)
-        base_lots = (0.45 * (i * 0.8) + (3.8 * vol_mult if is_wall else 0.25 * vol_mult))
+        base_lots = (0.45 * ((k + 1) * 0.8) + (3.8 * vol_mult if is_wall else 0.25 * vol_mult))
         qty = round(base_lots * vol_noise, 3)
         notional_usd = qty * lot_multiplier
         cum_ask_qty += qty
@@ -308,8 +327,9 @@ def generate_synthetic_dom_l3(symbol="XAUUSD", timeframe="4H", override_price=No
         else:
             orders_count = random.choice([1, 2])
 
-        asks.append({
-            "level": i,
+        asks_from_best.append({
+            "level": k + 1,
+            "dist_ticks": k,
             "price": step_price,
             "quantity": qty,
             "notional_usd": notional_usd,
@@ -319,16 +339,24 @@ def generate_synthetic_dom_l3(symbol="XAUUSD", timeframe="4H", override_price=No
             "cum_usd_str": format_notional(cum_ask_usd),
             "is_wall": is_wall
         })
-    asks.reverse()
 
-    # Generación de Bids (Compra pasiva por debajo de Best Bid)
+    # Invertir para que asks[0] sea el precio más alto y asks[-1] sea Best Ask
+    asks = list(reversed(asks_from_best))
+
+    # -------------------------------------------------------------
+    # GENERACIÓN DE BIDS (Compra Pasiva: desde Best Bid hacia abajo)
+    # k = 0 es Best Bid (más cercano al Spot)
+    # k = levels - 1 es el Bid más bajo/lejano
+    # Profundidad acumulada (Cumulative Depth) desde el Best Bid hacia afuera
+    # -------------------------------------------------------------
+    bids = []
     cum_bid_qty = 0.0
     cum_bid_usd = 0.0
-    for i in range(1, levels + 1):
-        step_price = round(best_bid - (i * step), digits)
-        is_wall = (i == (wall_level - 1 if wall_level > 2 else wall_level))
+    for k in range(levels):
+        step_price = round(best_bid - (k * step), digits)
+        is_wall = (k == (wall_level - 2 if wall_level > 2 else wall_level - 1))
         vol_noise = random.uniform(0.92, 1.08)
-        base_lots = (0.42 * (i * 0.75) + (4.1 * vol_mult if is_wall else 0.25 * vol_mult))
+        base_lots = (0.42 * ((k + 1) * 0.75) + (4.1 * vol_mult if is_wall else 0.25 * vol_mult))
         qty = round(base_lots * vol_noise, 3)
         notional_usd = qty * lot_multiplier
         cum_bid_qty += qty
@@ -344,7 +372,8 @@ def generate_synthetic_dom_l3(symbol="XAUUSD", timeframe="4H", override_price=No
             orders_count = random.choice([1, 2])
 
         bids.append({
-            "level": i,
+            "level": k + 1,
+            "dist_ticks": k,
             "price": step_price,
             "quantity": qty,
             "notional_usd": notional_usd,
@@ -391,6 +420,7 @@ def generate_synthetic_dom_l3(symbol="XAUUSD", timeframe="4H", override_price=No
         "best_ask": best_ask,
         "asks": asks,
         "bids": bids,
+        "specs": specs,
         "max_cum": max(cum_ask_qty, cum_bid_qty),
         "total_liquidity_usd": cum_ask_usd + cum_bid_usd
     }
@@ -398,10 +428,10 @@ def generate_synthetic_dom_l3(symbol="XAUUSD", timeframe="4H", override_price=No
 # ====================================================================
 # MOTOR INSTITUCIONAL FOOTPRINT ORDER FLOW & CANDLE DELTA
 # ====================================================================
-def generate_synthetic_footprint(symbol="XAUUSD", timeframe="4H", current_price=4025.0, step=0.25, digits=2, vol_mult=1.0):
+def generate_synthetic_footprint(symbol="XAUUSD", timeframe="4H", current_price=4025.0, step=0.25, digits=2, vol_mult=1.0, best_bid=None, best_ask=None):
     """
     Genera el Footprint Order Flow de la vela activa:
-    - Niveles de precio de la vela (High a Low).
+    - Niveles de precio de la vela (High a Low) alineados al grid de ticks institucional.
     - Bid Volume x Ask Volume (Órdenes agresivas ejecutadas).
     - Delta por nivel = Ask Vol - Bid Vol.
     - Identificación del POC (Nivel con Mayor Volumen / Más Peso de la vela).
@@ -413,13 +443,15 @@ def generate_synthetic_footprint(symbol="XAUUSD", timeframe="4H", current_price=
     levels_count = 11
     half = levels_count // 2
 
-    # POC dinámico cerca del precio actual
-    poc_offset = 0
-    poc_price = round(current_price + (poc_offset * step), digits)
+    # POC dinámico alineado al tick grid del contrato
+    if best_ask is not None and best_bid is not None:
+        poc_price = best_ask if abs(current_price - best_ask) <= abs(current_price - best_bid) else best_bid
+    else:
+        poc_price = quantize_price(current_price, step, digits)
 
     raw_levels = []
     for i in range(half, -half - 1, -1):
-        lvl_price = round(current_price + (i * step), digits)
+        lvl_price = round(poc_price + (i * step), digits)
         dist_to_poc = abs(lvl_price - poc_price) / max(step, 0.00001)
         decay = max(0.18, 1.0 - (dist_to_poc * 0.17))
         base_vol = (360 * vol_mult) * decay
@@ -626,9 +658,18 @@ def render_terminal_dashboard(symbol="XAUUSD", timeframe="4H", override_price=No
     tf_prof = dom["tf_profile"]
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    fp = generate_synthetic_footprint(symbol, tf, dom["current_price"], dom["step"], digits, tf_prof["vol_multiplier"])
+    fp = generate_synthetic_footprint(
+        symbol=symbol,
+        timeframe=tf,
+        current_price=dom["current_price"],
+        step=dom["step"],
+        digits=digits,
+        vol_mult=tf_prof["vol_multiplier"],
+        best_bid=dom["best_bid"],
+        best_ask=dom["best_ask"]
+    )
 
-    contract_info = "1 Lote = 100 oz" if "XAU" in dom["symbol"] else "1 Lote = 100k"
+    contract_info = dom.get("specs", {}).get("contract_name", "1 Lote = 100 oz" if "XAU" in dom["symbol"] else "1 Lote = 100k")
     total_liq_str = format_notional(dom["total_liquidity_usd"])
 
     # Barra interactiva de temporalidades
